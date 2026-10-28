@@ -176,7 +176,9 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
   (v59) and the test-alert send; 403 (`require_admin`) on the other, id-free admin actions (v56). A module-level frontend store is a data surface
   too: reset it on logout or identity change (`queue.reset()`), never just re-fetch.
 - **The SSE stream is a data surface.** `publish_*_event` takes the owning user as a **required**
-  argument; verify by raw-capturing `curl -N /api/stream`, never via the UI.
+  argument; verify by raw-capturing `curl -N /api/stream`, never via the UI. Every track or job
+  state change also calls `job_status.publish_change` after its commit (once per job), or the
+  dashboard's off-page state chips drift silently (v62).
 - **`downloaded_tracks` is never touched by archiving or retention** (a dropped ledger row means a
   re-download). **A `waiting` job is never archived on age alone**: eligibility is measured from the
   newest track `updated_at`, not `job.created_at`.

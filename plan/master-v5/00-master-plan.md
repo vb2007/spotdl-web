@@ -685,3 +685,25 @@ here.
   `spotdlweb_<timestamp>.dump`. Retention and the retained count match both prefixes, so the
   dumps written before the rename still age out after 14 days. Script and docs only: no app
   version bump, no release.
+
+- **2026-10-28, v62: three items needed backend changes; F7's model (owner's decisions).** The
+  plan's premises for F1, F4 and F10 didn't match the code, and the owner chose a backend change
+  for each (all outside v62's "Files owned"; none touches a wave-3 sibling's files):
+  - **F1:** `job.state` doesn't say old → new; a rollup move (a track settling) publishes no job
+    event at all. The backend now publishes `job.status {status, prev_status?, archived}` after
+    every announced change (`services/job_status.py`, chained through Redis `SET … GET`; hooked
+    into `tasks/{download,beat,expand}.py` and `routers/{jobs,tracks}.py`). The store moves an
+    off-page job's chip from it; a move it can't place re-reads the counts in one bulk request.
+  - **F4:** the heartbeat was an SSE comment, which page JavaScript never sees (v47), so "the last
+    event is older than the heartbeat" couldn't be measured. `routers/stream.py` also sends it as
+    a named event (`event: heartbeat`), on schedule even in `others`.
+  - **F10:** no attempt id or `started_at` reaches the browser during a run (the attempt row is
+    written at its end). The claim's `updated_at` (`clock_timestamp()`) is the run's identity:
+    `download_started_at` on every `downloading` event and on the track's row while it
+    downloads. The progress cache keys on it.
+  - **F7:** one save model on `/account`: a preference saves the moment it's chosen (retention's
+    days when committed: Enter or leaving the field). Recorded in `frontend/src/DESIGN.md`.
+  - **F8, applied with its intent:** "no settled jobs in the current view" decides only where the
+    view's counts cover every job clear log would archive (`mine`/`all`, no search); in `others`
+    and under a search the button stays on, since the action ignores the view.
+  - **F11** (owner, 2026-10-27) is done in v62 as the ledger row says.
