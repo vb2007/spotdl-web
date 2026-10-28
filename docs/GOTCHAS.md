@@ -7180,6 +7180,14 @@ independently-found production bug from the same conversation)
   moment. Nightly's `notify` now tells it apart (API: the job `cancelled`, no steps, no runner,
   and that annotation on its check run) and re-dispatches once with `retry=true`. A job
   cancelled by hand while queued looks identical except for the annotation.
+- **"Not acquired" can't be forced by stopping the runner (P2).** With the listener frozen
+  (`kill -STOP`, idle, 2026-10-27 23:47:53Z) a Nightly dispatch's job stayed plain `queued`, no
+  runner, for 19 minutes; GitHub just waited. The broker had handed the job over, though: on
+  `kill -CONT` the listener read the stale message and logged exactly 10-10's signature,
+  `acknowledge … Job not found`, then `acquirejob … Conflict` (the run had been cancelled by
+  then). So a delivered, unacknowledged assignment is the mechanism, but GitHub's "not
+  acquired" verdict needs its own retries to run out against a runner that keeps polling, which
+  can't be staged on demand. The detection is verified on the real past run instead.
 - **A job-level timeout is the wrong safety net (P4).** Scratch run 40595581518 (stand-in steps,
   the real rollback `if:`): with `timeout-minutes: 2` on the job, the health step was cancelled
   at 2 min, the `cancelled()` rollback started at once and was killed 4 min 49 s later, the
