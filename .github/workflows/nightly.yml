@@ -122,17 +122,28 @@ jobs:
                   -H 'Content-Type: application/json' ${3:+--data "$3"} -o "$RUNNER_TEMP/api.out" -w '%{http_code}' "$API_URL$2" || true
           }
           not_acquired=false
-          if [ "$RESULT" = "cancelled" ] && [ "$(gh_api GET "/repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100")" = 200 ]; then
+          check="not needed (result: $RESULT)"
+          jobs_code=""
+          [ "$RESULT" = "cancelled" ] && jobs_code="$(gh_api GET "/repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100")"
+          [ "$RESULT" = "cancelled" ] && check="jobs API HTTP ${jobs_code:-none}"
+          if [ "$jobs_code" = 200 ]; then
+            check="$check, the job ran or was cancelled with steps"
             job_id="$(python3 -c 'import json, sys
           for j in json.load(open(sys.argv[1])).get("jobs", []):
               if j.get("name") == "yt-dlp-freshness" and j.get("conclusion") == "cancelled" \
                       and not j.get("steps") and not j.get("runner_name"):
                   print(j["id"])' "$RUNNER_TEMP/api.out" 2>/dev/null || true)"
-            if [ -n "$job_id" ] && [ "$(gh_api GET "/repos/$REPO/check-runs/$job_id/annotations")" = 200 ] \
-               && grep -q 'not acquired' "$RUNNER_TEMP/api.out"; then
-              not_acquired=true
+            if [ -n "$job_id" ]; then
+              ann_code="$(gh_api GET "/repos/$REPO/check-runs/$job_id/annotations")"
+              check="jobs API HTTP 200, job $job_id never started, annotations API HTTP ${ann_code:-none}"
+              if [ "$ann_code" = 200 ] && grep -q 'not acquired' "$RUNNER_TEMP/api.out"; then
+                not_acquired=true
+              fi
+              check="$check, not acquired: $not_acquired"
             fi
           fi
+          # Which way it went, for the log (no token or body is printed).
+          echo "Not-acquired check: $check"
 
           if [ "$not_acquired" = true ] && [ "$RETRY" != "true" ]; then
             code="$(gh_api POST "/repos/$REPO/actions/workflows/nightly.yml/dispatches" \
