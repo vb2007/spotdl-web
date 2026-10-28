@@ -22,6 +22,10 @@
 
 	type Shown = (() => string) | null;
 
+	// v62 (F6): whether a key's name is typed and not yet created, for /account's unsaved-edits
+	// guard.
+	let { onnametyped }: { onnametyped?: (typed: boolean) => void } = $props();
+
 	let keys = $state<api.ApiKey[] | null>(null);
 	let maxActive = $state(10);
 	let loadError = $state<Shown>(null);
@@ -37,6 +41,10 @@
 	let busy = $state<Record<string, boolean>>({});
 
 	const atLimit = $derived(keys !== null && keys.length >= maxActive);
+
+	$effect(() => {
+		onnametyped?.(label.trim() !== '');
+	});
 
 	function load(): Promise<void> {
 		loadError = null;

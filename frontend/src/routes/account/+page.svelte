@@ -22,6 +22,7 @@
 	import LanguageSwitch from '$lib/components/LanguageSwitch.svelte';
 	import RichText from '$lib/components/RichText.svelte';
 	import ApiKeys from '$lib/components/ApiKeys.svelte';
+	import { guardUnsavedEdits } from '$lib/unsavedGuard';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
@@ -56,6 +57,11 @@
 			(neverArchive !== (saved.retention_days === null) ||
 				(!neverArchive && days !== saved.retention_days))
 	);
+
+	// v62 (F6): with every preference saved on choice (F7), only a typed value not yet
+	// committed is unsaved: retention's days, or a key's name not yet created.
+	let keyNameTyped = $state(false);
+	guardUnsavedEdits(() => dirty || keyNameTyped);
 
 	function syncForm(settings: api.RetentionSettings) {
 		saved = settings;
@@ -463,7 +469,7 @@
 		</section>
 
 		<!-- v53: keys for the browser extension (create, list, revoke). -->
-		<ApiKeys />
+		<ApiKeys onnametyped={(typed) => (keyNameTyped = typed)} />
 	</main>
 </div>
 

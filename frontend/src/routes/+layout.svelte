@@ -112,7 +112,13 @@
 					// A 401 confirms it; any other failure can't tell, and the request's 401 stands.
 				}
 				if (api.isSigningOut() || page.url.pathname === resolve('/login')) return;
-				await goto(resolve('/login'), { state: { sessionEnded: true } });
+				// v62 (F6): a page's unsaved-edits guard lets this through: nothing can be saved now.
+				setLeavingSession(true);
+				try {
+					await goto(resolve('/login'), { state: { sessionEnded: true } });
+				} finally {
+					setLeavingSession(false);
+				}
 				queue.reset();
 			} finally {
 				ending = false;
