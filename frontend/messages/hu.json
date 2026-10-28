@@ -105,6 +105,7 @@
 	"account_retention_never": "soha",
 	"account_retention_after": "Archiválás",
 	"account_retention_unit": "nap tétlenség után",
+	"account_retention_days_hint": "Enterre vagy a mezőből kilépve mentjük.",
 	"account_retention_days_invalid": "Egész számú napot adj meg, 1 és {max} között.",
 	"account_keyboard_heading": "Billentyűparancsok",
 	"account_keyboard_hint": "A várólistán egyetlen billentyű is parancs: <kbd>j</kbd> és <kbd>k</kbd> lép a sorok között, <kbd>x</kbd> megszakít, <kbd>h</kbd> mindet felsorolja. Kapcsold ki, ha zavarja a képernyőolvasót vagy a hangvezérlést. A Tab, a nyilak, az Enter és az Esc így is, úgy is működik.",

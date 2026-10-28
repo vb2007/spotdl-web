@@ -82,30 +82,39 @@
 		keepFocusOnHeading('retention-heading');
 	}
 
-	async function onSubmit(event: SubmitEvent) {
-		event.preventDefault();
+	// v62 (F7): one save model on /account (owner's decision): a preference is saved the moment
+	// it's chosen, as the shortcut, language and time-format switches always were. Retention's
+	// mode saves on its press; the number of days when it's committed (Enter, or leaving the
+	// field), checked first. Nothing is held for a save button, so "Unsaved changes" now means
+	// only a number typed and not yet committed (or one that failed its check).
+	function daysInvalid(): boolean {
+		return typeof days !== 'number' || !Number.isInteger(days) || days < 1 || days > MAX_DAYS;
+	}
+
+	async function showDaysError() {
+		daysError = () => m.account_retention_days_invalid({ max: formatNumber(MAX_DAYS) });
+		// Nothing is sent, so focus the field: its error is read out from there.
+		await tick();
+		const field = document.getElementById('retention-days');
+		// Already focused: leave and come back so its new error is read.
+		if (field === document.activeElement) field?.blur();
+		field?.focus();
+	}
+
+	async function saveRetention() {
 		daysError = null;
-		if (!neverArchive) {
-			daysError =
-				typeof days !== 'number' || !Number.isInteger(days) || days < 1 || days > MAX_DAYS
-					? () => m.account_retention_days_invalid({ max: formatNumber(MAX_DAYS) })
-					: null;
-			if (daysError) {
-				// Nothing is sent, so focus the field: its error is read out from there.
-				await tick();
-				const field = document.getElementById('retention-days');
-				// Already focused: leave and come back so its new error is read.
-				if (field === document.activeElement) field?.blur();
-				field?.focus();
-				return;
-			}
-		}
+		if (saving || !dirty) return;
+		if (!neverArchive && daysInvalid()) return showDaysError();
 		// Saving disables the field or button that had focus: give it back afterwards.
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		saving = true;
 		error = null;
+		// v42's late-write guard: a sign-out meanwhile resets the store.
+		const resets = queue.getResetCount();
 		try {
-			syncForm(await api.updateRetentionSettings(neverArchive ? null : days));
+			const settings = await api.updateRetentionSettings(neverArchive ? null : days);
+			if (queue.getResetCount() !== resets) return;
+			syncForm(settings);
 			savedAt = new Date();
 		} catch (err) {
 			error = () => errorText(err);
@@ -113,6 +122,17 @@
 			saving = false;
 		}
 		await keepFocus(from);
+	}
+
+	function chooseMode(never: boolean) {
+		neverArchive = never;
+		saveRetention();
+	}
+
+	// Enter in the field: the form's only submit, with no button of its own.
+	function onSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		saveRetention();
 	}
 
 	// v45: the single-key shortcut switch (WCAG 2.1.4), stored per user server-side so it
@@ -287,7 +307,7 @@
 									type="button"
 									aria-pressed={!neverArchive}
 									disabled={saving}
-									onclick={() => (neverArchive = false)}
+									onclick={() => chooseMode(false)}
 								>
 									{m.account_retention_auto()}
 								</button>
@@ -295,7 +315,7 @@
 									type="button"
 									aria-pressed={neverArchive}
 									disabled={saving}
-									onclick={() => (neverArchive = true)}
+									onclick={() => chooseMode(true)}
 								>
 									{m.account_retention_never()}
 								</button>
@@ -315,28 +335,26 @@
 									max={MAX_DAYS}
 									step="1"
 									bind:value={days}
+									onchange={saveRetention}
 									disabled={saving || neverArchive}
 									aria-invalid={daysError ? 'true' : undefined}
-									aria-describedby="retention-days-unit retention-days-error"
+									aria-describedby="retention-days-unit retention-days-hint retention-days-error"
 								/>
 								<span class="unit" id="retention-days-unit">{m.account_retention_unit()}</span>
 							</div>
+							<p class="field-hint" id="retention-days-hint">{m.account_retention_days_hint()}</p>
 							<p id="retention-days-error" class="field-error">{daysError?.()}</p>
 						</div>
-
-						<div class="save-row wide">
-							<button type="submit" class="btn" disabled={saving}>
-								{saving ? m.common_saving() : m.common_save()}
-							</button>
-							<p class="save-state" class:saved={!dirty && savedAt} role="status">
-								{dirty
-									? m.common_unsaved_changes()
-									: savedAt
-										? m.common_saved_at({ time: formatClock(savedAt) })
-										: ''}
-							</p>
-						</div>
 					</form>
+					<p class="save-state" class:saved={!saving && !dirty && savedAt !== null} role="status">
+						{saving
+							? m.common_saving_status()
+							: dirty
+								? m.common_unsaved_changes()
+								: savedAt
+									? m.common_saved_at({ time: formatClock(savedAt) })
+									: ''}
+					</p>
 				{/if}
 				<p class="form-error" class:sr-only={saved === null && loadError !== null} role="alert">
 					{saved === null && loadError !== null ? loadError() : error?.()}
@@ -545,10 +563,6 @@
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: var(--space-3) var(--space-4);
 		align-items: start;
-	}
-
-	.wide {
-		grid-column: 1 / -1;
 	}
 
 	.with-unit {

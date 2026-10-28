@@ -105,6 +105,7 @@
 	"account_retention_never": "never",
 	"account_retention_after": "After",
 	"account_retention_unit": "days without activity",
+	"account_retention_days_hint": "Saved when you press Enter or leave the field.",
 	"account_retention_days_invalid": "Enter a whole number of days from 1 to {max}.",
 	"account_keyboard_heading": "Keyboard shortcuts",
 	"account_keyboard_hint": "Single keys do things on the queue: <kbd>j</kbd> and <kbd>k</kbd> move between rows, <kbd>x</kbd> cancels, <kbd>h</kbd> lists them all. Switch them off if they get in the way of a screen reader or speech input. Tab, the arrow keys, Enter and Esc work either way.",

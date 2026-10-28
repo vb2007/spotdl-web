@@ -991,6 +991,15 @@ The form vocabulary lives in `app.css` so the routes can't drift:
 - `.save-row` is a section's save button followed by its `role="status"` state: "Unsaved changes"
   once the form differs from what was loaded, then "Saved at 14:03" (F31: the old "Saved." never
   cleared).
+- **One save model per page** (v62, F7; owner's decision). `/settings` saves a section with its
+  `.save-row` button (an admin edits several related values, then commits them together).
+  `/account` saves every preference the moment it's chosen: a `.choice-group` press saves at
+  once, and a typed value (retention's days) saves when committed (Enter, or leaving the field),
+  checked first, with a `.field-hint` saying so. Each group ends in the same `role="status"` line:
+  "Saving…", then "Saved at 14:03"; "Unsaved changes" only while a typed value isn't committed
+  yet (the unsaved-edits guard asks before leaving then). Never a save button on `/account`, and
+  never a mixed page. Actions (an API key's create and revoke) take effect on their press and
+  report on the same line.
 - Validation mirrors the backend's rules (alert bounds, the proxy pattern, non-blank paths and
   templates) and answers inline before any request; the backend stays the real check.
 
