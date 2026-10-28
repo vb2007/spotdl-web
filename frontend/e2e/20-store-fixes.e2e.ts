@@ -386,6 +386,34 @@ test.describe('F7/F8 on the real stack', () => {
 		).toHaveText(/\d/);
 	});
 
+	test('F7: a second choice made while the first is saving is saved after it', async ({ page }) => {
+		await page.goto('/account');
+		const retention = page.getByRole('group', { name: t(m.account_retention_heading) });
+		const never = retention.getByRole('button', { name: t(m.account_retention_never) });
+		const auto = retention.getByRole('button', { name: t(m.account_retention_auto) });
+		await expect(never).toBeEnabled();
+		if ((await never.getAttribute('aria-pressed')) !== 'true') {
+			await never.click();
+			await expect(retention.getByRole('status')).toHaveText(/\d/);
+		}
+		// Every save takes a second on its way, as on a slow connection.
+		await page.route('**/api/settings/retention', async (route) => {
+			await new Promise((done) => setTimeout(done, 1_000));
+			await route.continue();
+		});
+		await auto.click();
+		await never.click();
+		await expect(never).toHaveAttribute('aria-pressed', 'true');
+		await expect(retention.getByRole('status')).toHaveText(/\d/, { timeout: 10_000 });
+		await page.unroute('**/api/settings/retention');
+		await page.reload();
+		await expect(
+			page
+				.getByRole('group', { name: t(m.account_retention_heading) })
+				.getByRole('button', { name: t(m.account_retention_never) })
+		).toHaveAttribute('aria-pressed', 'true');
+	});
+
 	test('F8: clear log is off with its reason once there is nothing to clear', async ({
 		page,
 		baseURL

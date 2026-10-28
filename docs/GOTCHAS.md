@@ -7359,9 +7359,12 @@ independently-found production bug from the same conversation)
 - **The plan's F1 premise didn't hold.** `job.state` carries only the job's own state
   (`expanding`/`expanded`/`failed`/`cancelled`, plus `archived`), and a rollup move (a track
   settling turns `active` into `settled:complete`) publishes no job event at all. The owner chose
-  to publish it: `job_status.publish_change(db, owner, job_id)` runs after every announced change
+  to publish it: `job_status.publish_change(db, job_id)` (the owner is read from the job's row) runs
+  after every announced change
   (the caller's commit first; once per job after a bulk loop: beat's dispatch and reclaim),
-  computes the job's `status_key`, and swaps it into `spotdl:job-status:<id>` with `SET … GET`.
+  computes the job's `status_key`, and swaps it into `spotdl:job-status:<id>` with `SET … GET`,
+  under the job's row lock (`FOR NO KEY UPDATE`) together with its PUBLISH, so the chain is also
+  the delivery order (review rounds 1–3).
   Two writers finishing together (the worker and an API cancel) can't both report the same old
   status, so the events form one chain. A missing key (a job from before v62, a 90-day-quiet job,
   a flushed Redis) sends no `prev_status`, and the browser re-reads its counts (one 1-row page);

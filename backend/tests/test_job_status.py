@@ -64,7 +64,7 @@ def published(monkeypatch):
     """Every `job.status` event, as (user_id, payload); the other events are dropped."""
     captured = []
 
-    def publish(user_id, event):
+    def publish(user_id, event, client=None):
         if event["type"] == "job.status":
             captured.append((user_id, event))
 

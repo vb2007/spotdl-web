@@ -46,12 +46,13 @@ def _get_client() -> redis.Redis:
     return _client
 
 
-def publish(user_id: uuid.UUID | str, event: dict[str, Any]) -> None:
+def publish(user_id: uuid.UUID | str, event: dict[str, Any], client: redis.Redis | None = None) -> None:
     """Best-effort — a Redis hiccup must never fail the download/expand task calling
-    this, only lose that one live-progress update."""
+    this, only lose that one live-progress update. `client` (v62): a caller's own connection
+    (job_status publishes on its timed one, under its lock)."""
     payload = {"ts": datetime.now(timezone.utc).isoformat(), **event}
     try:
-        _get_client().publish(channel_for(user_id), json.dumps(payload))
+        (client or _get_client()).publish(channel_for(user_id), json.dumps(payload))
     except redis.RedisError:
         logger.warning("events.publish: failed to publish %s event", event.get("type"), exc_info=True)
 
@@ -143,6 +144,7 @@ def publish_job_status_event(
     *,
     archived: bool,
     prev_status: Any = PREV_STATUS_UNKNOWN,
+    client: redis.Redis | None = None,
 ) -> None:
     """v62 (F1): a job's rollup status moved (`rollup.status_key` form: `active`,
     `settled:partial`, ...). Published by `job_status.publish_change`, which keeps the chain:
@@ -156,7 +158,10 @@ def publish_job_status_event(
     }
     if prev_status is not PREV_STATUS_UNKNOWN:
         event["prev_status"] = prev_status
-    publish(user_id, event)
+    if client is None:
+        publish(user_id, event)
+    else:
+        publish(user_id, event, client=client)
 
 
 def publish_library_progress(

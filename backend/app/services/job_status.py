@@ -17,11 +17,13 @@ the read of the job's state and of its tracks. A key that's missing (a job from 
 an expired key, a flushed Redis) gives an event with no `prev_status` at all, and the browser
 re-reads its counts rather than guess.
 
-Only the swap runs under the lock, on a client of its own with short timeouts: a stalled Redis
-holds a job's row for seconds at most, never for as long as a socket blocks (review round 2).
-The lock is `FOR NO KEY UPDATE`, which serializes publishers (and a cancel's `FOR UPDATE`) but
-not the `FOR KEY SHARE` an expansion's track insert takes for its foreign key. The events go out
-after the lock is released, to each job's owner as its row says.
+The swap and the PUBLISH both run under the lock, so the events also reach a subscriber in
+chain order: the next publisher can't swap (let alone publish) before this one's event is out
+(review round 3). Both use a client of its own with short timeouts: a stalled Redis holds a
+job's row for seconds at most, never for as long as a socket blocks (review round 2). The lock
+is `FOR NO KEY UPDATE`, which serializes publishers (and a cancel's `FOR UPDATE`) but not the
+`FOR KEY SHARE` an expansion's track insert takes for its foreign key. Each event goes to the
+job's owner as its row says.
 
 Best effort, like every publish: a database or Redis failure loses these status events, never
 the change that caused them.
@@ -94,9 +96,12 @@ def publish_changes(db: Session, job_ids: Iterable[Any], *, created: bool = Fals
     if db.new or db.dirty or db.deleted:
         logger.warning("job_status.publish_changes: called with pending changes; skipped")
         return
-    moves: list[tuple[Any, Any, str, bool, Any]] = []
     try:
-        moves = _swap_statuses(db, ids, created)
+        for owner_id, job_id, status, archived, prev_status in _swap_statuses(db, ids, created):
+            # Still under the lock (see the module docstring), on the timed client.
+            events.publish_job_status_event(
+                owner_id, job_id, status, archived=archived, prev_status=prev_status, client=_get_client()
+            )
     except Exception:
         logger.warning("job_status.publish_changes: failed for %d job(s)", len(ids), exc_info=True)
     finally:
@@ -105,8 +110,6 @@ def publish_changes(db: Session, job_ids: Iterable[Any], *, created: bool = Fals
             db.rollback()
         except Exception:
             logger.warning("job_status.publish_changes: couldn't end the read", exc_info=True)
-    for owner_id, job_id, status, archived, prev_status in moves:
-        events.publish_job_status_event(owner_id, job_id, status, archived=archived, prev_status=prev_status)
 
 
 def _swap_statuses(db: Session, ids: list[uuid.UUID], created: bool) -> list[tuple[Any, Any, str, bool, Any]]:

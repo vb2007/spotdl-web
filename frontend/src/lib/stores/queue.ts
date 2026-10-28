@@ -393,7 +393,11 @@ function createQueueStore() {
 		// The local counts stay, and so does what they count each job under: a row this page
 		// lists may already be counted under its new status here while its event is still on
 		// the way (review round 1).
-		if (local !== null && moved.length > 0) return local;
+		if (local !== null && moved.length > 0) {
+			// A moved job this page lists comes with its older row: read it again (review round 3).
+			for (const item of result.items) if (movedSince(item.id)) scheduleJobRefresh(item.id);
+			return local;
+		}
 		// The snapshot's counts are adopted: whatever this store knew about a job before the
 		// request started is superseded by them (an event lost while the stream was down left it
 		// stale, review round 1). A job the snapshot doesn't list then moves from its event's

@@ -62,7 +62,8 @@
 	// v62 (F6): with every preference saved on choice (F7), only a typed value not yet
 	// committed is unsaved: retention's days, or a key's name not yet created.
 	let keyNameTyped = $state(false);
-	guardUnsavedEdits(() => dirty || keyNameTyped);
+	// A choice already being saved isn't unsaved (review round 3).
+	guardUnsavedEdits(() => (dirty && !saving) || keyNameTyped);
 
 	function syncForm(settings: api.RetentionSettings) {
 		saved = settings;
@@ -129,7 +130,10 @@
 		try {
 			const settings = await api.updateRetentionSettings(neverArchive ? null : days);
 			if (queue.getResetCount() !== resets) return;
-			syncForm(settings);
+			// A choice made meanwhile is saved next: the form keeps it, only what's saved moves
+			// (review round 3: syncForm put the older answer back over it).
+			if (saveAgain) saved = settings;
+			else syncForm(settings);
 			savedAt = new Date();
 		} catch (err) {
 			error = () => errorText(err);
