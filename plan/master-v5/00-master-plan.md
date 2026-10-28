@@ -667,3 +667,13 @@ here.
 
   The update manifest lives on a dedicated fixed release, `extension-updates` (task 4's recorded
   choice), since `releases/latest` is the app's.
+
+- **2026-10-29, v61.1: AMO re-serializes `manifest.json` (patch PR).** v61's merge run
+  (40767801329) signed and released extension `1.0.1` (`extension-v1.0.1`, `updates.json` on
+  `extension-updates`); the signed XPI installs permanently in release Firefox 158 and survives a
+  restart. That run warned that the signed `manifest.json` differs from the source: AMO
+  re-serializes it (equal as JSON). Harmless on a fresh signing, but the re-run path (a version AMO
+  already holds) failed on it as "signed from other content", so a run that failed after AMO signed
+  could never be repaired. v61.1 (`dev-extension-manifest-compare`, no app bump, no extension
+  bump) compares `manifest.json` as JSON. The auto-update proof (`1.0.2`) is a separate PR merged
+  after it (owner's choice), so its run signs with the fixed check.

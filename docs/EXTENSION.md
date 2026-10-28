@@ -135,7 +135,8 @@ principal that made it) found the extension contacting only the configured app o
      AMO's automatic signing;
    - checks the XPI carries Mozilla's signature and the right version, and compares its files
      with this commit's `extension/` (a file fetched back from AMO must match; a fresh signing
-     only warns, since a difference there would be AMO's own doing);
+     only warns, since a difference there would be AMO's own doing). `manifest.json` is compared
+     as JSON: AMO re-serializes it when it signs;
    - creates the `extension-v<version>` release with `spotdl-web-<version>.xpi` and
      `updates.json`, never marked *Latest*;
    - puts the new `updates.json` on the fixed `extension-updates` release, which installed copies

@@ -897,6 +897,9 @@ needed" claim — rather than silently deleted.
 - AMO never takes the same version twice, even after a failure later in the job: a re-run must
   fetch the already-signed file (web-ext's exported `util/submit-addon` client), not sign again
   → *v61*
+- AMO re-serializes `manifest.json` when it signs (tabs became 2-space indentation): compare it
+  with the source as parsed JSON, never byte for byte, or every fetched file reads as other
+  content → *v61.1*
 
 **Testing & verification technique**
 - A `docker exec … python /tmp/x.py` imports the image's site-packages `app`, not the mounted
@@ -7298,6 +7301,14 @@ independently-found production bug from the same conversation)
   file pattern`, and a release with no assets at all `no assets to download` (gh's source; the
   first two were seen this session). All exit 1, like an auth or network failure, so the
   workflow matches the message and fails on anything else.
+- **AMO rewrites `manifest.json` (found after merge, fixed in v61.1, 2026-10-29).** The first real
+  signing (run 40767801329, extension 1.0.1) warned "The XPI AMO just signed differs from the
+  source in: manifest.json". Parsed, the two are equal: AMO re-serialized the file (the source's
+  tabs became 2-space indentation); the 18 other files were byte-identical. A warning on a fresh
+  signing, but the re-run path (a version AMO already holds, fetched back) treated any difference
+  as "signed from other content" and failed, so the documented recovery could never succeed
+  (reproduced with the real signed XPI and the step's own `run:` block). `manifest.json` is now
+  compared as JSON, every other file still byte for byte.
 - **Two PRs bumping to the same version, both merged before the first one's release.** CI passed
   both (no tag yet). Whichever way the runs interleave, the second run's extension job runs: its
   plan either sees no tag yet, or sees the tag with other `extension/` content and hands over
