@@ -7036,7 +7036,10 @@ independently-found production bug from the same conversation)
   savepoint (an insert error is one warning, never the caller's failure). The breaker trip is
   recorded in the trip's own transaction, so a rolled-back trip leaves no row. The cooldown is
   decided there: an identical `(category, fingerprint)` row still `pending` (any age), or `sent`
-  inside the window, makes the new one `suppressed`; a switched-off category is `suppressed` too.
+  inside the window (measured from `sent_at`: a late delivery starts the window late), makes the
+  new one `suppressed`; a switched-off category is `suppressed` too. A spike's "newest seen"
+  stamp moves only for an alert that goes out, as v36's moved only on a sent one, or a suppressed
+  repeat would cost the reminder after the cooldown (review round 2).
   The reason is a code in `last_error` (`cooldown`, `category_off`), translated by the history
   panel. A lasting condition (beat dead, worker-dl down) is re-raised every watchdog minute, so a
   suppressed repeat is recorded at most once per window; and an alert that waits out a Matrix
@@ -7051,7 +7054,13 @@ independently-found production bug from the same conversation)
   every check**: a dead beat must still get its own alert out. Only one pass runs at a time
   (`pg_try_advisory_xact_lock`, held by a session of its own that touches no table, so no migrate
   waits on it): a slow homeserver can't take both of worker-meta's slots from beat's dispatch
-  (review round 1). The lease still covers a pass that dies mid-send.
+  (review round 1). The lease still covers a pass that dies mid-send. A 400 or 413 is about one
+  message, not the homeserver: that row is given up at once and the pass goes on, so it can't
+  hold its category back for 24 h (review round 2).
+- **Two clocks, accepted.** `created_at` (and a new row's first `next_attempt_at`) come from
+  Postgres' `clock_timestamp()`; the due, lease and give-up checks use the app's clock. Production
+  runs both on one host. Against the LAN dev database a skew of Δ delays a new row's first send by
+  Δ, nothing worse (review round 2).
 - **The Matrix transaction id is the row id.** Synapse answers a repeated PUT under the same txn
   with the first event's id and posts nothing (verified: a hand re-PUT of a delivered row's id
   returned the same `event_id`, and the room kept one copy). Synapse keeps txn ids for about 30
@@ -7072,7 +7081,10 @@ independently-found production bug from the same conversation)
   track's `updated_at`, against the oldest due track. Idle is measured from the latest of the
   oldest due time, the breaker's release and that last start, so a worker-dl that took a few
   tracks and then died midway through a backlog is caught too (review round 1; the first cut
-  only compared the start with the due time). The due time alone misleads twice: a track
+  only compared the start with the due time). A track in `downloading` younger than
+  `STALE_TRACK_AFTER_SECONDS` counts as busy now: a download's progress isn't written to the
+  database, so a long one would otherwise read as a dead worker-dl (review round 2). The due time
+  alone misleads twice: a track
   due during a trip only became dispatchable at the release, and beat's stale sweep rewrites a
   stuck track's `scheduled_at` to its own tick every `STALE_TRACK_AFTER_SECONDS` (1800 s in
   production), so it never ages past a longer threshold. The watchdog therefore remembers the
