@@ -347,6 +347,7 @@
 	"queuectl_sort_status": "állapot",
 	"queuectl_sort_track_count": "számok száma",
 	"queuectl_sort_next_retry": "következő próbálkozás",
+	"queuectl_clear_none": "Nincs mit kiüríteni: ebben a nézetben nincs befejezett feladat.",
 	"queuectl_clear_title": "Kiüríted a naplót?",
 	"queuectl_clear_body": "Minden befejezett feladatod (kész, sikertelen vagy megszakított) az archívumba kerül, bármit mutat is ez a nézet. Az archivált feladatok az „archiváltak is” alatt megmaradnak, és egyenként visszahozhatók. A még letöltés alatt álló vagy várakozó feladatok maradnak.",
 	"queuectl_clear_yes": "napló kiürítése",

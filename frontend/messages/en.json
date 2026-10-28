@@ -352,6 +352,7 @@
 	"queuectl_sort_status": "status",
 	"queuectl_sort_track_count": "track count",
 	"queuectl_sort_next_retry": "next retry",
+	"queuectl_clear_none": "Nothing to clear: no finished jobs in this view.",
 	"queuectl_clear_title": "Clear the log?",
 	"queuectl_clear_body": "Every finished job of yours (done, failed or cancelled) moves to the archive, whatever this view shows. Archived jobs stay under “show archived” and can be restored one by one. Jobs still downloading or waiting are kept.",
 	"queuectl_clear_yes": "clear log",
