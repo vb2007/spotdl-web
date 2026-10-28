@@ -364,6 +364,10 @@ migration.
    network the rollback commit's files define is handled that way, not only `default`. If the
    probe still fails on it (the release's `networks:` change is what cut Postgres off), the
    error names the exact manual recovery: `down` without `-v`, then the manual rollback.
+   The rollback's `up` always runs with `--force-recreate` (v60), and so does the deploy's own
+   `up` when the preflight sees the release change `networks:`: a recreated network reconnects
+   containers whose own config didn't change (the pinned `redis`, `cloudflared`) without their
+   service alias, so `redis` stops resolving and every worker goes unhealthy (v29's gotcha).
    - **Fallback (v33.1):** when the database is ahead of `.last-good` (a `manual-*` dispatch
      migrated it since the last release, say), the guard runs again against **the version that
      was running just before this deploy** (pre-deploy HEAD + `IMAGE_TAG`), provided that version

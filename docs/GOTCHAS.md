@@ -7226,6 +7226,17 @@ independently-found production bug from the same conversation)
   lines are priority 3, stdout 6. On the host the journal is persistent (`/var/log/journal`, 2.0
   GiB, back to 2026-07-11, default caps), every other project there uses json-file, and this
   stack writes about 0.7 MB a day.
+- **A network change breaks the containers `up` doesn't recreate (P3, live review).** Compose
+  5.6.0 / Engine 29.9.1: when `up` recreates a network whose config changed, a container whose
+  own config didn't change (`redis:7.4-alpine`, `cloudflared`) is reconnected *without its
+  service alias*: `getent`/`gethostbyname("redis")` fails from every recreated container, in the
+  failed release's `up` and in the rollback's alike, and another plain `up` doesn't fix it.
+  `--force-recreate` does. v29's gotcha, again; scratch run 40601071125 escaped it only because
+  its logging change recreated every container anyway.
+- **Compose decodes a value before echoing it (P6, live review).** `$$` becomes `$`, and in a
+  double-quoted value `\\`, `\t`, `\r`, `\$` become themselves; a `$NAME` left in a value gets a
+  "The \"NAME\" variable is not set" warning. The redactor masks the decoded form, its colon
+  pieces and such names too.
 - **A pipe hid a failed backup.** The backup step ran `pg_backup.sh | tee …` under Actions' default
   `bash -e` (no pipefail), so a failed dump passed the step and the deploy migrated without one
   (found by the round-2 review; the step now sets `pipefail`). Any `run:` that pipes a command

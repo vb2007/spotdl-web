@@ -376,15 +376,15 @@ jobs:
           # and this probe may only ever answer "not healthy", never fail the step.
           HEALTH_SCRIPT="$DEPLOY_DIR/.github/scripts/wait_for_stack_health.sh"
           [ -f "$HEALTH_SCRIPT" ] || HEALTH_SCRIPT=.github/scripts/wait_for_stack_health.sh
-          RUNNING_IMAGE="$(cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+          RUNNING_IMAGE="$(cd "$DEPLOY_DIR" && timeout 30 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
             ps --format '{{.Image}}' api 2>/dev/null || true)"
           # ...and was built from HEAD: both build modes stamp org.opencontainers.image.revision,
           # so a checkout moved without restarting the stack doesn't pass for a matched pair.
-          API_ID="$(cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+          API_ID="$(cd "$DEPLOY_DIR" && timeout 30 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
             ps -q api 2>/dev/null | head -n1 || true)"
           RUNNING_REV=""
           if [ -n "$API_ID" ]; then
-            RUNNING_REV="$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+            RUNNING_REV="$(timeout 30 docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
               "$API_ID" 2>/dev/null || true)"
           fi
           if [ -n "$CURRENT_TAG" ] && [ "${RUNNING_IMAGE##*:}" = "$CURRENT_TAG" ] \
@@ -444,6 +444,7 @@ jobs:
           fi
 
       - name: Preflight required variables against the host .env
+        id: preflight
         if: steps.stale.outputs.stale != 'true'
         timeout-minutes: 5
         env:
@@ -475,6 +476,27 @@ jobs:
             exit 1
           fi
           echo "Preflight: the new commit's compose files render against $DEPLOY_DIR/.env"
+
+          # v60 (P3): does this release change `networks:`? Then `up` recreates the project
+          # network, and a container whose own config didn't change (the pinned `redis`,
+          # `cloudflared`) is reconnected without its service alias: `redis` stops resolving and
+          # every worker goes unhealthy. The deploy step then force-recreates every container.
+          # Only the networks section is compared (as JSON, never printed: a render holds .env
+          # values). Unknown (the running files don't render) counts as changed.
+          nets() {
+            docker compose --project-directory "$DEPLOY_DIR" -f "$1" -f "$2" --profile tunnel \
+              config --format json 2>/dev/null \
+              | python3 -c 'import json, sys; print(json.dumps(json.load(sys.stdin).get("networks", {}), sort_keys=True))' \
+              2>/dev/null || true
+          }
+          OLD_NETS="$(nets "$DEPLOY_DIR/docker-compose.yml" "$DEPLOY_DIR/docker-compose.prod.yml")"
+          NEW_NETS="$(nets "$TMP/docker-compose.yml" "$TMP/docker-compose.prod.yml")"
+          if [ -z "$OLD_NETS" ] || [ "$OLD_NETS" != "$NEW_NETS" ]; then
+            echo "networks_changed=true" >> "$GITHUB_OUTPUT"
+            echo "Preflight: this release changes networks: (or the running files don't render), so the deploy recreates every container"
+          else
+            echo "networks_changed=false" >> "$GITHUB_OUTPUT"
+          fi
 
       # Release mode only: a re-run of a deploy that already landed finds the same VERSION
       # deployed. A manual dispatch always proceeds -- see the workflow header. A stale release
@@ -538,8 +560,11 @@ jobs:
           fi
 
           docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull
+          # v60 (P3): see the preflight's networks check.
+          FORCE=()
+          if [ "${{ steps.preflight.outputs.networks_changed }}" = "true" ]; then FORCE=(--force-recreate); fi
           docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel \
-            up -d --no-build --remove-orphans
+            up -d --no-build --remove-orphans "${FORCE[@]}"
 
       - name: Wait for the stack to become healthy
         id: health
@@ -642,7 +667,7 @@ jobs:
             override=""
             while read -r key net; do
               if [ -n "$net" ] && docker network inspect "$net" >/dev/null 2>&1; then
-                override="$override$(printf '  %s: !override\n    name: %s\n    external: true' "$key" "$net")"$'\n'
+                override="$override$(printf '  "%s": !override\n    name: "%s"\n    external: true' "$key" "$net")"$'\n'
                 echo "migration_guard: probing on the live network $net as it is (external)"
               fi
             done <<< "$nets"
@@ -730,8 +755,13 @@ jobs:
           else
             echo "IMAGE_TAG=$PREV_TAG" >> .env
           fi
+          # v60 (P3): --force-recreate. A rollback after a release that changed `networks:`
+          # recreates the network again, and any container `up` wouldn't otherwise touch (the
+          # pinned `redis`, `cloudflared`) comes back without its service alias, so `redis`
+          # wouldn't resolve and the health wait would fail. Recreating everything costs a redis
+          # restart (its data is on a volume) and a tunnel blip, in a rollback only.
           docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel \
-            up -d --no-build --remove-orphans
+            up -d --no-build --remove-orphans --force-recreate
           # The previous commit's own health script: its compose files are the ones in effect.
           bash "$DEPLOY_DIR/.github/scripts/wait_for_stack_health.sh" "$DEPLOY_DIR" 420
           echo "result=succeeded" >> "$GITHUB_OUTPUT"

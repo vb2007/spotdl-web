@@ -53,22 +53,52 @@ def go_quoted(value: str) -> str:
 
 
 ENV_LINE_RE = re.compile(r"^\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=(.*)$")
-# A URL's userinfo (`user:pass@`, or a bare token before `@`), up to the first `@`.
 # A colon piece that is only a URL scheme (`redis://`) or a port and path (`6379/0`): masking it
 # would garble every message naming that scheme or port without hiding anything.
 NOT_SECRET_PIECE_RE = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:/*|[0-9/]+)$")
+# A URL's userinfo (`user:pass@`, or a bare token before `@`), up to the first `@`.
 URL_USERINFO_RE = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*://)[^\s/@]+@")
+# A `$NAME`/`${NAME...}` inside a value: compose warns "The "NAME" variable is not set".
+VAR_REF_RE = re.compile(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)")
+# Colon pieces are cut only from values with this few colons (the pieces grow quadratically).
+MAX_COLON_PARTS = 32
+_DQ_ESCAPES = {"n": "\n", "t": "\t", "r": "\r", "\\": "\\", '"': '"', "$": "$"}
+
+
+def compose_decoded(raw: str) -> str:
+    """The value as compose reads it from .env (v60): a double-quoted one with its escapes
+    applied, a single-quoted one literal, an unquoted one without its ` #` comment; `$$` is `$`
+    except inside single quotes."""
+    if len(raw) >= 2 and raw[0] == raw[-1] == "'":
+        return raw[1:-1]
+    if len(raw) >= 2 and raw[0] == raw[-1] == '"':
+        out, inner, i = [], raw[1:-1], 0
+        while i < len(inner):
+            if inner[i] == "\\" and i + 1 < len(inner) and inner[i + 1] in _DQ_ESCAPES:
+                out.append(_DQ_ESCAPES[inner[i + 1]])
+                i += 2
+            else:
+                out.append(inner[i])
+                i += 1
+        return "".join(out).replace("$$", "$")
+    return raw.split(" #", 1)[0].strip().replace("$$", "$")
 
 
 def secrets(env_file: str) -> list[str]:
     found: set[str] = set()
+    keys: set[str] = set()
+    refs: set[str] = set()
     for line in open(env_file, encoding="utf-8", errors="replace"):
         line = line.rstrip("\n")
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         m = ENV_LINE_RE.match(line)
         if m:
-            candidates = [m.group(1).strip(), m.group(1).split(" #", 1)[0].strip()]
+            raw = m.group(1).strip()
+            keys.add(line.split("=", 1)[0].strip().removeprefix("export").strip())
+            if not raw.startswith("'"):
+                refs.update(VAR_REF_RE.findall(raw.replace("$$", "")))
+            candidates = [raw, raw.split(" #", 1)[0].strip(), compose_decoded(raw)]
         else:
             # A malformed line: compose quotes it back with `"` escaped as `\"`, and may cut
             # it anywhere, so every token goes too, not just the whole line.
@@ -83,10 +113,15 @@ def secrets(env_file: str) -> list[str]:
                     if len(shown) >= 3:
                         found.add(shown)
             parts = v.strip("'\"").split(":")
+            if len(parts) > MAX_COLON_PARTS:
+                continue
             for i in range(1, len(parts)):
                 for piece in (":".join(parts[:i]), ":".join(parts[i:])):
                     if len(piece) >= 6 and not NOT_SECRET_PIECE_RE.match(piece):
                         found.add(piece)
+    # A reference to a variable nothing defines is most likely a `$` that belonged to the
+    # value: compose names it in a warning, so it goes too (6 characters or more).
+    found.update(r for r in refs - keys if len(r) >= 6)
     # Longest first, so a value containing a shorter one is masked whole.
     return sorted(found, key=len, reverse=True)
 
