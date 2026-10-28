@@ -129,7 +129,7 @@ principal that made it) found the extension contacting only the configured app o
    raising it above `main`'s, and a PR that touches only `extension/` needs no app bump.
 2. Merge. The merge's "Release & Deploy" run (`docs/RELEASE_PIPELINE.md`) finds the version
    above every released one, and its `extension-release` job (`.github/workflows/extension-release.yml`,
-   after the app's deploy):
+   after the app's deploy; after a failed deploy it waits for the re-run or the next merge):
    - signs it on AMO, unlisted (`web-ext sign --channel unlisted`, `npm run sign`), waiting for
      AMO's automatic signing;
    - checks the XPI carries Mozilla's signature and the right version, and that its files are

@@ -123,9 +123,11 @@ unaffected, an extension-only diff needs no app bump). In "Release & Deploy", `p
 `extension-release` job (`extension-release.yml`, called like the others) signs it on AMO as
 unlisted and creates the `extension-v<version>` release (never *Latest*), with the `.xpi` and an
 `updates.json`, the latter also put on the fixed `extension-updates` release that the manifest's
-`update_url` reads. It runs after `deploy`, whatever the deploy's result, so the app's release
-and deploy never queue behind AMO's signing wait on the one runner, and its failure (missing
-`AMO_JWT_*` secrets included) reaches `notify`. Otherwise it's a skipped job, and no
+`update_url` reads. It runs after `deploy` (skipped or done), so within a run the app's release
+and deploy never queue behind AMO's signing wait on the one runner; a later merge's jobs can
+still queue behind it. Not after a failed deploy, whose notice mustn't wait for AMO: the
+extension then releases on the re-run or the next merge. Its own failure (missing `AMO_JWT_*`
+secrets included) reaches `notify`, and an error deciding it in `plan` never fails `plan`. Otherwise it's a skipped job, and no
 extension run exists. Details: `docs/EXTENSION.md`, "Cutting an extension release".
 
 ---

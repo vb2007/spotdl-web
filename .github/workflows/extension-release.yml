@@ -38,11 +38,13 @@ permissions:
 jobs:
   extension-release:
     runs-on: self-hosted
-    # Waiting for AMO is the long part: web-ext waits up to 15 minutes for validation and 15 more
-    # for the signing, so its own "timeout exceeded" message comes before this one.
+    # Waiting for AMO is the long part: web-ext waits up to 5 minutes for validation and 15 for
+    # the signing, so its own "timeout exceeded" message comes before this one.
     timeout-minutes: 45
+    # The write token reaches only the steps that call `gh` (GH_TOKEN on each): never `npm ci`'s
+    # dependency tree, nor web-ext, on this host. The checkout keeps no credential either (the
+    # repository is public, so `git ls-remote` needs none).
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       REPO: ${{ github.repository }}
       UPDATES_TAG: extension-updates
     steps:
@@ -51,6 +53,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ inputs.commit || github.sha }}
+          persist-credentials: false
 
       - name: Resolve the extension's version
         id: version
@@ -88,6 +91,7 @@ jobs:
         if: steps.version.outputs.superseded != 'true'
         id: released
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.version.outputs.tag }}
           XPI: ${{ steps.version.outputs.xpi }}
         run: |
@@ -135,7 +139,9 @@ jobs:
       - name: Install the extension's tools (web-ext)
         if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
         working-directory: extension
-        run: npm ci
+        # No install scripts: nothing in web-ext's tree needs one (lint, build, sign and its AMO
+        # client work without), and none runs on this host.
+        run: npm ci --ignore-scripts
 
       # AMO never takes the same version twice, so a re-run after a failure past the signing (the
       # GitHub release, say) can't sign again. AMO already holding this version means it was
@@ -173,11 +179,21 @@ jobs:
           if (response.status === 404) {
             console.log(`AMO has no ${id} ${version} yet: signing it.`);
             out('fetched=false');
+          } else if (response.status >= 400 && response.status < 500) {
+            // Not a lookup AMO answers (an add-on it doesn't know yet may answer this rather than
+            // 404): signing decides. Bad credentials fail there too, with web-ext's message.
+            console.log(`::warning::AMO answered ${response.status} looking up ${id} ${version} (${await response.text()}): signing it.`);
+            out('fetched=false');
           } else if (!response.ok) {
             console.log(`::error::AMO answered ${response.status} looking up ${id} ${version}: ${await response.text()}`);
             process.exit(1);
           } else {
             const detail = await response.json();
+            const status = detail.file?.status;
+            if (status && status !== 'public' && status !== 'unreviewed') {
+              console.log(`::error::AMO holds ${id} ${version}, but its file is ${status}: it can't be released. Raise the version.`);
+              process.exit(1);
+            }
             console.log(`AMO already has ${id} ${version} (version id ${detail.id}): downloading its signed file.`);
             const fileUrl = await client.waitForApproval(id, detail.id, null);
             await client.downloadSignedFile(new URL(fileUrl), id);
@@ -261,6 +277,7 @@ jobs:
       - name: Build updates.json
         if: steps.version.outputs.superseded != 'true'
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
           TAG: ${{ steps.version.outputs.tag }}
           XPI: ${{ steps.version.outputs.xpi }}
@@ -271,8 +288,18 @@ jobs:
           elif printf '%s\n' "$CURRENT" | grep -q "release not found"; then
             echo '{}' > "$RUNNER_TEMP/updates.current.json"
           elif printf '%s\n' "$CURRENT" | grep -qE "no assets match|no assets to download"; then
-            echo "::warning::$UPDATES_TAG has no updates.json: starting a new one, which lists this version only."
-            echo '{}' > "$RUNNER_TEMP/updates.current.json"
+            # Lost (a failed `--clobber` upload): every extension-v* release carries the
+            # updates.json of its time, so the newest one's keeps the history.
+            TAGS="$(git ls-remote --tags --refs origin 'refs/tags/extension-v*')"
+            NEWEST="$(printf '%s\n' "$TAGS" | awk '{sub("^refs/tags/", "", $2); print $2}' \
+              | grep -E '^extension-v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)"
+            if [ -n "$NEWEST" ] && gh release download "$NEWEST" --repo "$REPO" --pattern updates.json \
+                --output "$RUNNER_TEMP/updates.current.json" --clobber 2>/dev/null; then
+              echo "::warning::$UPDATES_TAG has no updates.json: rebuilding it from $NEWEST's."
+            else
+              echo "::warning::$UPDATES_TAG has no updates.json: starting a new one, which lists this version only."
+              echo '{}' > "$RUNNER_TEMP/updates.current.json"
+            fi
           else
             echo "::error::Couldn't read the current updates.json from $UPDATES_TAG: $CURRENT"
             exit 1
@@ -312,6 +339,7 @@ jobs:
       - name: Create the extension release
         if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
           TAG: ${{ steps.version.outputs.tag }}
           XPI: ${{ steps.version.outputs.xpi }}
@@ -340,6 +368,7 @@ jobs:
       - name: Publish updates.json on the fixed update URL
         if: steps.version.outputs.superseded != 'true'
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMIT: ${{ steps.version.outputs.commit }}
         run: |
           if OUT="$(gh release view "$UPDATES_TAG" --repo "$REPO" --json tagName 2>&1)"; then

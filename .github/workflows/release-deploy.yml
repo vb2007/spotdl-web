@@ -52,7 +52,7 @@ jobs:
       commit: ${{ steps.plan.outputs.commit }}
       version: ${{ steps.plan.outputs.version }}
       tag: ${{ steps.plan.outputs.tag }}
-      extension: ${{ steps.extension.outputs.extension }}
+      extension: ${{ steps.extension-error.outputs.extension || steps.extension.outputs.extension }}
       extension_version: ${{ steps.extension.outputs.version }}
     steps:
       - uses: actions/checkout@v7
@@ -104,9 +104,13 @@ jobs:
       # v61: the extension is released when extension/manifest.json's version has risen above
       # every released one (`extension-v*` tags), independently of the app's version. Otherwise
       # its job is skipped inside this run, and no extension run exists at all. Same remote-read
-      # rules as above: the tags in an assignment of their own, names compared whole.
+      # rules as above: the tags in an assignment of their own, names compared whole. It can
+      # never fail `plan` (and with it the app's release and deploy): an error here hands the
+      # decision to the extension's own job, which resolves everything again and fails loudly
+      # into `notify` if it must.
       - name: Decide whether to release the extension
         id: extension
+        continue-on-error: true
         run: |
           VERSION="$(python3 .github/scripts/check_version.py --extension)"
           if [ -z "$VERSION" ]; then
@@ -122,13 +126,28 @@ jobs:
           if printf '%s\n' "$RELEASED" | grep -qxF "$VERSION"; then
             echo "extension=false" >> "$GITHUB_OUTPUT"
             echo "Extension $VERSION is already released (extension-v$VERSION)." | tee -a "$GITHUB_STEP_SUMMARY"
+            # CI refuses a PR whose version was released from other extension/ content, but two
+            # PRs bumping to the same version can both merge: say so, the second one never ships.
+            git fetch -q --depth=1 origin "refs/tags/extension-v$VERSION"
+            if [ "$(git rev-parse "FETCH_HEAD^{commit}:extension")" != "$(git rev-parse HEAD:extension)" ]; then
+              echo "::warning::extension-v$VERSION was released from other extension/ content than this commit's: this commit's extension changes won't ship until the version is raised." \
+                | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
           elif [ "$NEWEST" != "$VERSION" ]; then
             echo "extension=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Extension $VERSION is below the newest released one ($NEWEST): not releasing it."
+            echo "::warning::Extension $VERSION is below the newest released one ($NEWEST): not releasing it." \
+              | tee -a "$GITHUB_STEP_SUMMARY"
           else
             echo "extension=true" >> "$GITHUB_OUTPUT"
             echo "Extension $VERSION has no release yet: signing and releasing it (extension-v$VERSION)." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
+
+      - name: Hand an extension decision error to the extension's job
+        id: extension-error
+        if: steps.extension.outcome == 'failure'
+        run: |
+          echo "::warning::Deciding whether to release the extension failed (above); the extension's own job runs and resolves it again."
+          echo "extension=true" >> "$GITHUB_OUTPUT"
 
   release:
     needs: plan
@@ -141,13 +160,16 @@ jobs:
     secrets: inherit
 
   # v61: signs and releases the Firefox extension when `plan` found its version risen. After the
-  # deploy, whatever its result (`!cancelled()`, so a skipped or failed deploy doesn't skip it):
-  # the one runner takes ready jobs first-in, first-out, and the app's release and deploy must
-  # never queue behind AMO's signing wait.
+  # deploy (`!cancelled()`, so a skipped deploy doesn't skip it): the one runner takes ready jobs
+  # first-in, first-out, and this run's release and deploy must never queue behind AMO's signing
+  # wait. Not after a failed deploy: `notify` waits for this job, and a failed deploy's notice
+  # must not wait for AMO. The extension then releases on the run's re-run or the next merge
+  # (its version is still untagged).
   extension-release:
     needs: [plan, deploy]
     if: >-
-      !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.extension == 'true'
+      !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.extension == 'true' &&
+      needs.deploy.result != 'failure'
     permissions:
       contents: write
     uses: ./.github/workflows/extension-release.yml
@@ -234,7 +256,8 @@ jobs:
             if [ "$failed" = " extension-release ($EXTENSION_RESULT)" ]; then
               # v61: the extension's job alone failed. It never touches the host, so the deploy's
               # own note (if any) says nothing about it.
-              rollback="not needed, only the extension's release failed (the app's deploy: ${DEPLOY_RESULT:-unresolved})"
+              how="failed"; [ "$EXTENSION_RESULT" = "cancelled" ] && how="was cancelled"
+              rollback="not needed, only the extension's release $how (the app's deploy: ${DEPLOY_RESULT:-unresolved})"
             elif [ -n "$ROLLBACK_NOTE" ]; then
               rollback="$ROLLBACK_NOTE"
             elif [ "$DEPLOY_RESULT" = "skipped" ]; then
