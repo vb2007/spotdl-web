@@ -84,6 +84,8 @@
 	/* A link dressed as the page's one action: a .btn, not underlined text. */
 	.actions .btn {
 		display: inline-flex;
+		align-items: center;
+		justify-content: center;
 		text-decoration: none;
 	}
 

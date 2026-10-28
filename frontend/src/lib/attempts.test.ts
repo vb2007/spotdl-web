@@ -194,6 +194,12 @@ describe('v62 (F11) a collapsed hold counts as its holds', () => {
 		]);
 	});
 
+	it('the run’s paths count holds too, so ×N and the via summary agree', () => {
+		const [group] = groupAttempts([held(1, 5), held(2, 3)]);
+		expect(group.count).toBe(8);
+		expect(summarizeVia(group.attempts)).toMatch(/×8/);
+	});
+
 	it('a row from before v55 (no hold_count) is one hold, and a failure never multiplies', () => {
 		expect(attemptCount({ ...held(1, 1), hold_count: undefined })).toBe(1);
 		expect(attemptCount(attempt(2, { hold_count: 9 }))).toBe(1);

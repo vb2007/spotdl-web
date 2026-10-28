@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
@@ -23,7 +23,7 @@
 	import RichText from '$lib/components/RichText.svelte';
 	import ApiKeys from '$lib/components/ApiKeys.svelte';
 	import { guardUnsavedEdits } from '$lib/unsavedGuard';
-	import { setLeavingSession } from '$lib/session';
+	import { leavingSession, setLeavingSession } from '$lib/session';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
@@ -62,8 +62,15 @@
 	// v62 (F6): with every preference saved on choice (F7), only a typed value not yet
 	// committed is unsaved: retention's days, or a key's name not yet created.
 	let keyNameTyped = $state(false);
-	// A choice already being saved isn't unsaved (review round 3).
-	guardUnsavedEdits(() => (dirty && !saving) || keyNameTyped);
+	// A choice already being saved isn't unsaved (review round 3). A valid number typed and not
+	// yet committed is committed on the way out (leaving the field does that anyway, and the
+	// guard's own question would: live review), so only a value that can't be saved, or a key
+	// name, is asked about.
+	guardUnsavedEdits(() => (dirty && !saving && !neverArchive && daysInvalid()) || keyNameTyped);
+	beforeNavigate(() => {
+		if (dirty && !saving && !leavingSession() && (neverArchive || !daysInvalid()))
+			saveRetention(false);
+	});
 
 	function syncForm(settings: api.RetentionSettings) {
 		saved = settings;

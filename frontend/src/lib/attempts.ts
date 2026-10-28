@@ -89,7 +89,8 @@ export function summarizeVia(attempts: TrackAttempt[]): string {
 	const counts = new Map<AttemptPath, number>();
 	for (const attempt of attempts) {
 		const path = attemptPath(attempt);
-		counts.set(path, (counts.get(path) ?? 0) + 1);
+		// v62 (F11): a collapsed hold counts as its holds, as the run's ×N does.
+		counts.set(path, (counts.get(path) ?? 0) + attemptCount(attempt));
 	}
 	return [...counts]
 		.map(([path, n]) =>

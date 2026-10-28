@@ -589,6 +589,10 @@
 			window.location.reload();
 			return;
 		}
+		// v62 (F4): a laptop resumed with this tab visible may fire neither `visibilitychange`
+		// nor `online`; the poll (whose overdue timer runs at once on wake) checks too (live
+		// review).
+		if (get(link) === 'live' && streamSilent()) restartStream();
 		let settled = false;
 		const overdue = setTimeout(() => {
 			if (settled || unmounted) return;

@@ -27,6 +27,9 @@ export function guardUnsavedEdits(isDirty: () => boolean): void {
 		}
 		const to = navigation.to?.url;
 		if (!to) return;
+		// The same page (a `g` chord for the page already open, a query or hash change): it
+		// stays mounted with its edits, so there is nothing to ask about (live review).
+		if (to.pathname === navigation.from?.url?.pathname) return;
 		const { type, delta } = navigation;
 		navigation.cancel();
 		// After this navigation's other callbacks: ConfirmDialog's answers any open question "no"

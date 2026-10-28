@@ -237,7 +237,8 @@
 	// would; the first load leaves focus where the browser put it. The page title is announced
 	// by SvelteKit's own route announcer (`#svelte-announcer`), so no second live region here.
 	afterNavigate(async ({ from, to, type }) => {
-		if (type === 'enter' || !from || !to || from.url.pathname === to.url.pathname) return;
+		// v62: an error page's load has a `from` with no url (live review: a TypeError there).
+		if (type === 'enter' || !from?.url || !to?.url || from.url.pathname === to.url.pathname) return;
 		await tick();
 		const heading =
 			// i18n-ignore: a selector
