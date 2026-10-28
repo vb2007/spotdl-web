@@ -111,6 +111,8 @@ jobs:
       - name: Decide whether to release the extension
         id: extension
         continue-on-error: true
+        # Two remote reads; a hang hands over like an error does.
+        timeout-minutes: 3
         run: |
           VERSION="$(python3 .github/scripts/check_version.py --extension)"
           if [ -z "$VERSION" ]; then
@@ -128,10 +130,14 @@ jobs:
             echo "Extension $VERSION is already released (extension-v$VERSION)." | tee -a "$GITHUB_STEP_SUMMARY"
             # CI refuses a PR whose version was released from other extension/ content, but two
             # PRs bumping to the same version can both merge: say so, the second one never ships.
-            git fetch -q --depth=1 origin "refs/tags/extension-v$VERSION"
-            if [ "$(git rev-parse "FETCH_HEAD^{commit}:extension")" != "$(git rev-parse HEAD:extension)" ]; then
-              echo "::warning::extension-v$VERSION was released from other extension/ content than this commit's: this commit's extension changes won't ship until the version is raised." \
-                | tee -a "$GITHUB_STEP_SUMMARY"
+            # Only a warning, so a failed fetch here mustn't fail the step (and hand over).
+            if git fetch -q --depth=1 origin "refs/tags/extension-v$VERSION"; then
+              if [ "$(git rev-parse "FETCH_HEAD^{commit}:extension")" != "$(git rev-parse HEAD:extension)" ]; then
+                echo "::warning::extension-v$VERSION was released from other extension/ content than this commit's: this commit's extension changes won't ship until the version is raised." \
+                  | tee -a "$GITHUB_STEP_SUMMARY"
+              fi
+            else
+              echo "::warning::Couldn't fetch extension-v$VERSION to compare its extension/ with this commit's."
             fi
           elif [ "$NEWEST" != "$VERSION" ]; then
             echo "extension=false" >> "$GITHUB_OUTPUT"
@@ -144,7 +150,7 @@ jobs:
 
       - name: Hand an extension decision error to the extension's job
         id: extension-error
-        if: steps.extension.outcome == 'failure'
+        if: steps.extension.outcome != 'success'
         run: |
           echo "::warning::Deciding whether to release the extension failed (above); the extension's own job runs and resolves it again."
           echo "extension=true" >> "$GITHUB_OUTPUT"
@@ -160,16 +166,18 @@ jobs:
     secrets: inherit
 
   # v61: signs and releases the Firefox extension when `plan` found its version risen. After the
-  # deploy (`!cancelled()`, so a skipped deploy doesn't skip it): the one runner takes ready jobs
-  # first-in, first-out, and this run's release and deploy must never queue behind AMO's signing
-  # wait. Not after a failed deploy: `notify` waits for this job, and a failed deploy's notice
-  # must not wait for AMO. The extension then releases on the run's re-run or the next merge
-  # (its version is still untagged).
+  # deploy, done or skipped (`!cancelled()`, so a skipped one doesn't skip this): the one runner
+  # takes ready jobs first-in, first-out, and this run's release and deploy must never queue
+  # behind AMO's signing wait. Never after a failed or cancelled release or deploy: `notify`
+  # waits for this job, and that notice must not wait for AMO. The extension then releases on the
+  # run's re-run or the next merge (its version is still untagged), and the notice says so. A
+  # successful deploy's notice does wait for it (up to the job's timeout).
   extension-release:
-    needs: [plan, deploy]
+    needs: [plan, release, deploy]
     if: >-
       !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.extension == 'true' &&
-      needs.deploy.result != 'failure'
+      contains(fromJSON('["success", "skipped"]'), needs.release.result) &&
+      contains(fromJSON('["success", "skipped"]'), needs.deploy.result)
     permissions:
       contents: write
     uses: ./.github/workflows/extension-release.yml
@@ -229,6 +237,7 @@ jobs:
           # v61: the extension's job, named in a failure notice like the others.
           EXTENSION_RESULT: ${{ needs['extension-release'].result }}
           EXTENSION_VERSION: ${{ needs.plan.outputs.extension_version }}
+          EXTENSION_PLANNED: ${{ needs.plan.outputs.extension }}
           DEPLOY_SKIPPED: ${{ needs.deploy.outputs.skipped }}
           TAG: ${{ needs.release.outputs.tag || needs.plan.outputs.tag }}
           VERSION: ${{ needs.deploy.outputs.version || needs.plan.outputs.version }}
@@ -287,6 +296,9 @@ jobs:
                 if [ "$DEPLOY_RESULT" = "success" ] && [ "$DEPLOY_SKIPPED" != "true" ]; then
                   echo "Deployed: ${DEPLOY_VERSION:-unresolved} to production"
                 fi
+              elif [ "$EXTENSION_PLANNED" = "true" ]; then
+                # Held back by the failure above: it releases on this run's re-run or the next merge.
+                echo "Extension: extension-v${EXTENSION_VERSION:-unresolved} not released (held by the failure; re-run the failed jobs, or the next merge releases it)"
               fi
               echo "Rollback: $rollback"
               echo "Run: $RUN_URL"

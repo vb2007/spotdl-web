@@ -125,8 +125,9 @@ unlisted and creates the `extension-v<version>` release (never *Latest*), with t
 `updates.json`, the latter also put on the fixed `extension-updates` release that the manifest's
 `update_url` reads. It runs after `deploy` (skipped or done), so within a run the app's release
 and deploy never queue behind AMO's signing wait on the one runner; a later merge's jobs can
-still queue behind it. Not after a failed deploy, whose notice mustn't wait for AMO: the
-extension then releases on the re-run or the next merge. Its own failure (missing `AMO_JWT_*`
+still queue behind it. Not after a failed or cancelled release or deploy, whose notice mustn't
+wait for AMO: the extension then releases on the re-run or the next merge, and the notice says
+it was held. A successful deploy's notice does wait for it. Its own failure (missing `AMO_JWT_*`
 secrets included) reaches `notify`, and an error deciding it in `plan` never fails `plan`. Otherwise it's a skipped job, and no
 extension run exists. Details: `docs/EXTENSION.md`, "Cutting an extension release".
 

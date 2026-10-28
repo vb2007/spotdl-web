@@ -7273,8 +7273,11 @@ independently-found production bug from the same conversation)
   `web-ext sign`. `extension-release.yml` first asks AMO for the version
   (`GET /api/v5/addons/addon/<guid>/versions/v<version>/`, the `v` forcing a version-number
   lookup) through web-ext's own exported client (`web-ext/util/submit-addon`: `Client`,
-  `JwtApiAuth`), and downloads the signed file when it's there. A 404 means "sign it"; any other
-  answer fails the step. With a made-up issuer AMO answers `401 {"detail": "Unknown JWT iss
+  `JwtApiAuth`), and downloads the signed file when it's there (a `disabled` file fails at once).
+  A 404 means "sign it", and so does any other 4xx but 429 (an add-on AMO doesn't know yet may
+  answer one; bad credentials then fail at `web-ext sign`); a 429 or 5xx fails the step.
+  Anonymously, a public add-on's `versions/v<version>/` answers 200 and an unknown one 404
+  (checked this session). With a made-up issuer AMO answers `401 {"detail": "Unknown JWT iss
   (issuer)."}`, checked this session.
 - **The credentials stay off the command line.** The plan's `web-ext sign --api-key … --api-secret
   …` runs as `npm run sign` with `WEB_EXT_API_KEY`/`WEB_EXT_API_SECRET` (web-ext reads every flag
@@ -7295,6 +7298,11 @@ independently-found production bug from the same conversation)
   file pattern`, and a release with no assets at all `no assets to download` (gh's source; the
   first two were seen this session). All exit 1, like an auth or network failure, so the
   workflow matches the message and fails on anything else.
+- **Two PRs bumping to the same version, both merged before the first one's release.** CI passed
+  both (no tag yet), and the second run's plan sees no tag either. The release job compares the
+  released tag's `extension/` tree with its commit's and fails into `notify` when they differ, the
+  extension's version of release.yml's `owned`. And a draft (what a killed `gh release create`
+  leaves) is never "released": the job finishes and publishes it.
 - **Same version, other content.** Release & Deploy's plan reads "the `extension-v<version>` tag
   exists" as "released". A version released from a branch (a dispatch) and later reused by a PR
   carrying different code would never ship, and neither would a version below a released one

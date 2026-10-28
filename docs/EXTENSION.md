@@ -129,7 +129,8 @@ principal that made it) found the extension contacting only the configured app o
    raising it above `main`'s, and a PR that touches only `extension/` needs no app bump.
 2. Merge. The merge's "Release & Deploy" run (`docs/RELEASE_PIPELINE.md`) finds the version
    above every released one, and its `extension-release` job (`.github/workflows/extension-release.yml`,
-   after the app's deploy; after a failed deploy it waits for the re-run or the next merge):
+   after the app's deploy, whose notice waits for it; after a failed release or deploy it waits for
+   the re-run or the next merge, and the notice says so):
    - signs it on AMO, unlisted (`web-ext sign --channel unlisted`, `npm run sign`), waiting for
      AMO's automatic signing;
    - checks the XPI carries Mozilla's signature and the right version, and that its files are
@@ -139,7 +140,8 @@ principal that made it) found the extension contacting only the configured app o
    - puts the new `updates.json` on the fixed `extension-updates` release, which installed copies
      read.
 
-   A merge that doesn't raise the version runs no extension job at all. CI also refuses a version
+   A merge that doesn't raise the version runs no extension job, unless the current version
+   still isn't released (an earlier release failed or was held back). CI also refuses a version
    below a released one, or already released from other `extension/` content (the
    `extension-v*` tags): either would otherwise never ship.
 

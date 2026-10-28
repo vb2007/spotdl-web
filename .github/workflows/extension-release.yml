@@ -6,9 +6,10 @@ name: Extension Release
 # `updates.json`. See docs/EXTENSION.md, "Cutting an extension release".
 #
 # Called in-run by release-deploy.yml ("Release & Deploy", on every push to `main`) as its own
-# job after `checks`, and only when the run's `plan` found extension/manifest.json's version
-# risen above every released one. There's no `push` trigger and no `workflow_run` here (v49), so
-# a merge that doesn't bump the extension creates no extension run at all, not even a skipped one.
+# job after the checks and the app's deploy, and only when the run's `plan` found
+# extension/manifest.json's version above every released one (a version raised earlier but not
+# released yet still is). There's no `push` trigger and no `workflow_run` here (v49), so this
+# creates no run of its own, not even a skipped one.
 # `workflow_dispatch` releases the dispatched ref's version by hand, a branch's included (the
 # plan's "prove it before merge"); it's a no-op once that version is released.
 #
@@ -83,23 +84,36 @@ jobs:
             echo "::notice::Releasing the extension from $GITHUB_REF ($COMMIT), not main: every installed copy will update to it."
           fi
 
-      # Released = the release exists and carries the signed XPI. Read in an assignment of its
-      # own (v49): under `bash -e` without pipefail, a failed lookup in a pipeline would read as
-      # "not released" and sign the version again. Only "release not found" means not released;
-      # any other error fails the step.
+      # Released = the release exists, is published (a draft is what a killed `gh release create`
+      # leaves: no tag, assets the public can't fetch) and carries the signed XPI. Read in an
+      # assignment of its own (v49): under `bash -e` without pipefail, a failed lookup in a
+      # pipeline would read as "not released" and sign the version again. Only "release not
+      # found" means not released; any other error fails the step. Released from other
+      # extension/ content than this commit's (two PRs bumping to the same version, both merged
+      # before the first one's release): this commit's changes would never ship, so that fails.
       - name: Check whether this version was already released
         if: steps.version.outputs.superseded != 'true'
         id: released
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
           TAG: ${{ steps.version.outputs.tag }}
           XPI: ${{ steps.version.outputs.xpi }}
+          COMMIT: ${{ steps.version.outputs.commit }}
         run: |
-          if OUT="$(gh release view "$TAG" --repo "$REPO" --json assets --jq '.assets[].name' 2>&1)"; then
+          if OUT="$(gh release view "$TAG" --repo "$REPO" --json assets,isDraft --jq '(if .isDraft then "DRAFT" else empty end), .assets[].name' 2>&1)"; then
             echo "release=true" >> "$GITHUB_OUTPUT"
-            if printf '%s\n' "$OUT" | grep -qxF "$XPI"; then
+            if printf '%s\n' "$OUT" | grep -qxF "$XPI" && ! printf '%s\n' "$OUT" | grep -qxF DRAFT; then
+              git fetch -q --depth=1 origin "refs/tags/$TAG"
+              if [ "$(git rev-parse "FETCH_HEAD^{commit}:extension")" != "$(git rev-parse HEAD:extension)" ]; then
+                echo "::error::$TAG was already released from other extension/ content than this commit's ($COMMIT), so this commit's extension changes would never ship. Raise extension/manifest.json's version past $VERSION and merge that."
+                exit 1
+              fi
               echo "released=true" >> "$GITHUB_OUTPUT"
               echo "$TAG is already released: only making sure the update manifest lists it." | tee -a "$GITHUB_STEP_SUMMARY"
+            elif printf '%s\n' "$OUT" | grep -qxF DRAFT; then
+              echo "released=false" >> "$GITHUB_OUTPUT"
+              echo "$TAG is a draft (an interrupted release): finishing it." | tee -a "$GITHUB_STEP_SUMMARY"
             else
               echo "released=false" >> "$GITHUB_OUTPUT"
               echo "$TAG exists without $XPI: attaching it." | tee -a "$GITHUB_STEP_SUMMARY"
@@ -140,7 +154,7 @@ jobs:
         if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
         working-directory: extension
         # No install scripts: nothing in web-ext's tree needs one (lint, build, sign and its AMO
-        # client work without), and none runs on this host.
+        # client work without), and none runs on this host (CI's extension job does the same).
         run: npm ci --ignore-scripts
 
       # AMO never takes the same version twice, so a re-run after a failure past the signing (the
@@ -179,7 +193,7 @@ jobs:
           if (response.status === 404) {
             console.log(`AMO has no ${id} ${version} yet: signing it.`);
             out('fetched=false');
-          } else if (response.status >= 400 && response.status < 500) {
+          } else if (response.status >= 400 && response.status < 500 && response.status !== 429) {
             // Not a lookup AMO answers (an add-on it doesn't know yet may answer this rather than
             // 404): signing decides. Bad credentials fail there too, with web-ext's message.
             console.log(`::warning::AMO answered ${response.status} looking up ${id} ${version} (${await response.text()}): signing it.`);
@@ -283,26 +297,34 @@ jobs:
           XPI: ${{ steps.version.outputs.xpi }}
           RELEASED: ${{ steps.released.outputs.released }}
         run: |
-          if CURRENT="$(gh release download "$UPDATES_TAG" --repo "$REPO" --pattern updates.json --output - 2>&1)"; then
-            printf '%s' "$CURRENT" > "$RUNNER_TEMP/updates.current.json"
-          elif printf '%s\n' "$CURRENT" | grep -q "release not found"; then
-            echo '{}' > "$RUNNER_TEMP/updates.current.json"
-          elif printf '%s\n' "$CURRENT" | grep -qE "no assets match|no assets to download"; then
-            # Lost (a failed `--clobber` upload): every extension-v* release carries the
-            # updates.json of its time, so the newest one's keeps the history.
-            TAGS="$(git ls-remote --tags --refs origin 'refs/tags/extension-v*')"
-            NEWEST="$(printf '%s\n' "$TAGS" | awk '{sub("^refs/tags/", "", $2); print $2}' \
-              | grep -E '^extension-v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1 || true)"
-            if [ -n "$NEWEST" ] && gh release download "$NEWEST" --repo "$REPO" --pattern updates.json \
-                --output "$RUNNER_TEMP/updates.current.json" --clobber 2>/dev/null; then
-              echo "::warning::$UPDATES_TAG has no updates.json: rebuilding it from $NEWEST's."
-            else
-              echo "::warning::$UPDATES_TAG has no updates.json: starting a new one, which lists this version only."
-              echo '{}' > "$RUNNER_TEMP/updates.current.json"
-            fi
-          else
-            echo "::error::Couldn't read the current updates.json from $UPDATES_TAG: $CURRENT"
+          # stdout (the file) and stderr (gh's errors and notices) apart: a notice on success must
+          # never end up in the JSON.
+          current="$RUNNER_TEMP/updates.current.json"
+          err="$RUNNER_TEMP/gh.err"
+          download() { gh release download "$1" --repo "$REPO" --pattern updates.json --output "$current" --clobber 2> "$err"; }
+          missing() { grep -qE "release not found|no assets match|no assets to download" "$err"; }
+          if download "$UPDATES_TAG"; then
+            :
+          elif ! missing; then
+            echo "::error::Couldn't read the current updates.json from $UPDATES_TAG: $(cat "$err")"
             exit 1
+          else
+            # None yet (the first release), or lost (a failed `--clobber` upload): every
+            # extension-v* release carries the updates.json of its time, so the newest one that
+            # has it keeps the history. Any error but "not there" fails, never a silent restart.
+            echo '{}' > "$current"
+            TAGS="$(git ls-remote --tags --refs origin 'refs/tags/extension-v*')"
+            for tag in $(printf '%s\n' "$TAGS" | awk '{sub("^refs/tags/", "", $2); print $2}' \
+                | grep -E '^extension-v[0-9]+\.[0-9]+\.[0-9]+$' | sort -rV || true); do
+              if download "$tag"; then
+                echo "::warning::$UPDATES_TAG has no updates.json: rebuilding it from $tag's."
+                break
+              elif ! missing; then
+                echo "::error::Couldn't read $tag's updates.json: $(cat "$err")"
+                exit 1
+              fi
+              echo '{}' > "$current"
+            done
           fi
           # Already released: hash the release's own asset (downloaded), never a field the runner's
           # gh might not have.
@@ -348,6 +370,8 @@ jobs:
         run: |
           if [ "$HAS_RELEASE" = "true" ]; then
             gh release upload "$TAG" --repo "$REPO" --clobber "$RUNNER_TEMP/$XPI" "$RUNNER_TEMP/updates.json"
+            # A draft left by an interrupted run: publish it (this creates its tag). No-op otherwise.
+            gh release edit "$TAG" --repo "$REPO" --draft=false --latest=false
           else
             NOTES="$(printf '%s\n' \
               "spotdl-web's Firefox extension $VERSION, signed by addons.mozilla.org (unlisted)." \
