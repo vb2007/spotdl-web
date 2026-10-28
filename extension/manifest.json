@@ -2,12 +2,13 @@
 	"manifest_version": 3,
 	"name": "__MSG_extName__",
 	"description": "__MSG_extDescription__",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"default_locale": "en",
 	"homepage_url": "https://github.com/vb2007/spotdl-web",
 	"browser_specific_settings": {
 		"gecko": {
 			"id": "spotdl-web@vb2007.hu",
+			"update_url": "https://github.com/vb2007/spotdl-web/releases/download/extension-updates/updates.json",
 			"strict_min_version": "153.0",
 			"data_collection_permissions": {
 				"required": ["none"]

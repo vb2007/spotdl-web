@@ -5,7 +5,8 @@
 	"description": "spotdl-web's Firefox extension (its own version lives in manifest.json)",
 	"scripts": {
 		"test": "node --test \"test/**/*.test.js\"",
-		"lint": "web-ext lint --source-dir . --ignore-files 'test/**' 'node_modules/**' 'package.json' 'package-lock.json' 'web-ext-artifacts/**' 'DESIGN.md' '.impeccable/**'",
+		"lint": "web-ext lint --self-hosted --source-dir . --ignore-files 'test/**' 'node_modules/**' 'package.json' 'package-lock.json' 'web-ext-artifacts/**' 'DESIGN.md' '.impeccable/**'",
+		"sign": "web-ext sign --channel unlisted --source-dir . --artifacts-dir web-ext-artifacts --ignore-files 'test/**' 'node_modules/**' 'package.json' 'package-lock.json' 'web-ext-artifacts/**' 'DESIGN.md' '.impeccable/**' '.amo-upload-uuid'",
 		"start": "web-ext run --source-dir . --ignore-files 'test/**' 'node_modules/**' 'DESIGN.md' '.impeccable/**'"
 	},
 	"devDependencies": {

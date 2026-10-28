@@ -267,7 +267,7 @@ jobs:
   # disconnected components in the Actions dependency graph). `needs` lists all four so the
   # graph reads as one pipeline, and the summary reports on all of them, not only pytest's.
   summary:
-    needs: [version, pytest, compose-config, frontend, deps-sync]
+    needs: [version, pytest, compose-config, frontend, deps-sync, extension]
     if: always()
     runs-on: self-hosted
     # v49: read by release-deploy.yml's `notify` (through this workflow's `failed` output), so a
@@ -284,7 +284,8 @@ jobs:
           failed=""
           for pair in "version=${{ needs.version.result }}" "pytest=${{ needs.pytest.result }}" \
                       "compose-config=${{ needs['compose-config'].result }}" \
-                      "frontend=${{ needs.frontend.result }}" "deps-sync=${{ needs['deps-sync'].result }}"; do
+                      "frontend=${{ needs.frontend.result }}" "deps-sync=${{ needs['deps-sync'].result }}" \
+                      "extension=${{ needs.extension.result }}"; do
             case "${pair#*=}" in failure|cancelled) failed="$failed ${pair%%=*}" ;; esac
           done
           echo "failed=${failed# }" >> "$GITHUB_OUTPUT"
@@ -324,6 +325,7 @@ jobs:
             echo "| compose-config | ${{ needs['compose-config'].result }} |"
             echo "| frontend | ${{ needs.frontend.result }} |"
             echo "| deps-sync | ${{ needs['deps-sync'].result }} |"
+            echo "| extension | ${{ needs.extension.result }} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       # Renders junit.xml as a markdown table directly on the run's summary page — visible
@@ -449,3 +451,38 @@ jobs:
         # crash in resolveApiBase() (src/lib/api.ts) had this job existed before that fix
         # landed.
         run: npm run build
+
+  # v61: the Firefox extension's own checks (extension/, v58), which no job ran before: the
+  # `frontend` job lints frontend/ only. No browser here (master v4's "no CI browser job", the
+  # runner being the production host): the tests are node:test with jsdom fixtures. The version
+  # rule (a change to extension/ bumps its manifest) lives in the `version` job's
+  # check_version.py, beside the app's.
+  extension:
+    runs-on: self-hosted
+    defaults:
+      run:
+        working-directory: extension
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      # No install scripts (none in web-ext's tree needs one), as in extension-release.yml: this
+      # runner is the production host.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Lint (web-ext lint)
+        run: npm run lint
+
+      # Its own step, so a missing or extra `_locales` key names itself on the run page; the
+      # full suite below runs it again with everything else.
+      - name: _locales key parity (en/hu)
+        run: node --test test/locales.test.js
+
+      - name: Unit tests (node:test + jsdom fixtures)
+        run: npm test

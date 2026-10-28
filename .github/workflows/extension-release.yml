@@ -1,0 +1,443 @@
+name: Extension Release
+
+# v61: signs the Firefox extension (extension/, v58) on addons.mozilla.org as an **unlisted**
+# add-on (self-distribution: AMO signs it, but never lists it) and publishes it as a GitHub
+# release `extension-v<version>`, with the signed `.xpi` and Firefox's update manifest,
+# `updates.json`. See docs/EXTENSION.md, "Cutting an extension release".
+#
+# Called in-run by release-deploy.yml ("Release & Deploy", on every push to `main`) as its own
+# job after the checks and the app's deploy, and only when the run's `plan` found
+# extension/manifest.json's version above every released one (a version raised earlier but not
+# released yet still is). There's no `push` trigger and no `workflow_run` here (v49), so this
+# creates no run of its own, not even a skipped one.
+# `workflow_dispatch` releases the dispatched ref's version by hand, a branch's included (the
+# plan's "prove it before merge"); it's a no-op once that version is released.
+#
+# No `concurrency` group (v49: a group cancels an older pending run, even with
+# `cancel-in-progress: false`). The one self-hosted runner serializes the jobs, and a version
+# already released from the same extension/ (or from a later commit containing this one) is a
+# successful no-op that only makes sure the update manifest lists it. Released from other content
+# (two PRs bumping to the same version), the run fails into `notify` (the `released` step).
+#
+# Auto-update: the manifest's `browser_specific_settings.gecko.update_url` points at
+#   https://github.com/<repo>/releases/download/extension-updates/updates.json
+# a fixed release tag this job keeps the newest `updates.json` on. Not GitHub's
+# `releases/latest/download/…`: "latest" is the app's newest `v*` release (release.yml), so it
+# never carries an extension file. `extension-updates` is a prerelease, never marked latest, and
+# its tag doesn't match release.yml's `v*`, so it can't touch the app's releases either.
+"on":
+  workflow_call:
+    inputs:
+      commit:
+        description: "The exact commit to release the extension from (the caller's tested push commit)"
+        required: true
+        type: string
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extension-release:
+    runs-on: self-hosted
+    # Waiting for AMO is the long part: web-ext waits up to 5 minutes for validation and 15 for
+    # the signing, so its own "timeout exceeded" message comes before this one.
+    timeout-minutes: 45
+    # The write token reaches only the steps that call `gh` (GH_TOKEN on each): never `npm ci`'s
+    # dependency tree, nor web-ext, on this host. The checkout keeps no credential either (the
+    # repository is public, so `git ls-remote` needs none).
+    env:
+      REPO: ${{ github.repository }}
+      UPDATES_TAG: extension-updates
+    steps:
+      # Called: the commit the caller tested. Dispatched: the dispatched ref's commit.
+      - name: Check out the commit to release
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.commit || github.sha }}
+          persist-credentials: false
+
+      - name: Resolve the extension's version
+        id: version
+        run: |
+          VERSION="$(python3 .github/scripts/check_version.py --extension)"
+          if [ -z "$VERSION" ]; then
+            echo "::error::No extension/manifest.json at this commit: there's no extension to release."
+            exit 1
+          fi
+          COMMIT="$(git rev-parse HEAD)"
+          # A version below the newest released one is never released (a dispatch on an older ref,
+          # or this run's plan raced a newer merge's release on the runner): a successful no-op,
+          # like plan's own check. Equal is the already-released no-op below.
+          TAGS="$(git ls-remote --tags --refs origin 'refs/tags/extension-v*')"
+          NEWEST="$( { printf '%s\n' "$TAGS" | awk '{sub("^refs/tags/extension-v", "", $2); print $2}'; echo "$VERSION"; } \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n1)"
+          if [ "$NEWEST" != "$VERSION" ]; then
+            echo "superseded=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::Extension $VERSION is below the newest released one ($NEWEST): nothing to release."
+            echo "Extension $VERSION is below the newest released one ($NEWEST): nothing to release." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=extension-v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "xpi=spotdl-web-$VERSION.xpi" >> "$GITHUB_OUTPUT"
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::notice::Releasing the extension from $GITHUB_REF ($COMMIT), not main: every installed copy will update to it."
+          fi
+
+      # Released = the release exists, is published (a draft is what a killed `gh release create`
+      # leaves: no tag, assets the public can't fetch) and carries the signed XPI. Read in an
+      # assignment of its own (v49): under `bash -e` without pipefail, a failed lookup in a
+      # pipeline would read as "not released" and sign the version again. Only "release not
+      # found" means not released; any other error fails the step. Released from other
+      # extension/ content than this commit's (two PRs bumping to the same version, both merged
+      # before the first one's release): this commit's changes would never ship, so that fails.
+      - name: Check whether this version was already released
+        if: steps.version.outputs.superseded != 'true'
+        id: released
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          XPI: ${{ steps.version.outputs.xpi }}
+          COMMIT: ${{ steps.version.outputs.commit }}
+        run: |
+          if OUT="$(gh release view "$TAG" --repo "$REPO" --json assets,isDraft --jq '(if .isDraft then "DRAFT" else empty end), .assets[].name' 2>&1)"; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            if printf '%s\n' "$OUT" | grep -qxF "$XPI" && ! printf '%s\n' "$OUT" | grep -qxF DRAFT; then
+              if ! git fetch -q --depth=1 origin "refs/tags/$TAG"; then
+                echo "::error::Couldn't fetch $TAG to compare its extension/ with this commit's."
+                exit 1
+              fi
+              TAG_COMMIT="$(git rev-parse "FETCH_HEAD^{commit}")"
+              if [ "$(git rev-parse "$TAG_COMMIT:extension")" != "$(git rev-parse HEAD:extension)" ]; then
+                # Fine when the release was cut from a later commit that already contains this
+                # one (the other PR's run got there first); GitHub's compare says so without the
+                # history a depth-1 checkout lacks.
+                if ! STATUS="$(gh api "repos/$REPO/compare/$COMMIT...$TAG_COMMIT" --jq .status)"; then
+                  echo "::error::Couldn't compare $COMMIT with $TAG's commit $TAG_COMMIT."
+                  exit 1
+                fi
+                if [ "$STATUS" != "ahead" ] && [ "$STATUS" != "identical" ]; then
+                  echo "::error::$TAG was released from $TAG_COMMIT, whose extension/ differs from this commit's ($COMMIT): extension changes merged at the same version (two PRs bumping to $VERSION) never ship. Every run fails like this until a merge raises extension/manifest.json's version past $VERSION."
+                  exit 1
+                fi
+                echo "$TAG was released from $TAG_COMMIT, which already contains this commit."
+              fi
+              echo "released=true" >> "$GITHUB_OUTPUT"
+              echo "$TAG is already released: only making sure the update manifest lists it." | tee -a "$GITHUB_STEP_SUMMARY"
+            elif printf '%s\n' "$OUT" | grep -qxF DRAFT; then
+              echo "released=false" >> "$GITHUB_OUTPUT"
+              echo "$TAG is a draft (an interrupted release): finishing it." | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "released=false" >> "$GITHUB_OUTPUT"
+              echo "$TAG exists without $XPI: attaching it." | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
+          elif printf '%s\n' "$OUT" | grep -q "release not found"; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "released=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Couldn't read the $TAG release: $OUT"
+            exit 1
+          fi
+
+      # A missing signing key is a real failure, unlike a missing Matrix config: Release & Deploy's
+      # `notify` posts it. Firefox installs only a signed XPI, so there's nothing to fall back to.
+      - name: Require the AMO signing credentials
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          missing=""
+          [ -n "$(printf '%s' "$AMO_JWT_ISSUER" | tr -d '[:space:]')" ] || missing="$missing AMO_JWT_ISSUER"
+          [ -n "$(printf '%s' "$AMO_JWT_SECRET" | tr -d '[:space:]')" ] || missing="$missing AMO_JWT_SECRET"
+          if [ -n "$missing" ]; then
+            echo "::error::The AMO signing credentials are missing (${missing# }), so extension $VERSION can't be signed or released. Add them as repository secrets (addons.mozilla.org, Developer Hub, Manage API Keys: the JWT issuer and the JWT secret), then re-run this job. See docs/EXTENSION.md, 'Cutting an extension release'."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v7
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: extension/package-lock.json
+
+      - name: Install the extension's tools (web-ext)
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
+        working-directory: extension
+        # No install scripts: nothing in web-ext's tree needs one (lint, build, sign and its AMO
+        # client work without), and none runs on this host (CI's extension job does the same).
+        run: npm ci --ignore-scripts
+
+      # AMO never takes the same version twice, so a re-run after a failure past the signing (the
+      # GitHub release, say) can't sign again. AMO already holding this version means it was
+      # signed: download that signed file instead. web-ext's own AMO client (its exported
+      # `util/submit-addon`) does the JWT and the download, as `web-ext sign` does.
+      - name: Fetch the signed XPI if AMO already has this version
+        id: fetched
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
+        working-directory: extension
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          rm -rf web-ext-artifacts && mkdir web-ext-artifacts
+          node --input-type=module - <<'EOF'
+          import { appendFileSync, readFileSync } from 'node:fs';
+          import Client, { JwtApiAuth } from 'web-ext/util/submit-addon';
+
+          const out = (line) => appendFileSync(process.env.GITHUB_OUTPUT, `${line}\n`);
+          const id = JSON.parse(readFileSync('manifest.json', 'utf8')).browser_specific_settings.gecko.id;
+          const version = process.env.VERSION;
+          const client = new Client({
+            apiAuth: new JwtApiAuth({
+              apiKey: process.env.AMO_JWT_ISSUER.trim(),
+              apiSecret: process.env.AMO_JWT_SECRET.trim(),
+            }),
+            baseUrl: new URL('https://addons.mozilla.org/api/v5/'),
+            downloadDir: 'web-ext-artifacts',
+            userAgentString: 'spotdl-web-extension-release',
+          });
+          // `v` forces a lookup by version number (AMO reads a dotless value as an id).
+          const url = new URL(`addon/${encodeURIComponent(id)}/versions/v${version}/`, client.apiUrl);
+          const response = await client.fetch(url);
+          if (response.status === 404) {
+            console.log(`AMO has no ${id} ${version} yet: signing it.`);
+            out('fetched=false');
+          } else if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+            // Not a lookup AMO answers (an add-on it doesn't know yet may answer this rather than
+            // 404): signing decides. Bad credentials fail there too, with web-ext's message.
+            console.log(`::warning::AMO answered ${response.status} looking up ${id} ${version} (${await response.text()}): signing it.`);
+            out('fetched=false');
+          } else if (!response.ok) {
+            console.log(`::error::AMO answered ${response.status} looking up ${id} ${version}: ${await response.text()}`);
+            process.exit(1);
+          } else {
+            const detail = await response.json();
+            const status = detail.file?.status;
+            if (status && status !== 'public' && status !== 'unreviewed') {
+              console.log(`::error::AMO holds ${id} ${version}, but its file is ${status}: it can't be released. Raise the version.`);
+              process.exit(1);
+            }
+            console.log(`AMO already has ${id} ${version} (version id ${detail.id}): downloading its signed file.`);
+            const fileUrl = await client.waitForApproval(id, detail.id, null);
+            await client.downloadSignedFile(new URL(fileUrl), id);
+            out('fetched=true');
+          }
+          EOF
+
+      # The plan's `web-ext sign --channel unlisted --api-key … --api-secret …`, with the key and
+      # the secret given as web-ext's own environment form of those two flags
+      # (WEB_EXT_API_KEY/WEB_EXT_API_SECRET): this runner is the production host, and a command
+      # line is readable by every process on it (`ps`), an environment isn't.
+      - name: Sign on AMO (unlisted)
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true' && steps.fetched.outputs.fetched != 'true'
+        working-directory: extension
+        env:
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+        # Whitespace-trimmed like the checks above (a secret pasted with a newline would pass them
+        # and then fail AMO's JWT check); assignments before the command are its environment, not
+        # its arguments.
+        run: |
+          WEB_EXT_API_KEY="$(printf '%s' "$AMO_JWT_ISSUER" | tr -d '[:space:]')" \
+          WEB_EXT_API_SECRET="$(printf '%s' "$AMO_JWT_SECRET" | tr -d '[:space:]')" \
+            npm run sign
+
+      # Exactly one XPI, AMO-signed (it carries Mozilla's signature files), of this version, and
+      # built from this commit's extension/: every file in it, apart from the signature, equals
+      # the checkout's. A file AMO already held (fetched) that differs was signed from other
+      # content, so releasing it would ship the wrong code under this version: that fails. A
+      # difference in a file signed just now would be AMO's own doing: a warning, recorded.
+      - name: Check the signed XPI
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
+        working-directory: extension
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          XPI: ${{ steps.version.outputs.xpi }}
+          FETCHED: ${{ steps.fetched.outputs.fetched }}
+        run: |
+          shopt -s nullglob
+          files=(web-ext-artifacts/*.xpi)
+          if [ "${#files[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one signed XPI in web-ext-artifacts/, found ${#files[@]}: ${files[*]}"
+            exit 1
+          fi
+          cp "${files[0]}" "$RUNNER_TEMP/$XPI"
+          npx web-ext build --source-dir . --artifacts-dir "$RUNNER_TEMP/unsigned" --overwrite-dest \
+            --filename unsigned.zip --ignore-files 'test/**' 'node_modules/**' 'package.json' \
+            'package-lock.json' 'web-ext-artifacts/**' 'DESIGN.md' '.impeccable/**' '.amo-upload-uuid'
+          python3 - "$RUNNER_TEMP/$XPI" "$VERSION" "$RUNNER_TEMP/unsigned/unsigned.zip" <<'EOF'
+          import json, os, sys, zipfile
+          path, version, unsigned = sys.argv[1], sys.argv[2], sys.argv[3]
+          def files(zip_path):
+              with zipfile.ZipFile(zip_path) as z:
+                  return {n: z.read(n) for n in z.namelist()
+                          if not n.endswith("/") and not n.startswith("META-INF/")}
+          with zipfile.ZipFile(path) as xpi:
+              names = set(xpi.namelist())
+              manifest = json.loads(xpi.read("manifest.json"))
+          if not {"META-INF/cose.sig", "META-INF/mozilla.rsa"} & names:
+              sys.exit(f"::error::{path} carries no AMO signature (no META-INF/cose.sig or mozilla.rsa)")
+          if manifest.get("version") != version:
+              sys.exit(f"::error::{path} is version {manifest.get('version')!r}, not {version}")
+          signed, source = files(path), files(unsigned)
+          differ = sorted(n for n in signed.keys() | source.keys() if signed.get(n) != source.get(n))
+          if differ:
+              shown = ", ".join(differ[:10]) + (" …" if len(differ) > 10 else "")
+              if os.environ.get("FETCHED") == "true":
+                  sys.exit(f"::error::AMO's signed {version} differs from this commit's extension/ "
+                           f"({shown}): it was signed from other content. If another run's release of "
+                           f"{version} is unfinished (a draft), re-run that run's failed jobs first; "
+                           f"otherwise raise the version and release that.")
+              print(f"::warning::The XPI AMO just signed differs from the source in: {shown}")
+          print(f"{path}: signed, version {version}, {len(signed)} files"
+                + ("" if differ else ", identical to this commit's extension/"))
+          EOF
+
+      # The update manifest lists every released version; Firefox installs the newest whose
+      # `strict_min_version` it meets. Built on the current one (kept on the fixed tag), so each
+      # entry keeps the minimum Firefox its own manifest declared. This version's entry comes from
+      # the XPI itself, its manifest and its sha256 (the released asset, downloaded, when it was
+      # already released): never from the checkout, whose extension/ can differ from what was
+      # released at this version (two PRs bumping to it, the later one released).
+      - name: Build updates.json
+        if: steps.version.outputs.superseded != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          XPI: ${{ steps.version.outputs.xpi }}
+          RELEASED: ${{ steps.released.outputs.released }}
+        run: |
+          # stdout (the file) and stderr (gh's errors and notices) apart: a notice on success must
+          # never end up in the JSON.
+          current="$RUNNER_TEMP/updates.current.json"
+          err="$RUNNER_TEMP/gh.err"
+          download() { gh release download "$1" --repo "$REPO" --pattern updates.json --output "$current" --clobber 2> "$err"; }
+          missing() { grep -qE "release not found|no assets match|no assets to download" "$err"; }
+          if download "$UPDATES_TAG"; then
+            :
+          elif ! missing; then
+            echo "::error::Couldn't read the current updates.json from $UPDATES_TAG: $(cat "$err")"
+            exit 1
+          else
+            # None yet (the first release), or lost (a failed `--clobber` upload): every
+            # extension-v* release carries the updates.json of its time, so the newest one that
+            # has it keeps the history. Any error but "not there" fails, never a silent restart.
+            echo '{}' > "$current"
+            TAGS="$(git ls-remote --tags --refs origin 'refs/tags/extension-v*')"
+            for tag in $(printf '%s\n' "$TAGS" | awk '{sub("^refs/tags/", "", $2); print $2}' \
+                | grep -E '^extension-v[0-9]+\.[0-9]+\.[0-9]+$' | sort -rV || true); do
+              if download "$tag"; then
+                echo "::warning::$UPDATES_TAG has no updates.json: rebuilding it from $tag's."
+                break
+              elif ! missing; then
+                echo "::error::Couldn't read $tag's updates.json: $(cat "$err")"
+                exit 1
+              fi
+              echo '{}' > "$current"
+            done
+          fi
+          # Already released: hash the release's own asset (downloaded), never a field the runner's
+          # gh might not have.
+          if [ "$RELEASED" = "true" ]; then
+            gh release download "$TAG" --repo "$REPO" --pattern "$XPI" --dir "$RUNNER_TEMP" --clobber
+          fi
+          HASH="sha256:$(sha256sum "$RUNNER_TEMP/$XPI" | cut -d' ' -f1)"
+          HASH="$HASH" python3 - <<'EOF'
+          import json, os, re, zipfile
+          env = os.environ
+          with zipfile.ZipFile(os.path.join(env["RUNNER_TEMP"], env["XPI"])) as xpi:
+              manifest = json.loads(xpi.read("manifest.json"))
+          gecko = manifest["browser_specific_settings"]["gecko"]
+          addon_id, version = gecko["id"], env["VERSION"]
+          if not re.fullmatch(r"sha(256|512):[0-9a-f]+", env["HASH"]):
+              raise SystemExit(f"::error::No usable hash for {env['XPI']} (got {env['HASH']!r})")
+          current = json.load(open(os.path.join(env["RUNNER_TEMP"], "updates.current.json")))
+          updates = [u for u in current.get("addons", {}).get(addon_id, {}).get("updates", [])
+                     if u.get("version") != version]
+          updates.append({
+              "version": version,
+              "update_link": f"https://github.com/{env['REPO']}/releases/download/{env['TAG']}/{env['XPI']}",
+              "update_hash": env["HASH"],
+              "applications": {"gecko": {"strict_min_version": gecko["strict_min_version"]}},
+          })
+          updates.sort(key=lambda u: tuple(int(p) for p in u["version"].split(".")))
+          doc = {"addons": {addon_id: {"updates": updates}}}
+          with open(os.path.join(env["RUNNER_TEMP"], "updates.json"), "w") as f:
+              json.dump(doc, f, indent=2)
+              f.write("\n")
+          print(json.dumps(doc, indent=2))
+          EOF
+
+      # Never "Latest": that badge is the app's (release.yml decides it among `v*` tags only).
+      - name: Create the extension release
+        if: steps.version.outputs.superseded != 'true' && steps.released.outputs.released != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          XPI: ${{ steps.version.outputs.xpi }}
+          COMMIT: ${{ steps.version.outputs.commit }}
+          HAS_RELEASE: ${{ steps.released.outputs.release }}
+        run: |
+          if [ "$HAS_RELEASE" = "true" ]; then
+            gh release upload "$TAG" --repo "$REPO" --clobber "$RUNNER_TEMP/$XPI" "$RUNNER_TEMP/updates.json"
+            # A draft left by an interrupted run: publish it (this creates its tag). No-op otherwise.
+            gh release edit "$TAG" --repo "$REPO" --draft=false --latest=false
+          else
+            NOTES="$(printf '%s\n' \
+              "spotdl-web's Firefox extension $VERSION, signed by addons.mozilla.org (unlisted)." \
+              "" \
+              "Install: open \`$XPI\` below in Firefox and confirm. Installed copies update themselves (\`about:addons\`, *Check for Updates*). See [docs/EXTENSION.md](https://github.com/$REPO/blob/main/docs/EXTENSION.md).")"
+            gh release create "$TAG" --repo "$REPO" \
+              --title "Extension $VERSION" \
+              --notes "$NOTES" \
+              --latest=false \
+              --target "$COMMIT" \
+              "$RUNNER_TEMP/$XPI" "$RUNNER_TEMP/updates.json"
+          fi
+
+      # The fixed tag behind `update_url`. Created once, as a prerelease that's never latest; its
+      # tag stays where it was first created (only the asset changes). `--clobber` replaces the
+      # asset: for a moment there's none, and a Firefox checking right then simply finds no update
+      # and checks again later.
+      - name: Publish updates.json on the fixed update URL
+        if: steps.version.outputs.superseded != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT: ${{ steps.version.outputs.commit }}
+        run: |
+          if OUT="$(gh release view "$UPDATES_TAG" --repo "$REPO" --json tagName 2>&1)"; then
+            :
+          elif printf '%s\n' "$OUT" | grep -q "release not found"; then
+            gh release create "$UPDATES_TAG" --repo "$REPO" \
+              --title "Extension update manifest" \
+              --notes "Firefox's update URL for spotdl-web's extension (manifest.json's \`update_url\`). Don't delete this release or its \`updates.json\`: every installed copy reads it to find new versions. The extension's releases are the \`extension-v*\` tags." \
+              --prerelease --latest=false \
+              --target "$COMMIT"
+          else
+            echo "::error::Couldn't read the $UPDATES_TAG release: $OUT"
+            exit 1
+          fi
+          gh release upload "$UPDATES_TAG" --repo "$REPO" --clobber "$RUNNER_TEMP/updates.json"
+
+      - name: Summary
+        if: steps.version.outputs.superseded != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          XPI: ${{ steps.version.outputs.xpi }}
+        run: |
+          {
+            echo "## Extension $VERSION"
+            echo
+            echo "- Release: https://github.com/$REPO/releases/tag/$TAG"
+            echo "- XPI: https://github.com/$REPO/releases/download/$TAG/$XPI"
+            echo "- Update manifest: https://github.com/$REPO/releases/download/$UPDATES_TAG/updates.json"
+          } >> "$GITHUB_STEP_SUMMARY"
