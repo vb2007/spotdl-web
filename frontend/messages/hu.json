@@ -512,7 +512,7 @@
 	"settings_alert_library": "Könyvtárrendezés",
 	"settings_alert_library_hint": "Egy rendezés befejeződött vagy összeomlott.",
 	"settings_alert_worker_down": "Letöltő leállt",
-	"settings_alert_worker_down_hint": "Esedékes számok várnak, a biztosíték rendben van, mégsem indult letöltés a lenti határnál hosszabb ideje.",
+	"settings_alert_worker_down_hint": "Esedékes számok várnak, a biztosíték rendben van, mégsem indult letöltés a lenti határnál hosszabb ideje (ez sosem rövidebb a letöltések közti várakozásnál plusz egy percnél).",
 	"settings_on": "be",
 	"settings_off": "ki",
 	"settings_alerts_thresholds": "Küszöbök",

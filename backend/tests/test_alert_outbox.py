@@ -1114,3 +1114,16 @@ def test_a_delivered_test_alert_is_a_success_even_if_its_record_fails(
     monkeypatch.setattr(db_session, "execute", execute)
     alerts.send_test(db_session, "Test alert.")  # doesn't raise
     assert homeserver.messages == ["[spotdl-web] Test alert."]
+
+
+def test_worker_down_ignores_a_cancelled_job_s_leftover_tracks(configured, watchdog, db_session, make_user):
+    from app.models import JobState
+
+    track = _track(db_session, make_user, state=TrackState.PENDING)
+    db_session.get(Job, track.job_id).state = JobState.CANCELLED
+    db_session.commit()
+    track.updated_at = datetime.now(timezone.utc) - timedelta(minutes=30)
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []

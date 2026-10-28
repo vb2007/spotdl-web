@@ -279,7 +279,11 @@ def _redis() -> redis.Redis:
     # Per process: the watchdog's process forks prefork children, which build their own.
     global _redis_client, _redis_pid
     if _redis_client is None or _redis_pid != os.getpid():
-        _redis_client = redis.Redis.from_url(get_settings().redis_url)
+        # Timeouts (v59, review round 7): a paused or partitioned Redis would otherwise hang the
+        # watchdog's check, and with it the delivery pass it owes a dead beat.
+        _redis_client = redis.Redis.from_url(
+            get_settings().redis_url, socket_timeout=5, socket_connect_timeout=5
+        )
         _redis_pid = os.getpid()
     return _redis_client
 
@@ -814,13 +818,18 @@ def due_backlog(db: Session, now: datetime):
     with no scheduled_at, which expand_job has already sent to the broker (v56's outbox marker
     is cleared by that send, so its updated_at is when it was sent). (None, 0) when there are
     none."""
-    from app.models import Track, TrackState
+    from app.models import Job, JobState, Track, TrackState
 
     due_at = func.coalesce(Track.scheduled_at, Track.updated_at)
     oldest, count = db.execute(
-        select(func.min(due_at), func.count()).where(
+        select(func.min(due_at), func.count())
+        .join(Job, Track.job_id == Job.id)
+        .where(
             Track.state.in_((TrackState.QUEUED, TrackState.WAITING, TrackState.PENDING)),
             due_at <= now,
+            # A cancelled job's leftover `pending` rows (a worker-expand killed between its
+            # insert and its cancel) are owed to nobody (review round 7).
+            Job.state != JobState.CANCELLED,
         )
     ).one()
     return oldest, count

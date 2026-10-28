@@ -531,7 +531,7 @@
 	"settings_alert_library": "Library sweep",
 	"settings_alert_library_hint": "A sweep finished or crashed.",
 	"settings_alert_worker_down": "Downloader stopped",
-	"settings_alert_worker_down_hint": "Due tracks wait and the breaker is clear, but no download has started for longer than the limit below.",
+	"settings_alert_worker_down_hint": "Due tracks wait and the breaker is clear, but no download has started for longer than the limit below (never less than the pacing wait plus a minute).",
 	"settings_on": "on",
 	"settings_off": "off",
 	"settings_alerts_thresholds": "Thresholds",
