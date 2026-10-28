@@ -104,10 +104,24 @@ jobs:
           if OUT="$(gh release view "$TAG" --repo "$REPO" --json assets,isDraft --jq '(if .isDraft then "DRAFT" else empty end), .assets[].name' 2>&1)"; then
             echo "release=true" >> "$GITHUB_OUTPUT"
             if printf '%s\n' "$OUT" | grep -qxF "$XPI" && ! printf '%s\n' "$OUT" | grep -qxF DRAFT; then
-              git fetch -q --depth=1 origin "refs/tags/$TAG"
-              if [ "$(git rev-parse "FETCH_HEAD^{commit}:extension")" != "$(git rev-parse HEAD:extension)" ]; then
-                echo "::error::$TAG was already released from other extension/ content than this commit's ($COMMIT), so this commit's extension changes would never ship. Raise extension/manifest.json's version past $VERSION and merge that."
+              if ! git fetch -q --depth=1 origin "refs/tags/$TAG"; then
+                echo "::error::Couldn't fetch $TAG to compare its extension/ with this commit's."
                 exit 1
+              fi
+              TAG_COMMIT="$(git rev-parse "FETCH_HEAD^{commit}")"
+              if [ "$(git rev-parse "$TAG_COMMIT:extension")" != "$(git rev-parse HEAD:extension)" ]; then
+                # Fine when the release was cut from a later commit that already contains this
+                # one (the other PR's run got there first); GitHub's compare says so without the
+                # history a depth-1 checkout lacks.
+                if ! STATUS="$(gh api "repos/$REPO/compare/$COMMIT...$TAG_COMMIT" --jq .status)"; then
+                  echo "::error::Couldn't compare $COMMIT with $TAG's commit $TAG_COMMIT."
+                  exit 1
+                fi
+                if [ "$STATUS" != "ahead" ] && [ "$STATUS" != "identical" ]; then
+                  echo "::error::$TAG was already released from other extension/ content than this commit's ($COMMIT), so this commit's extension changes would never ship. Raise extension/manifest.json's version past $VERSION and merge that."
+                  exit 1
+                fi
+                echo "$TAG was released from $TAG_COMMIT, which already contains this commit."
               fi
               echo "released=true" >> "$GITHUB_OUTPUT"
               echo "$TAG is already released: only making sure the update manifest lists it." | tee -a "$GITHUB_STEP_SUMMARY"

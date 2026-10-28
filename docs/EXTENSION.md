@@ -133,8 +133,9 @@ principal that made it) found the extension contacting only the configured app o
    the re-run or the next merge, and the notice says so):
    - signs it on AMO, unlisted (`web-ext sign --channel unlisted`, `npm run sign`), waiting for
      AMO's automatic signing;
-   - checks the XPI carries Mozilla's signature and the right version, and that its files are
-     this commit's `extension/`;
+   - checks the XPI carries Mozilla's signature and the right version, and compares its files
+     with this commit's `extension/` (a file fetched back from AMO must match; a fresh signing
+     only warns, since a difference there would be AMO's own doing);
    - creates the `extension-v<version>` release with `spotdl-web-<version>.xpi` and
      `updates.json`, never marked *Latest*;
    - puts the new `updates.json` on the fixed `extension-updates` release, which installed copies

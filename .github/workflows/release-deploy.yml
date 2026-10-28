@@ -126,18 +126,19 @@ jobs:
             | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' || true)"
           NEWEST="$( { printf '%s\n' "$RELEASED"; echo "$VERSION"; } | grep . | sort -V | tail -n1)"
           if printf '%s\n' "$RELEASED" | grep -qxF "$VERSION"; then
-            echo "extension=false" >> "$GITHUB_OUTPUT"
-            echo "Extension $VERSION is already released (extension-v$VERSION)." | tee -a "$GITHUB_STEP_SUMMARY"
             # CI refuses a PR whose version was released from other extension/ content, but two
-            # PRs bumping to the same version can both merge: say so, the second one never ships.
-            # Only a warning, so a failed fetch here mustn't fail the step (and hand over).
-            if git fetch -q --depth=1 origin "refs/tags/extension-v$VERSION"; then
-              if [ "$(git rev-parse "FETCH_HEAD^{commit}:extension")" != "$(git rev-parse HEAD:extension)" ]; then
-                echo "::warning::extension-v$VERSION was released from other extension/ content than this commit's: this commit's extension changes won't ship until the version is raised." \
-                  | tee -a "$GITHUB_STEP_SUMMARY"
-              fi
+            # PRs bumping to the same version can both merge before the first one's release.
+            # Same content: nothing to do. Other content, or no way to tell: the extension's job
+            # decides (its `released` step passes a release that already contains this commit,
+            # and fails into `notify` otherwise), so this ordering is as loud as the other.
+            if git fetch -q --depth=1 origin "refs/tags/extension-v$VERSION" \
+                && [ "$(git rev-parse "FETCH_HEAD^{commit}:extension")" = "$(git rev-parse HEAD:extension)" ]; then
+              echo "extension=false" >> "$GITHUB_OUTPUT"
+              echo "Extension $VERSION is already released (extension-v$VERSION)." | tee -a "$GITHUB_STEP_SUMMARY"
             else
-              echo "::warning::Couldn't fetch extension-v$VERSION to compare its extension/ with this commit's."
+              echo "extension=true" >> "$GITHUB_OUTPUT"
+              echo "::warning::extension-v$VERSION exists, but its extension/ isn't this commit's (or couldn't be read): the extension's job checks it." \
+                | tee -a "$GITHUB_STEP_SUMMARY"
             fi
           elif [ "$NEWEST" != "$VERSION" ]; then
             echo "extension=false" >> "$GITHUB_OUTPUT"
@@ -298,7 +299,7 @@ jobs:
                 fi
               elif [ "$EXTENSION_PLANNED" = "true" ]; then
                 # Held back by the failure above: it releases on this run's re-run or the next merge.
-                echo "Extension: extension-v${EXTENSION_VERSION:-unresolved} not released (held by the failure; re-run the failed jobs, or the next merge releases it)"
+                echo "Extension: extension-v${EXTENSION_VERSION:-unresolved} not released (held back by the job above; the next merge releases it, or dispatch Extension Release on main)"
               fi
               echo "Rollback: $rollback"
               echo "Run: $RUN_URL"

@@ -7299,9 +7299,12 @@ independently-found production bug from the same conversation)
   first two were seen this session). All exit 1, like an auth or network failure, so the
   workflow matches the message and fails on anything else.
 - **Two PRs bumping to the same version, both merged before the first one's release.** CI passed
-  both (no tag yet), and the second run's plan sees no tag either. The release job compares the
-  released tag's `extension/` tree with its commit's and fails into `notify` when they differ, the
-  extension's version of release.yml's `owned`. And a draft (what a killed `gh release create`
+  both (no tag yet). Whichever way the runs interleave, the second run's extension job runs: its
+  plan either sees no tag yet, or sees the tag with other `extension/` content and hands over
+  (`extension=true`) rather than only warning. The job's `released` step then compares the
+  released tag's `extension/` tree with its commit's: equal, or a tag commit that already
+  contains this one (GitHub's compare, `ahead`/`identical`, since the checkout is depth 1), is a
+  no-op; otherwise it fails into `notify`. The extension's version of release.yml's `owned`. And a draft (what a killed `gh release create`
   leaves) is never "released": the job finishes and publishes it.
 - **Same version, other content.** Release & Deploy's plan reads "the `extension-v<version>` tag
   exists" as "released". A version released from a branch (a dispatch) and later reused by a PR
