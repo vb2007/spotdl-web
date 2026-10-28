@@ -7297,8 +7297,11 @@ independently-found production bug from the same conversation)
   workflow matches the message and fails on anything else.
 - **Same version, other content.** Release & Deploy's plan reads "the `extension-v<version>` tag
   exists" as "released". A version released from a branch (a dispatch) and later reused by a PR
-  carrying different code would never ship. CI's `check_version.py` compares the tag's
-  `extension/` tree with the PR's and refuses a difference; and a signed file fetched back from
+  carrying different code would never ship, and neither would a version below a released one
+  (plan skips it). CI's `check_version.py` refuses both: below the newest `extension-v*` tag, or
+  equal to one whose `extension/` tree differs from the PR's. In the release job itself a
+  version below the newest is a successful no-op, not a failure: two extension merges' runs can
+  finish out of order on the one runner. And a signed file fetched back from
   AMO must equal the commit's `extension/` file for file (a web-ext build of it, minus
   `META-INF/`).
 
