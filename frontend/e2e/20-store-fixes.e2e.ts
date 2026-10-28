@@ -466,11 +466,13 @@ test.describe('F9: a sign-out reaches the other tabs at once', () => {
 		await openDashboard(b);
 		const bRequests: string[] = [];
 		b.on('request', (r) => bRequests.push(new URL(r.url()).pathname));
-		// What the fallback would have been: a 401 answer to tab B's own requests.
+		// What the fallback would have been: a 401 answer to one of tab B's own requests (its
+		// worker poll, its stream). The /api/auth/me of the navigation to /login the push itself
+		// starts is answered 401 too, before the URL changes: that one is the push's own.
 		const b401s: string[] = [];
 		b.on('response', (r) => {
-			if (r.status() === 401 && !new URL(b.url()).pathname.startsWith('/login'))
-				b401s.push(new URL(r.url()).pathname);
+			const path = new URL(r.url()).pathname;
+			if (r.status() === 401 && path !== '/api/auth/me') b401s.push(path);
 		});
 
 		const started = Date.now();
