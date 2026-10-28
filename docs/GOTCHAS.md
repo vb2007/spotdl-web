@@ -7101,10 +7101,15 @@ independently-found production bug from the same conversation)
   first moment of an unconsumed backlog, and when dispatch last reopened. That memory is the
   "backlog since" marker v36 lacked; no heartbeat was added. A restart of the watchdog gives one
   threshold of grace, as beat-stale's does. It stays silent while beat is stale (its own alert)
-  and while the breaker or a pause holds dispatch. A threshold below `PACING_MAX_SEC` reads the
-  pacing sleep (the track is still `queued`, with no attempt row yet) as idle. Its text says
-  "isn't taking due tracks … worker-dl is down or stuck, or these tracks' queue messages were
-  lost": a `pending` track whose broker message was lost looks the same from the database.
+  and while the breaker or a pause holds dispatch. The pacing sleep runs while the track is still
+  `queued`, with no attempt row, so the effective threshold is never under `PACING_MAX_SEC` + 1
+  min (review round 5). Its text says "isn't taking due tracks … worker-dl is down or stuck, or
+  these tracks' queue messages were lost" (a `pending` track whose broker message was lost looks
+  the same from the database), and names no "oldest due since": the stale sweep rewrites that,
+  so it could read later than the idle time beside it (live review round 2). **Accepted
+  trade-off:** a worker-dl killed mid-download leaves its track `downloading`, which reads as
+  busy until beat's stale sweep reclaims it, so that case is announced after
+  `STALE_TRACK_AFTER_SECONDS` + the threshold (~45 min in production), not the threshold.
 - **Found live: a new job's tracks are `pending` with a NULL `scheduled_at`.** expand_job's send
   clears v56's outbox marker, so `scheduled_at <= now` missed all 11 tracks of a fresh album and
   the first live run never fired. Due time is `coalesce(scheduled_at, updated_at)`.
@@ -7114,7 +7119,13 @@ independently-found production bug from the same conversation)
   25-min outage before it did. Celery's own "consumer: Cannot connect to redis" retry lines
   (54 in that outage) are Celery's and stay. The watchdog keeps its database checks
   (release, worker-down) and the delivery pass running through the outage; only beat-stale,
-  worker-down (beat's state is unknown) and spike (its "newest seen" key) skip.
+  worker-down (beat's state is unknown) and spike (its "newest seen" key) skip. A recovery is
+  the check's verdict, never one read's, so a flapping Redis can't log "reachable again" and a
+  fresh traceback inside one check. And beat gets one threshold of grace from Redis' return, as
+  from the watchdog's start: it can't tick without its broker, so its heartbeat is as old as the
+  outage, and v36 sent "Beat looks dead" just as beat resumed (live review round 2). The
+  watchdog's delivery pass runs in a `finally`: with beat dead it's the only one, and a check
+  that raises mustn't skip it (review round 5).
 - **A `pending` track with a NULL `scheduled_at` that was never really sent** (a pre-v56
   stranded one) reads as worker-dl down once the watchdog has run a threshold. Before deploying,
   count them: `select count(*) from tracks where state = 'pending' and scheduled_at is null and

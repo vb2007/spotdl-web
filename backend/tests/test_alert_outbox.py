@@ -495,6 +495,7 @@ def watchdog(db_session, fake_redis, sessions, homeserver, clock):
     dog.redis_outage = alerts.RedisOutageLog(alerts.logger)
     dog._open_since = None
     dog._backlog_since = None
+    dog._redis_back_at = 0.0
     dog._session = sessions
     fake_redis.store[alerts.BEAT_HEARTBEAT_KEY] = f"{time.time():.3f}"
     return dog
@@ -665,7 +666,7 @@ def test_worker_down_fires_with_due_work_and_the_breaker_closed(configured, watc
     watchdog.check_once()
     (row,) = _rows(db_session, "worker_down")
     assert row.fingerprint == "stalled"
-    assert row.body.startswith("[spotdl-web] worker-dl isn't taking due tracks: 1 track(s) are due (the oldest since ")
+    assert row.body.startswith("[spotdl-web] worker-dl isn't taking due tracks: 1 track(s) are due with the breaker closed")
     assert "no download has started for at least 40m (the last one ended " in row.body
 
 
@@ -970,3 +971,106 @@ def test_the_health_check_logs_a_redis_outage_once(monkeypatch, caplog):
     lines = [r for r in caplog.records if r.name == "app.routers.health"]
     assert [r.getMessage() for r in lines] == ["Health check: Redis unreachable"]
     assert lines[0].exc_info is not None
+
+
+def test_the_watchdog_still_delivers_when_its_check_fails(configured, watchdog, db_session, homeserver, monkeypatch):
+    """Beat dead: the watchdog's pass is the only one, so a failing check mustn't skip it
+    (review round 5)."""
+    _record(db_session, "beat_stale", "stale", "Beat looks dead.")
+
+    def broken(*a, **k):
+        raise ValueError("bad heartbeat")
+
+    monkeypatch.setattr(alerts, "failure_spike", broken)
+    with pytest.raises(ValueError):
+        watchdog.check_once()
+    assert homeserver.messages == ["[spotdl-web] Beat looks dead."]
+
+
+def test_a_flapping_redis_logs_no_recovery_mid_check(configured, watchdog, db_session, caplog, monkeypatch):
+    import redis
+
+    calls = []
+
+    class FirstReadFails:
+        def get(self, key):
+            calls.append(key)
+            if len(calls) == 1:
+                raise redis.ConnectionError("Error 111")
+            return None
+
+        set = get
+
+    monkeypatch.setattr(alerts, "_redis", lambda: FirstReadFails())
+    watchdog.check_once()
+    # The heartbeat read failed, and the check's other reads (none failing) don't count as
+    # a recovery.
+    assert "reachable again" not in caplog.text
+    assert watchdog.redis_outage.down_since is not None
+
+
+def test_worker_down_waits_at_least_the_pacing_sleep(configured, watchdog, db_session, backlog, monkeypatch):
+    from app.config import get_settings
+
+    paced = get_settings().model_copy(update={"pacing_max_sec": 3 * 3600})
+    monkeypatch.setattr(alerts, "get_settings", lambda: paced)
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
+
+
+def test_overdue_rows_are_given_up_with_matrix_off(db_session, sessions, clock):
+    db_session.add(
+        AlertOutbox(
+            category="spike", fingerprint="x", body="b",
+            created_at=datetime.now(timezone.utc) - timedelta(hours=25),
+            state=AlertState.PENDING, next_attempt_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        )
+    )
+    db_session.commit()
+    assert alerts.deliver_due(sessions) == 0
+    (row,) = _rows(db_session)
+    assert row.state == AlertState.FAILED
+
+
+def test_a_pass_s_success_overrides_a_test_request_s_recorded_failure(
+    configured, db_session, sessions, homeserver, clock
+):
+    db_session.add(
+        AlertOutbox(
+            category="test", fingerprint="t", body="[spotdl-web] Test alert.",
+            created_at=datetime.now(timezone.utc), state=AlertState.PENDING, attempts=1,
+            next_attempt_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+        )
+    )
+    db_session.commit()
+    (row,) = _rows(db_session)
+    real_put = alerts._put
+
+    def put(config, body, txn):
+        # The test request gives up while this pass's send is landing.
+        row.state = AlertState.FAILED
+        db_session.commit()
+        return real_put(config, body, txn)
+
+    import unittest.mock
+
+    with unittest.mock.patch.object(alerts, "_put", put):
+        alerts.deliver_due(sessions)
+    db_session.refresh(row)
+    assert row.state == AlertState.SENT
+
+
+def test_beat_gets_grace_after_a_redis_outage(configured, watchdog, db_session, fake_redis, monkeypatch):
+    """Beat can't tick without its broker: when Redis is back, its last heartbeat is as old as
+    the outage, and that's not a dead beat (live review round 2)."""
+    import redis
+
+    watchdog.started_at = time.time() - 3600
+    fake_redis.store[alerts.BEAT_HEARTBEAT_KEY] = f"{time.time() - 1500:.3f}"
+    real = alerts._redis
+    monkeypatch.setattr(alerts, "_redis", lambda: (_ for _ in ()).throw(redis.ConnectionError("down")))
+    watchdog.check_once()  # the outage
+    monkeypatch.setattr(alerts, "_redis", real)
+    watchdog.check_once()  # Redis is back; beat hasn't ticked yet
+    assert _rows(db_session, "beat_stale") == []

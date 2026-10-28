@@ -571,6 +571,14 @@ def deliver_due(make_session: Callable[[], Session], *, limit: int = DELIVERY_BA
 
     config = matrix_config()
     if config is None:
+        # Nothing can be sent; what was raised before Matrix was switched off is still given
+        # up on time, rather than reading "sending" for its 30 days (review round 5).
+        try:
+            with make_session() as db:
+                _give_up_overdue(db, _utcnow())
+                db.commit()
+        except Exception as exc:
+            logger.warning("alerts: give-up sweep failed (%s)", type(exc).__name__)
         return 0
     sent = 0
     started = time.monotonic()
@@ -608,7 +616,15 @@ def deliver_due(make_session: Callable[[], Session], *, limit: int = DELIVERY_BA
                 next_attempt_at, final_state = None, None
                 with make_session() as db:
                     row = db.get(AlertOutbox, row_id, with_for_update=True)
-                    if row is not None and row.state == AlertState.PENDING:
+                    # A test alert's request may have recorded `failed` while this pass's send of
+                    # the same row (same txn) was landing: the message arrived (review round 5).
+                    late_test_success = (
+                        row is not None
+                        and error is None
+                        and row.category == CATEGORY_TEST
+                        and row.state == AlertState.FAILED
+                    )
+                    if row is not None and (row.state == AlertState.PENDING or late_test_success):
                         if error is None:
                             row.state = AlertState.SENT
                             row.sent_at = now
@@ -625,6 +641,8 @@ def deliver_due(make_session: Callable[[], Session], *, limit: int = DELIVERY_BA
                         next_attempt_at = row.next_attempt_at
                         final_state = row.state
                     db.commit()
+                if final_state is None:
+                    continue  # settled meanwhile by someone else; its outcome stands
                 if error is None:
                     sent += 1
                     logger.info(
@@ -874,7 +892,11 @@ def beat_heartbeat_age(now_epoch: float, fallback_epoch: float) -> float:
     """Seconds since beat's last tick. No heartbeat at all (a fresh Redis, or beat never
     started) counts from `fallback_epoch` -- the watchdog's own start -- so a stack that's
     still booting gets one full threshold of grace."""
-    raw = _redis().get(BEAT_HEARTBEAT_KEY)
+    return heartbeat_age(_redis().get(BEAT_HEARTBEAT_KEY), now_epoch, fallback_epoch)
+
+
+def heartbeat_age(raw, now_epoch: float, fallback_epoch: float) -> float:
+    """beat_heartbeat_age's arithmetic, for a heartbeat value already read."""
     # max(): Redis is persistent (appendonly), so after any downtime the key still holds the
     # last pre-shutdown tick -- without the grace, every restart after >threshold of downtime
     # would announce a dead beat (and burn the cooldown a real one then needs).
@@ -954,6 +976,8 @@ class Watchdog:
         self._open_since: datetime | None = None
         self._backlog_since: datetime | None = None
         self._redis_failed_this_check = False
+        self._redis_ok_this_check = False
+        self._redis_back_at = 0.0
 
     def _session(self) -> Session:
         return Session(self._engine)
@@ -968,16 +992,33 @@ class Watchdog:
                 self._redis_failed_this_check = True
                 self.redis_outage.failed(time.time())
             return None, False
-        self.redis_outage.reached(time.time())
+        self._redis_ok_this_check = True
+        if self.redis_outage.down_since is not None and not self._redis_failed_this_check:
+            # The first answer after an outage: beat's grace starts here.
+            self._redis_back_at = time.time()
         return value, True
 
     def check_once(self) -> None:
+        self._redis_failed_this_check = False
+        self._redis_ok_this_check = False
+        try:
+            self._check()
+        finally:
+            # A recovery is the check's verdict, not one read's: a flapping Redis that fails
+            # one read and answers the next mustn't log "reachable again" and then a fresh
+            # traceback (review round 5).
+            if self._redis_ok_this_check and not self._redis_failed_this_check:
+                self.redis_outage.reached(time.time())
+            # Whatever went wrong above, what is already pending still goes out: with beat
+            # dead, this is the only delivery pass there is (review round 5).
+            deliver_due(self._session)
+
+    def _check(self) -> None:
         from app.db import begin_snapshot
         from app.models import AlertState, WorkerState
         from app.services import app_settings
 
         now = datetime.now(timezone.utc)
-        self._redis_failed_this_check = False
         # Everything the checks need is read first, in one snapshot, and the session closed
         # before anything is recorded or sent.
         with self._session() as db:
@@ -985,7 +1026,13 @@ class Watchdog:
             row = app_settings.get_alert_settings(db)
             enabled = {category: category_enabled(row, category) for category in TOGGLE_FIELDS}
             stale_after = row.alert_beat_stale_seconds
-            down_after = timedelta(minutes=row.alert_worker_down_minutes)
+            # Never shorter than the pacing sleep (+1 min): it runs while the track is still
+            # `queued`, with no attempt row, so a healthy worker-dl reads as idle through it
+            # (review round 5).
+            down_after = max(
+                timedelta(minutes=row.alert_worker_down_minutes),
+                timedelta(seconds=get_settings().pacing_max_sec + 60),
+            )
             worker_state = db.get(WorkerState, 1)
             released = breaker_released(worker_state, now)
             newest_trip = _newest_trip(db) if released else None
@@ -1008,8 +1055,14 @@ class Watchdog:
         if release_due:
             self._record_release(newest_trip.fingerprint)
 
-        beat_age, beat_known = self._redis_read(
-            lambda: beat_heartbeat_age(time.time(), self.started_at)
+        # Grace from the watchdog's start, and from Redis' return after an outage: beat can't
+        # tick without its broker, so its last heartbeat is as old as the outage, and "Beat
+        # looks dead" would reach the room just as beat resumes (live review round 2).
+        raw_heartbeat, beat_known = self._redis_read(lambda: _redis().get(BEAT_HEARTBEAT_KEY))
+        beat_age = (
+            heartbeat_age(raw_heartbeat, time.time(), max(self.started_at, self._redis_back_at))
+            if beat_known
+            else 0.0
         )
         beat_alive = beat_known and beat_age <= stale_after
 
@@ -1042,8 +1095,6 @@ class Watchdog:
 
         self._check_worker_down(now, released, backlog, down_after, beat_alive)
 
-        deliver_due(self._session)
-
     def _check_worker_down(self, now, released, backlog, down_after, beat_alive) -> None:
         if not released:
             # Tripped or paused: nothing is dispatched, so nothing is owed to worker-dl.
@@ -1069,9 +1120,10 @@ class Watchdog:
         self._record(
             CATEGORY_WORKER_DOWN,
             "stalled",
-            f"worker-dl isn't taking due tracks: {count} track(s) are due (the oldest since "
-            f"{_hhmm(oldest_due)}) with the breaker closed, and no download has started for at "
-            f"least {idle} ({last}). Either worker-dl is down or stuck, or these tracks' queue "
+            # No "oldest due since": beat's stale sweep rewrites a stuck track's scheduled_at, so
+            # it could read later than the idle time it sits beside (live review round 2).
+            f"worker-dl isn't taking due tracks: {count} track(s) are due with the breaker "
+            f"closed, and no download has started for at least {idle} ({last}). Either worker-dl is down or stuck, or these tracks' queue "
             f"messages were lost; nothing downloads until that's fixed.",
         )
 
