@@ -23,6 +23,7 @@
 	import RichText from '$lib/components/RichText.svelte';
 	import ApiKeys from '$lib/components/ApiKeys.svelte';
 	import { guardUnsavedEdits } from '$lib/unsavedGuard';
+	import { setLeavingSession } from '$lib/session';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
@@ -250,7 +251,13 @@
 		// The module-level queue store outlives this navigation; clear it before leaving so
 		// the next identity on this tab never sees a flash of these rows.
 		queue.reset();
-		await goto(resolve('/login'));
+		// v62 (F6): the session is gone, so nothing unsaved here can be saved: never held.
+		setLeavingSession(true);
+		try {
+			await goto(resolve('/login'));
+		} finally {
+			setLeavingSession(false);
+		}
 	}
 </script>
 

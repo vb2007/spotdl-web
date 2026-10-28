@@ -707,7 +707,7 @@
 												onclick={() => toggleIn(openRuns, group.key)}
 												>{openRuns.has(group.key)
 													? m.track_repeats_hide()
-													: m.track_repeats_show(counted(run))}</button
+													: m.track_repeats_show(counted(rows))}</button
 											>
 											{#if openRuns.has(group.key)}
 												<ol class="run" id="run-{group.key}" aria-label={m.track_repeats_label()}>

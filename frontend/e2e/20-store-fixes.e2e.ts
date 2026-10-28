@@ -43,6 +43,11 @@ for n in range(55):
     db.add(Track(job_id=job.id, spotify_track_id=f"${FIXTURE}s{n}", song_json={"name": f"${FIXTURE} done {n}"},
                  state=TrackState.SKIPPED_DUPLICATE))
 db.commit()
+# As a job created through the API has: its status on record, so its first move names what it
+# left (prev_status) and the store moves the chip from the event alone.
+from app.services import job_status
+for item in made:
+    job_status.publish_change(db, user.id, item["jobId"])
 print(json.dumps(made))
 `,
 		[normalizeEmail(email), String(waiting)]
@@ -58,8 +63,12 @@ db = SessionLocal()
 ids = "select id from jobs where source_url like '%${FIXTURE}%'"
 db.execute(text(f"delete from track_attempts where track_id in (select id from tracks where job_id in ({ids}))"))
 db.execute(text(f"delete from tracks where job_id in ({ids})"))
+gone = [str(r[0]) for r in db.execute(text(ids))]
 db.execute(text(f"delete from jobs where source_url like '%${FIXTURE}%'"))
 db.commit()
+from app.services import events, job_status
+for job_id in gone:
+    events._get_client().delete(job_status._key(job_id))
 `);
 }
 
@@ -98,6 +107,12 @@ test.describe('F1/F2/F3: the state chips and rows stay right', () => {
 		};
 		await page.screenshot({ path: info.outputPath('f1-before.png') });
 
+		const reReads: string[] = [];
+		page.on('request', (r) => {
+			const url = new URL(r.url());
+			if (url.pathname === '/api/jobs' && url.searchParams.get('limit') === '1')
+				reReads.push(r.url());
+		});
 		const api = await request.newContext({ baseURL, storageState: USER_STATE });
 		const started = Date.now();
 		expect((await api.delete(`/api/tracks/${target.trackId}`)).status()).toBe(200);
@@ -112,6 +127,8 @@ test.describe('F1/F2/F3: the state chips and rows stay right', () => {
 			)
 			.toEqual([before.waiting - 1, before.partial + 1]);
 		info.annotations.push({ type: 'moved after', description: `${Date.now() - started} ms` });
+		// From the event's prev_status: no counts re-read was needed to place it.
+		expect(reReads).toEqual([]);
 		await page.screenshot({ path: info.outputPath('f1-after.png') });
 		expect(await serverCounts(baseURL!, USER_STATE)).toMatchObject({
 			waiting: before.waiting - 1,
@@ -370,26 +387,44 @@ test.describe('F7/F8 on the real stack', () => {
 	});
 
 	test('F8: clear log is off with its reason once there is nothing to clear', async ({
-		page
+		page,
+		baseURL
 	}, info) => {
 		await openDashboard(page);
 		const clear = page.getByRole('button', { name: t(m.queuectl_clear), exact: true });
-		if ((await clear.getAttribute('aria-disabled')) !== 'true') {
-			await clear.click();
-			await page
-				.getByRole('alertdialog')
-				.getByRole('button', { name: t(m.queuectl_clear_yes), exact: true })
-				.click();
+		let archived: string[] = [];
+		try {
+			if ((await clear.getAttribute('aria-disabled')) !== 'true') {
+				// The real action, on this identity's real log: every job it archives is put back
+				// afterwards (the later specs read them).
+				const answered = page.waitForResponse(
+					(r) =>
+						new URL(r.url()).pathname === '/api/jobs/archive' && r.request().method() === 'POST'
+				);
+				await clear.click();
+				await page
+					.getByRole('alertdialog')
+					.getByRole('button', { name: t(m.queuectl_clear_yes), exact: true })
+					.click();
+				archived = (await (await answered).json()).archived_ids;
+			}
+			await expect(clear).toHaveAttribute('aria-disabled', 'true');
+			await expect(clear).toHaveAccessibleDescription(t(m.queuectl_clear_none));
+			const snapshot = await page.locator('.log-tools').ariaSnapshot();
+			info.annotations.push({ type: 'aria', description: snapshot });
+			await page.screenshot({ path: info.outputPath('f8-disabled.png') });
+			// Still reachable by keyboard, and pressing it asks nothing.
+			await clear.focus();
+			await page.keyboard.press('Enter');
+			await expect(page.getByRole('alertdialog')).toHaveCount(0);
+		} finally {
+			if (archived.length > 0) {
+				const api = await request.newContext({ baseURL, storageState: USER_STATE });
+				const back = await api.post('/api/jobs/unarchive', { data: { job_ids: archived } });
+				expect(back.status()).toBe(200);
+				await api.dispose();
+			}
 		}
-		await expect(clear).toHaveAttribute('aria-disabled', 'true');
-		await expect(clear).toHaveAccessibleDescription(t(m.queuectl_clear_none));
-		const snapshot = await page.locator('.log-tools').ariaSnapshot();
-		info.annotations.push({ type: 'aria', description: snapshot });
-		await page.screenshot({ path: info.outputPath('f8-disabled.png') });
-		// Still reachable by keyboard, and pressing it asks nothing.
-		await clear.focus();
-		await page.keyboard.press('Enter');
-		await expect(page.getByRole('alertdialog')).toHaveCount(0);
 	});
 });
 

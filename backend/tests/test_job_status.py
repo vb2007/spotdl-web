@@ -36,6 +36,21 @@ class _FakeRedis:
         self.ttls[key] = ex
         return previous if get else True
 
+    def pipeline(self, transaction=True):
+        return _FakePipeline(self)
+
+
+class _FakePipeline:
+    def __init__(self, redis):
+        self.redis = redis
+        self.calls = []
+
+    def set(self, *args, **kwargs):
+        self.calls.append((args, kwargs))
+
+    def execute(self):
+        return [self.redis.set(*args, **kwargs) for args, kwargs in self.calls]
+
 
 @pytest.fixture()
 def fake_redis(monkeypatch):
@@ -176,7 +191,13 @@ def test_pending_changes_are_never_committed_by_it(db_session, make_user, fake_r
 
 def test_a_redis_failure_loses_only_the_event(db_session, make_user, published, monkeypatch):
     class _Down:
+        def pipeline(self, transaction=True):
+            return self
+
         def set(self, *args, **kwargs):
+            pass
+
+        def execute(self):
             raise redis.ConnectionError("down")
 
     monkeypatch.setattr(events, "_get_client", lambda: _Down())
@@ -249,13 +270,82 @@ def test_beat_checks_each_dispatched_job_once(db_session, make_user, fake_redis,
     job_status.publish_change(db_session, owner.id, job.id)
     published.clear()
     checks = []
-    real = job_status.publish_change
-    monkeypatch.setattr(job_status, "publish_change", lambda *a, **k: (checks.append(a[2]), real(*a, **k)))
+    real = job_status.publish_changes
+    monkeypatch.setattr(job_status, "publish_changes", lambda *a, **k: (checks.append(list(a[1])), real(*a, **k)))
     monkeypatch.setattr(beat, "SessionLocal", lambda: _NonClosingSession(db_session))
     monkeypatch.setattr(beat.download_track, "delay", lambda *a: None)
     monkeypatch.setattr(beat.alerts, "record_beat_heartbeat", lambda: None)
 
     beat.dispatch_due_tracks()
 
-    assert checks == [job.id]
+    assert checks == [[job.id]]
     assert [(e["prev_status"], e["status"]) for _, e in published] == [("waiting", "active")]
+
+
+def test_one_bulk_check_publishes_each_moved_job_to_its_owner(db_session, make_user, fake_redis, published):
+    a, b = make_user("a@example.com"), make_user("b@example.com")
+    ja = _job(db_session, a, (TrackState.WAITING,))
+    jb = _job(db_session, b, (TrackState.PENDING,))
+    jc = _job(db_session, b, (TrackState.COMPLETED,))
+    job_status.publish_changes(db_session, {ja.id: a.id, jb.id: b.id, jc.id: b.id})
+    published.clear()
+    _set_track_states(db_session, ja, TrackState.QUEUED)
+    _set_track_states(db_session, jb, TrackState.COMPLETED)
+
+    job_status.publish_changes(db_session, {ja.id: a.id, jb.id: b.id, jc.id: b.id})
+
+    assert sorted((str(user_id), e["job_id"], e["prev_status"], e["status"]) for user_id, e in published) == sorted(
+        [(str(a.id), str(ja.id), "waiting", "active"), (str(b.id), str(jb.id), "active", "settled:complete")]
+    )
+
+
+def test_publishers_of_one_job_take_turns_so_the_last_status_is_the_real_one(committed_db, fake_redis, published, monkeypatch):
+    """Review round 1, on two real connections: the read and the swap run under the job's row
+    lock. The worker completes T1 and reads ("waiting": T2 still waits) while holding it; an
+    API cancel of T2 commits meanwhile, and its publish waits for the worker's swap before it
+    reads. The chain ends on the job's real status, never on the worker's older reading."""
+    import threading
+
+    from tests import concurrency
+
+    from app.models import User
+
+    with committed_db() as db:
+        owner = User(email="owner@example.com", is_admin=False)
+        db.add(owner)
+        db.flush()
+        job = _job(db, owner, (TrackState.DOWNLOADING, TrackState.WAITING))
+        owner_id, job_id = owner.id, job.id
+        job_status.publish_change(db, owner_id, job_id)
+    published.clear()
+
+    gate = concurrency.Gate("the worker's status read")
+    real_counts = job_status.track_counts_by_job
+
+    def counts_then_wait(db, ids):
+        counts = real_counts(db, ids)
+        if threading.current_thread().name == "worker":
+            gate()
+        return counts
+
+    monkeypatch.setattr(job_status, "track_counts_by_job", counts_then_wait)
+
+    def finish(state_from, state_to):
+        with committed_db() as db:
+            track = db.query(Track).filter(Track.job_id == job_id, Track.state == state_from).one()
+            track.state = state_to
+            db.commit()
+            job_status.publish_change(db, owner_id, job_id)
+
+    worker = concurrency.Thread(finish, TrackState.DOWNLOADING, TrackState.COMPLETED, name="worker")
+    gate.wait_reached()
+    cancel = concurrency.Thread(finish, TrackState.WAITING, TrackState.CANCELLED, name="cancel")
+    assert concurrency.blocked_or_done(cancel) == "blocked"
+    gate.open()
+    worker.join()
+    cancel.join()
+
+    assert [(e["prev_status"], e["status"]) for _, e in published] == [
+        ("active", "waiting"),
+        ("waiting", "settled:partial"),
+    ]

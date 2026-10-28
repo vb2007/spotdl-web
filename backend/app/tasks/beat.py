@@ -146,9 +146,8 @@ def _reclaim_stale_tracks(db) -> None:
             failure_count=recorded.failure_count,
             **track_song_meta(song_json),
         )
-    # v62 (F1): a reclaim can turn a job `waiting`; one status check per job, not per track.
-    for job_id in job_ids:
-        job_status.publish_change(db, owner_by_job[job_id], job_id)
+    # v62 (F1): a reclaim can turn a job `waiting`; one bulk status check for its jobs.
+    job_status.publish_changes(db, {job_id: owner_by_job[job_id] for job_id in job_ids})
 
 
 @celery_app.task(name="app.tasks.beat.dispatch_due_tracks")
@@ -203,10 +202,9 @@ def dispatch_due_tracks() -> None:
 
         for track in due_tracks:
             download_track.delay(str(track.id))
-        # v62 (F1): a `waiting` track's dispatch can turn its job `active` again; one status
-        # check per job, after the sends (it ends the session's transaction).
-        for job_id, user_id in {track.job_id: user_id for track, user_id in due_rows}.items():
-            job_status.publish_change(db, user_id, job_id)
+        # v62 (F1): a `waiting` track's dispatch can turn its job `active` again; one bulk
+        # status check for the jobs dispatched, after the sends (it ends the transaction).
+        job_status.publish_changes(db, {track.job_id: user_id for track, user_id in due_rows})
     finally:
         db.close()
 

@@ -248,6 +248,18 @@ function createQueueStore() {
 	const failedRowRefreshes = new Set<string>();
 	const failedJobEvents = new Map<string, Extract<StreamEvent, { type: 'job.state' }>>();
 
+	// At most one retry a second: a download's progress ticks are events too, and a job the api
+	// keeps failing on must not cost a request per tick (review round 1).
+	let retryTimer: ReturnType<typeof setTimeout> | undefined;
+	function scheduleRetries(): void {
+		if (retryTimer !== undefined || (failedRowRefreshes.size === 0 && failedJobEvents.size === 0))
+			return;
+		retryTimer = setTimeout(() => {
+			retryTimer = undefined;
+			retryFailedRefreshes();
+		}, 1000);
+	}
+
 	function retryFailedRefreshes(): void {
 		for (const jobId of failedRowRefreshes) scheduleJobRefresh(jobId);
 		failedRowRefreshes.clear();
@@ -292,6 +304,9 @@ function createQueueStore() {
 
 	function forgetJobCounts(): void {
 		clearTimeout(jobCountsTimer);
+		clearTimeout(retryTimer);
+		retryTimer = undefined;
+		lastJobCountsRead = -Infinity;
 		jobCountsSeq++;
 		for (const id of Object.keys(countedJobStatus)) delete countedJobStatus[id];
 		for (const id of Object.keys(jobCountMovedAt)) delete jobCountMovedAt[id];
@@ -331,7 +346,13 @@ function createQueueStore() {
 		}
 		// An archived job isn't in the counts unless archived jobs are shown.
 		if (event.archived && !f.includeArchived) {
-			delete countedJobStatus[id];
+			// Counted until now (its creation event, say, before an enqueue failure archived
+			// it): it leaves the counts (review round 1).
+			if (id in countedJobStatus) {
+				const was = countedJobStatus[id];
+				delete countedJobStatus[id];
+				page.update((p) => ({ ...p, countsByStatus: shiftCount(p.countsByStatus, was, null) }));
+			}
 			return;
 		}
 		// A search also matches a job's tracks, which this store doesn't hold: whether a job off
@@ -367,12 +388,22 @@ function createQueueStore() {
 		local: Record<string, number> | null
 	): Record<string, number> {
 		const movedSince = (id: string) => (jobCountMovedAt[id] ?? 0) > startedAt;
+		const moved = Object.keys(jobCountMovedAt).filter(movedSince);
+		// The local counts stay, and so does what they count each job under: a row this page
+		// lists may already be counted under its new status here while its event is still on
+		// the way (review round 1).
+		if (local !== null && moved.length > 0) return local;
+		// The snapshot's counts are adopted: whatever this store knew about a job before the
+		// request started is superseded by them (an event lost while the stream was down left it
+		// stale, review round 1). A job the snapshot doesn't list then moves from its event's
+		// prev_status; one it lists, from its listed status.
+		for (const id of Object.keys(countedJobStatus)) {
+			if (!movedSince(id)) delete countedJobStatus[id];
+		}
 		for (const item of result.items) {
 			if (!movedSince(item.id)) countedJobStatus[item.id] = api.statusKey(item.status);
 		}
-		const moved = Object.keys(jobCountMovedAt).filter(movedSince);
 		if (moved.length === 0) return result.counts_by_status;
-		if (local !== null) return local;
 		let counts = result.counts_by_status;
 		let unlisted = false;
 		for (const id of moved) {
@@ -395,11 +426,16 @@ function createQueueStore() {
 	// counts_by_status), for a move this store can't place: debounced like the Tracks scope's.
 	let jobCountsTimer: ReturnType<typeof setTimeout> | undefined;
 	let jobCountsSeq = 0;
+	// Review round 1: an aggregate over the whole set, so at most one every few seconds while
+	// jobs keep moving (a busy queue under a search), never one a second.
+	const JOB_COUNTS_MIN_GAP_MS = 3000;
+	let lastJobCountsRead = -Infinity;
 
 	function scheduleJobCountsRefresh(): void {
 		if (get(filters).scope !== 'jobs') return;
 		clearTimeout(jobCountsTimer);
-		jobCountsTimer = setTimeout(refreshJobCounts, 1000);
+		const wait = Math.max(1000, lastJobCountsRead + JOB_COUNTS_MIN_GAP_MS - Date.now());
+		jobCountsTimer = setTimeout(refreshJobCounts, wait);
 	}
 
 	async function refreshJobCounts(): Promise<void> {
@@ -409,6 +445,7 @@ function createQueueStore() {
 		const epoch = storeEpoch;
 		const countsSeq = ++jobCountsSeq;
 		const startedAt = countMoveSeq;
+		lastJobCountsRead = Date.now();
 		try {
 			const result = await api.listJobsPage({
 				...currentQueryParams(),
@@ -1817,7 +1854,7 @@ function createQueueStore() {
 
 	async function applyEvent(event: StreamEvent): Promise<void> {
 		// v62 (F3): the stream is delivering again, so what failed before is asked for again.
-		if (event.type !== 'library.progress') retryFailedRefreshes();
+		if (event.type !== 'library.progress') scheduleRetries();
 		if (event.type === 'track.state') {
 			applyTrackEvent(event);
 		} else if (event.type === 'job.state') {

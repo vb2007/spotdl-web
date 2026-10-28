@@ -1424,6 +1424,44 @@ describe('v62 (F1/F2) the state chips follow job.status, on the page or off it',
 		expect(counts()).toEqual({ active: 0, 'settled:complete': 1 });
 	});
 
+	it('review 1: a reload supersedes what an off-page job was counted under before it', async () => {
+		// job-9 counted as waiting (from page 2), then an event lost while the stream was down.
+		await loadPage([withStatus('job-1', 'active')], { active: 1, waiting: 1 }, { next: 'c1' });
+		await queue.applyEvent(statusEvent('job-9', 'waiting', 'active'));
+		// The reconnect's reload: job-9 is active again (its move to active was never seen).
+		await loadPage([withStatus('job-1', 'active')], { active: 2, waiting: 0 }, { next: 'c1' });
+
+		await queue.applyEvent(statusEvent('job-9', 'waiting', 'active'));
+
+		expect(counts()).toEqual({ active: 1, waiting: 1 });
+	});
+
+	it('review 1: a "load more" that keeps its local counts seeds none of its rows', async () => {
+		await loadPage([withStatus('job-1', 'active')], { active: 2, waiting: 1 }, { next: 'c1' });
+		const more = deferred<JobsPage>();
+		listJobsPage.mockImplementation(() => more.promise);
+		const loading = queue.loadMore();
+		await queue.applyEvent(statusEvent('job-1', 'waiting', 'active'));
+		// job-2's move committed before the page was read; its event comes after the page.
+		more.resolve({
+			...jobsPage([withStatus('job-2', 'waiting')]),
+			counts_by_status: { active: 0, waiting: 3 }
+		});
+		await loading;
+		await queue.applyEvent(statusEvent('job-2', 'waiting', 'active'));
+
+		expect(counts()).toEqual({ active: 0, waiting: 3 });
+	});
+
+	it('review 1: a counted job archived away takes its count with it', async () => {
+		await loadPage([], {});
+		await queue.applyEvent(statusEvent('job-new', 'expanding', null));
+		expect(counts()).toEqual({ expanding: 1 });
+		// The enqueue failed: failed and archived at once.
+		await queue.applyEvent(statusEvent('job-new', 'failed', 'expanding', true));
+		expect(counts()).toEqual({ expanding: 0 });
+	});
+
 	it('reset() forgets every job’s counted status', async () => {
 		await loadPage([withStatus('job-1', 'active')], { active: 1 });
 		await queue.applyEvent(statusEvent('job-1', 'settled:complete', 'active'));
@@ -1467,9 +1505,9 @@ describe('v62 (F3) only a 404 drops a row', () => {
 			...job('job-1', 'expanded', 'settled'),
 			status: { lifecycle: 'settled', outcome: 'complete' }
 		});
-		// Another job's event: the failed one is retried with it.
+		// Another job's event: the failed one is retried after it (within a second).
 		await queue.applyEvent({ ...trackEvent(`f3-2-${label}`, 'queued'), job_id: 'job-2' });
-		await vi.advanceTimersByTimeAsync(1000);
+		await vi.advanceTimersByTimeAsync(2000);
 		expect(getJob).toHaveBeenCalledTimes(3);
 		expect(get(queue.page).items[0]).toMatchObject({ status: { lifecycle: 'settled' } });
 		expect(get(queue.page).countsByStatus).toEqual({ active: 0, 'settled:complete': 1 });
@@ -1492,10 +1530,23 @@ describe('v62 (F3) only a 404 drops a row', () => {
 
 		getJob.mockResolvedValue({ ...job('job-1', 'failed', 'failed'), error: 'nope' });
 		await queue.applyEvent(trackEvent('f3-3', 'queued'));
-		await vi.advanceTimersByTimeAsync(0);
+		await vi.advanceTimersByTimeAsync(1500);
 		expect(get(queue.incomingJobs)).toMatchObject([
 			{ id: 'job-1', state: 'failed', error: 'nope' }
 		]);
+	});
+
+	it('review 1: a failing job is asked for at most once a second, not once per tick', async () => {
+		await loadPage([job('job-1', 'expanded', 'active')], { active: 1 });
+		getJob.mockRejectedValue(new TypeError('Failed to fetch'));
+		await queue.applyEvent(trackEvent('f3-r1', 'completed'));
+		await vi.advanceTimersByTimeAsync(500);
+		getJob.mockClear();
+		for (let i = 0; i < 10; i++) {
+			await queue.applyEvent({ ...trackEvent('f3-r2', 'downloading', i * 10), job_id: 'job-2' });
+			await vi.advanceTimersByTimeAsync(100);
+		}
+		expect(getJob.mock.calls.filter(([id]) => id === 'job-1').length).toBeLessThanOrEqual(1);
 	});
 
 	it('a reconnect’s resync owes nothing to a refresh that failed before it', async () => {
