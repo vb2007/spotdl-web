@@ -64,11 +64,12 @@ def published(monkeypatch):
     """Every `job.status` event, as (user_id, payload); the other events are dropped."""
     captured = []
 
-    def publish(user_id, event, client=None):
+    def publish(user_id, event):
         if event["type"] == "job.status":
             captured.append((user_id, event))
 
     monkeypatch.setattr(events, "publish", publish)
+    monkeypatch.setattr(events, "publish_batch", lambda items, client: [publish(u, e) for u, e in items])
     return captured
 
 
@@ -363,3 +364,42 @@ def test_the_client_used_under_the_lock_never_retries(monkeypatch):
         assert client.get_retry()._retries == 0
     finally:
         monkeypatch.setattr(job_status, "_client", None)
+
+
+def test_a_batch_goes_out_in_one_round_trip_in_order(monkeypatch):
+    """Review round 5: one pipeline for every event of a bulk publish, so a stalled Redis costs
+    the locks one timeout, whatever the number of jobs."""
+    sent = []
+
+    class _Pipe:
+        def publish(self, channel, payload):
+            sent.append((channel, payload))
+
+        def execute(self):
+            sent.append("execute")
+
+    class _Client:
+        def pipeline(self, transaction=True):
+            return _Pipe()
+
+    events.publish_batch([("u1", {"type": "job.status", "n": 1}), ("u2", {"type": "job.status", "n": 2})], _Client())
+
+    assert [item if item == "execute" else item[0] for item in sent] == [
+        events.channel_for("u1"),
+        events.channel_for("u2"),
+        "execute",
+    ]
+
+
+def test_a_failed_batch_is_dropped_once(monkeypatch):
+    class _Down:
+        def pipeline(self, transaction=True):
+            return self
+
+        def publish(self, *a):
+            pass
+
+        def execute(self):
+            raise redis.TimeoutError("stalled")
+
+    events.publish_batch([("u1", {"type": "job.status"})], _Down())

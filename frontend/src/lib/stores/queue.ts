@@ -393,7 +393,11 @@ function createQueueStore() {
 		// The local counts stay, and so does what they count each job under: a row this page
 		// lists may already be counted under its new status here while its event is still on
 		// the way (review round 1).
-		if (local !== null && moved.length > 0) {
+		// A "load more" never takes its page's counts (review round 5): they cover the same set
+		// as the local ones, which every move keeps current, and a snapshot read just after a
+		// commit whose event is still on the way would count that move twice. Drift is the next
+		// full reload's to correct.
+		if (local !== null) {
 			// A moved job this page lists comes with its older row: read it again (review round 3).
 			for (const item of result.items) if (movedSince(item.id)) scheduleJobRefresh(item.id);
 			return local;

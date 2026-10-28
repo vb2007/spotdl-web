@@ -132,7 +132,10 @@
 		const resets = queue.getResetCount();
 		try {
 			const settings = await api.updateRetentionSettings(neverArchive ? null : days);
-			if (queue.getResetCount() !== resets) return;
+			if (queue.getResetCount() !== resets) {
+				saveAgain = false;
+				return;
+			}
 			// A choice made meanwhile is saved next: the form keeps it, only what's saved moves
 			// (review round 3: syncForm put the older answer back over it).
 			if (saveAgain) saved = settings;

@@ -7375,8 +7375,9 @@ independently-found production bug from the same conversation)
 - **The browser counts a move once whichever way it arrives.** `countedJobStatus` is the status a
   job is counted under; a row refresh moves a count only while no `job.status` event has spoken
   for the job (a `getJob` answer can be older than an event already applied). F2: a page response
-  whose request started before a later move doesn't overwrite it: "load more" keeps the local
-  counts, a reload corrects the moved jobs it lists and re-reads the counts for one it doesn't.
+  whose request started before a later move doesn't overwrite it: "load more" never takes its
+  page's counts (the same set as the local ones, kept current by every move; review round 5), a
+  reload corrects the moved jobs it lists and re-reads the counts for one it doesn't.
   Residual: a reload snapshot taken after a commit whose event reaches the browser only after
   the response (the stream slower than a whole HTTP round trip) counts that move twice until the
   next reload.

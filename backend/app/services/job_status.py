@@ -102,11 +102,16 @@ def publish_changes(db: Session, job_ids: Iterable[Any], *, created: bool = Fals
         logger.warning("job_status.publish_changes: called with pending changes; skipped")
         return
     try:
-        for owner_id, job_id, status, archived, prev_status in _swap_statuses(db, ids, created):
-            # Still under the lock (see the module docstring), on the timed client.
-            events.publish_job_status_event(
-                owner_id, job_id, status, archived=archived, prev_status=prev_status, client=_get_client()
-            )
+        moves = _swap_statuses(db, ids, created)
+        # Still under the lock (see the module docstring), on the timed client, in one round
+        # trip: a stall costs one timeout for the whole batch (review round 5).
+        events.publish_batch(
+            [
+                (owner_id, events.job_status_event(job_id, status, archived=archived, prev_status=prev_status))
+                for owner_id, job_id, status, archived, prev_status in moves
+            ],
+            _get_client(),
+        )
     except Exception:
         logger.warning("job_status.publish_changes: failed for %d job(s)", len(ids), exc_info=True)
     finally:

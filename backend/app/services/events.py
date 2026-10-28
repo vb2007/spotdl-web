@@ -46,13 +46,12 @@ def _get_client() -> redis.Redis:
     return _client
 
 
-def publish(user_id: uuid.UUID | str, event: dict[str, Any], client: redis.Redis | None = None) -> None:
+def publish(user_id: uuid.UUID | str, event: dict[str, Any]) -> None:
     """Best-effort — a Redis hiccup must never fail the download/expand task calling
-    this, only lose that one live-progress update. `client` (v62): a caller's own connection
-    (job_status publishes on its timed one, under its lock)."""
+    this, only lose that one live-progress update."""
     payload = {"ts": datetime.now(timezone.utc).isoformat(), **event}
     try:
-        (client or _get_client()).publish(channel_for(user_id), json.dumps(payload))
+        _get_client().publish(channel_for(user_id), json.dumps(payload))
     except redis.RedisError:
         logger.warning("events.publish: failed to publish %s event", event.get("type"), exc_info=True)
 
@@ -137,15 +136,9 @@ def publish_job_event(
 PREV_STATUS_UNKNOWN = object()
 
 
-def publish_job_status_event(
-    user_id: uuid.UUID | str,
-    job_id: Any,
-    status: str,
-    *,
-    archived: bool,
-    prev_status: Any = PREV_STATUS_UNKNOWN,
-    client: redis.Redis | None = None,
-) -> None:
+def job_status_event(
+    job_id: Any, status: str, *, archived: bool, prev_status: Any = PREV_STATUS_UNKNOWN
+) -> dict[str, Any]:
     """v62 (F1): a job's rollup status moved (`rollup.status_key` form: `active`,
     `settled:partial`, ...). Published by `job_status.publish_change`, which keeps the chain:
     each event's `prev_status` is the previous event's `status`. The dashboard moves its state
@@ -158,10 +151,34 @@ def publish_job_status_event(
     }
     if prev_status is not PREV_STATUS_UNKNOWN:
         event["prev_status"] = prev_status
-    if client is None:
-        publish(user_id, event)
-    else:
-        publish(user_id, event, client=client)
+    return event
+
+
+def publish_job_status_event(
+    user_id: uuid.UUID | str,
+    job_id: Any,
+    status: str,
+    *,
+    archived: bool,
+    prev_status: Any = PREV_STATUS_UNKNOWN,
+) -> None:
+    publish(user_id, job_status_event(job_id, status, archived=archived, prev_status=prev_status))
+
+
+def publish_batch(items: list[tuple[uuid.UUID | str, dict[str, Any]]], client: redis.Redis) -> None:
+    """v62: several events in one round trip on `client`, in order (job_status publishes a whole
+    beat tick's moves under the jobs' row locks: a stalled Redis costs one timeout, not one per
+    event). Best effort, like `publish`."""
+    if not items:
+        return
+    ts = datetime.now(timezone.utc).isoformat()
+    pipe = client.pipeline(transaction=False)
+    for user_id, event in items:
+        pipe.publish(channel_for(user_id), json.dumps({"ts": ts, **event}))
+    try:
+        pipe.execute()
+    except redis.RedisError:
+        logger.warning("events.publish_batch: failed to publish %d event(s)", len(items), exc_info=True)
 
 
 def publish_library_progress(
