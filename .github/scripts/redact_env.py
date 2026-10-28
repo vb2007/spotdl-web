@@ -54,6 +54,9 @@ def go_quoted(value: str) -> str:
 
 ENV_LINE_RE = re.compile(r"^\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=(.*)$")
 # A URL's userinfo (`user:pass@`, or a bare token before `@`), up to the first `@`.
+# A colon piece that is only a URL scheme (`redis://`) or a port and path (`6379/0`): masking it
+# would garble every message naming that scheme or port without hiding anything.
+NOT_SECRET_PIECE_RE = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:/*|[0-9/]+)$")
 URL_USERINFO_RE = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*://)[^\s/@]+@")
 
 
@@ -82,7 +85,7 @@ def secrets(env_file: str) -> list[str]:
             parts = v.strip("'\"").split(":")
             for i in range(1, len(parts)):
                 for piece in (":".join(parts[:i]), ":".join(parts[i:])):
-                    if len(piece) >= 6:
+                    if len(piece) >= 6 and not NOT_SECRET_PIECE_RE.match(piece):
                         found.add(piece)
     # Longest first, so a value containing a shorter one is masked whole.
     return sorted(found, key=len, reverse=True)

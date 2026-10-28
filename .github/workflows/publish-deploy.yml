@@ -255,7 +255,7 @@ jobs:
     # the rollback's own wait, plus pulls and the guard; a timeout mid-rollback would leave the
     # host half rolled back.
     # v60 (P4): every step that can run long has its own `timeout-minutes`, and this is only the
-    # backstop above their sum (2+5+5+6+5+3+10+30+10+25+10+3 = 114, plus seconds for the untimed
+    # backstop above their sum (2+5+5+6+5+6+10+30+13+25+10+3 = 120, plus seconds for the untimed
     # rest; the checkouts are bounded too, since a GitHub slowdown there would otherwise eat into
     # the rollback's share and let this limit cut it after all). Verified on the
     # runner (scratch run 40595581518): when the *job* limit cuts in, GitHub cancels the job, the
@@ -263,7 +263,7 @@ jobs:
     # for a cancelled job; `cancel-timeout-minutes` isn't a GitHub key), and no later step, the
     # rollback note and the Summary included, runs at all. A *step* that times out just fails,
     # so the rollback runs as for any failure, under its own limit.
-    timeout-minutes: 120
+    timeout-minutes: 130
     env:
       DEPLOY_DIR: /mnt/raid1/spotdl-web
     # Read by the `notify` job below, and by release-deploy.yml's (through this workflow's
@@ -482,7 +482,7 @@ jobs:
       - name: Skip if this version is already deployed and healthy
         id: skip
         if: needs.resolve.outputs.persist == 'true'
-        timeout-minutes: 3
+        timeout-minutes: 6
         run: |
           if [ "${{ steps.stale.outputs.stale }}" = "true" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -503,6 +503,9 @@ jobs:
         if: steps.skip.outputs.skip != 'true'
         timeout-minutes: 10
         run: |
+          # v60: pipefail, or a failed dump passes the step through `tee` (the default shell is
+          # `bash -e` without it) and the deploy migrates with no backup.
+          set -o pipefail
           "$DEPLOY_DIR/scripts/pg_backup.sh" | tee "$RUNNER_TEMP/pg_backup.log"
           echo "path=$(sed -n 's/^pg_backup: dumping to //p' "$RUNNER_TEMP/pg_backup.log" | tail -n1)" >> "$GITHUB_OUTPUT"
 
@@ -541,7 +544,8 @@ jobs:
       - name: Wait for the stack to become healthy
         id: health
         if: steps.skip.outputs.skip != 'true'
-        timeout-minutes: 10
+        # 13: the script's 420s, plus a last pass that compose retries can stretch.
+        timeout-minutes: 13
         run: bash .github/scripts/wait_for_stack_health.sh "$DEPLOY_DIR" 420
 
       # Code rollback only -- Alembic migrations are never downgraded automatically (too risky
@@ -642,9 +646,11 @@ jobs:
                 echo "migration_guard: probing on the live network $net as it is (external)"
               fi
             done <<< "$nets"
+            guard_on_live_net=false
             if [ -n "$override" ]; then
               printf 'networks:\n%s' "$override" > "$dir/guard-network.yml"
               args="$args -f $dir/guard-network.yml"
+              guard_on_live_net=true
             fi
             IMAGE_TAG="$1" GUARD_COMPOSE_ARGS="$args" \
               bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" \
@@ -704,6 +710,11 @@ jobs:
             exit 1
           elif [ "$guard_rc" -ne 0 ]; then
             echo "result=guard-error" >> "$GITHUB_OUTPUT"
+            if [ "$guard_on_live_net" = true ]; then
+              # v60 (P3): the probe ran on the failed release's own network. If that release's
+              # `networks:` change is what broke reaching Postgres, the probe can't work on it.
+              echo "::error::The guard's probe ran on the failed release's live network. If its networks: change is what cut Postgres off, recover by hand: cd $DEPLOY_DIR && docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel down (no -v, it keeps the data; this stops the site), then follow docs/DEPLOYMENT.md, 'Roll back to a known-good version manually' (its guard check then recreates the old network). Target: IMAGE_TAG=$PREV_TAG commit=$PREV_COMMIT."
+            fi
             echo "::error::Rollback not attempted: the migration guard couldn't compare revisions (exit $guard_rc, see above), so the old stack was not started. The failed deploy's checkout and containers are left as they are. Pre-deploy pg_backup: ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>}."
             exit 1
           fi

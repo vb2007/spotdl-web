@@ -289,7 +289,7 @@ workspace *does* get a checkout of the commit being deployed, for its scripts
    A failure here ends the run with nothing changed: no backup, no checkout, no `IMAGE_TAG`
    write. That's the gap that broke v28's deploy *and* its rollback on 2026-09-27.
 5. **Skip check** (release mode only) — see Idempotency above.
-6. **Back up Postgres** — runs `$DEPLOY_DIR/scripts/pg_backup.sh` (the *currently deployed*
+6. **Back up Postgres** (with `pipefail` since v60: before, a failed dump passed the step through `tee`) — runs `$DEPLOY_DIR/scripts/pg_backup.sh` (the *currently deployed*
    version of the script, since this runs before the checkout below switches it), before anything
    can touch the schema. Both modes run this — a manual dispatch can still carry a pending
    migration. The dump's path is kept (v33): a refused rollback has to hand it to a human.
@@ -337,7 +337,7 @@ leaves the host half-deployed. But a cancelled job gets only about 5 minutes for
 that still run, so **don't cancel a deploy by hand**: a real rollback can take longer.
 
 **Timeouts (v60).** Every step that can run long has its own `timeout-minutes` (the backup 10,
-pull + up 30, since `up` waits for the migration; the health gate 10; the rollback 25; the checkouts 5), and the job's own 120 is only a
+pull + up 30, since `up` waits for the migration; the health gate 13; the rollback 25; the checkouts 5), and the job's own 130 is only a
 backstop above their sum. A step that hits its limit simply *fails*, so the rollback runs as for
 any failure, with its full 25 minutes. The job limit is the wrong tool for this, which a scratch
 run on the runner showed (run 40595581518): when it cuts in, GitHub cancels the job; the
@@ -360,7 +360,10 @@ migration.
    than as the rollback commit's files define it: a failed release that changed `networks:` had
    recreated that network, and reconciling it back while the failed stack still holds it fails
    ("active endpoints"), which used to end every such rollback as a guard error. The probe only
-   needs Postgres; the rollback's own `up` recreates the network to the old definition.
+   needs Postgres; the rollback's own `up` recreates the network to the old definition. Every
+   network the rollback commit's files define is handled that way, not only `default`. If the
+   probe still fails on it (the release's `networks:` change is what cut Postgres off), the
+   error names the exact manual recovery: `down` without `-v`, then the manual rollback.
    - **Fallback (v33.1):** when the database is ahead of `.last-good` (a `manual-*` dispatch
      migrated it since the last release, say), the guard runs again against **the version that
      was running just before this deploy** (pre-deploy HEAD + `IMAGE_TAG`), provided that version

@@ -7218,6 +7218,10 @@ independently-found production bug from the same conversation)
   lines are priority 3, stdout 6. On the host the journal is persistent (`/var/log/journal`, 2.0
   GiB, back to 2026-07-11, default caps), every other project there uses json-file, and this
   stack writes about 0.7 MB a day.
+- **A pipe hid a failed backup.** The backup step ran `pg_backup.sh | tee …` under Actions' default
+  `bash -e` (no pipefail), so a failed dump passed the step and the deploy migrated without one
+  (found by the round-2 review; the step now sets `pipefail`). Any `run:` that pipes a command
+  whose failure matters needs it.
 - **The X3 backup filenames are right as they are.** `pg_backup.sh` names its dumps
   `spotdl_web_<timestamp>.dump` and its retention globs that prefix: the `spotdl_web` in
   DEPLOYMENT.md's backup paths is a file prefix, not the database name (which is `spotdlweb`, read
