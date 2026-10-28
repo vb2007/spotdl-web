@@ -18,6 +18,7 @@ const FIELD_LABEL: Record<string, () => string> = {
 	alert_spike_threshold: m.settings_alert_spike_threshold,
 	alert_spike_window_minutes: m.settings_alert_spike_window,
 	alert_beat_stale_seconds: m.settings_alert_beat_stale_after,
+	alert_worker_down_minutes: m.settings_alert_worker_down_after,
 	alert_cooldown_minutes: m.settings_alert_cooldown
 };
 

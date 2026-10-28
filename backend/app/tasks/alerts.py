@@ -1,42 +1,36 @@
 import logging
 
 from app.db import SessionLocal
-from app.services import alerts, app_settings
+from app.services import alerts
 from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
-# Used only if app_settings can't be read -- the same value as the column's default.
-_FALLBACK_COOLDOWN_SECONDS = 60 * 60
+
+@celery_app.task(name="app.tasks.alerts.deliver_alerts", ignore_result=True)
+def deliver_alerts() -> None:
+    """v59: beat's delivery pass over the alert outbox (worker-meta, every tick). The alert
+    watchdog runs the same pass after each of its checks, so a dead beat still gets its own
+    alert out; the claim's lease keeps the two from sending one row twice."""
+    alerts.deliver_due(SessionLocal)
 
 
-# acks_late=False, overriding celery_app's global True: an alert is fire and forget, so a
-# worker crash mid-send drops it rather than redelivering it (hours later, after the
-# visibility timeout, and possibly a second time once its cooldown has lapsed).
-@celery_app.task(name="app.tasks.alerts.send_alert", ignore_result=True, acks_late=False)
-def send_alert(category: str, fingerprint: str, text: str) -> None:
-    """v36: the one place an enqueued alert is actually sent (worker-meta, `meta` queue).
-    Never retried and never raises: alerts.deliver logs a failure once and drops it."""
-    enabled = True
-    cooldown_seconds = _FALLBACK_COOLDOWN_SECONDS
+@celery_app.task(name="app.tasks.alerts.prune_alert_outbox", ignore_result=True)
+def prune_alert_outbox() -> None:
+    """v59: hourly, keeps ALERT_RETENTION (30 days) of outbox rows."""
     db = SessionLocal()
     try:
-        row = app_settings.get_alert_settings(db)
-        enabled = alerts.category_enabled(row, category)
-        cooldown_seconds = row.alert_cooldown_minutes * 60
+        removed = alerts.prune_outbox(db)
         db.commit()
-    except Exception:
-        # An unreadable settings row shouldn't swallow the alert that may be about it.
-        logger.exception("alerts: could not read alert settings; sending with defaults")
-        db.rollback()
+        if removed:
+            logger.info("alerts: pruned %s outbox rows past %s", removed, alerts.ALERT_RETENTION)
     finally:
         db.close()
 
-    if not enabled:
-        logger.info("alerts: %s alert not sent, category is off in settings", category)
-        return
-    outcome = alerts.deliver(category, fingerprint, text, cooldown_seconds)
-    if outcome == "sent" and category == alerts.CATEGORY_BREAKER and fingerprint.startswith("trip:"):
-        # The watchdog reports a release only for a trip the room actually heard about --
-        # not for one suppressed by the cooldown, toggled off, or never delivered.
-        alerts.mark_breaker_open(fingerprint)
+
+# acks_late=False, as before v59: a v36 message still in the broker when v59 deploys is
+# recorded into the outbox (and from there delivered durably) rather than lost as an
+# unregistered task. Nothing sends this task any more.
+@celery_app.task(name="app.tasks.alerts.send_alert", ignore_result=True, acks_late=False)
+def send_alert(category: str, fingerprint: str, text: str) -> None:
+    alerts.enqueue(category, fingerprint, text)

@@ -178,12 +178,12 @@ def maybe_trip_breaker(db: Session, error_type: TrackErrorType | None = None) ->
         # can't succeed, one failure per release re-tripped it at 6h, forever, for every
         # user. Escalation still holds until a success (breaker_trip_count isn't reset).
         worker_state.consecutive_failures = 0
-        # v36: queued on this session, sent only if the caller's commit lands (never in
-        # the download's own path -- see alerts.enqueue_after_commit).
+        # v36: recorded in this transaction (v59: the alert outbox), so it is sent only if
+        # the caller's commit lands, and never from the download's own path (alerts.record).
         step = alerts.format_duration(delay)
         verb = "tripped" if worker_state.breaker_trip_count == 1 else "escalated"
         last_error = error_type.value if error_type is not None else "unknown"
-        alerts.enqueue_after_commit(
+        alerts.record(
             db,
             alerts.CATEGORY_BREAKER,
             # One fingerprint per trip (its own end time): a later, separate trip is news

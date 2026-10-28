@@ -147,10 +147,10 @@ def test_settings_errors_carry_codes_and_params(admin_client, db_session, monkey
     ],
 )
 def test_test_alert_errors_carry_codes(admin_client, monkeypatch, raised, status, code):
-    def fail(_message):
+    def fail(_db, _message):
         raise raised
 
-    monkeypatch.setattr(settings_router.alerts, "send_now", fail)
+    monkeypatch.setattr(settings_router.alerts, "send_test", fail)
     body = _error(admin_client.post("/api/settings/alerts/test"), status, code)
     if code == "alert_send_failed":
         assert body["params"] == {"reason": "HTTP 403: forbidden"}

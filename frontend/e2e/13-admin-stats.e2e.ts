@@ -2,11 +2,11 @@ import { expect, test, type Page } from '@playwright/test';
 import { ADMIN_STATE, USER_STATE } from './support/stack';
 
 /** v44: every GET of the stats endpoint the page makes, by its query. */
-function recordStatsCalls(page: Page): URLSearchParams[] {
+function recordStatsCalls(page: Page, path = '/api/admin/stats'): URLSearchParams[] {
 	const calls: URLSearchParams[] = [];
 	page.on('request', (r) => {
 		const url = new URL(r.url());
-		if (url.pathname === '/api/admin/stats') calls.push(url.searchParams);
+		if (url.pathname === path) calls.push(url.searchParams);
 	});
 	return calls;
 }
@@ -18,6 +18,7 @@ test.describe('admin', () => {
 	// change, and every chart readable without the drawing.
 	test('/stats loads with one request and switches window with one more', async ({ page }) => {
 		const calls = recordStatsCalls(page);
+		const alertCalls = recordStatsCalls(page, '/api/admin/alerts');
 		await page.goto('/');
 		const loaded = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/admin/stats');
 		await page.getByRole('link', { name: 'stats', exact: true }).click();
@@ -58,6 +59,15 @@ test.describe('admin', () => {
 		await expect(page.getByRole('columnheader', { name: 'Hour' })).toHaveCount(0);
 		expect(calls.map((q) => q.get('window'))).toEqual(['24h', '7d']);
 
+		// v59: the alert history is its own plate, read once on load and not again on a
+		// window switch (it isn't scoped by the window).
+		const alerts = page.getByRole('region', { name: 'Alerts sent to Matrix' });
+		await expect(alerts).toBeVisible();
+		await expect(
+			alerts.getByText(/^(Every alert raised|Matrix alerts are off|No alerts were raised)/).first()
+		).toBeVisible();
+		expect(alertCalls).toHaveLength(1);
+
 		// A hard navigation is served too (dev here; the nginx image's own block is checked
 		// against the built image in the PR).
 		await page.reload();
@@ -76,6 +86,7 @@ test.describe('non-admin', () => {
 	// request, and the endpoint answers exactly like a route that doesn't exist.
 	test('/stats is hidden from a non-admin', async ({ page }) => {
 		const calls = recordStatsCalls(page);
+		const alertCalls = recordStatsCalls(page, '/api/admin/alerts');
 
 		await page.goto('/');
 		await expect(page.getByLabel('Spotify URL to submit')).toBeVisible();
@@ -91,12 +102,18 @@ test.describe('non-admin', () => {
 		).toBeVisible();
 		await expect(page.getByRole('region', { name: 'Right now' })).toHaveCount(0);
 		await expect(page.getByRole('button', { name: 'refresh' })).toHaveCount(0);
+		await expect(page.getByRole('region', { name: 'Alerts sent to Matrix' })).toHaveCount(0);
 		expect(calls).toEqual([]);
+		expect(alertCalls).toEqual([]);
 
 		// 404, not 403 (v44's plan): the same answer as a path that doesn't exist.
 		const stats = await page.request.get('/api/admin/stats');
 		expect(stats.status()).toBe(404);
 		const missing = await page.request.get('/api/admin/no-such-endpoint');
 		expect(await stats.json()).toEqual(await missing.json());
+		// v59: the alert history's endpoint answers the same.
+		const alerts = await page.request.get('/api/admin/alerts');
+		expect(alerts.status()).toBe(404);
+		expect(await alerts.json()).toEqual(await missing.json());
 	});
 });

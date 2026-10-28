@@ -169,9 +169,11 @@ class UpdateAlertSettingsRequest(BaseModel):
     alerts_spike_enabled: bool | None = None
     alerts_beat_stale_enabled: bool | None = None
     alerts_library_enabled: bool | None = None
+    alerts_worker_down_enabled: bool | None = None
     alert_spike_threshold: int | None = None
     alert_spike_window_minutes: int | None = None
     alert_beat_stale_seconds: int | None = None
+    alert_worker_down_minutes: int | None = None
     alert_cooldown_minutes: int | None = None
 
 
@@ -182,6 +184,8 @@ _ALERT_BOUNDS = {
     "alert_spike_threshold": (2, 1000),
     "alert_spike_window_minutes": (1, 7 * 24 * 60),
     "alert_beat_stale_seconds": (90, 7 * 24 * 3600),
+    # v59: two of the watchdog's 60s checks at the least.
+    "alert_worker_down_minutes": (2, 7 * 24 * 60),
     "alert_cooldown_minutes": (1, 7 * 24 * 60),
 }
 
@@ -226,13 +230,15 @@ def update_alert_settings(
 
 
 @router.post("/alerts/test")
-def send_test_alert(user: User = Depends(require_admin_hidden)) -> dict:
+def send_test_alert(
+    db: Session = Depends(get_db), user: User = Depends(require_admin_hidden)
+) -> dict:
     """Sends one message straight to the room and reports whether it arrived, bypassing
     the category toggles and the cooldown -- the point is to check the wiring. Admin-only
     and synchronous (alerts.SEND_TIMEOUT_SECONDS per connect/read phase), never on a download
-    path."""
+    path. v59: recorded in the alert outbox as sent or failed, for the history panel."""
     try:
-        alerts.send_now(f"Test alert, sent from the settings page by {user.email}.")
+        alerts.send_test(db, f"Test alert, sent from the settings page by {user.email}.")
     except alerts.AlertsNotConfigured:
         raise ApiError(
             409,

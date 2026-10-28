@@ -357,6 +357,15 @@ needed" claim — rather than silently deleted.
   kHz and nothing above ~16 kHz, where Opus is 48 kHz → *v54.2*
 
 **Celery, tasks & durability**
+- A fire-and-forget Celery send loses an alert five ways (a >300s `meta` backlog expires it, a
+  killed worker-meta drops one mid-send and strands its prefetched ones for 6h, a Matrix
+  5xx/429 is dropped, a failed send burns the cooldown, a broker error at enqueue drops it):
+  alerts are rows in `alert_outbox` now, delivered with backoff → *v59*
+- The outbox orders a category's alerts by `created_at` from the database's
+  `clock_timestamp()`, not the caller's `now`; a release is recorded under a share lock on
+  `worker_state` so a newer trip can't be overtaken → *v59*
+- A new job's tracks sit `pending` with a NULL `scheduled_at` once expand_job has sent them;
+  anything measuring "due" must use `coalesce(scheduled_at, updated_at)` → *v59*
 - `expand_job`'s tracks carry an outbox marker (`pending` + `scheduled_at`) under a lease, so a
   broker error mid-enqueue is beat's next tick, never a stranded track → *v56*
 - `timedelta(days=10**9)` raises OverflowError: an unbounded `retention_days` stopped the archive
@@ -529,7 +538,9 @@ needed" claim — rather than silently deleted.
 - A library sweep archives only the sweeping admin's own settled jobs; every user's moved
   tracks are still repointed (owner decision, F34) → *v48*
 - A real production breaker trip (2026-10-18 18:46 UTC) reached `breaker_events` but never the
-  Matrix room; unexplained, and its logs were gone by the next deploy → *v48*
+  Matrix room; unexplained, and its logs were gone by the next deploy → *v48* *(2026-10-28,
+  v59: every candidate loss path reproduced on the slot stack, and the alert outbox closes all of
+  them; see v59.)*
 
 - `download_track` owns a track only while it is still in the state it found on entry and no
   attempt row has been recorded since (its entry token); every write to the track before the
@@ -4945,13 +4956,17 @@ independently-found production bug from the same conversation)
   any request is built, and only connect/timeout/network errors keep their text; every other
   exception is reported by class name alone. Accepted, not changed: the watchdog reads the DB
   first, so a Postgres outage also skips that minute's beat-stale check, and a Redis outage logs
-  a traceback every 60s.
+  a traceback every 60s. *(2026-10-28, v59: one traceback per outage now, then a "still down"
+  line every 10 min and a recovery line; the database checks keep running through it.)*
 - **Alerts are early-acked and expire (review round 6).** The global `task_acks_late=True` plus the 6h
   visibility timeout would redeliver a crashed worker-meta's alert hours late, and possibly twice
   once its cooldown had lapsed. `send_alert` sets `acks_late=False` and `enqueue` passes
   `expires=300`. A crash drops an alert, which is what "dropped" means here. The watchdog also
   reads the open-trip marker *before* the breaker state, so a marker set by a newer escalation
   can't be paired with a stale "released".
+  *(2026-10-28, v59: superseded. Alerts are rows in `alert_outbox`, delivered by beat's
+  `deliver_alerts` and the watchdog with backoff; `send_alert` only records a leftover message.
+  The expiry and the early ack are exactly what lost them, see v59.)*
 - **Redaction twice.** `alerts.enqueue` redacts before the text reaches the broker, and
   `format_body` redacts again before the PUT. Found by v36's real-stack check: the room copy was
   already clean, but Celery's "Task received" line logged the raw credentialed URL from the task
@@ -4962,9 +4977,14 @@ independently-found production bug from the same conversation)
   down the alert is dropped rather than risk a duplicate. Fingerprints: `trip:<step>:<tripped_until>`,
   `release:<that trip>`, the spiking `error_type`, `stale`, and the library sweep's `finished_at`, which is unique per
   run, so sweep reports are never suppressed.
+  *(2026-10-28, v59: the cooldown is decided in Postgres at insert, under an advisory lock, and
+  counts only pending or sent rows: a failed send no longer burns the window, and a suppressed
+  alert is a row.)*
 - **Release only for a trip the room heard about.** `spotdl:alerts:breaker_open` is set only when a
   trip alert was actually *sent* (not suppressed, toggled off, or failed), and release also waits
   for a manual pause to end (review round 1).
+  *(2026-10-28, v59: the Redis marker is gone; the watchdog reads the newest trip row in the
+  outbox, and records a release only when that row is `sent` and has no release row yet.)*
 - **One fingerprint per trip, not per step (review round 2).** `trip:30m` as a fingerprint let a
   *second* 30m trip within the cooldown (after a success reset the escalation) be suppressed,
   so the room's last word stayed "released" while downloads were paused again. The fingerprint is
@@ -4993,6 +5013,8 @@ independently-found production bug from the same conversation)
   queue. Telling the two apart needs new state (a "backlog since" marker), which is more than the
   plan allows for this optional item. Beat's reclaim already records `held` "reclaimed: still
   queued" rows, which is where a dead worker-dl shows today.
+  *(2026-10-28, v59: built, see v59. The "backlog since" marker is the watchdog's own memory,
+  with no new heartbeat.)*
 - **Non-admin `/settings` already shows "Admin access required" per panel.** The new Alerts panel
   does the same as the existing Output/Library panels (the page itself isn't admin-gated). The
   settings redesign is v43.
@@ -5787,7 +5809,8 @@ independently-found production bug from the same conversation)
   has both rows, but the Matrix room has no trip or release message (its earlier trips, 10-12 to
   10-14, all alerted). The code path enqueues after the trip's commit and the send expires after
   300 s on `meta`; why it was lost can't be told: the next deploy (23:18) recreated every
-  container and took the logs with it. Still open.
+  container and took the logs with it. Still open. *(2026-10-28, v59: still unknowable which one
+  it was, but every candidate path reproduced and is closed; see v59.)*
 - **v31's open questions, closed on dev.** A real 11-track album (Portishead, *Dummy*) completed
   with normal pacing, and `stat` found all 11 files at their `output_path` inside `worker-dl`.
   One track sent through a dead-proxy `worker-dl` overlay retried at exactly +5 s, +10 s, +15 s
@@ -6979,3 +7002,141 @@ independently-found production bug from the same conversation)
   - The network capture: an `http-on-modify-request` observer in the chrome context, recording
     each channel's `loadInfo.triggeringPrincipal`. An extension request carries the add-on's
     principal (`addonId`), so the extension's traffic is told apart from the page's.
+
+### v59 alert-delivery gotchas (learned making Matrix alerts durable)
+
+- **O1, every candidate loss path, tried on slot 1 with v36's code** (`origin/main` at `1047f34`,
+  Matrix through a local nginx proxy on the slot network, so the homeserver could be passed
+  through, black-holed, refused, or answer 503/429, to the v49 scratch room):
+  - **`meta` backlog past `expires=300`: reproduced.** worker-meta paused 310 s with one alert
+    queued; on unpause Celery logged "Discarding revoked task: app.tasks.alerts.send_alert" and the
+    room got nothing. (Beat's own heartbeat also stopped, so the watchdog rightly raised "Beat
+    looks dead" after it.)
+  - **worker-meta killed: reproduced, both ways.** Four alerts against a black-holed homeserver
+    (each send hangs 10 s), then `docker kill -s KILL` 4 s in: the two executing were already
+    acked (`acks_late=False`) and vanished; the two prefetched sat in Redis's `unacked` hash, due
+    back only after the 6 h visibility timeout, long past their 300 s expiry. None reached the room.
+  - **Matrix 503 and 429: reproduced.** "library alert not sent: HTTP 503 …", then nothing; the
+    same for 429 (`retry_after_ms` ignored).
+  - **The cooldown: reproduced for a repeat, not for a first alert.** A failed first send had
+    claimed the Redis key, so the same alert raised again was "suppressed (cooldown)" and the
+    room heard neither. A *first* trip alert can't be suppressed: its fingerprint carries its own
+    `tripped_until`.
+  - **Also tried: Redis down when the alert is raised.** "could not enqueue library alert
+    (OperationalError)" after ~10 s, dropped. And with the busybox `nc` "black hole", which
+    refused connections: four alerts dropped as ConnectError/RemoteProtocolError.
+  - Which of these hit production on 2026-10-18 stays unknowable (the logs went with the 23:18
+    deploy). Both the trip and its release were missing, which any failed trip send explains: the
+    release was only ever sent for a trip the room heard about.
+  - `tests/test_alert_loss_paths.py` covers each reproduced path through `alerts.enqueue` / a
+    real trip commit and the `deliver`/`meta_killed`/`redis_down` fixtures only, so the same file
+    ran against v36 with a support module that emulates its broker (expiry, early ack, the 6 h
+    `unacked` wait, a publish error): 8 of 8 failed there, 8 of 8 pass on v59.
+- **The outbox.** `alerts.record(db, …)` inserts the row in the caller's transaction, inside a
+  savepoint (an insert error is one warning, never the caller's failure). The breaker trip is
+  recorded in the trip's own transaction, so a rolled-back trip leaves no row. The cooldown is
+  decided there: an identical `(category, fingerprint)` row still `pending` (any age), or `sent`
+  inside the window (measured from `sent_at`: a late delivery starts the window late), makes the
+  new one `suppressed`; a switched-off category is `suppressed` too. A spike's "newest seen"
+  stamp moves only for an alert that goes out, as v36's moved only on a sent one, or a suppressed
+  repeat would cost the reminder after the cooldown (review round 2).
+  The reason is a code in `last_error` (`cooldown`, `category_off`), translated by the history
+  panel. A lasting condition (beat dead, worker-dl down) is re-raised every watchdog minute, so a
+  suppressed repeat is recorded at most once per window; and an alert that waits out a Matrix
+  outage reaches the room once, not once per hour of it (review round 1). A transaction-scoped
+  advisory lock on the pair makes "first" unique.
+- **Delivery.** `deliver_due` claims one row at a time (attempts + 1, `next_attempt_at` a 120 s
+  lease ahead) in a short transaction, sends with no transaction open, then records the outcome.
+  Only the oldest pending row of each category is eligible, so a release never overtakes a
+  backing-off trip. Backoff is 30 s, 2 min, 10 min, then every 20 min (the plan's example ended
+  in hourly; every wait stays under Synapse's txn memory, review round 3); a row still unsent
+  24 h after it was raised is `failed`. The category toggle is checked again at send time: one
+  switched off during an outage isn't sent when the homeserver is back (v36 checked it there). A pass stops at its first failed send, and stops claiming after 20 s.
+  Beat runs it every 30 s (`deliver_alerts`, `expires=25`), and **the watchdog runs one after
+  every check**: a dead beat must still get its own alert out. Only one pass runs at a time
+  (`pg_try_advisory_xact_lock`, held by a session of its own that touches no table, so no migrate
+  waits on it): a slow homeserver can't take both of worker-meta's slots from beat's dispatch
+  (review round 1). The lease still covers a pass that dies mid-send. A 413, or a 400 with
+  Matrix's `M_NOT_JSON`/`M_BAD_JSON`/`M_TOO_LARGE`, is about one message: that row is given up at
+  once and the pass goes on (review round 2). A bare 400 isn't: a proxy's or a malformed room
+  id's 400 is every row's problem and backs off like a 5xx (review round 3).
+- **Two clocks, accepted.** `created_at` (and a new row's first `next_attempt_at`) come from
+  Postgres' `clock_timestamp()`; the due, lease and give-up checks use the app's clock. Production
+  runs both on one host. Against the LAN dev database a skew of Δ delays a new row's first send by
+  Δ, nothing worse (review round 2).
+- **The Matrix transaction id is the row id.** Synapse answers a repeated PUT under the same txn
+  with the first event's id and posts nothing (verified: a hand re-PUT of a delivered row's id
+  returned the same `event_id`, and the room kept one copy). Synapse keeps txn ids for about 30
+  min; every backoff wait is shorter, so a retry right after a send whose answer was lost dedupes
+  (the live review proved it through a mirroring proxy: the PUT reached Synapse, the client timed
+  out, two retries under the same txn, one message). **Accepted limit:** a lost answer followed by
+  more than ~30 min of failed retries can still post twice, since nothing can ask Synapse whether
+  a txn landed; so can one followed by a 429 whose `retry_after` is over ~30 min (a 429 must be
+  honoured, review round 4).
+- **Rows are stamped with the database's `clock_timestamp()`**, not the caller's `now`: delivery
+  order is `created_at`, and it must follow the order rows were really written. The release is
+  recorded under `SELECT … FOR SHARE` on `worker_state`: a trip updates that row (the savepoint's
+  flush takes the lock) in the same transaction as its alert row, so either the trip committed
+  first (the re-read sees it tripped, no release) or it waits and its row is stamped after.
+- **A late delivery says so**: a row sent more than 2 min after it was raised gets "(raised
+  YYYY-MM-DD HH:MM UTC, delivered late)", so "paused for 30m" read hours later isn't read as now.
+- **The test alert** is recorded too (inserted already claimed, sent at once, then `sent` or
+  `failed`; a failed one isn't retried, only a request that died mid-send is finished by a pass
+  after the lease), so the history shows it. Its body and id are read before the commit: reading
+  an expired row after it opens a transaction that stays idle through the send.
+- **O4, worker down: the signal.** The newest worker-written attempt's end (beat's reclaim rows
+  excluded: they're recorded on a stuck invocation's behalf; its end, not its `started_at`, since
+  v55 merges a track's repeated holds into one row that keeps its first start, and a long
+  download that just ended isn't idle time, review round 3 and the live review) or a `downloading`
+  track's `updated_at`, against the oldest due track. Idle is measured from the latest of the
+  oldest due time, the breaker's release and that last start, so a worker-dl that took a few
+  tracks and then died midway through a backlog is caught too (review round 1; the first cut
+  only compared the start with the due time). A track in `downloading` younger than
+  `STALE_TRACK_AFTER_SECONDS` counts as busy now: a download's progress isn't written to the
+  database, so a long one would otherwise read as a dead worker-dl (review round 2). The due time
+  alone misleads twice: a track
+  due during a trip only became dispatchable at the release, and beat's stale sweep rewrites a
+  stuck track's `scheduled_at` to its own tick every `STALE_TRACK_AFTER_SECONDS` (1800 s in
+  production), so it never ages past a longer threshold. The watchdog therefore remembers the
+  first moment of an unconsumed backlog, and when dispatch last reopened. That memory is the
+  "backlog since" marker v36 lacked; no heartbeat was added. A restart of the watchdog gives one
+  threshold of grace, as beat-stale's does. It stays silent while beat is stale (its own alert)
+  and while the breaker or a pause holds dispatch. The pacing sleep runs while the track is still
+  `queued`, with no attempt row, so the effective threshold is never under `PACING_MAX_SEC` + 1
+  min (review round 5). Its text says "isn't taking due tracks … worker-dl is down or stuck, or
+  these tracks' queue messages were lost" (a `pending` track whose broker message was lost looks
+  the same from the database), and names no "oldest due since": the stale sweep rewrites that,
+  so it could read later than the idle time beside it (live review round 2). While beat is
+  stale or Redis is out, dispatch counts as closed too: their return restarts the clock with a
+  full threshold, as a breaker release does, or a standing backlog read as "down" the moment
+  they were back (review round 6). **Accepted
+  trade-off:** a worker-dl killed mid-download leaves its track `downloading`, which reads as
+  busy until beat's stale sweep reclaims it, so that case is announced after
+  `STALE_TRACK_AFTER_SECONDS` + the threshold (~45 min in production), not the threshold.
+- **Found live: a new job's tracks are `pending` with a NULL `scheduled_at`.** expand_job's send
+  clears v56's outbox marker, so `scheduled_at <= now` missed all 11 tracks of a fresh album and
+  the first live run never fired. Due time is `coalesce(scheduled_at, updated_at)`.
+- **O5.** `RedisOutageLog`: the first failed check logs one traceback, then one "still
+  down (N checks)" line every 10 min, and a recovery line. The API's `/api/health` uses it too:
+  Docker probes it every ~30 s, and the live review counted ~50 tracebacks from it in the
+  25-min outage before it did. Celery's own "consumer: Cannot connect to redis" retry lines
+  (54 in that outage) are Celery's and stay. The watchdog keeps its database checks
+  (release, worker-down) and the delivery pass running through the outage; only beat-stale,
+  worker-down (beat's state is unknown) and spike (its "newest seen" key) skip. A recovery is
+  the check's verdict, never one read's, so a flapping Redis can't log "reachable again" and a
+  fresh traceback inside one check. And beat gets one threshold of grace from Redis' return, as
+  from the watchdog's start: it can't tick without its broker, so its heartbeat is as old as the
+  outage, and v36 sent "Beat looks dead" just as beat resumed (live review round 2). The
+  watchdog's delivery pass runs in a `finally`: with beat dead it's the only one, and a check
+  that raises mustn't skip it (review round 5).
+- **A `pending` track with a NULL `scheduled_at` that was never really sent** (a pre-v56
+  stranded one) reads as worker-dl down once the watchdog has run a threshold. Before deploying,
+  count them: `select count(*) from tracks where state = 'pending' and scheduled_at is null and
+  updated_at < now() - interval '1 hour'`.
+- **Deploy:** a v36 `send_alert` message still in the broker at deploy time is recorded into the
+  outbox by the kept task. A trip open at deploy time has no outbox row, so its release isn't
+  announced (the Redis marker is ignored).
+- **The dev Matrix room is "spotdl-web CI scratch (v49)"** (owner's choice for v59), never
+  production's "SpotDL Web Bot" room, which the local `.env`'s commented `MATRIX_ROOM_ID` names.
+  `agent_stack.sh` rewrites `.env.agent` on every `up` and copies no `MATRIX_*`, so a slot that
+  needs alerts appends them after `up` and recreates the backend services.

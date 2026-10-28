@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.db import begin_snapshot, get_db
+from app.errors import ApiError
 from app.models import User
 from app.routers.auth import require_session
-from app.services import stats
+from app.services import alerts, stats
+from app.services.pagination import InvalidCursor
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -36,5 +38,23 @@ def admin_stats(
     # Several statements, one consistent snapshot (begin_snapshot's docstring).
     begin_snapshot(db)
     result = stats.admin_stats(db, window, utc_offset_minutes=utc_offset_minutes)
+    db.commit()
+    return result
+
+
+@router.get("/alerts")
+def alert_history(
+    cursor: str | None = None,
+    limit: int = Query(25, ge=1, le=100),
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin_hidden),
+) -> dict:
+    """v59 (O6): the alert outbox, newest first, one cursor page per request (the stats
+    page's history panel). Every alert is global, hence admin-only, and answers a non-admin
+    404 like the stats above. Bodies are stored redacted, and only a preview is returned."""
+    try:
+        result = alerts.outbox_page(db, cursor, limit)
+    except InvalidCursor as exc:
+        raise ApiError(400, "invalid_list_params", str(exc), {"reason": str(exc)}) from exc
     db.commit()
     return result

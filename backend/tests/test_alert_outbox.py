@@ -1,0 +1,1129 @@
+"""v59: the alert outbox -- recording (the cooldown and toggles decided at insert, suppressed
+rows kept), delivery (backoff, give-up, per-category order, the transaction id), the breaker
+trip and its release, the worker-down check, the throttled Redis-outage log, the hourly
+prune and the admin's history endpoint."""
+
+import logging
+import time
+import uuid
+from datetime import datetime, timedelta, timezone
+
+import pytest
+from sqlalchemy import select
+
+from app.models import (
+    AlertOutbox,
+    AlertState,
+    Job,
+    JobSourceType,
+    Track,
+    TrackAttempt,
+    TrackAttemptOutcome,
+    TrackErrorType,
+    TrackState,
+    WorkerState,
+)
+from app.services import alerts, app_settings, retry
+from app.services.attempts import RECLAIM_PREFIX
+from app.tasks import alerts as alert_tasks
+
+from alert_support import (  # noqa: F401 (fixtures)
+    WorkerKilled,
+    clock,
+    configured,
+    fake_redis,
+    homeserver,
+    sessions,
+)
+
+
+def _rows(db_session, category=None):
+    stmt = select(AlertOutbox).order_by(AlertOutbox.created_at)
+    if category is not None:
+        stmt = stmt.where(AlertOutbox.category == category)
+    return db_session.execute(stmt).scalars().all()
+
+
+def _record(db_session, category, fingerprint, text="text"):
+    state = alerts.record(db_session, category, fingerprint, text)
+    db_session.commit()
+    return state
+
+
+# --- recording ---------------------------------------------------------------------------
+
+
+def test_record_is_a_noop_when_unconfigured(db_session):
+    assert alerts.record(db_session, alerts.CATEGORY_LIBRARY, "fp", "text") is None
+    db_session.commit()
+    assert _rows(db_session) == []
+
+
+def test_every_body_is_stored_redacted_and_labelled(configured, db_session):
+    """Done-when: a credential-bearing proxy error never reaches the outbox (or the history
+    endpoint, which reads it) in the clear."""
+    _record(
+        db_session,
+        alerts.CATEGORY_SPIKE,
+        "other",
+        "Latest error: ProxyError('Unable to connect to proxy', "
+        "OSError('Tunnel connection failed: 407')) via http://alice:s3cret@203.0.113.5:8080",
+    )
+    (row,) = _rows(db_session)
+    assert row.state == AlertState.PENDING
+    assert "alice" not in row.body and "s3cret" not in row.body
+    assert row.body.startswith("[spotdl-web] Latest error:")
+    assert "http://203.0.113.5:8080" in row.body
+    assert row.next_attempt_at is not None and row.attempts == 0
+
+
+def test_cooldown_decisions_are_recorded_as_suppressed(configured, db_session, caplog):
+    caplog.set_level("INFO", logger="app.services.alerts")
+    assert _record(db_session, "spike", "no_output", "one") == AlertState.PENDING
+    assert _record(db_session, "spike", "no_output", "two") == AlertState.SUPPRESSED
+    # A different fingerprint (or category) is a different alert.
+    assert _record(db_session, "spike", "other", "three") == AlertState.PENDING
+    assert _record(db_session, "breaker", "no_output", "four") == AlertState.PENDING
+    suppressed = [r for r in _rows(db_session) if r.state == AlertState.SUPPRESSED]
+    assert len(suppressed) == 1
+    assert suppressed[0].last_error == alerts.SUPPRESSED_COOLDOWN
+    assert suppressed[0].next_attempt_at is None
+    assert "spike alert suppressed (cooldown" in caplog.text
+
+
+def test_a_late_delivery_starts_the_window_when_the_room_heard_it(configured, db_session):
+    _record(db_session, "beat_stale", "stale")
+    (first,) = _rows(db_session)
+    first.state = AlertState.SENT
+    first.created_at = first.created_at - timedelta(minutes=70)
+    first.sent_at = datetime.now(timezone.utc) - timedelta(minutes=20)
+    db_session.commit()
+    assert _record(db_session, "beat_stale", "stale") == AlertState.SUPPRESSED
+
+
+def test_a_lasting_condition_records_one_suppressed_row_per_window(configured, db_session):
+    """Beat dead for hours: the watchdog re-raises it every minute (review round 1)."""
+    for _ in range(5):
+        _record(db_session, "beat_stale", "stale")
+    assert [r.state for r in _rows(db_session)] == [AlertState.PENDING, AlertState.SUPPRESSED]
+
+
+def test_a_still_pending_alert_covers_its_repeat_whatever_its_age(configured, db_session):
+    """Matrix down for hours: the room gets the alert once when it's back, not once an hour."""
+    _record(db_session, "beat_stale", "stale")
+    (first,) = _rows(db_session)
+    first.created_at = first.created_at - timedelta(hours=10)
+    db_session.commit()
+    assert _record(db_session, "beat_stale", "stale") == AlertState.SUPPRESSED
+
+
+def test_the_cooldown_window_comes_from_settings(configured, db_session):
+    app_settings.update_alert_settings(db_session, alert_cooldown_minutes=1)
+    db_session.commit()
+    _record(db_session, "spike", "x")
+    (first,) = _rows(db_session)
+    first.state = AlertState.SENT
+    first.created_at = first.created_at - timedelta(minutes=2)
+    db_session.commit()
+    assert _record(db_session, "spike", "x") == AlertState.PENDING
+
+
+def test_neither_failed_nor_suppressed_rows_hold_the_cooldown(configured, db_session):
+    """Only what the room heard, or is about to: a given-up alert is news again, and a run of
+    suppressed rows doesn't stretch the window."""
+    _record(db_session, "beat_stale", "stale")
+    (first,) = _rows(db_session)
+    first.state = AlertState.FAILED
+    db_session.commit()
+    assert _record(db_session, "beat_stale", "stale") == AlertState.PENDING
+
+
+def test_a_switched_off_category_is_recorded_suppressed(configured, db_session):
+    app_settings.update_alert_settings(db_session, alerts_library_enabled=False)
+    db_session.commit()
+    assert _record(db_session, "library", "run1") == AlertState.SUPPRESSED
+    (row,) = _rows(db_session)
+    assert row.last_error == alerts.SUPPRESSED_CATEGORY_OFF
+
+
+def test_recording_never_breaks_the_callers_transaction(configured, db_session, monkeypatch, caplog):
+    def broken(db):
+        raise RuntimeError("app_settings unreadable")
+
+    monkeypatch.setattr(app_settings, "get_alert_settings", broken)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.consecutive_failures = 3
+    assert alerts.record(db_session, "breaker", "trip:x", "text") is None
+    db_session.commit()  # the caller's own work still commits
+    assert db_session.get(WorkerState, 1).consecutive_failures == 3
+    assert _rows(db_session) == []
+    assert "could not record breaker alert (RuntimeError)" in caplog.text
+
+
+def test_enqueue_records_in_a_session_of_its_own(configured, db_session, sessions):
+    alerts.enqueue("library", "run1", "Library sweep finished.")
+    (row,) = _rows(db_session)
+    assert (row.category, row.fingerprint, row.state) == ("library", "run1", AlertState.PENDING)
+
+
+def test_a_v36_send_alert_message_still_in_the_broker_is_recorded(configured, db_session, sessions):
+    alert_tasks.send_alert("library", "run-old", "left over from before the deploy")
+    (row,) = _rows(db_session)
+    assert row.fingerprint == "run-old" and row.state == AlertState.PENDING
+
+
+# --- the trip point ----------------------------------------------------------------------
+
+
+def _track(db_session, make_user, state=TrackState.DOWNLOADING, email="allowed@example.com", **fields):
+    user = make_user(email)
+    job = Job(
+        user_id=user.id,
+        source_url="https://open.spotify.com/track/x",
+        source_type=JobSourceType.TRACK,
+    )
+    db_session.add(job)
+    db_session.flush()
+    track = Track(job_id=job.id, spotify_track_id=uuid.uuid4().hex, song_json={}, state=state, **fields)
+    db_session.add(track)
+    db_session.flush()
+    return track
+
+
+def test_a_breaker_trip_is_recorded_in_the_trips_own_transaction(configured, db_session, make_user):
+    track = _track(db_session, make_user)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.consecutive_failures = retry.BREAKER_TRIP_THRESHOLD - 1
+    retry.record_failure(db_session, track, TrackErrorType.NO_OUTPUT, "no file")
+    db_session.commit()
+
+    (row,) = _rows(db_session)
+    assert row.category == "breaker" and row.fingerprint.startswith("trip:30m:")
+    assert "Circuit breaker tripped: downloads paused for 30m" in row.body
+    assert "trip #1" in row.body and "last error no_output" in row.body
+
+
+def test_an_escalation_names_the_new_step(configured, db_session):
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.consecutive_failures = 5
+    worker_state.breaker_trip_count = 1
+    retry.maybe_trip_breaker(db_session, TrackErrorType.AUDIO_PROVIDER)
+    db_session.commit()
+    (row,) = _rows(db_session)
+    assert row.fingerprint.startswith("trip:2h:")
+    assert "Circuit breaker escalated: downloads paused for 2h" in row.body
+
+
+def test_a_rolled_back_trip_records_nothing(configured, db_session):
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.consecutive_failures = 5
+    db_session.commit()
+    retry.maybe_trip_breaker(db_session)
+    db_session.rollback()
+    assert _rows(db_session) == []
+
+
+def test_below_threshold_records_nothing(configured, db_session, make_user):
+    track = _track(db_session, make_user)
+    retry.record_failure(db_session, track, TrackErrorType.AUDIO_PROVIDER, "429")
+    db_session.commit()
+    assert _rows(db_session) == []
+
+
+# --- delivery ----------------------------------------------------------------------------
+
+
+def test_a_due_row_is_sent_under_its_own_id_as_the_transaction(
+    configured, db_session, sessions, homeserver, clock
+):
+    _record(db_session, "library", "run1", "Library sweep finished.")
+    assert alerts.deliver_due(sessions) == 1
+    (row,) = _rows(db_session)
+    assert row.state == AlertState.SENT and row.attempts == 1 and row.sent_at is not None
+    assert row.next_attempt_at is None
+    (request,) = homeserver.requests
+    assert request["txn"] == row.id.hex
+    assert homeserver.messages == ["[spotdl-web] Library sweep finished."]
+    assert alerts.deliver_due(sessions) == 0
+
+
+def test_a_failed_send_backs_off_30s_2m_10m_then_every_20m(
+    configured, db_session, sessions, homeserver, clock
+):
+    _record(db_session, "beat_stale", "stale")
+    homeserver.answer(*["unreachable"] * 6)
+    for attempts, wait in ((1, 30), (2, 120), (3, 600), (4, 1200), (5, 1200)):
+        assert alerts.deliver_due(sessions) == 0
+        (row,) = _rows(db_session)
+        db_session.refresh(row)
+        assert row.state == AlertState.PENDING
+        assert row.attempts == attempts
+        assert row.next_attempt_at == clock.now + timedelta(seconds=wait)
+        assert row.last_error == "ConnectError: [Errno 111] Connection refused"
+        # Not due yet: a pass in between doesn't try.
+        alerts.deliver_due(sessions)
+        assert len(homeserver.requests) == attempts
+        clock.advance(wait)
+    assert alerts.deliver_due(sessions) == 0  # the 6th "unreachable"
+    assert alerts.deliver_due(sessions) == 0  # backing off again
+    clock.advance(1200)
+    assert alerts.deliver_due(sessions) == 1
+    assert len(homeserver.messages) == 1
+    assert len({r["txn"] for r in homeserver.requests}) == 1
+
+
+def test_a_429_waits_at_least_its_retry_after(configured, db_session, sessions, homeserver, clock):
+    _record(db_session, "spike", "no_output")
+    homeserver.answer((429, {"errcode": "M_LIMIT_EXCEEDED", "retry_after_ms": 300_000}))
+    alerts.deliver_due(sessions)
+    (row,) = _rows(db_session)
+    assert row.next_attempt_at == clock.now + timedelta(seconds=300)
+    assert row.last_error.startswith("HTTP 429:")
+
+
+def test_a_row_still_unsent_after_24h_is_given_up(configured, db_session, sessions, homeserver, clock, caplog):
+    _record(db_session, "spike", "no_output")
+    homeserver.answer("unreachable")
+    alerts.deliver_due(sessions)
+    clock.advance(24 * 3600 + 1)
+    alerts.deliver_due(sessions)
+    (row,) = _rows(db_session)
+    assert row.state == AlertState.FAILED and row.next_attempt_at is None
+    assert len(homeserver.requests) == 1
+    assert "spike alert given up" in caplog.text
+
+
+def test_a_row_backing_off_past_24h_is_given_up_without_another_try(
+    configured, db_session, sessions, homeserver, clock
+):
+    _record(db_session, "spike", "no_output")
+    (row,) = _rows(db_session)
+    clock.now = row.created_at + timedelta(hours=24) - timedelta(seconds=1)
+    homeserver.answer(503)
+    alerts.deliver_due(sessions)
+    db_session.refresh(row)
+    assert row.state == AlertState.PENDING
+    clock.advance(30)
+    alerts.deliver_due(sessions)
+    db_session.refresh(row)
+    assert row.state == AlertState.FAILED and row.attempts == 1
+    assert len(homeserver.requests) == 1
+
+
+def test_a_refusal_of_one_message_gives_up_that_row_and_goes_on(
+    configured, db_session, sessions, homeserver, clock
+):
+    """A 400/413 is about the message, not the homeserver: it can't hold its category back."""
+    _record(db_session, "library", "run1", "one")
+    _record(db_session, "library", "run2", "two")
+    homeserver.answer(413)
+    assert alerts.deliver_due(sessions) == 1
+    assert [r.state for r in _rows(db_session)] == [AlertState.FAILED, AlertState.SENT]
+    assert homeserver.messages == ["[spotdl-web] two"]
+
+
+def test_a_category_reaches_the_room_in_the_order_raised(
+    configured, db_session, sessions, homeserver, clock
+):
+    """A release never overtakes its backing-off trip; another category isn't held up by it."""
+    _record(db_session, "breaker", "trip:30m:a", "tripped")
+    _record(db_session, "breaker", "release:trip:30m:a", "released")
+    _record(db_session, "library", "run1", "sweep")
+    homeserver.answer(503)
+    assert alerts.deliver_due(sessions) == 0  # the trip failed; the pass stops there
+    assert alerts.deliver_due(sessions) == 1  # trip backing off: library goes, release waits
+    assert homeserver.messages == ["[spotdl-web] sweep"]
+    clock.advance(30)
+    assert alerts.deliver_due(sessions) == 2
+    assert homeserver.messages == ["[spotdl-web] sweep", "[spotdl-web] tripped", "[spotdl-web] released"]
+
+
+def test_a_sender_killed_mid_send_doesnt_post_twice(configured, db_session, sessions, homeserver, clock):
+    _record(db_session, "breaker", "trip:30m:a", "tripped")
+    homeserver.answer("posted-then-killed")
+    with pytest.raises(WorkerKilled):
+        alerts.deliver_due(sessions)
+    db_session.rollback()
+    (row,) = _rows(db_session)
+    # Claimed (lease ahead), so no other pass takes it meanwhile...
+    assert row.state == AlertState.PENDING and row.attempts == 1
+    assert alerts.deliver_due(sessions) == 0
+    # ...and after the lease the retry reuses the transaction id: the room has it once.
+    clock.advance(alerts.DELIVERY_LEASE_SECONDS)
+    assert alerts.deliver_due(sessions) == 1
+    assert [r["txn"] for r in homeserver.requests] == [row.id.hex, row.id.hex]
+    assert homeserver.messages == ["[spotdl-web] tripped"]
+
+
+def test_deliver_due_never_raises(configured, db_session, sessions, monkeypatch, clock):
+    _record(db_session, "spike", "x")
+
+    def boom(*a, **k):
+        raise RuntimeError("unexpected")
+
+    monkeypatch.setattr(alerts.httpx, "put", boom)
+    assert alerts.deliver_due(sessions) == 0
+    (row,) = _rows(db_session)
+    assert row.last_error == "RuntimeError" and row.state == AlertState.PENDING
+
+    def no_database():
+        raise RuntimeError("database down")
+
+    assert alerts.deliver_due(no_database) == 0
+
+
+@pytest.fixture()
+def committed_lock():
+    """Another process's delivery pass in flight: the lock held on a connection of its own."""
+    from sqlalchemy import create_engine, func
+    from sqlalchemy.pool import NullPool
+
+    from app.db import engine
+
+    other = create_engine(engine.url, poolclass=NullPool)
+    with other.connect() as conn:
+        conn.execute(select(func.pg_advisory_lock(alerts.DELIVERY_LOCK_KEY)))
+        yield
+        conn.execute(select(func.pg_advisory_unlock(alerts.DELIVERY_LOCK_KEY)))
+    other.dispose()
+
+
+def test_one_delivery_pass_at_a_time(configured, db_session, sessions, homeserver, clock, committed_lock):
+    _record(db_session, "library", "run1")
+    assert alerts.deliver_due(sessions) == 0
+    assert homeserver.requests == []
+
+
+def test_a_pass_stops_claiming_after_its_budget(
+    configured, db_session, sessions, homeserver, clock, monkeypatch
+):
+    for i in range(3):
+        _record(db_session, "library", f"run{i}")
+    ticks = [0.0, 1.0]  # the pass's start, then its first claim; later reads are past it
+
+    def monotonic():
+        return ticks.pop(0) if ticks else alerts.DELIVERY_PASS_SECONDS + 1
+
+    monkeypatch.setattr(alerts.time, "monotonic", monotonic)
+    assert alerts.deliver_due(sessions) == 1  # the other two wait for the next pass
+    assert [r.state for r in _rows(db_session)].count(AlertState.PENDING) == 2
+
+
+def test_deliver_due_is_a_noop_when_unconfigured(db_session, sessions, homeserver):
+    db_session.add(
+        AlertOutbox(
+            category="spike", fingerprint="x", body="b", created_at=datetime.now(timezone.utc),
+            state=AlertState.PENDING, next_attempt_at=datetime.now(timezone.utc),
+        )
+    )
+    db_session.commit()
+    assert alerts.deliver_due(sessions) == 0
+    assert homeserver.requests == []
+
+
+def test_a_late_delivery_says_when_it_was_raised(configured, db_session, sessions, homeserver, clock):
+    _record(db_session, "breaker", "trip:30m:a", "Circuit breaker tripped.")
+    clock.advance(3 * 3600)
+    alerts.deliver_due(sessions)
+    (body,) = homeserver.messages
+    assert body.startswith("[spotdl-web] Circuit breaker tripped. (raised ")
+    assert body.endswith(" UTC, delivered late)")
+
+
+def test_the_hourly_prune_keeps_30_days(configured, db_session, sessions):
+    _record(db_session, "library", "old")
+    _record(db_session, "library", "new")
+    old = next(r for r in _rows(db_session) if r.fingerprint == "old")
+    old.created_at = datetime.now(timezone.utc) - timedelta(days=31)
+    db_session.commit()
+    alert_tasks.prune_alert_outbox()
+    assert [r.fingerprint for r in _rows(db_session)] == ["new"]
+
+
+def test_the_test_alert_is_recorded_sent(admin_client, configured, db_session, homeserver):
+    assert admin_client.post("/api/settings/alerts/test").json() == {"sent": True}
+    (row,) = _rows(db_session)
+    assert (row.category, row.state, row.attempts) == ("test", AlertState.SENT, 1)
+    assert homeserver.requests[0]["txn"] == row.id.hex
+
+
+def test_a_test_send_that_outlived_its_lease_keeps_the_passs_outcome(
+    configured, db_session, sessions, homeserver, clock, monkeypatch
+):
+    """The request's send hangs past its lease, a delivery pass sends the row meanwhile (same
+    txn id), then the request's own send times out: the row stays sent (review round 2)."""
+    real_put = alerts._put
+    first = []
+
+    def put(config, body, txn):
+        if first:
+            return real_put(config, body, txn)
+        first.append(txn)
+        clock.advance(alerts.DELIVERY_LEASE_SECONDS + 1)
+        alerts.deliver_due(sessions)
+        raise alerts.AlertSendError("ReadTimeout: timed out")
+
+    monkeypatch.setattr(alerts, "_put", put)
+    with pytest.raises(alerts.AlertSendError):
+        alerts.send_test(db_session, "Test alert.")
+    (row,) = _rows(db_session)
+    db_session.refresh(row)
+    assert row.state == AlertState.SENT
+    (message,) = homeserver.messages
+    assert message.startswith("[spotdl-web] Test alert.")
+
+
+def test_a_failed_test_alert_is_recorded_failed_and_never_retried(
+    admin_client, configured, db_session, sessions, homeserver, clock
+):
+    homeserver.answer("unreachable")
+    assert admin_client.post("/api/settings/alerts/test").status_code == 502
+    (row,) = _rows(db_session)
+    assert row.state == AlertState.FAILED
+    clock.advance(3600)
+    alerts.deliver_due(sessions)
+    assert len(homeserver.requests) == 1
+
+
+# --- the watchdog: release, spike, beat, worker-down -------------------------------------
+
+
+@pytest.fixture()
+def watchdog(db_session, fake_redis, sessions, homeserver, clock):
+    dog = alerts.Watchdog.__new__(alerts.Watchdog)
+    dog.started_at = time.time()
+    dog.redis_outage = alerts.RedisOutageLog(alerts.logger)
+    dog._open_since = None
+    dog._backlog_since = None
+    dog._redis_back_at = 0.0
+    dog._session = sessions
+    fake_redis.store[alerts.BEAT_HEARTBEAT_KEY] = f"{time.time():.3f}"
+    return dog
+
+
+def _trip_row(db_session, fingerprint="trip:30m:20261018T191647", state=AlertState.SENT):
+    _record(db_session, "breaker", fingerprint, "Circuit breaker tripped.")
+    row = next(r for r in _rows(db_session) if r.fingerprint == fingerprint)
+    row.state = state
+    db_session.commit()
+    return row
+
+
+def test_a_release_is_recorded_once_for_a_trip_the_room_heard_about(
+    configured, watchdog, db_session, homeserver
+):
+    retry.get_worker_state(db_session)
+    db_session.commit()
+    _trip_row(db_session)
+    watchdog.check_once()
+    watchdog.check_once()
+    releases = [r for r in _rows(db_session, "breaker") if r.fingerprint.startswith("release:")]
+    assert [(r.fingerprint, r.state) for r in releases] == [
+        ("release:trip:30m:20261018T191647", AlertState.SENT)
+    ]
+    assert homeserver.messages == ["[spotdl-web] Circuit breaker released: downloads resume."]
+
+
+def test_no_release_before_the_trip_itself_was_sent(configured, watchdog, db_session):
+    trip = _trip_row(db_session, state=AlertState.PENDING)
+    trip.next_attempt_at = datetime.now(timezone.utc) + timedelta(hours=1)  # backing off
+    db_session.commit()
+    watchdog.check_once()
+    assert [r.fingerprint for r in _rows(db_session, "breaker")] == [trip.fingerprint]
+
+
+def test_no_release_while_tripped_or_paused(configured, watchdog, db_session):
+    _trip_row(db_session)
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_tripped_until = datetime.now(timezone.utc) + timedelta(minutes=10)
+    db_session.commit()
+    watchdog.check_once()
+    worker_state.breaker_tripped_until = None
+    worker_state.paused = True
+    db_session.commit()
+    watchdog.check_once()
+    assert len(_rows(db_session, "breaker")) == 1
+
+
+def test_a_release_is_never_paired_with_a_newer_trip(configured, watchdog, db_session):
+    """The re-check under worker_state's lock: a trip recorded after the watchdog's read
+    is newer, and the old trip's release is no longer the room's news."""
+    _trip_row(db_session, "trip:30m:old")
+    _trip_row(db_session, "trip:2h:new", state=AlertState.PENDING)
+    watchdog._record_release("trip:30m:old")
+    assert not [r for r in _rows(db_session, "breaker") if r.fingerprint.startswith("release:")]
+
+
+def test_a_release_with_the_breaker_switched_off_is_recorded_suppressed(configured, watchdog, db_session):
+    _trip_row(db_session)
+    app_settings.update_alert_settings(db_session, alerts_breaker_enabled=False)
+    db_session.commit()
+    watchdog.check_once()
+    watchdog.check_once()
+    (release,) = [r for r in _rows(db_session, "breaker") if r.fingerprint.startswith("release:")]
+    assert release.state == AlertState.SUPPRESSED
+
+
+def _attempt(db_session, track, minutes_ago, outcome, error_type=None, message=None, warning=None):
+    finished = datetime.now(timezone.utc) - timedelta(minutes=minutes_ago)
+    number = (
+        db_session.execute(
+            select(TrackAttempt.attempt_number)
+            .where(TrackAttempt.track_id == track.id)
+            .order_by(TrackAttempt.attempt_number.desc())
+            .limit(1)
+        ).scalar_one_or_none()
+        or 0
+    ) + 1
+    db_session.add(
+        TrackAttempt(
+            track_id=track.id,
+            attempt_number=number,
+            started_at=finished,
+            finished_at=finished,
+            outcome=outcome,
+            error_type=error_type,
+            error_message=message,
+            warning_message=warning,
+        )
+    )
+    db_session.flush()
+
+
+def test_a_spike_is_re_raised_only_with_a_newer_attempt(
+    configured, watchdog, db_session, make_user, fake_redis
+):
+    track = _track(db_session, make_user)
+    for i in range(5):
+        _attempt(db_session, track, 5 - i, TrackAttemptOutcome.FAILED, TrackErrorType.NO_OUTPUT)
+    db_session.commit()
+    watchdog.check_once()
+    watchdog.check_once()
+    assert len(_rows(db_session, "spike")) == 1
+    _attempt(db_session, track, 0, TrackAttemptOutcome.FAILED, TrackErrorType.NO_OUTPUT)
+    db_session.commit()
+    watchdog.check_once()
+    # Raised again, and suppressed by the cooldown: recorded, not sent...
+    assert [r.state for r in _rows(db_session, "spike")] == [AlertState.SENT, AlertState.SUPPRESSED]
+    # ...and the "newest seen" stamp stayed on the sent one, so once the cooldown lapses the
+    # still-running spike is announced again, as v36 did (review round 2).
+    sent_row = _rows(db_session, "spike")[0]
+    stamp = fake_redis.store[f"{alerts.SPIKE_NEWEST_KEY_PREFIX}no_output"]
+    assert stamp != max(
+        a.finished_at for a in db_session.execute(select(TrackAttempt)).scalars()
+    ).isoformat()
+    assert sent_row.state == AlertState.SENT
+
+
+def test_a_stale_beat_is_raised(configured, watchdog, db_session, fake_redis):
+    fake_redis.store[alerts.BEAT_HEARTBEAT_KEY] = f"{time.time() - 600:.3f}"
+    watchdog.started_at = time.time() - 900
+    watchdog.check_once()
+    (row,) = _rows(db_session, "beat_stale")
+    assert "Beat looks dead: no dispatch tick for 6" in row.body
+
+
+# worker-down -------------------------------------------------------------------------------
+
+T0 = datetime(2026, 10, 27, 12, 0, tzinfo=timezone.utc)
+
+
+def _at(minutes):
+    return T0 + timedelta(minutes=minutes)
+
+
+def test_worker_down_since_rules():
+    since = alerts.worker_down_since
+    # Nothing due: nothing owed.
+    assert since(None, _at(0), _at(-60), None) is None
+    # Idle from the latest of: the oldest due time, dispatch reopening, the last start...
+    assert since(_at(0), _at(-10), _at(-60), None) == _at(0)
+    assert since(_at(0), _at(-10), _at(20), None) == _at(20)
+    assert since(_at(0), None, _at(-60), None) == _at(0)
+    # ...so a worker-dl that took tracks and then died midway through a backlog is idle from
+    # its last start (review round 1), and a busy one's keeps moving.
+    assert since(_at(0), _at(5), _at(-60), None) == _at(5)
+    # Beat's stale sweep rewrites scheduled_at to its tick: the first moment is kept.
+    assert since(_at(30), _at(-10), _at(-60), _at(0)) == _at(0)
+    # Until something is consumed after it.
+    assert since(_at(30), _at(31), _at(-60), _at(0)) == _at(31)
+
+
+@pytest.fixture()
+def backlog(db_session, make_user):
+    """A queued track due 40 minutes ago, worker-dl's last attempt 60 minutes ago, and a
+    watchdog that has seen the breaker closed for an hour."""
+    now = datetime.now(timezone.utc)
+    track = _track(db_session, make_user, state=TrackState.QUEUED, scheduled_at=now - timedelta(minutes=40))
+    _attempt(db_session, track, 60, TrackAttemptOutcome.FAILED, TrackErrorType.AUDIO_PROVIDER, "429")
+    retry.get_worker_state(db_session)
+    db_session.commit()
+    return track
+
+
+def test_worker_down_fires_with_due_work_and_the_breaker_closed(configured, watchdog, db_session, backlog):
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    (row,) = _rows(db_session, "worker_down")
+    assert row.fingerprint == "stalled"
+    assert row.body.startswith("[spotdl-web] worker-dl isn't taking due tracks: 1 track(s) are due with the breaker closed")
+    assert "no download has started for at least 40m (the last one ended " in row.body
+
+
+def test_worker_down_counts_tracks_expand_job_already_sent(configured, watchdog, db_session, make_user):
+    """A new job's tracks go straight to the broker as `pending` with no scheduled_at (the
+    outbox marker is cleared by the send): owed to worker-dl since that send."""
+    track = _track(db_session, make_user, state=TrackState.PENDING)
+    db_session.commit()
+    track.updated_at = datetime.now(timezone.utc) - timedelta(minutes=30)
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    (row,) = _rows(db_session, "worker_down")
+    assert "1 track(s) are due" in row.body
+    assert "for at least 30m (none recorded yet)" in row.body
+
+
+def test_worker_down_fires_when_worker_dl_dies_midway_through_a_backlog(
+    configured, watchdog, db_session, backlog
+):
+    """It took a track after the backlog fell due, then nothing for longer than the threshold."""
+    _attempt(db_session, backlog, 20, TrackAttemptOutcome.COMPLETED)
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    (row,) = _rows(db_session, "worker_down")
+    assert "no download has started for at least 20m" in row.body
+
+
+def test_worker_down_is_silent_while_worker_dl_keeps_starting_tracks(
+    configured, watchdog, db_session, backlog
+):
+    _attempt(db_session, backlog, 1, TrackAttemptOutcome.COMPLETED)
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
+
+
+def test_worker_down_waits_its_threshold(configured, watchdog, db_session, backlog):
+    app_settings.update_alert_settings(db_session, alert_worker_down_minutes=60)
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
+
+
+def test_worker_down_is_silent_while_the_breaker_is_tripped(configured, watchdog, db_session, backlog):
+    worker_state = retry.get_worker_state(db_session)
+    worker_state.breaker_tripped_until = datetime.now(timezone.utc) + timedelta(minutes=30)
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
+    # ...and the release restarts the clock: tracks due during the trip only just became
+    # dispatchable.
+    assert watchdog._open_since is None
+    worker_state.breaker_tripped_until = None
+    db_session.commit()
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
+
+
+def test_worker_down_leaves_a_dead_beat_to_its_own_alert(configured, watchdog, db_session, backlog, fake_redis):
+    fake_redis.store[alerts.BEAT_HEARTBEAT_KEY] = f"{time.time() - 900:.3f}"
+    watchdog.started_at = time.time() - 3600
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
+    assert len(_rows(db_session, "beat_stale")) == 1
+
+
+def test_worker_down_ignores_beats_reclaim_rows(configured, watchdog, db_session, backlog):
+    """The stale sweep records rows for a stuck invocation: they prove nothing about
+    worker-dl, so they don't count as consumption."""
+    _attempt(
+        db_session, backlog, 1, TrackAttemptOutcome.HELD,
+        warning=f"{RECLAIM_PREFIX}still queued past staleness threshold (0:30:00)",
+    )
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert len(_rows(db_session, "worker_down")) == 1
+
+
+def test_worker_down_waits_out_a_long_download(configured, watchdog, db_session, backlog, make_user):
+    """A download's progress isn't written to the database: one running for 20 minutes (under
+    beat's stale threshold) is busy, not down (review round 2)."""
+    from app.config import get_settings
+
+    assert get_settings().stale_track_after_seconds > 20 * 60
+    long_one = _track(db_session, make_user, state=TrackState.DOWNLOADING, email="second@example.com")
+    db_session.commit()
+    long_one.updated_at = datetime.now(timezone.utc) - timedelta(minutes=20)
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
+
+
+def test_worker_down_counts_a_download_in_progress(configured, watchdog, db_session, backlog, make_user):
+    _track(db_session, make_user, state=TrackState.DOWNLOADING, email="second@example.com")
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
+
+
+def test_worker_down_switched_off(configured, watchdog, db_session, backlog):
+    app_settings.update_alert_settings(db_session, alerts_worker_down_enabled=False)
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
+
+
+# --- O5: a Redis outage's log ------------------------------------------------------------
+
+
+def test_a_25_minute_redis_outage_logs_one_traceback_two_still_down_lines_and_a_recovery(caplog):
+    caplog.set_level("INFO", logger="app.services.alerts")
+    outage = alerts.RedisOutageLog(alerts.logger)
+    start = 10_000.0
+    for minute in range(25):
+        try:
+            raise ConnectionError("Error 111 connecting to redis:6379")
+        except ConnectionError:
+            outage.failed(start + 60 * minute)
+    outage.reached(start + 60 * 25)
+    outage.reached(start + 60 * 26)
+    records = [r for r in caplog.records if r.name == "app.services.alerts"]
+    assert [r.getMessage() for r in records] == [
+        "alerts: Redis unreachable; skipping the checks that need it",
+        "alerts: Redis still down (11 checks)",
+        "alerts: Redis still down (21 checks)",
+        "alerts: Redis reachable again after 1500s (25 failed checks)",
+    ]
+    assert records[0].exc_info is not None
+    assert all(r.exc_info is None for r in records[1:])
+
+
+def test_the_watchdog_keeps_its_database_checks_through_a_redis_outage(
+    configured, watchdog, db_session, monkeypatch, caplog
+):
+    import redis
+
+    class Down:
+        def get(self, *a, **k):
+            raise redis.ConnectionError("Error 111")
+
+        set = get
+
+    monkeypatch.setattr(alerts, "_redis", lambda: Down())
+    _trip_row(db_session)
+    watchdog.check_once()
+    watchdog.check_once()
+    # The release (database only) still went out...
+    assert any(r.fingerprint.startswith("release:") for r in _rows(db_session, "breaker"))
+    # ...and the outage is one traceback, not one per check.
+    tracebacks = [r for r in caplog.records if r.levelno == logging.WARNING and r.exc_info]
+    assert len(tracebacks) == 1
+    assert "watchdog check failed" not in caplog.text
+
+
+# --- O6: the history endpoint ------------------------------------------------------------
+
+
+def test_the_history_pages_newest_first(admin_client, configured, db_session):
+    for i in range(5):
+        _record(db_session, "library", f"run{i}", f"sweep {i} " + "x" * 400)
+    first = admin_client.get("/api/admin/alerts", params={"limit": 3}).json()
+    assert first["configured"] is True
+    assert [item["body_preview"][:21] for item in first["items"]] == [
+        "[spotdl-web] sweep 4 ",
+        "[spotdl-web] sweep 3 ",
+        "[spotdl-web] sweep 2 ",
+    ]
+    item = first["items"][0]
+    assert set(item) == {
+        "id", "created_at", "category", "state", "attempts", "next_attempt_at", "sent_at",
+        "last_error", "body_preview",
+    }
+    assert len(item["body_preview"]) == alerts.BODY_PREVIEW_CHARS
+    assert item["state"] == "pending"
+    second = admin_client.get(
+        "/api/admin/alerts", params={"limit": 3, "cursor": first["next_cursor"]}
+    ).json()
+    assert [i["body_preview"][:20] for i in second["items"]] == [
+        "[spotdl-web] sweep 1",
+        "[spotdl-web] sweep 0",
+    ]
+    assert second["next_cursor"] is None
+
+
+def test_the_history_rejects_a_bad_cursor_and_limit(admin_client):
+    assert admin_client.get("/api/admin/alerts", params={"cursor": "nope"}).status_code == 400
+    assert admin_client.get("/api/admin/alerts", params={"limit": 0}).status_code == 422
+    assert admin_client.get("/api/admin/alerts", params={"limit": 101}).status_code == 422
+
+
+def test_the_history_is_404_for_a_non_admin_and_401_signed_out(authenticated_client, client):
+    response = authenticated_client.get("/api/admin/alerts")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Not Found"}
+    authenticated_client.cookies.clear()
+    assert authenticated_client.get("/api/admin/alerts").status_code == 401
+
+
+def test_a_bare_400_backs_off_like_the_homeserver_s_problem(configured, db_session, sessions, homeserver, clock):
+    """A proxy's 400 or a malformed room id isn't one message's fault (review round 3)."""
+    _record(db_session, "library", "run1", "one")
+    homeserver.answer((400, {"errcode": "M_INVALID_PARAM", "error": "bad room id"}))
+    alerts.deliver_due(sessions)
+    (row,) = _rows(db_session)
+    assert row.state == AlertState.PENDING and row.attempts == 1
+
+
+def test_matrix_s_bad_json_errcode_is_one_message_s_fault(configured, db_session, sessions, homeserver, clock):
+    _record(db_session, "library", "run1", "one")
+    _record(db_session, "library", "run2", "two")
+    homeserver.answer((400, {"errcode": "M_BAD_JSON", "error": "no"}))
+    assert alerts.deliver_due(sessions) == 1
+    assert [r.state for r in _rows(db_session)] == [AlertState.FAILED, AlertState.SENT]
+
+
+def test_a_category_switched_off_before_its_send_is_held_back(configured, db_session, sessions, homeserver, clock):
+    """Raised during an outage, switched off before the homeserver is back (review round 3)."""
+    _record(db_session, "spike", "no_output", "spike")
+    _record(db_session, "library", "run1", "sweep")
+    app_settings.update_alert_settings(db_session, alerts_spike_enabled=False)
+    db_session.commit()
+    assert alerts.deliver_due(sessions) == 1
+    assert homeserver.messages == ["[spotdl-web] sweep"]
+    spike = _rows(db_session, "spike")[0]
+    assert (spike.state, spike.last_error) == (AlertState.SUPPRESSED, alerts.SUPPRESSED_CATEGORY_OFF)
+
+
+def test_every_backoff_wait_stays_inside_synapse_s_txn_memory():
+    assert max(alerts.DELIVERY_BACKOFF_SECONDS) < 30 * 60
+
+
+def test_the_test_alert_still_sends_when_it_cant_be_recorded(admin_client, configured, homeserver, monkeypatch):
+    import app.models
+
+    def missing_table(**kwargs):
+        raise RuntimeError("relation alert_outbox does not exist")
+
+    monkeypatch.setattr(app.models, "AlertOutbox", missing_table)
+    assert admin_client.post("/api/settings/alerts/test").json() == {"sent": True}
+    assert homeserver.messages[0].startswith("[spotdl-web] Test alert")
+
+
+def test_worker_down_reads_a_merged_hold_by_its_end(configured, watchdog, db_session, backlog):
+    """v55 merges repeated holds into one row that keeps its first start: its end is when
+    worker-dl last touched it (review round 3)."""
+    finished = datetime.now(timezone.utc) - timedelta(minutes=1)
+    db_session.add(
+        TrackAttempt(
+            track_id=backlog.id, attempt_number=99,
+            started_at=finished - timedelta(hours=3), finished_at=finished,
+            outcome=TrackAttemptOutcome.HELD,
+        )
+    )
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
+
+
+def test_the_health_check_logs_a_redis_outage_once(monkeypatch, caplog):
+    import contextlib
+
+    import redis
+    from fastapi import Response
+
+    from app.routers import health
+
+    class Postgres:
+        def connect(self):
+            return contextlib.nullcontext(type("Conn", (), {"execute": lambda self, q: None})())
+
+    monkeypatch.setattr(health, "engine", Postgres())
+
+    class Down:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def ping(self):
+            raise redis.ConnectionError("Error 111")
+
+    monkeypatch.setattr(health.Redis, "from_url", lambda *a, **k: Down())
+    monkeypatch.setattr(health, "_redis_outage", alerts.RedisOutageLog(
+        health.logger, prefix="Health check", first="Redis unreachable", level=logging.ERROR
+    ))
+    for _ in range(5):
+        response = Response()
+        assert health.health(response) == {"status": "error", "failing": ["redis"]}
+        assert response.status_code == 503
+    lines = [r for r in caplog.records if r.name == "app.routers.health"]
+    assert [r.getMessage() for r in lines] == ["Health check: Redis unreachable"]
+    assert lines[0].exc_info is not None
+
+
+def test_the_watchdog_still_delivers_when_its_check_fails(configured, watchdog, db_session, homeserver, monkeypatch):
+    """Beat dead: the watchdog's pass is the only one, so a failing check mustn't skip it
+    (review round 5)."""
+    _record(db_session, "beat_stale", "stale", "Beat looks dead.")
+
+    def broken(*a, **k):
+        raise ValueError("bad heartbeat")
+
+    monkeypatch.setattr(alerts, "failure_spike", broken)
+    with pytest.raises(ValueError):
+        watchdog.check_once()
+    assert homeserver.messages == ["[spotdl-web] Beat looks dead."]
+
+
+def test_a_flapping_redis_logs_no_recovery_mid_check(configured, watchdog, db_session, caplog, monkeypatch):
+    import redis
+
+    calls = []
+
+    class FirstReadFails:
+        def get(self, key):
+            calls.append(key)
+            if len(calls) == 1:
+                raise redis.ConnectionError("Error 111")
+            return None
+
+        set = get
+
+    monkeypatch.setattr(alerts, "_redis", lambda: FirstReadFails())
+    watchdog.check_once()
+    # The heartbeat read failed, and the check's other reads (none failing) don't count as
+    # a recovery.
+    assert "reachable again" not in caplog.text
+    assert watchdog.redis_outage.down_since is not None
+
+
+def test_worker_down_waits_at_least_the_pacing_sleep(configured, watchdog, db_session, backlog, monkeypatch):
+    from app.config import get_settings
+
+    paced = get_settings().model_copy(update={"pacing_max_sec": 3 * 3600})
+    monkeypatch.setattr(alerts, "get_settings", lambda: paced)
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
+
+
+def test_overdue_rows_are_given_up_with_matrix_off(db_session, sessions, clock):
+    db_session.add(
+        AlertOutbox(
+            category="spike", fingerprint="x", body="b",
+            created_at=datetime.now(timezone.utc) - timedelta(hours=25),
+            state=AlertState.PENDING, next_attempt_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        )
+    )
+    db_session.commit()
+    assert alerts.deliver_due(sessions) == 0
+    (row,) = _rows(db_session)
+    assert row.state == AlertState.FAILED
+
+
+def test_a_pass_s_success_overrides_a_test_request_s_recorded_failure(
+    configured, db_session, sessions, homeserver, clock
+):
+    db_session.add(
+        AlertOutbox(
+            category="test", fingerprint="t", body="[spotdl-web] Test alert.",
+            created_at=datetime.now(timezone.utc), state=AlertState.PENDING, attempts=1,
+            next_attempt_at=datetime.now(timezone.utc) - timedelta(seconds=1),
+        )
+    )
+    db_session.commit()
+    (row,) = _rows(db_session)
+    real_put = alerts._put
+
+    def put(config, body, txn):
+        # The test request gives up while this pass's send is landing.
+        row.state = AlertState.FAILED
+        db_session.commit()
+        return real_put(config, body, txn)
+
+    import unittest.mock
+
+    with unittest.mock.patch.object(alerts, "_put", put):
+        alerts.deliver_due(sessions)
+    db_session.refresh(row)
+    assert row.state == AlertState.SENT
+
+
+def test_beat_gets_grace_after_a_redis_outage(configured, watchdog, db_session, fake_redis, monkeypatch):
+    """Beat can't tick without its broker: when Redis is back, its last heartbeat is as old as
+    the outage, and that's not a dead beat (live review round 2)."""
+    import redis
+
+    watchdog.started_at = time.time() - 3600
+    fake_redis.store[alerts.BEAT_HEARTBEAT_KEY] = f"{time.time() - 1500:.3f}"
+    real = alerts._redis
+    monkeypatch.setattr(alerts, "_redis", lambda: (_ for _ in ()).throw(redis.ConnectionError("down")))
+    watchdog.check_once()  # the outage
+    monkeypatch.setattr(alerts, "_redis", real)
+    watchdog.check_once()  # Redis is back; beat hasn't ticked yet
+    assert _rows(db_session, "beat_stale") == []
+
+
+def test_worker_down_gives_dispatch_grace_after_a_redis_outage(
+    configured, watchdog, db_session, backlog, fake_redis, monkeypatch
+):
+    """A standing backlog through a Redis outage: nothing reached worker-dl meanwhile, so its
+    return isn't "down" (review round 6)."""
+    import redis
+
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    real = alerts._redis
+    monkeypatch.setattr(alerts, "_redis", lambda: (_ for _ in ()).throw(redis.ConnectionError("down")))
+    watchdog.check_once()  # the outage
+    monkeypatch.setattr(alerts, "_redis", real)
+    fake_redis.store[alerts.BEAT_HEARTBEAT_KEY] = f"{time.time():.3f}"
+    watchdog.check_once()  # back: beat ticks again, the backlog is still there
+    assert _rows(db_session, "worker_down") == []
+
+
+def test_a_delivered_test_alert_is_a_success_even_if_its_record_fails(
+    configured, db_session, homeserver, monkeypatch
+):
+    real_execute = db_session.execute
+    sent = []
+
+    def execute(stmt, *a, **k):
+        if sent and getattr(stmt, "is_update", False):
+            raise RuntimeError("connection dropped")
+        return real_execute(stmt, *a, **k)
+
+    real_put = alerts._put
+
+    def put(config, body, txn):
+        real_put(config, body, txn)
+        sent.append(txn)
+
+    monkeypatch.setattr(alerts, "_put", put)
+    monkeypatch.setattr(db_session, "execute", execute)
+    alerts.send_test(db_session, "Test alert.")  # doesn't raise
+    assert homeserver.messages == ["[spotdl-web] Test alert."]
+
+
+def test_worker_down_ignores_a_cancelled_job_s_leftover_tracks(configured, watchdog, db_session, make_user):
+    from app.models import JobState
+
+    track = _track(db_session, make_user, state=TrackState.PENDING)
+    db_session.get(Job, track.job_id).state = JobState.CANCELLED
+    db_session.commit()
+    track.updated_at = datetime.now(timezone.utc) - timedelta(minutes=30)
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
