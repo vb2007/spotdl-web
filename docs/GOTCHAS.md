@@ -7386,7 +7386,8 @@ independently-found production bug from the same conversation)
   now (`event: heartbeat` with `data: {}`: an event with no data isn't dispatched), and each wait
   is the time left until the next one is due: in `others`, dropped messages used to stretch the
   silence to nearly two intervals. The page treats 15 s + 3 s of silence as dead, on
-  `visibilitychange` → visible and `online` only. Simulating sleep in Playwright: `setOffline`
+  `visibilitychange` → visible, `online`, and its 5 s worker poll: a laptop resumed with the tab
+  visible can fire neither event (live review), and the poll's overdue timer runs at once on wake. Simulating sleep in Playwright: `setOffline`
   fires `offline` (the v47 path), so the new path is tested with `page.clock` fast-forwarding past
   the threshold and a dispatched `visibilitychange`.
 - **No attempt id exists during a run (F10).** The attempt row is written when the invocation
