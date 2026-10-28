@@ -7262,6 +7262,9 @@ independently-found production bug from the same conversation)
   `spotdl_web_<timestamp>.dump` and its retention globs that prefix: the `spotdl_web` in
   DEPLOYMENT.md's backup paths is a file prefix, not the database name (which is `spotdlweb`, read
   from the host `.env` by name only).
+  *(2026-10-28, v60.1: the owner had the prefix renamed. New dumps are `spotdlweb_<timestamp>.dump`;
+  retention and the retained count match both prefixes, so the old `spotdl_web_*` dumps still age
+  out after 14 days. A dump's name no longer reads like a second production database.)*
 - **The runner is a service now.** CI_SELF_HOSTED_RUNNER.md said it ran as a long-lived
   `./run.sh`; the host shows `runsvc.sh` (from PID 1) → `RunnerService.js` → `Runner.Listener
   --startuptype service`, runner 2.338.0, beside eight other repos' runners.

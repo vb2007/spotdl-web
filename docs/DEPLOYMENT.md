@@ -430,7 +430,8 @@ design. You have two ways out, and a third for a data-only revision:
    stays where it is, so no data is lost. Use this whenever the migration itself was fine and
    something else broke.
 2. **Restore the pre-deploy backup, then roll back.** The run log prints its path as
-   `Pre-deploy pg_backup: /mnt/raid1/spotdl-web/backups/spotdl_web_<timestamp>.dump`. Anything
+   `Pre-deploy pg_backup: /mnt/raid1/spotdl-web/backups/spotdlweb_<timestamp>.dump` (`spotdl_web_…`
+   before v60.1). Anything
    written to the database after that dump is lost (downloads recorded since the deploy started),
    so prefer this only when the migration itself is the problem.
    Restore into an **emptied** schema, not with `pg_restore --clean` over the live one:
@@ -439,7 +440,7 @@ design. You have two ways out, and a third for a data-only revision:
    "already exists".
    ```bash
    cd /mnt/raid1/spotdl-web
-   DUMP=/mnt/raid1/spotdl-web/backups/spotdl_web_<timestamp>.dump   # from the run log
+   DUMP=/mnt/raid1/spotdl-web/backups/spotdlweb_<timestamp>.dump   # from the run log
    docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel down
    # DATABASE_URL is written for the containers: drop the +psycopg suffix, and the host reaches
    # the host-native Postgres as localhost, not host.docker.internal (same as pg_backup.sh).
@@ -863,8 +864,8 @@ compose service). What it actually does, step by step:
 3. Runs `pg_dump -Fc --no-owner` — **custom format**, compressed and restorable with
    `pg_restore` (including `--clean` for a from-scratch overwrite), not a plain-SQL dump you'd
    have to pipe into `psql` by hand.
-4. Writes to `$SPOTDL_WEB_BACKUP_DIR/spotdl_web_<UTC-timestamp>.dump` (`spotdl_web_` is the
-   script's own fixed file prefix, which its retention also matches, not the database name) — default
+4. Writes to `$SPOTDL_WEB_BACKUP_DIR/spotdlweb_<UTC-timestamp>.dump` (named after the database
+   since v60.1; until then the prefix was `spotdl_web_`, and retention still matches those) — default
    `<repo root>/backups` (derived from the script's own location, so it always lands next to
    whatever checkout is running it — on this host, `/mnt/raid1/spotdl-web/backups`). **v21
    correction:** this used to default to a hardcoded `/srv/spotdl-web/backups`, which never
@@ -873,8 +874,9 @@ compose service). What it actually does, step by step:
    found and fixed after the fact; see `docs/GOTCHAS.md`'s v21 section. Gitignored (`/backups/`)
    since it now lives inside the git-managed deploy checkout — critical, since the automated
    deploy's `git clean -fd` would otherwise delete it on every deploy.
-5. Prunes any `.dump` file older than `SPOTDL_WEB_BACKUP_RETENTION_DAYS` (default 14) — a daily
-   cron therefore keeps roughly the last 14 dumps.
+5. Prunes its own dumps (`spotdlweb_*.dump`, and `spotdl_web_*.dump` from before v60.1) older
+   than `SPOTDL_WEB_BACKUP_RETENTION_DAYS` (default 14) — a daily cron therefore keeps roughly
+   the last 14 dumps.
 
 v21's `publish-deploy.yml` also runs this script automatically before every real deploy, right
 before `alembic upgrade head` can touch the schema — on top of the daily cron below, not instead
