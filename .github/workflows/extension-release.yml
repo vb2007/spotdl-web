@@ -290,9 +290,11 @@ jobs:
           def same(name):
               a, b = signed.get(name), source.get(name)
               # AMO re-serializes manifest.json when it signs (its indentation changes): compared
-              # as JSON, or every fetched file would read as other content (v61.1).
+              # as JSON, or every fetched file would read as other content (v61.1). Canonical dumps,
+              # not ==, which would take true for 1.
               if name == "manifest.json" and a is not None and b is not None:
-                  return json.loads(a) == json.loads(b)
+                  canon = lambda raw: json.dumps(json.loads(raw), sort_keys=True)
+                  return canon(a) == canon(b)
               return a == b
           differ = sorted(n for n in signed.keys() | source.keys() if not same(n))
           if differ:
@@ -304,7 +306,7 @@ jobs:
                            f"otherwise raise the version and release that.")
               print(f"::warning::The XPI AMO just signed differs from the source in: {shown}")
           print(f"{path}: signed, version {version}, {len(signed)} files"
-                + ("" if differ else ", identical to this commit's extension/"))
+                + ("" if differ else ", matching this commit's extension/"))
           EOF
 
       # The update manifest lists every released version; Firefox installs the newest whose
