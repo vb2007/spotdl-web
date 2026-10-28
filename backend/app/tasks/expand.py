@@ -227,7 +227,7 @@ def expand_job(job_id: str) -> None:
                 return
 
             events.publish_job_event(job.user_id, job.id, job.state.value)
-            job_status.publish_change(db, job.user_id, job.id)
+            job_status.publish_change(db, job.id)
         except Exception as exc:
             # Covers both expansion.expand() itself (assorted exception types spotdl raises
             # for malformed/unreachable URLs) and any DB error while inserting tracks (e.g. a
@@ -261,7 +261,7 @@ def expand_job(job_id: str) -> None:
                 return
             db.refresh(job)
             events.publish_job_event(job.user_id, job.id, job.state.value, error=job.error)
-            job_status.publish_change(db, job.user_id, job.id)
+            job_status.publish_change(db, job.id)
         else:
             _dispatch_due(db, job, [track.id for track in tracks])
     finally:

@@ -304,6 +304,7 @@ function createQueueStore() {
 
 	function forgetJobCounts(): void {
 		clearTimeout(jobCountsTimer);
+		jobCountsTimer = undefined;
 		clearTimeout(retryTimer);
 		retryTimer = undefined;
 		lastJobCountsRead = -Infinity;
@@ -433,9 +434,14 @@ function createQueueStore() {
 
 	function scheduleJobCountsRefresh(): void {
 		if (get(filters).scope !== 'jobs') return;
-		clearTimeout(jobCountsTimer);
+		// A throttle, not a debounce: one already due stays due, so a steady run of moves can't
+		// keep pushing it back (review round 2).
+		if (jobCountsTimer !== undefined) return;
 		const wait = Math.max(1000, lastJobCountsRead + JOB_COUNTS_MIN_GAP_MS - Date.now());
-		jobCountsTimer = setTimeout(refreshJobCounts, wait);
+		jobCountsTimer = setTimeout(() => {
+			jobCountsTimer = undefined;
+			refreshJobCounts();
+		}, wait);
 	}
 
 	async function refreshJobCounts(): Promise<void> {
@@ -1801,6 +1807,13 @@ function createQueueStore() {
 		scheduleTrackCountsRefresh();
 		const epoch = storeEpoch;
 		if (event.archived !== undefined) {
+			// v62: a job off the page archived or brought back elsewhere (another tab, the
+			// retention sweep) changes which jobs the chips count; only a re-read can say how
+			// (review round 2).
+			if (get(filters).scope === 'jobs' && !get(page).items.some((i) => i.id === event.job_id)) {
+				delete countedJobStatus[event.job_id];
+				scheduleJobCountsRefresh();
+			}
 			patchArchivedFlagFromEvent(event.job_id, event.archived);
 		}
 
@@ -1834,6 +1847,8 @@ function createQueueStore() {
 		// A reset (logout) or scope switch while the fetch was in flight: this row belongs
 		// to the previous identity/scope and must not land in the new one's stores.
 		if (epoch !== storeEpoch) return;
+		// Answered: an older failed event for this job has nothing left to add (review round 2).
+		failedJobEvents.delete(event.job_id);
 		const wasIncoming = event.job_id in get(incoming);
 
 		// Same membership rule as `hydrateLive`'s snapshot (`include_archived` off), so a

@@ -108,9 +108,17 @@
 		field?.focus();
 	}
 
+	// A choice made while a save is under way (the days field's commit on blur runs as the
+	// mode button is pressed): saved right after it, never dropped (review round 2).
+	let saveAgain = false;
+
 	async function saveRetention() {
 		daysError = null;
-		if (saving || !dirty) return;
+		if (saving) {
+			saveAgain = true;
+			return;
+		}
+		if (!dirty) return;
 		if (!neverArchive && daysInvalid()) return showDaysError();
 		// Saving disables the field or button that had focus: give it back afterwards.
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -129,6 +137,10 @@
 			saving = false;
 		}
 		await keepFocus(from);
+		if (saveAgain) {
+			saveAgain = false;
+			await saveRetention();
+		}
 	}
 
 	function chooseMode(never: boolean) {
@@ -319,17 +331,11 @@
 								<button
 									type="button"
 									aria-pressed={!neverArchive}
-									disabled={saving}
 									onclick={() => chooseMode(false)}
 								>
 									{m.account_retention_auto()}
 								</button>
-								<button
-									type="button"
-									aria-pressed={neverArchive}
-									disabled={saving}
-									onclick={() => chooseMode(true)}
-								>
+								<button type="button" aria-pressed={neverArchive} onclick={() => chooseMode(true)}>
 									{m.account_retention_never()}
 								</button>
 							</div>

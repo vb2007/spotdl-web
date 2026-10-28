@@ -190,7 +190,7 @@ def cancel_track(
     events.publish_track_event(
         owner_id, track.id, track.job_id, track.state.value, **track_song_meta(track.song_json)
     )
-    job_status.publish_change(db, owner_id, track.job_id)
+    job_status.publish_change(db, track.job_id)
     return track_to_dict(track)
 
 
@@ -279,7 +279,7 @@ def retry_track(
         attempt_count=track.attempt_count,
         **track_song_meta(track.song_json),
     )
-    job_status.publish_change(db, owner_id, track.job_id)
+    job_status.publish_change(db, track.job_id)
 
     worker_state = retry.get_worker_state(db)
     db.commit()

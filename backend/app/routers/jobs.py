@@ -216,7 +216,7 @@ def create_job(
     db.add(job)
     db.commit()
     # v62 (F1): its first status (`expanding`, from none), so the dashboard counts it at once.
-    job_status.publish_change(db, user.id, job.id, created=True)
+    job_status.publish_change(db, job.id, created=True)
     try:
         expand_job.delay(str(job.id))
     except Exception as exc:
@@ -229,7 +229,7 @@ def create_job(
         job.error = "Couldn't be queued for expansion; submit it again"
         job.archived_at = datetime.now(timezone.utc)
         db.commit()
-        job_status.publish_change(db, user.id, job.id)
+        job_status.publish_change(db, job.id)
         logger.warning("create_job: expansion not enqueued for %s: %s", job.id, type(exc).__name__)
         raise ApiError(503, "queue_unavailable", "The queue is unavailable; try again shortly") from None
     return {
@@ -470,7 +470,7 @@ def cancel_job(
             job.user_id, track_id, job.id, TrackState.CANCELLED.value, **track_song_meta(song_json)
         )
     events.publish_job_event(job.user_id, job.id, job.state.value)
-    job_status.publish_change(db, job.user_id, job.id)
+    job_status.publish_change(db, job.id)
     # Read after the cancel commit above, not before -- counts must reflect the just
     # -cancelled tracks.
     return job_to_dict(

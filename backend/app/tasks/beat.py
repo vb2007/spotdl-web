@@ -147,7 +147,7 @@ def _reclaim_stale_tracks(db) -> None:
             **track_song_meta(song_json),
         )
     # v62 (F1): a reclaim can turn a job `waiting`; one bulk status check for its jobs.
-    job_status.publish_changes(db, {job_id: owner_by_job[job_id] for job_id in job_ids})
+    job_status.publish_changes(db, job_ids)
 
 
 @celery_app.task(name="app.tasks.beat.dispatch_due_tracks")
@@ -200,11 +200,15 @@ def dispatch_due_tracks() -> None:
                 **track_song_meta(track.song_json),
             )
 
-        for track in due_tracks:
-            download_track.delay(str(track.id))
         # v62 (F1): a `waiting` track's dispatch can turn its job `active` again; one bulk
-        # status check for the jobs dispatched, after the sends (it ends the transaction).
-        job_status.publish_changes(db, {track.job_id: user_id for track, user_id in due_rows})
+        # status check for the jobs dispatched. Before the sends (the commit above already made
+        # the moves), so a broker error part-way can't leave them unpublished (review round 2);
+        # it ends the transaction, so the ids are read first.
+        track_ids = [str(track.id) for track in due_tracks]
+        job_status.publish_changes(db, {track.job_id for track in due_tracks})
+
+        for track_id in track_ids:
+            download_track.delay(track_id)
     finally:
         db.close()
 

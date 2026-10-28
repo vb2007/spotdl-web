@@ -47,7 +47,7 @@ db.commit()
 # left (prev_status) and the store moves the chip from the event alone.
 from app.services import job_status
 for item in made:
-    job_status.publish_change(db, user.id, item["jobId"])
+    job_status.publish_change(db, item["jobId"])
 print(json.dumps(made))
 `,
 		[normalizeEmail(email), String(waiting)]
@@ -66,9 +66,9 @@ db.execute(text(f"delete from tracks where job_id in ({ids})"))
 gone = [str(r[0]) for r in db.execute(text(ids))]
 db.execute(text(f"delete from jobs where source_url like '%${FIXTURE}%'"))
 db.commit()
-from app.services import events, job_status
+from app.services import job_status
 for job_id in gone:
-    events._get_client().delete(job_status._key(job_id))
+    job_status._get_client().delete(job_status._key(job_id))
 `);
 }
 
@@ -438,6 +438,12 @@ test.describe('F9: a sign-out reaches the other tabs at once', () => {
 		await openDashboard(b);
 		const bRequests: string[] = [];
 		b.on('request', (r) => bRequests.push(new URL(r.url()).pathname));
+		// What the fallback would have been: a 401 answer to tab B's own requests.
+		const b401s: string[] = [];
+		b.on('response', (r) => {
+			if (r.status() === 401 && !new URL(b.url()).pathname.startsWith('/login'))
+				b401s.push(new URL(r.url()).pathname);
+		});
 
 		const started = Date.now();
 		await logoutViaUi(a);
@@ -445,6 +451,8 @@ test.describe('F9: a sign-out reaches the other tabs at once', () => {
 		const took = Date.now() - started;
 		// The poll's 401 didn't do it: tab B sent no worker poll in that time (5s cadence).
 		expect(took).toBeLessThan(1_000);
+		// The push did it: no 401 reached tab B before it left for /login.
+		expect(b401s).toEqual([]);
 		await expect(b.getByRole('button', { name: t(m.login_connect), exact: true })).toBeVisible();
 		test.info().annotations.push({
 			type: 'tab B on /login after',

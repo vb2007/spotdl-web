@@ -55,7 +55,7 @@ class _FakePipeline:
 @pytest.fixture()
 def fake_redis(monkeypatch):
     fake = _FakeRedis()
-    monkeypatch.setattr(events, "_get_client", lambda: fake)
+    monkeypatch.setattr(job_status, "_get_client", lambda: fake)
     return fake
 
 
@@ -100,7 +100,7 @@ def test_a_created_job_says_it_was_counted_nowhere_before(db_session, make_user,
     owner = make_user("owner@example.com")
     job = _job(db_session, owner, (), job_state=JobState.EXPANDING)
 
-    job_status.publish_change(db_session, owner.id, job.id, created=True)
+    job_status.publish_change(db_session, job.id, created=True)
 
     assert published == [
         (owner.id, {"type": "job.status", "job_id": str(job.id), "status": "expanding", "archived": False, "prev_status": None})
@@ -112,16 +112,16 @@ def test_each_move_names_the_status_it_left(db_session, make_user, fake_redis, p
     """The chain: each event's prev_status is the previous one's status."""
     owner = make_user("owner@example.com")
     job = _job(db_session, owner, (), job_state=JobState.EXPANDING)
-    job_status.publish_change(db_session, owner.id, job.id, created=True)
+    job_status.publish_change(db_session, job.id, created=True)
     db_session.add(Track(job_id=job.id, spotify_track_id="t1", song_json={}, state=TrackState.PENDING))
     db_session.add(Track(job_id=job.id, spotify_track_id="t2", song_json={}, state=TrackState.PENDING))
     job.state = JobState.EXPANDED
     db_session.commit()
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
     _set_track_states(db_session, job, TrackState.COMPLETED, TrackState.WAITING)
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
     _set_track_states(db_session, job, TrackState.COMPLETED, TrackState.LOOKUP_FAILED)
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
 
     assert [(e["prev_status"], e["status"]) for _, e in published] == [
         (None, "expanding"),
@@ -134,11 +134,11 @@ def test_each_move_names_the_status_it_left(db_session, make_user, fake_redis, p
 def test_nothing_is_published_while_the_status_stays(db_session, make_user, fake_redis, published):
     owner = make_user("owner@example.com")
     job = _job(db_session, owner, (TrackState.QUEUED, TrackState.PENDING))
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
     published.clear()
 
     _set_track_states(db_session, job, TrackState.COMPLETED, TrackState.DOWNLOADING)
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
 
     assert published == []
 
@@ -149,7 +149,7 @@ def test_a_job_with_no_recorded_status_moves_with_no_prev_status(db_session, mak
     owner = make_user("owner@example.com")
     job = _job(db_session, owner, (TrackState.COMPLETED,))
 
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
 
     assert published == [
         (owner.id, {"type": "job.status", "job_id": str(job.id), "status": "settled:complete", "archived": False})
@@ -162,7 +162,7 @@ def test_the_event_says_whether_the_job_is_archived(db_session, make_user, fake_
     job.archived_at = datetime.now(timezone.utc)
     db_session.commit()
 
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
 
     assert published[0][1]["archived"] is True
 
@@ -173,7 +173,7 @@ def test_it_ends_the_read_transaction(db_session, make_user, fake_redis, publish
     job = _job(db_session, owner, (TrackState.PENDING,))
     db_session.expire_all()
 
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
 
     assert not db_session.in_transaction()
 
@@ -183,7 +183,7 @@ def test_pending_changes_are_never_committed_by_it(db_session, make_user, fake_r
     job = _job(db_session, owner, (TrackState.PENDING,))
     job.priority = 5
 
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
 
     assert published == []
     assert job in db_session.dirty
@@ -200,11 +200,11 @@ def test_a_redis_failure_loses_only_the_event(db_session, make_user, published, 
         def execute(self):
             raise redis.ConnectionError("down")
 
-    monkeypatch.setattr(events, "_get_client", lambda: _Down())
+    monkeypatch.setattr(job_status, "_get_client", lambda: _Down())
     owner = make_user("owner@example.com")
     job = _job(db_session, owner, (TrackState.PENDING,))
 
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
 
     assert published == []
 
@@ -216,14 +216,14 @@ def test_it_never_raises(db_session, make_user, fake_redis, published, monkeypat
     job = _job(db_session, owner, (TrackState.PENDING,))
     monkeypatch.setattr(job_status, "derive_rollup", lambda *a: 1 / 0)
 
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
 
     assert published == []
 
 
 def test_a_cancel_publishes_the_move_to_the_owner(authenticated_client, db_session, owner, fake_redis, published):
     job = _job(db_session, owner, (TrackState.WAITING, TrackState.COMPLETED))
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
     published.clear()
 
     assert authenticated_client.delete(f"/api/jobs/{job.id}").status_code == 200
@@ -251,7 +251,7 @@ def test_create_publishes_the_new_jobs_first_status(authenticated_client, db_ses
 
 def test_retry_now_of_a_not_found_track_reopens_its_job(authenticated_client, db_session, owner, fake_redis, published):
     job = _job(db_session, owner, (TrackState.LOOKUP_FAILED, TrackState.COMPLETED))
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
     published.clear()
     track = db_session.query(Track).filter(Track.job_id == job.id, Track.state == TrackState.LOOKUP_FAILED).one()
 
@@ -267,11 +267,11 @@ def test_beat_checks_each_dispatched_job_once(db_session, make_user, fake_redis,
     for track in db_session.query(Track).filter(Track.job_id == job.id):
         track.scheduled_at = datetime(2020, 1, 1, tzinfo=timezone.utc)
     db_session.commit()
-    job_status.publish_change(db_session, owner.id, job.id)
+    job_status.publish_change(db_session, job.id)
     published.clear()
     checks = []
     real = job_status.publish_changes
-    monkeypatch.setattr(job_status, "publish_changes", lambda *a, **k: (checks.append(list(a[1])), real(*a, **k)))
+    monkeypatch.setattr(job_status, "publish_changes", lambda *a, **k: (checks.append(sorted(a[1])), real(*a, **k)))
     monkeypatch.setattr(beat, "SessionLocal", lambda: _NonClosingSession(db_session))
     monkeypatch.setattr(beat.download_track, "delay", lambda *a: None)
     monkeypatch.setattr(beat.alerts, "record_beat_heartbeat", lambda: None)
@@ -287,12 +287,12 @@ def test_one_bulk_check_publishes_each_moved_job_to_its_owner(db_session, make_u
     ja = _job(db_session, a, (TrackState.WAITING,))
     jb = _job(db_session, b, (TrackState.PENDING,))
     jc = _job(db_session, b, (TrackState.COMPLETED,))
-    job_status.publish_changes(db_session, {ja.id: a.id, jb.id: b.id, jc.id: b.id})
+    job_status.publish_changes(db_session, [ja.id, jb.id, jc.id])
     published.clear()
     _set_track_states(db_session, ja, TrackState.QUEUED)
     _set_track_states(db_session, jb, TrackState.COMPLETED)
 
-    job_status.publish_changes(db_session, {ja.id: a.id, jb.id: b.id, jc.id: b.id})
+    job_status.publish_changes(db_session, [ja.id, jb.id, jc.id])
 
     assert sorted((str(user_id), e["job_id"], e["prev_status"], e["status"]) for user_id, e in published) == sorted(
         [(str(a.id), str(ja.id), "waiting", "active"), (str(b.id), str(jb.id), "active", "settled:complete")]
@@ -316,7 +316,7 @@ def test_publishers_of_one_job_take_turns_so_the_last_status_is_the_real_one(com
         db.flush()
         job = _job(db, owner, (TrackState.DOWNLOADING, TrackState.WAITING))
         owner_id, job_id = owner.id, job.id
-        job_status.publish_change(db, owner_id, job_id)
+        job_status.publish_change(db, job_id)
     published.clear()
 
     gate = concurrency.Gate("the worker's status read")
@@ -335,7 +335,7 @@ def test_publishers_of_one_job_take_turns_so_the_last_status_is_the_real_one(com
             track = db.query(Track).filter(Track.job_id == job_id, Track.state == state_from).one()
             track.state = state_to
             db.commit()
-            job_status.publish_change(db, owner_id, job_id)
+            job_status.publish_change(db, job_id)
 
     worker = concurrency.Thread(finish, TrackState.DOWNLOADING, TrackState.COMPLETED, name="worker")
     gate.wait_reached()

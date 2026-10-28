@@ -1462,6 +1462,54 @@ describe('v62 (F1/F2) the state chips follow job.status, on the page or off it',
 		expect(counts()).toEqual({ expanding: 0 });
 	});
 
+	it('review 2: a job off the page archived or restored elsewhere re-reads the counts', async () => {
+		let reads = 0;
+		await loadPage(
+			[withStatus('job-1', 'active')],
+			{ active: 1, 'settled:complete': 3 },
+			{
+				next: 'c1',
+				countsRead: async () => {
+					reads += 1;
+					return { ...jobsPage([]), counts_by_status: { active: 1, 'settled:complete': 2 } };
+				}
+			}
+		);
+		getJob.mockResolvedValue({ ...withStatus('job-9', 'settled:complete'), archived_at: 'x' });
+		await queue.applyEvent({
+			type: 'job.state',
+			job_id: 'job-9',
+			state: 'expanded',
+			archived: true,
+			ts: 't'
+		});
+		await vi.advanceTimersByTimeAsync(1500);
+		expect(reads).toBe(1);
+		expect(counts()).toEqual({ active: 1, 'settled:complete': 2 });
+	});
+
+	it('review 2: a steady run of unplaceable moves still re-reads the counts, a few seconds apart', async () => {
+		let reads = 0;
+		await loadPage(
+			[withStatus('job-1', 'active')],
+			{ active: 1 },
+			{
+				next: 'c1',
+				countsRead: async () => {
+					reads += 1;
+					return { ...jobsPage([]), counts_by_status: { active: 1 } };
+				}
+			}
+		);
+		for (let i = 0; i < 20; i++) {
+			await queue.applyEvent(statusEvent(`job-x${i}`, 'active'));
+			await vi.advanceTimersByTimeAsync(500);
+		}
+		// 10s of moves every 0.5s: never postponed for good, never more than one per 3s.
+		expect(reads).toBeGreaterThanOrEqual(2);
+		expect(reads).toBeLessThanOrEqual(4);
+	});
+
 	it('reset() forgets every job’s counted status', async () => {
 		await loadPage([withStatus('job-1', 'active')], { active: 1 });
 		await queue.applyEvent(statusEvent('job-1', 'settled:complete', 'active'));
