@@ -1917,6 +1917,7 @@ function createQueueStore() {
 		refreshOwnElsewhere,
 		setFilters,
 		reload,
+		recountJobs: refreshJobCounts,
 		beginResync,
 		loadMore,
 		setView,

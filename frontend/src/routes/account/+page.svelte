@@ -72,9 +72,31 @@
 	guardUnsavedEdits(
 		(unloading) => (dirty && !saving && (unloading || !retentionSaveable())) || keyNameTyped
 	);
+	// An in-app exit with a save to make (or one under way) waits for it, and leaves only once it
+	// landed: a failure stays here, shown, never on a page that's gone (review round 7).
+	let leavingSaved = false;
 	beforeNavigate((navigation) => {
-		if (navigation.willUnload || leavingSession()) return;
-		if (dirty && !saving && retentionSaveable()) saveRetention(false);
+		if (leavingSaved || navigation.willUnload || leavingSession()) return;
+		if (!saving && !(dirty && retentionSaveable())) return;
+		const to = navigation.to?.url;
+		if (!to || to.pathname === navigation.from?.url?.pathname) return;
+		const { type, delta } = navigation;
+		navigation.cancel();
+		queueMicrotask(async () => {
+			await saveRetention(false);
+			if (error !== null || dirty) return;
+			leavingSaved = true;
+			if (type === 'popstate' && delta) {
+				history.go(delta);
+				return;
+			}
+			try {
+				// eslint-disable-next-line svelte/no-navigation-without-resolve -- `to` is the URL SvelteKit was already navigating to, resolved.
+				await goto(to.pathname + to.search + to.hash);
+			} finally {
+				leavingSaved = false;
+			}
+		});
 	});
 
 	function syncForm(settings: api.RetentionSettings) {
@@ -127,13 +149,21 @@
 	// A choice made while a save is under way (the days field's commit on blur runs as the
 	// mode button is pressed): saved right after it, never dropped (review round 2).
 	let saveAgain = false;
+	// The save under way, the follow-up for a choice made meanwhile included: what an in-app
+	// exit waits on (review round 7).
+	let retentionRun: Promise<void> = Promise.resolve();
 
-	async function saveRetention(refocus = true) {
-		daysError = null;
+	function saveRetention(refocus = true): Promise<void> {
 		if (saving) {
 			saveAgain = true;
-			return;
+			return retentionRun;
 		}
+		retentionRun = runRetentionSave(refocus);
+		return retentionRun;
+	}
+
+	async function runRetentionSave(refocus: boolean): Promise<void> {
+		daysError = null;
 		if (!dirty) return;
 		if (!neverArchive && daysInvalid()) return showDaysError(refocus);
 		// Saving disables the field or button that had focus: give it back afterwards.
@@ -158,13 +188,17 @@
 		} finally {
 			saving = false;
 		}
-		await keepFocus(from);
 		if (saveAgain) {
 			saveAgain = false;
 			// v42's late-write guard for the queued choice too (review round 4): a sign-out or
-			// another identity meanwhile means it isn't this session's to send.
-			if (queue.getResetCount() === resets) await saveRetention();
+			// another identity meanwhile means it isn't this session's to send. Started before
+			// any await, so no other press can start a second run in between (review round 7).
+			if (queue.getResetCount() === resets) {
+				await runRetentionSave(true);
+				return;
+			}
 		}
+		await keepFocus(from);
 	}
 
 	function chooseMode(never: boolean) {
@@ -379,7 +413,7 @@
 									step="1"
 									bind:value={days}
 									onchange={() => saveRetention(false)}
-									disabled={saving || neverArchive}
+									disabled={neverArchive}
 									aria-invalid={daysError ? 'true' : undefined}
 									aria-describedby="retention-days-unit retention-days-hint retention-days-error"
 								/>

@@ -999,7 +999,10 @@ The form vocabulary lives in `app.css` so the routes can't drift:
   "Saving…", then "Saved at 14:03"; "Unsaved changes" only while a typed value isn't committed
   yet. Leaving for another page commits a valid one, as leaving the field does; the unsaved-edits
   guard asks only about what can't be saved (an invalid value, a choice whose save failed, a key
-  name not yet created), and on a reload or close about anything not saved yet. Never a save button on `/account`, and
+  name not yet created), and on a reload or close about anything not saved yet. An in-app exit
+  waits for the save and stays, showing the failure, if it fails. A consequence of saving on
+  choice: pressing "automatically" saves the days shown (30 by default) at once, before any
+  number is typed. Never a save button on `/account`, and
   never a mixed page. Actions (an API key's create and revoke) take effect on their press and
   report on the same line.
 - Validation mirrors the backend's rules (alert bounds, the proxy pattern, non-blank paths and

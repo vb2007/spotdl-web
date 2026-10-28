@@ -299,8 +299,22 @@
 
 	// v43 (F08): archives every settled job of yours in one go, so it asks first.
 	let clearError = $state('');
+	// It answers one press; it doesn't stay under the heading for the rest of the visit.
+	function showClearNote(text: string) {
+		clearError = text;
+		setTimeout(() => {
+			if (clearError === text) clearError = '';
+		}, 10_000);
+	}
 	async function onClearLog() {
-		if (nothingToClear) return;
+		if (nothingToClear) {
+			// Says why where a sighted keyboard user sees it too, and asks the server again in
+			// case the local counts drifted (review round 7): if it has something to clear, the
+			// button turns back on.
+			showClearNote(m.queuectl_clear_none());
+			void queue.recountJobs();
+			return;
+		}
 		const session = queue.getResetCount();
 		clearError = '';
 		const confirmed = await confirmAction({
@@ -317,14 +331,11 @@
 			await queue.archiveJobs({ allSettled: true });
 		} catch (err) {
 			if (queue.getResetCount() !== session) return;
-			clearError = m.queuectl_clear_failed({
-				reason: errorText(err, m.queuectl_clear_unreachable)
-			});
-			// It answers one press; it doesn't stay under the heading for the rest of the visit.
-			const shown = clearError;
-			setTimeout(() => {
-				if (clearError === shown) clearError = '';
-			}, 10_000);
+			showClearNote(
+				m.queuectl_clear_failed({
+					reason: errorText(err, m.queuectl_clear_unreachable)
+				})
+			);
 		}
 	}
 </script>

@@ -452,6 +452,34 @@ test.describe('F7/F8 on the real stack', () => {
 		).toHaveText(/\d/);
 	});
 
+	test('F6 on /account: an exit whose save fails stays, with the failure shown', async ({
+		page
+	}) => {
+		await page.goto('/account');
+		const retention = page.getByRole('group', { name: t(m.account_retention_heading) });
+		const auto = retention.getByRole('button', { name: t(m.account_retention_auto) });
+		await expect(auto).toBeEnabled();
+		if ((await auto.getAttribute('aria-pressed')) !== 'true') {
+			await auto.click();
+			await expect(retention.getByRole('status')).toHaveText(/\d/);
+		}
+		const days = page.locator('#retention-days');
+		const before = await days.inputValue();
+		await days.fill(before === '52' ? '53' : '52');
+		await page.route('**/api/settings/retention', (route) =>
+			route.request().method() === 'PATCH'
+				? route.fulfill({ status: 502, contentType: 'text/html', body: '<h1>502</h1>' })
+				: route.continue()
+		);
+		await page.getByRole('link', { name: t(m.nav_queue), exact: true }).click();
+		await expect(retention.getByRole('alert')).not.toBeEmpty();
+		await expect(page).toHaveURL(/\/account$/);
+		await page.unroute('**/api/settings/retention');
+		// Back to never, the identity's default.
+		await retention.getByRole('button', { name: t(m.account_retention_never) }).click();
+		await expect(retention.getByRole('status')).toHaveText(/\d/);
+	});
+
 	test('F8: clear log is off with its reason once there is nothing to clear', async ({
 		page,
 		baseURL
