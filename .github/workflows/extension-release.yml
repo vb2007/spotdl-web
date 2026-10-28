@@ -118,7 +118,7 @@ jobs:
                   exit 1
                 fi
                 if [ "$STATUS" != "ahead" ] && [ "$STATUS" != "identical" ]; then
-                  echo "::error::$TAG was already released from other extension/ content than this commit's ($COMMIT), so this commit's extension changes would never ship. Raise extension/manifest.json's version past $VERSION and merge that."
+                  echo "::error::$TAG was released from $TAG_COMMIT, whose extension/ differs from this commit's ($COMMIT): extension changes merged at the same version (two PRs bumping to $VERSION) never ship. Every run fails like this until a merge raises extension/manifest.json's version past $VERSION."
                   exit 1
                 fi
                 echo "$TAG was released from $TAG_COMMIT, which already contains this commit."
@@ -290,7 +290,9 @@ jobs:
               shown = ", ".join(differ[:10]) + (" …" if len(differ) > 10 else "")
               if os.environ.get("FETCHED") == "true":
                   sys.exit(f"::error::AMO's signed {version} differs from this commit's extension/ "
-                           f"({shown}): it was signed from other content. Raise the version and release that.")
+                           f"({shown}): it was signed from other content. If another run's release of "
+                           f"{version} is unfinished (a draft), re-run that run's failed jobs first; "
+                           f"otherwise raise the version and release that.")
               print(f"::warning::The XPI AMO just signed differs from the source in: {shown}")
           print(f"{path}: signed, version {version}, {len(signed)} files"
                 + ("" if differ else ", identical to this commit's extension/"))
@@ -299,9 +301,9 @@ jobs:
       # The update manifest lists every released version; Firefox installs the newest whose
       # `strict_min_version` it meets. Built on the current one (kept on the fixed tag), so each
       # entry keeps the minimum Firefox its own manifest declared. This version's entry comes from
-      # its manifest (a version's manifest can't change, since CI makes every extension/ change
-      # bump it) and its XPI's sha256: hashed here, or GitHub's digest of the asset when it was
-      # already released.
+      # the XPI itself, its manifest and its sha256 (the released asset, downloaded, when it was
+      # already released): never from the checkout, whose extension/ can differ from what was
+      # released at this version (two PRs bumping to it, the later one released).
       - name: Build updates.json
         if: steps.version.outputs.superseded != 'true'
         env:
@@ -347,9 +349,10 @@ jobs:
           fi
           HASH="sha256:$(sha256sum "$RUNNER_TEMP/$XPI" | cut -d' ' -f1)"
           HASH="$HASH" python3 - <<'EOF'
-          import json, os, re
+          import json, os, re, zipfile
           env = os.environ
-          manifest = json.load(open("extension/manifest.json"))
+          with zipfile.ZipFile(os.path.join(env["RUNNER_TEMP"], env["XPI"])) as xpi:
+              manifest = json.loads(xpi.read("manifest.json"))
           gecko = manifest["browser_specific_settings"]["gecko"]
           addon_id, version = gecko["id"], env["VERSION"]
           if not re.fullmatch(r"sha(256|512):[0-9a-f]+", env["HASH"]):

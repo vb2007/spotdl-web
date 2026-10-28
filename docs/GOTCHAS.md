@@ -7304,7 +7304,10 @@ independently-found production bug from the same conversation)
   (`extension=true`) rather than only warning. The job's `released` step then compares the
   released tag's `extension/` tree with its commit's: equal, or a tag commit that already
   contains this one (GitHub's compare, `ahead`/`identical`, since the checkout is depth 1), is a
-  no-op; otherwise it fails into `notify`. The extension's version of release.yml's `owned`. And a draft (what a killed `gh release create`
+  no-op; otherwise it fails into `notify`, and keeps failing on every later run (each later
+  commit's `extension/` differs from the tag's too) until a merge raises the version. The
+  extension's version of release.yml's `owned`. The `updates.json` entry is read from the XPI's
+  own manifest, never the checkout's, for the same reason. And a draft (what a killed `gh release create`
   leaves) is never "released": the job finishes and publishes it.
 - **Same version, other content.** Release & Deploy's plan reads "the `extension-v<version>` tag
   exists" as "released". A version released from a branch (a dispatch) and later reused by a PR

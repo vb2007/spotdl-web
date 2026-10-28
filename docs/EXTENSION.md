@@ -160,6 +160,12 @@ exists, so no later merge retries it, and installed copies don't see the version
 A version below the newest released one is a successful no-op too (two extension merges whose
 runs finished out of order).
 
+**Two PRs at the same version.** CI can't see a clash between two open PRs that both raise the
+extension to the same version. Whichever is released first wins. If that's the later merge
+(it contains the other), all is well. Otherwise the other PR's extension changes would never
+ship, so `extension-release` fails, naming both commits, on that run and on **every later run**
+until a merge raises the version (the fix: bump `manifest.json` again and merge).
+
 **By hand.** *Actions* → *Extension Release* → *Run workflow* releases the chosen ref's version,
 the same way (a version below the newest released one releases nothing). From a branch, that's an
 unmerged build every installed copy will update to; the run says so. A dispatched run sends no
