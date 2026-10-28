@@ -1605,6 +1605,9 @@ describe('v62 (F3) only a 404 drops a row', () => {
 
 		await queue.reload();
 		getJob.mockClear();
+		// A real answer for job-2's own refresh (a mock left empty answers undefined, which no
+		// api does, and the patch then throws after the test: CI caught it as an unhandled error).
+		getJob.mockResolvedValue(job('job-2', 'expanded', 'active'));
 		await queue.applyEvent({ ...trackEvent('f3-5', 'downloading', 10), job_id: 'job-2' });
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(getJob.mock.calls.map(([id]) => id)).toEqual(['job-2']);

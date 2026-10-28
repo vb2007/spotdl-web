@@ -307,7 +307,7 @@ def test_publishers_of_one_job_take_turns_so_the_last_status_is_the_real_one(com
     reads. The chain ends on the job's real status, never on the worker's older reading."""
     import threading
 
-    from tests import concurrency
+    import concurrency
 
     from app.models import User
 

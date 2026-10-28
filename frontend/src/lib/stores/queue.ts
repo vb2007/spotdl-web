@@ -303,6 +303,10 @@ function createQueueStore() {
 	}
 
 	function forgetJobCounts(): void {
+		// The row refreshes still queued belong to the previous identity or scope too; v62's F3
+		// retries feed this queue (a leftover fired in the next session: CI, review round 8).
+		clearTimeout(jobRefreshTimer);
+		pendingJobRefresh.clear();
 		clearTimeout(jobCountsTimer);
 		jobCountsTimer = undefined;
 		clearTimeout(retryTimer);
