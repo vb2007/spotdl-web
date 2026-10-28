@@ -60,8 +60,14 @@ NOT_SECRET_PIECE_RE = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:/*|[0-9/]+)$")
 URL_USERINFO_RE = re.compile(r"([A-Za-z][A-Za-z0-9+.-]*://)[^\s/@]+@")
 # A `$NAME`/`${NAME...}` inside a value: compose warns "The "NAME" variable is not set".
 VAR_REF_RE = re.compile(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)")
-# Colon pieces are cut only from values with this few colons (the pieces grow quadratically).
-MAX_COLON_PARTS = 32
+# Colon pieces are cut only from values with this few colons: there are two per colon, each up to
+# the value's length, so a pathological value would cost its length times its colon count.
+MAX_COLON_PARTS = 256
+# A quoted value, then optionally an inline comment after the closing quote.
+QUOTED_RE = re.compile(r"""^(?:"((?:[^"\\]|\\.)*)"|'([^']*)')\s*(?:#.*)?$""")
+# Interpolation in a value: what's around it, and a `${X:-default}` default, are printed as is.
+INTERP_RE = re.compile(r"\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*")
+DEFAULT_RE = re.compile(r"\$\{[A-Za-z_][A-Za-z0-9_]*:?[-?+]([^}]*)\}")
 _DQ_ESCAPES = {"n": "\n", "t": "\t", "r": "\r", "\\": "\\", '"': '"', "$": "$"}
 
 
@@ -69,10 +75,11 @@ def compose_decoded(raw: str) -> str:
     """The value as compose reads it from .env (v60): a double-quoted one with its escapes
     applied, a single-quoted one literal, an unquoted one without its ` #` comment; `$$` is `$`
     except inside single quotes."""
-    if len(raw) >= 2 and raw[0] == raw[-1] == "'":
-        return raw[1:-1]
-    if len(raw) >= 2 and raw[0] == raw[-1] == '"':
-        out, inner, i = [], raw[1:-1], 0
+    q = QUOTED_RE.match(raw)
+    if q and q.group(2) is not None:
+        return q.group(2)
+    if q:
+        out, inner, i = [], q.group(1), 0
         while i < len(inner):
             if inner[i] == "\\" and i + 1 < len(inner) and inner[i + 1] in _DQ_ESCAPES:
                 out.append(_DQ_ESCAPES[inner[i + 1]])
@@ -84,10 +91,20 @@ def compose_decoded(raw: str) -> str:
     return raw.split(" #", 1)[0].strip().replace("$$", "$")
 
 
+def colon_pieces(value: str) -> list[str]:
+    """Each prefix before a `:` and each suffix after one, as compose cuts a port spec (v60)."""
+    parts = value.split(":")
+    if len(parts) > MAX_COLON_PARTS:
+        return []
+    pieces = [p for i in range(1, len(parts)) for p in (":".join(parts[:i]), ":".join(parts[i:]))]
+    return [p for p in pieces if len(p) >= 6 and not NOT_SECRET_PIECE_RE.match(p)]
+
+
 def secrets(env_file: str) -> list[str]:
     found: set[str] = set()
     keys: set[str] = set()
     refs: set[str] = set()
+    decoded_values: set[str] = set()
     for line in open(env_file, encoding="utf-8", errors="replace"):
         line = line.rstrip("\n")
         if not line.strip() or line.lstrip().startswith("#"):
@@ -98,7 +115,10 @@ def secrets(env_file: str) -> list[str]:
             keys.add(line.split("=", 1)[0].strip().removeprefix("export").strip())
             if not raw.startswith("'"):
                 refs.update(VAR_REF_RE.findall(raw.replace("$$", "")))
-            candidates = [raw, raw.split(" #", 1)[0].strip(), compose_decoded(raw)]
+            decoded = compose_decoded(raw)
+            if not QUOTED_RE.match(raw) or not raw.startswith("'"):
+                decoded_values.add(decoded)
+            candidates = [raw, raw.split(" #", 1)[0].strip(), decoded]
         else:
             # A malformed line: compose quotes it back with `"` escaped as `\"`, and may cut
             # it anywhere, so every token goes too, not just the whole line.
@@ -112,13 +132,13 @@ def secrets(env_file: str) -> list[str]:
                               form.replace("\\n", "\n").replace('\\"', '"'), go_quoted(form)):
                     if len(shown) >= 3:
                         found.add(shown)
-            parts = v.strip("'\"").split(":")
-            if len(parts) > MAX_COLON_PARTS:
-                continue
-            for i in range(1, len(parts)):
-                for piece in (":".join(parts[:i]), ":".join(parts[i:])):
-                    if len(piece) >= 6 and not NOT_SECRET_PIECE_RE.match(piece):
-                        found.add(piece)
+            found.update(colon_pieces(v.strip("'\"")))
+    # Literal parts around an interpolation, and defaults, come back verbatim in errors.
+    for v in list(decoded_values):
+        for piece in [*INTERP_RE.split(v), *DEFAULT_RE.findall(v)]:
+            if len(piece) >= 6 and not NOT_SECRET_PIECE_RE.match(piece):
+                found.add(piece)
+            found.update(colon_pieces(piece))
     # A reference to a variable nothing defines is most likely a `$` that belonged to the
     # value: compose names it in a warning, so it goes too (6 characters or more).
     found.update(r for r in refs - keys if len(r) >= 6)

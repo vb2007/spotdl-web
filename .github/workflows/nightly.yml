@@ -127,7 +127,7 @@ jobs:
           [ "$RESULT" = "cancelled" ] && jobs_code="$(gh_api GET "/repos/$REPO/actions/runs/$RUN_ID/jobs?per_page=100")"
           [ "$RESULT" = "cancelled" ] && check="jobs API HTTP ${jobs_code:-none}"
           if [ "$jobs_code" = 200 ]; then
-            check="$check, the job ran or was cancelled with steps"
+            check="$check, no yt-dlp-freshness job that was cancelled before any step or runner"
             job_id="$(python3 -c 'import json, sys
           for j in json.load(open(sys.argv[1])).get("jobs", []):
               if j.get("name") == "yt-dlp-freshness" and j.get("conclusion") == "cancelled" \

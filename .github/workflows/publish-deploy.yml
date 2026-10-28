@@ -396,6 +396,14 @@ jobs:
             echo "current_healthy=false" >> "$GITHUB_OUTPUT"
             echo "Running stack:        not healthy, or not IMAGE_TAG=${CURRENT_TAG:-(none)} built from HEAD (api image: ${RUNNING_IMAGE:-none}, revision: ${RUNNING_REV:-unknown})"
           fi
+          # v60 (P3): the running containers weren't built from the checkout's HEAD (a deploy that
+          # moved the checkout and stopped before `up`, say), so the checkout's networks: may not
+          # be the live network's either. The deploy step then recreates every container too.
+          if [ -n "$RUNNING_REV" ] && [ "$RUNNING_REV" = "$HEAD_COMMIT" ]; then
+            echo "running_is_head=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "running_is_head=false" >> "$GITHUB_OUTPUT"
+          fi
           echo "Deploy checkout HEAD: $HEAD_COMMIT"
           echo "Deployed IMAGE_TAG:   ${CURRENT_TAG:-(none)}"
           if [ -f "$DEPLOY_DIR/.last-good" ]; then
@@ -562,7 +570,8 @@ jobs:
           docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull
           # v60 (P3): see the preflight's networks check.
           FORCE=()
-          if [ "${{ steps.preflight.outputs.networks_changed }}" = "true" ]; then FORCE=(--force-recreate); fi
+          if [ "${{ steps.preflight.outputs.networks_changed }}" = "true" ] \
+             || [ "${{ steps.prev.outputs.running_is_head }}" != "true" ]; then FORCE=(--force-recreate); fi
           docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel \
             up -d --no-build --remove-orphans "${FORCE[@]}"
 
@@ -798,6 +807,8 @@ jobs:
       # failed run (which would also send a false "deploy failed" alert).
       - name: Prune old images and build cache
         if: steps.skip.outputs.skip != 'true' && success()
+        # v60: its timeout must stay a warning too, like a prune error (the deploy is healthy).
+        continue-on-error: true
         timeout-minutes: 10
         run: |
           docker image prune -f || echo "::warning::docker image prune failed"
@@ -817,6 +828,7 @@ jobs:
           ROLLBACK_DETAIL: ${{ steps.rollback.outputs.detail }}
           BACKUP_PATH: ${{ steps.backup.outputs.path }}
           DEPLOY_STEP: ${{ steps.deploy.outcome }}
+          JOB_STATUS: ${{ job.status }}
           HEALTH: ${{ steps.health.outcome }}
         run: |
           case "$ROLLBACK" in
@@ -849,7 +861,13 @@ jobs:
               ;;
             *)
               if [ "$DEPLOY_STEP" = "success" ] && [ "$HEALTH" = "success" ]; then
-                rollback="not needed, the new version passed its health gate (a later step failed, see the run)"
+                # v60: only when something after the gate really failed (v49 said it on every
+                # successful deploy too).
+                if [ "$JOB_STATUS" = "success" ]; then
+                  rollback="not needed, the new version passed its health gate"
+                else
+                  rollback="not needed, the new version passed its health gate (a later step failed, see the run)"
+                fi
               elif [ "$DEPLOY_STEP" = "success" ] || [ "$DEPLOY_STEP" = "failure" ] || [ "$DEPLOY_STEP" = "cancelled" ]; then
                 rollback="not attempted, the host may be mid-deploy"
               else
@@ -863,6 +881,7 @@ jobs:
       # IMAGE_TAG line and .last-good aren't secret; compose's own output is redacted.
       - name: Summary
         if: always()
+        continue-on-error: true
         timeout-minutes: 3
         run: |
           {

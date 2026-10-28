@@ -379,7 +379,7 @@ happened:
 | succeeded, back on … the pre-deploy version | v33.1 fallback: the database was ahead of `.last-good`, so the rollback returned to what was running before the deploy (typically a `manual-*` dispatch) instead. `.last-good` is unchanged. | As above. The host is on the pre-deploy build (usually a `manual-*` dispatch) until the next real release. |
 | refused | The database is **ahead** of the rollback image. The failed deploy's checkout and containers were left exactly as they were. | "The database is ahead of the rollback image" below. |
 | not started | The rollback stopped before moving anything (no rollback target recorded). The failed deploy is still in place. | Read the log, then roll back manually if needed. |
-| not started (guard error) | The migration guard couldn't compare revisions (the rollback commit unreadable, Postgres unreachable, the old image unpullable, a compose error, or the new `migrate` still running after 5 minutes), so it started nothing. A release that changed `networks:` no longer ends here: since v60 the guard's probe joins the live network instead of recreating it. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
+| not started (guard error) | The migration guard couldn't compare revisions (the rollback commit unreadable, Postgres unreachable, the old image unpullable, a compose error, or the new `migrate` still running after 5 minutes), so it started nothing. Since v60 a release that changed `networks:` normally doesn't end here (the guard's probe joins the live network instead of recreating it); if it still does, the error says the probe ran on that network, and the recovery is `down` (no `-v`) first, then the manual rollback below. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
 | failed | The rollback itself broke part-way. The stack may be down. | "Roll back to a known-good version manually" below, to the target the message names (`.last-good`, or the pre-deploy version if it says so). |
 | not needed, the new version passed its health gate | A step after the health gate failed (writing `.last-good`, say). The new version is up. | Check the Summary; `.last-good` may still name the previous release. |
 | UNKNOWN, the deploy job reported nothing | The deploy job produced no step outcomes (the runner died, the host rebooted, a cancel before it started). | Check the host's state (HEAD, `IMAGE_TAG`, `compose ps`) before doing anything. |
@@ -404,10 +404,16 @@ git reset --hard <COMMIT from .last-good>
 sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=<IMAGE_TAG from .last-good>/" .env
 # Before starting anything: is the database ahead of this image? (the guard is new in v33, so
 # take it from main). Exit 3 = stop here and follow "The database is ahead" below.
+# If the failed release changed `networks:` (v60), its stack holds a network this commit's files
+# define differently, and the guard fails with "has active endpoints": take it down first
+# (no -v, the data stays; the site is down until the `up` below), then run the guard.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel down
 git show origin/main:.github/scripts/migration_guard.sh > /tmp/migration_guard.sh
 bash /tmp/migration_guard.sh "$PWD"
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build --remove-orphans
+# --force-recreate (v60): after a network change, a container `up` wouldn't otherwise recreate
+# (the pinned redis, cloudflared) comes back without its service name, and nothing resolves it.
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build --remove-orphans --force-recreate
 bash .github/scripts/wait_for_stack_health.sh "$PWD" 420
 ```
 Always move the commit and the tag **together**. Afterwards, if you recovered by hand onto a
@@ -832,7 +838,9 @@ sudo systemctl restart docker
 ```
 
 Removing the `networks:` block from `docker-compose.prod.yml` (once added) and re-running
-`docker compose up -d` reverts this app's own containers to IPv4-only without needing the daemon
+`docker compose up -d --force-recreate` (with the prod pair and `--profile tunnel`; without
+`--force-recreate` the containers it doesn't otherwise recreate lose their service name, v60)
+reverts this app's own containers to IPv4-only without needing the daemon
 change reverted too, if the daemon-level change itself turns out safe but this app's own IPv6 usage
 needs to be paused independently.
 
