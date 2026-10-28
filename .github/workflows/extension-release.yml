@@ -15,8 +15,9 @@ name: Extension Release
 #
 # No `concurrency` group (v49: a group cancels an older pending run, even with
 # `cancel-in-progress: false`). The one self-hosted runner serializes the jobs, and a version
-# already released is a successful no-op, so two runs carrying the same version don't race: the
-# second only makes sure the update manifest lists it.
+# already released from the same extension/ (or from a later commit containing this one) is a
+# successful no-op that only makes sure the update manifest lists it. Released from other content
+# (two PRs bumping to the same version), the run fails into `notify` (the `released` step).
 #
 # Auto-update: the manifest's `browser_specific_settings.gecko.update_url` points at
 #   https://github.com/<repo>/releases/download/extension-updates/updates.json

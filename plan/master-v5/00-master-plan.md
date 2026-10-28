@@ -653,3 +653,17 @@ here.
   cards only, with no now-playing selector (an untestable guess would be dead code), and no
   now-playing fixture. v61's scope is unchanged. A later slice adds the target only if another
   user asks for it.
+
+- **2026-10-28, v61: the real signing proof comes after merge (owner's decision).** The
+  `AMO_JWT_ISSUER`/`AMO_JWT_SECRET` secrets didn't exist during v61, and a new workflow can't be
+  dispatched before it's on `main`. So the PR merges at extension `1.0.1` and:
+  - the merge's own "Release & Deploy" run signs it (the "real signed XPI" bullet), and it's
+    installed permanently in release Firefox against a slot stack from that release;
+  - a follow-up trivial extension-only PR (`1.0.2`, no app bump) proves auto-update ("Check for
+    Updates" installs it);
+  - the "missing secrets fail with the explicit message, and the failure posts the Matrix notice"
+    bullet was proven before merge, on a scratch branch whose test copy of "Release & Deploy"
+    withheld the secrets (owner-approved notice in the pipeline room).
+
+  The update manifest lives on a dedicated fixed release, `extension-updates` (task 4's recorded
+  choice), since `releases/latest` is the app's.
