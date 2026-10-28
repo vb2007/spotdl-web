@@ -254,7 +254,16 @@ jobs:
     # v33: 40, not 25. A failing deploy can now spend 420s in the health gate AND up to 420s in
     # the rollback's own wait, plus pulls and the guard; a timeout mid-rollback would leave the
     # host half rolled back.
-    timeout-minutes: 40
+    # v60 (P4): every step that can run long has its own `timeout-minutes`, and this is only the
+    # backstop above their sum (2+5+5+6+5+6+10+30+13+25+10+3 = 120, plus seconds for the untimed
+    # rest; the checkouts are bounded too, since a GitHub slowdown there would otherwise eat into
+    # the rollback's share and let this limit cut it after all). Verified on the
+    # runner (scratch run 40595581518): when the *job* limit cuts in, GitHub cancels the job, the
+    # `cancelled()` rollback starts but is killed about 5 minutes later (GitHub's fixed grace
+    # for a cancelled job; `cancel-timeout-minutes` isn't a GitHub key), and no later step, the
+    # rollback note and the Summary included, runs at all. A *step* that times out just fails,
+    # so the rollback runs as for any failure, under its own limit.
+    timeout-minutes: 130
     env:
       DEPLOY_DIR: /mnt/raid1/spotdl-web
     # Read by the `notify` job below, and by release-deploy.yml's (through this workflow's
@@ -279,6 +288,7 @@ jobs:
       # Here that means every pull is anonymous, as the public images need (no stale
       # credential can turn a pull into `denied`, the v21 failure).
       - name: Use a job-private Docker config
+        timeout-minutes: 2
         run: |
           DIR="$RUNNER_TEMP/docker-config"
           SHARED="${DOCKER_CONFIG:-$HOME/.docker}"
@@ -301,6 +311,7 @@ jobs:
       # the very first run, before DEPLOY_DIR itself has been updated to carry them -- checked
       # out into the job workspace, separate from DEPLOY_DIR itself.
       - uses: actions/checkout@v7
+        timeout-minutes: 5
         with:
           ref: ${{ needs.resolve.outputs.commit }}
 
@@ -310,6 +321,7 @@ jobs:
       # rollback) for that reason alone. Release mode runs from main, so it's always current.
       - name: Check out the pipeline's own scripts
         uses: actions/checkout@v7
+        timeout-minutes: 5
         with:
           ref: ${{ github.sha }}
           path: .pipeline
@@ -321,6 +333,23 @@ jobs:
           test -f "$DEPLOY_DIR/.env" || { echo "::error::$DEPLOY_DIR/.env is missing"; exit 1; }
           test -f "$DEPLOY_DIR/proxies.txt" || { echo "::error::$DEPLOY_DIR/proxies.txt is missing"; exit 1; }
 
+      # v60 (P7): `.last-good` is gitignored only from v33 on, and every deploy step before v33
+      # ran a plain `git clean -fd` after checking out its own (older) commit. So a dispatch of
+      # a pre-v33 copy of this workflow (`gh workflow run --ref v4.32.0`), which never heard of
+      # `.last-good`, deleted it. The checkout's own exclude list isn't versioned: no checkout
+      # changes it, and every `git clean` without `-x` (all of them, v21 on) honours it. So
+      # that copy's clean now leaves the file alone, as every later one already did.
+      - name: Protect .last-good from every workflow version's git clean
+        run: |
+          mkdir -p "$DEPLOY_DIR/.git/info"
+          EXCLUDE="$DEPLOY_DIR/.git/info/exclude"
+          if ! grep -qxF '/.last-good' "$EXCLUDE" 2>/dev/null; then
+            # A last line without its newline would otherwise swallow the entry.
+            if [ -s "$EXCLUDE" ] && [ -n "$(tail -c1 "$EXCLUDE")" ]; then echo >> "$EXCLUDE"; fi
+            echo '/.last-good' >> "$EXCLUDE"
+            echo "Added /.last-good to $EXCLUDE"
+          fi
+
       # v33: records, before anything moves, both what is running now (`current_tag`, used by
       # the skip check) and what a rollback returns to (`tag` + `commit`, together). The
       # rollback target is `.last-good`, written only after a healthy release-mode deploy, so a
@@ -329,36 +358,51 @@ jobs:
       # `.last-good` doesn't exist yet.
       - name: Record the current deployment and the rollback target
         id: prev
+        timeout-minutes: 6
         run: |
           CURRENT_TAG="$(grep -E '^IMAGE_TAG=' "$DEPLOY_DIR/.env" | tail -n1 | cut -d= -f2- || true)"
           HEAD_COMMIT="$(git -C "$DEPLOY_DIR" rev-parse HEAD)"
           echo "current_tag=$CURRENT_TAG" >> "$GITHUB_OUTPUT"
           echo "current_commit=$HEAD_COMMIT" >> "$GITHUB_OUTPUT"
           # v33.1: whether what's running now is healthy AND really is CURRENT_TAG, a
-          # precondition for the rollback's fallback to it. Instant (timeout 0), verdict only.
-          # The checkout's own health script, since its compose files are the ones in effect
-          # (a newer script may list a service the old files don't have).
+          # precondition for the rollback's fallback to it. Verdict only. The checkout's own
+          # health script, since its compose files are the ones in effect (a newer script may
+          # list a service the old files don't have).
+          # v60 (P8): 180s, not an instant check. A worker restarted shortly before reads
+          # "starting" for up to ~150s (a 120s healthcheck interval plus its 30s timeout), and an
+          # instant probe called that stack unhealthy, which silently disabled the fallback. A
+          # healthy stack still answers on the first pass; only a broken one waits it out.
+          # `timeout 240` around it: compose retries (v60, up to 35s a call) can stretch a pass,
+          # and this probe may only ever answer "not healthy", never fail the step.
           HEALTH_SCRIPT="$DEPLOY_DIR/.github/scripts/wait_for_stack_health.sh"
           [ -f "$HEALTH_SCRIPT" ] || HEALTH_SCRIPT=.github/scripts/wait_for_stack_health.sh
-          RUNNING_IMAGE="$(cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+          RUNNING_IMAGE="$(cd "$DEPLOY_DIR" && timeout 30 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
             ps --format '{{.Image}}' api 2>/dev/null || true)"
           # ...and was built from HEAD: both build modes stamp org.opencontainers.image.revision,
           # so a checkout moved without restarting the stack doesn't pass for a matched pair.
-          API_ID="$(cd "$DEPLOY_DIR" && docker compose -f docker-compose.yml -f docker-compose.prod.yml \
+          API_ID="$(cd "$DEPLOY_DIR" && timeout 30 docker compose -f docker-compose.yml -f docker-compose.prod.yml \
             ps -q api 2>/dev/null | head -n1 || true)"
           RUNNING_REV=""
           if [ -n "$API_ID" ]; then
-            RUNNING_REV="$(docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+            RUNNING_REV="$(timeout 30 docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
               "$API_ID" 2>/dev/null || true)"
           fi
           if [ -n "$CURRENT_TAG" ] && [ "${RUNNING_IMAGE##*:}" = "$CURRENT_TAG" ] \
              && [ "$RUNNING_REV" = "$HEAD_COMMIT" ] \
-             && bash "$HEALTH_SCRIPT" "$DEPLOY_DIR" 0 >/dev/null 2>&1; then
+             && timeout 240 bash "$HEALTH_SCRIPT" "$DEPLOY_DIR" 180 >/dev/null 2>&1; then
             echo "current_healthy=true" >> "$GITHUB_OUTPUT"
             echo "Running stack:        healthy"
           else
             echo "current_healthy=false" >> "$GITHUB_OUTPUT"
             echo "Running stack:        not healthy, or not IMAGE_TAG=${CURRENT_TAG:-(none)} built from HEAD (api image: ${RUNNING_IMAGE:-none}, revision: ${RUNNING_REV:-unknown})"
+          fi
+          # v60 (P3): the running containers weren't built from the checkout's HEAD (a deploy that
+          # moved the checkout and stopped before `up`, say), so the checkout's networks: may not
+          # be the live network's either. The deploy step then recreates every container too.
+          if [ -n "$RUNNING_REV" ] && [ "$RUNNING_REV" = "$HEAD_COMMIT" ]; then
+            echo "running_is_head=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "running_is_head=false" >> "$GITHUB_OUTPUT"
           fi
           echo "Deploy checkout HEAD: $HEAD_COMMIT"
           echo "Deployed IMAGE_TAG:   ${CURRENT_TAG:-(none)}"
@@ -408,7 +452,9 @@ jobs:
           fi
 
       - name: Preflight required variables against the host .env
+        id: preflight
         if: steps.stale.outputs.stale != 'true'
+        timeout-minutes: 5
         env:
           COMMIT: ${{ needs.resolve.outputs.commit }}
         run: |
@@ -439,12 +485,34 @@ jobs:
           fi
           echo "Preflight: the new commit's compose files render against $DEPLOY_DIR/.env"
 
+          # v60 (P3): does this release change `networks:`? Then `up` recreates the project
+          # network, and a container whose own config didn't change (the pinned `redis`,
+          # `cloudflared`) is reconnected without its service alias: `redis` stops resolving and
+          # every worker goes unhealthy. The deploy step then force-recreates every container.
+          # Only the networks section is compared (as JSON, never printed: a render holds .env
+          # values). Unknown (the running files don't render) counts as changed.
+          nets() {
+            docker compose --project-directory "$DEPLOY_DIR" -f "$1" -f "$2" --profile tunnel \
+              config --format json 2>/dev/null \
+              | python3 -c 'import json, sys; print(json.dumps(json.load(sys.stdin).get("networks", {}), sort_keys=True))' \
+              2>/dev/null || true
+          }
+          OLD_NETS="$(nets "$DEPLOY_DIR/docker-compose.yml" "$DEPLOY_DIR/docker-compose.prod.yml")"
+          NEW_NETS="$(nets "$TMP/docker-compose.yml" "$TMP/docker-compose.prod.yml")"
+          if [ -z "$OLD_NETS" ] || [ "$OLD_NETS" != "$NEW_NETS" ]; then
+            echo "networks_changed=true" >> "$GITHUB_OUTPUT"
+            echo "Preflight: this release changes networks: (or the running files don't render), so the deploy recreates every container"
+          else
+            echo "networks_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Release mode only: a re-run of a deploy that already landed finds the same VERSION
       # deployed. A manual dispatch always proceeds -- see the workflow header. A stale release
       # (above) skips too.
       - name: Skip if this version is already deployed and healthy
         id: skip
         if: needs.resolve.outputs.persist == 'true'
+        timeout-minutes: 6
         run: |
           if [ "${{ steps.stale.outputs.stale }}" = "true" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -463,13 +531,20 @@ jobs:
       - name: Back up Postgres before migrating
         id: backup
         if: steps.skip.outputs.skip != 'true'
+        timeout-minutes: 10
         run: |
+          # v60: pipefail, or a failed dump passes the step through `tee` (the default shell is
+          # `bash -e` without it) and the deploy migrates with no backup.
+          set -o pipefail
           "$DEPLOY_DIR/scripts/pg_backup.sh" | tee "$RUNNER_TEMP/pg_backup.log"
           echo "path=$(sed -n 's/^pg_backup: dumping to //p' "$RUNNER_TEMP/pg_backup.log" | tail -n1)" >> "$GITHUB_OUTPUT"
 
       - name: Update the deploy checkout and bring the stack up
         id: deploy
         if: steps.skip.outputs.skip != 'true'
+        # 30: `up` waits for `migrate` (every backend service depends on it), so this also bounds
+        # a migration. A data migration needing longer is deployed by hand.
+        timeout-minutes: 30
         run: |
           cd "$DEPLOY_DIR"
           # No fetch here (v33): the preflight fetched moments ago, and keeping this step's
@@ -493,12 +568,18 @@ jobs:
           fi
 
           docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull
+          # v60 (P3): see the preflight's networks check.
+          FORCE=()
+          if [ "${{ steps.preflight.outputs.networks_changed }}" = "true" ] \
+             || [ "${{ steps.prev.outputs.running_is_head }}" != "true" ]; then FORCE=(--force-recreate); fi
           docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel \
-            up -d --no-build --remove-orphans
+            up -d --no-build --remove-orphans "${FORCE[@]}"
 
       - name: Wait for the stack to become healthy
         id: health
         if: steps.skip.outputs.skip != 'true'
+        # 13: the script's 420s, plus a last pass that compose retries can stretch.
+        timeout-minutes: 13
         run: bash .github/scripts/wait_for_stack_health.sh "$DEPLOY_DIR" 420
 
       # Code rollback only -- Alembic migrations are never downgraded automatically (too risky
@@ -509,13 +590,16 @@ jobs:
       # (2026-09-27: both directions died on the same missing variable). Only runs once the
       # deploy step has actually started moving the host; a preflight or backup failure left
       # nothing to roll back. A run cancelled by hand rolls back too, since a cancel mid-`up`
-      # leaves the host half-deployed. (Whether GitHub also runs this after a job-level
-      # `timeout-minutes` cut is not verified; the generous timeout is there so it never has to.) `result` is for the notify job:
+      # leaves the host half-deployed, but then GitHub gives it only about 5 minutes (v60, see the
+      # job's timeout), so don't cancel a deploy by hand. A step's own timeout (v60) is a plain
+      # failure and lands here with the full 25 minutes: the migrate wait (5), two guard probes,
+      # the `up` and its 420s health wait. `result` is for the notify job:
       # not-started (stopped before moving anything), refused (the database is ahead),
       # guard-error (the guard couldn't tell, so nothing was started), failed (broke after the
       # checkout began), succeeded.
       - name: Roll back to the previous commit and image on failure
         id: rollback
+        timeout-minutes: 25
         if: >-
           (failure() || cancelled()) && steps.health.outcome != 'success' &&
           (steps.deploy.outcome == 'success' || steps.deploy.outcome == 'failure' ||
@@ -565,15 +649,44 @@ jobs:
           TMP="$(mktemp -d)"
           trap 'rm -rf "$TMP"' EXIT
           guard() {
-            local dir
+            local dir args nets override key net
             dir="$(mktemp -d -p "$TMP")"
             guard_rc=0
             for f in docker-compose.yml docker-compose.prod.yml; do
               # Unreadable target = "couldn't check" (1), not a step abort.
               git -C "$DEPLOY_DIR" show "$2:$f" > "$dir/$f" || { guard_rc=1; return 0; }
             done
-            IMAGE_TAG="$1" \
-              GUARD_COMPOSE_ARGS="--project-directory $DEPLOY_DIR -f $dir/docker-compose.yml -f $dir/docker-compose.prod.yml --profile tunnel" \
+            args="--project-directory $DEPLOY_DIR -f $dir/docker-compose.yml -f $dir/docker-compose.prod.yml --profile tunnel"
+            # v60 (P3): when the failed release changed `networks:`, its `up` recreated the
+            # project network with the new config, and the probe's `compose run` with the
+            # target's files then tried to recreate it back while the failed stack still holds
+            # it ("network ... has active endpoints"): a guard error, so no rollback at all. The
+            # probe only needs Postgres, so it joins the live network as `external` instead of
+            # reconciling it; the rollback's own `up` below does recreate the network to the
+            # target's config. Absent network (nothing is up): no override, compose creates it.
+            # Every network of the target's files is handled so (a later release may attach
+            # `migrate` to more than `default`), keyed as the files key it. Only the key and the
+            # name leave the `config` output (which holds .env values). `$args` is split on
+            # spaces on purpose, as migration_guard.sh splits GUARD_COMPOSE_ARGS.
+            # shellcheck disable=SC2086
+            nets="$(IMAGE_TAG="$1" docker compose $args config --format json 2>/dev/null \
+              | python3 -c 'import json, sys
+          for key, net in json.load(sys.stdin).get("networks", {}).items():
+              print(key, net.get("name", ""))' 2>/dev/null || true)"
+            override=""
+            while read -r key net; do
+              if [ -n "$net" ] && docker network inspect "$net" >/dev/null 2>&1; then
+                override="$override$(printf '  "%s": !override\n    name: "%s"\n    external: true' "$key" "$net")"$'\n'
+                echo "migration_guard: probing on the live network $net as it is (external)"
+              fi
+            done <<< "$nets"
+            guard_on_live_net=false
+            if [ -n "$override" ]; then
+              printf 'networks:\n%s' "$override" > "$dir/guard-network.yml"
+              args="$args -f $dir/guard-network.yml"
+              guard_on_live_net=true
+            fi
+            IMAGE_TAG="$1" GUARD_COMPOSE_ARGS="$args" \
               bash .pipeline/.github/scripts/migration_guard.sh "$DEPLOY_DIR" "$BACKUP_PATH" \
               2> "$dir/guard.err" || guard_rc=$?
             # `|| true`: a redactor failure (it prints nothing then) mustn't abort a rollback
@@ -631,6 +744,11 @@ jobs:
             exit 1
           elif [ "$guard_rc" -ne 0 ]; then
             echo "result=guard-error" >> "$GITHUB_OUTPUT"
+            if [ "$guard_on_live_net" = true ]; then
+              # v60 (P3): the probe ran on the failed release's own network. If that release's
+              # `networks:` change is what broke reaching Postgres, the probe can't work on it.
+              echo "::error::The guard's probe ran on the failed release's live network. If its networks: change is what cut Postgres off, recover by hand: cd $DEPLOY_DIR && docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel down (no -v, it keeps the data; this stops the site), then follow docs/DEPLOYMENT.md, 'Roll back to a known-good version manually' (its guard check then recreates the old network). Target: IMAGE_TAG=$PREV_TAG commit=$PREV_COMMIT."
+            fi
             echo "::error::Rollback not attempted: the migration guard couldn't compare revisions (exit $guard_rc, see above), so the old stack was not started. The failed deploy's checkout and containers are left as they are. Pre-deploy pg_backup: ${BACKUP_PATH:-<newest dump in $DEPLOY_DIR/backups/>}."
             exit 1
           fi
@@ -646,8 +764,13 @@ jobs:
           else
             echo "IMAGE_TAG=$PREV_TAG" >> .env
           fi
+          # v60 (P3): --force-recreate. A rollback after a release that changed `networks:`
+          # recreates the network again, and any container `up` wouldn't otherwise touch (the
+          # pinned `redis`, `cloudflared`) comes back without its service alias, so `redis`
+          # wouldn't resolve and the health wait would fail. Recreating everything costs a redis
+          # restart (its data is on a volume) and a tunnel blip, in a rollback only.
           docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel \
-            up -d --no-build --remove-orphans
+            up -d --no-build --remove-orphans --force-recreate
           # The previous commit's own health script: its compose files are the ones in effect.
           bash "$DEPLOY_DIR/.github/scripts/wait_for_stack_health.sh" "$DEPLOY_DIR" 420
           echo "result=succeeded" >> "$GITHUB_OUTPUT"
@@ -659,8 +782,10 @@ jobs:
       # just confirmed this same version healthy, but never a stale one (v49), which would move
       # the baseline back. Only when the checkout is actually on the
       # release's own commit: the skip check compares tags, not commits, and a tag paired with
-      # some other commit is exactly the mismatch this file exists to prevent. Gitignored, so
-      # `git clean -fd` leaves it; written via rename so a crash can't leave half a file.
+      # some other commit is exactly the mismatch this file exists to prevent. Gitignored and in
+      # the checkout's info/exclude (v60), so no workflow version's `git clean -fd` removes it;
+      # written to a temp file, flushed to disk and renamed over it, so a crash leaves either the
+      # old file or the new one, never half of one.
       - name: Record last-known-good
         if: success() && needs.resolve.outputs.persist == 'true' && steps.stale.outputs.stale != 'true'
         env:
@@ -673,6 +798,7 @@ jobs:
           fi
           printf 'IMAGE_TAG=%s\nCOMMIT=%s\n' "${{ needs.resolve.outputs.version }}" \
             "$HEAD_COMMIT" > "$DEPLOY_DIR/.last-good.tmp"
+          sync "$DEPLOY_DIR/.last-good.tmp"
           mv "$DEPLOY_DIR/.last-good.tmp" "$DEPLOY_DIR/.last-good"
           echo "Wrote $DEPLOY_DIR/.last-good:"
           cat "$DEPLOY_DIR/.last-good"
@@ -681,6 +807,9 @@ jobs:
       # failed run (which would also send a false "deploy failed" alert).
       - name: Prune old images and build cache
         if: steps.skip.outputs.skip != 'true' && success()
+        # v60: its timeout must stay a warning too, like a prune error (the deploy is healthy).
+        continue-on-error: true
+        timeout-minutes: 10
         run: |
           docker image prune -f || echo "::warning::docker image prune failed"
           docker builder prune -f --keep-storage 5GB || echo "::warning::docker builder prune failed"
@@ -699,6 +828,7 @@ jobs:
           ROLLBACK_DETAIL: ${{ steps.rollback.outputs.detail }}
           BACKUP_PATH: ${{ steps.backup.outputs.path }}
           DEPLOY_STEP: ${{ steps.deploy.outcome }}
+          JOB_STATUS: ${{ job.status }}
           HEALTH: ${{ steps.health.outcome }}
         run: |
           case "$ROLLBACK" in
@@ -731,7 +861,13 @@ jobs:
               ;;
             *)
               if [ "$DEPLOY_STEP" = "success" ] && [ "$HEALTH" = "success" ]; then
-                rollback="not needed, the new version passed its health gate (a later step failed, see the run)"
+                # v60: only when something after the gate really failed (v49 said it on every
+                # successful deploy too).
+                if [ "$JOB_STATUS" = "success" ]; then
+                  rollback="not needed, the new version passed its health gate"
+                else
+                  rollback="not needed, the new version passed its health gate (a later step failed, see the run)"
+                fi
               elif [ "$DEPLOY_STEP" = "success" ] || [ "$DEPLOY_STEP" = "failure" ] || [ "$DEPLOY_STEP" = "cancelled" ]; then
                 rollback="not attempted, the host may be mid-deploy"
               else
@@ -745,6 +881,8 @@ jobs:
       # IMAGE_TAG line and .last-good aren't secret; compose's own output is redacted.
       - name: Summary
         if: always()
+        continue-on-error: true
+        timeout-minutes: 3
         run: |
           {
             echo "## Deploy"

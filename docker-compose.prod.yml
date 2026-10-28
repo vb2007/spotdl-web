@@ -18,12 +18,31 @@
 # `${IMAGE_TAG:-latest}` — the empty/first-run default is `latest` so a fresh clone's `.env`
 # without IMAGE_TAG set still resolves to something pullable; .github/workflows/publish-
 # deploy.yml is what actually writes a real version into the host's .env after every deploy.
+#
+# v60 (O3): every service logs to the host's journald instead of the base file's json-file.
+# json-file logs live in the container's own directory and go with it, and every deploy
+# recreates every container, so nothing from before the last deploy could be read (O1's breaker
+# trip of 2026-10-18 couldn't be traced for that reason). journald keeps them across
+# recreations and reboots (persistent on this host), within its own size cap: retention is in
+# docs/DEPLOYMENT.md, "Logs". `docker compose logs` still works, for the current containers;
+# scripts/prod_logs.sh reads across deploys. `tag` = the container name (the journal's
+# identifier); the two compose labels become COM_DOCKER_COMPOSE_PROJECT/_SERVICE fields, which
+# prod_logs.sh filters on. A different driver replaces the base file's json-file options rather
+# than merging them (journald would refuse `max-size`); `docker compose config` shows it.
+x-logging: &journald
+  driver: journald
+  options:
+    tag: "{{.Name}}"
+    labels: com.docker.compose.project,com.docker.compose.service
+
 services:
   migrate:
+    logging: *journald
     image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
     build: !reset null
 
   redis:
+    logging: *journald
     # noeviction is deliberate, not an oversight: this is a message broker, not a cache.
     # redis's own default policy once maxmemory is set (allkeys-lru) would silently evict
     # queued Celery task messages under memory pressure -- noeviction instead makes Redis
@@ -51,6 +70,7 @@ services:
           cpus: "0.5"
 
   api:
+    logging: *journald
     image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
     build: !reset null
     deploy:
@@ -64,6 +84,7 @@ services:
           cpus: "1.0"
 
   worker-dl:
+    logging: *journald
     image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
     build: !reset null
     deploy:
@@ -92,6 +113,7 @@ services:
       - ${LIBRARY_DIR:?set LIBRARY_DIR in .env to a real host path before deploying}:/mnt/raid1/media/music:ro
 
   worker-meta:
+    logging: *journald
     image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
     build: !reset null
     deploy:
@@ -111,6 +133,7 @@ services:
       - ${LIBRARY_DIR:?set LIBRARY_DIR in .env to a real host path before deploying}:/mnt/raid1/media/music
 
   worker-expand:
+    logging: *journald
     image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
     build: !reset null
     deploy:
@@ -124,6 +147,7 @@ services:
       - ${LIBRARY_DIR:?set LIBRARY_DIR in .env to a real host path before deploying}:/mnt/raid1/media/music
 
   beat:
+    logging: *journald
     image: ghcr.io/vb2007/spotdl-web-backend:${IMAGE_TAG:-latest}
     build: !reset null
     deploy:
@@ -133,6 +157,7 @@ services:
           cpus: "0.25"
 
   web:
+    logging: *journald
     image: ghcr.io/vb2007/spotdl-web-frontend:${IMAGE_TAG:-latest}
     build: !reset null
     deploy:
@@ -150,6 +175,7 @@ services:
       - ${LIBRARY_DIR:?set LIBRARY_DIR in .env to a real host path before deploying}:/mnt/raid1/media/music:ro
 
   cloudflared:
+    logging: *journald
     deploy:
       resources:
         limits:

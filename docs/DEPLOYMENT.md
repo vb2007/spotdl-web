@@ -34,6 +34,18 @@ stack doesn't come up healthy. Full pipeline detail, GHCR package layout, idempo
 every manual-recovery lever live in **`docs/RELEASE_PIPELINE.md`** — this doc doesn't duplicate
 that, only what's specific to this host.
 
+### Before merging a version that adds a required env var
+
+> ⚠️ **A new `${VAR:?}` in a compose file must be in this host's `/mnt/raid1/spotdl-web/.env`
+> before the version that adds it is merged.** Otherwise its deploy stops at the preflight,
+> naming the missing variable, with nothing on the host changed: the release is cut, but
+> production stays on the old version until the key is added and the failed jobs are re-run.
+> That PR lists the key and the value production needs under **"Deploy notes"**. The whole
+> checklist, templates and CI drift check included, is
+> [`docs/RELEASE_PIPELINE.md`, "Adding a required env var"](RELEASE_PIPELINE.md#adding-a-required-env-var);
+> the recovery when it's missed is "A deploy needs a new `.env` variable" under
+> [Rollback / recovery](#rollback--recovery-v21-v33).
+
 **Deploying a branch before merging its PR:** the "Publish & Deploy" workflow also accepts
 `workflow_dispatch`, so you don't have to merge first to try something on the real host:
 
@@ -89,9 +101,10 @@ Diff your existing `.env` against `.env.example` and add whatever's new for v12:
 | `YOUTUBE_PLAYER_CLIENTS` (v31.1, v54.2) | Optional; `app/config.py` defaults to `default` (yt-dlp's own client choice), the same as `.env.example`. v54.2 moved off v31.1's `android,web,mweb`, which by 2026-10 got no audio-only stream (GOTCHAS v54.2). Retune only if a yt-dlp player client starts failing |
 | `MATRIX_HOMESERVER_URL` / `MATRIX_ACCESS_TOKEN` / `MATRIX_ROOM_ID` (v36) | Optional; unset means app alerts are off. See [App alerts](#app-alerts-v36) |
 
-A key a newer version *requires* (`${VAR:?}` in a compose file) is named by the deploy's preflight
-before anything on the host moves; see "A deploy needs a new `.env` variable" under
-[Rollback / recovery](#rollback--recovery-v21-v33).
+A key a newer version *requires* (`${VAR:?}` in a compose file) has to be here before that
+version is merged: see [the callout above](#before-merging-a-version-that-adds-a-required-env-var).
+If it isn't, the deploy's preflight names it before anything on the host moves; see "A deploy
+needs a new `.env` variable" under [Rollback / recovery](#rollback--recovery-v21-v33).
 
 **No longer needed:** a `frontend/.env` file, and a manual `alembic upgrade head` step —
 both are now automatic (see §4 and §5 below). If you have a leftover `frontend/.env` from
@@ -238,9 +251,8 @@ Expect every service `healthy` except `beat` (deliberately has no healthcheck �
 comment in `docker-compose.yml`) and `migrate`/`cloudflared` (one-shot / no healthcheck
 defined). If anything is `unhealthy`, `docker compose logs <service>` — output is now
 structured JSON (v12), so `docker compose logs api | jq .` is worth doing over raw
-scrollback. Logs only reach back to the last deploy: a deploy recreates every container, and
-each container's log goes with it, so anything older (an alert that never arrived, say) can't be
-reconstructed from the host (v48).
+scrollback. `docker compose logs` only reaches back to the last deploy (a deploy recreates every
+container); for anything older, `scripts/prod_logs.sh`, see [Logs](#logs-v60).
 
 From the host:
 ```bash
@@ -294,6 +306,54 @@ or `DOWNLOADS_DIR` is misconfigured in `.env`, not that the library is actually 
   docker builder prune -f --keep-storage 5GB
   ```
 
+### Logs (v60)
+
+Every production container logs to the host's **journald** (`docker-compose.prod.yml`, a
+`logging: driver: journald` on every service, tagged with the container name and the compose
+project/service labels). Before v60 they used the base file's `json-file`, whose files live in
+the container's own directory and go with it, so a deploy (which recreates every container)
+erased everything before it, and an alert that never arrived (O1, 2026-10-18) couldn't be traced.
+Lines from that json-file era weren't migrated and are gone. Local dev keeps json-file.
+
+- **Read across deploys**, on the host:
+  ```bash
+  cd /mnt/raid1/spotdl-web
+  scripts/prod_logs.sh 24                 # every service, the last 24 hours
+  scripts/prod_logs.sh 6 worker-dl beat   # just these services
+  PROD_LOGS_OPTS="-p err" scripts/prod_logs.sh 48   # stderr only (priority 3), two days
+  ```
+  It filters journald on the `COM_DOCKER_COMPOSE_PROJECT`/`_SERVICE` fields, so containers
+  replaced by a deploy are included. `docker compose logs <service>` still works, for the
+  current containers only.
+- **Access.** Docker's entries are in the system journal, which `vb2007` can't read: it's in
+  neither `systemd-journal` nor `adm`. Once (then log in again):
+  `sudo usermod -aG systemd-journal vb2007`. Until then the script falls back to `sudo -n
+  journalctl` when that works, and otherwise says what to do.
+- **Retention.** journald's own, host-wide; this app adds no rotation of its own. The journal is
+  persistent here (`/var/log/journal` exists, so it survives reboots too) and
+  `/etc/systemd/journald.conf` sets nothing, so the defaults apply: at most 10% of the root
+  filesystem and never more than 4 GiB (`SystemMaxUse`), while keeping 15% of it free, also
+  capped at 4 GiB (`SystemKeepFree`), and no age limit. On 2026-10-27 the whole journal took 2.0 GiB and reached
+  back to 2026-07-11, while this stack wrote about 0.7 MB of logs a day (`docker compose logs
+  --since 24h`, all services), so its share is negligible and the window is months, set by
+  everything else on the host. To pin it, set `MaxRetentionSec=` and/or `SystemMaxUse=` in a
+  drop-in (`/etc/systemd/journald.conf.d/`) and `sudo systemctl restart systemd-journald`; that
+  applies to every service on the host, so check with the other apps' needs first.
+- **Two deploys to see it work.** The first deploy with journald can't show anything from before
+  itself (that was json-file); from the second one on, `prod_logs.sh` reaches back past each
+  deploy.
+- **Who can read them.** json-file logs were readable only through docker (root-equivalent); the
+  journal is readable by every member of `systemd-journal` and `adm` too. On this host that's
+  nobody but root until `vb2007` is added.
+- **If journald stalls.** Docker's default log `mode` is blocking: a journald that stops reading
+  (a hung or restarting `systemd-journald`) makes the containers' writes to stdout block until it
+  recovers. Left at the default on purpose, since `non-blocking` drops lines under pressure,
+  which is what this change is meant to stop.
+- **Rate limit.** journald drops a flood above 10 000 messages per 30 s per unit, and every
+  container's output arrives through `docker.service`, so all journald-logging containers share
+  one budget. This stack writes a few thousand lines a day; a dropped burst shows up in the
+  journal as "Suppressed N messages from docker.service".
+
 ---
 
 ## Rollback / recovery (v21, v33)
@@ -319,7 +379,7 @@ happened:
 | succeeded, back on … the pre-deploy version | v33.1 fallback: the database was ahead of `.last-good`, so the rollback returned to what was running before the deploy (typically a `manual-*` dispatch) instead. `.last-good` is unchanged. | As above. The host is on the pre-deploy build (usually a `manual-*` dispatch) until the next real release. |
 | refused | The database is **ahead** of the rollback image. The failed deploy's checkout and containers were left exactly as they were. | "The database is ahead of the rollback image" below. |
 | not started | The rollback stopped before moving anything (no rollback target recorded). The failed deploy is still in place. | Read the log, then roll back manually if needed. |
-| not started (guard error) | The migration guard couldn't compare revisions (the rollback commit unreadable, Postgres unreachable, the old image unpullable, a compose error such as a changed network definition, or the new `migrate` still running after 5 minutes), so it started nothing. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
+| not started (guard error) | The migration guard couldn't compare revisions (the rollback commit unreadable, Postgres unreachable, the old image unpullable, a compose error, or the new `migrate` still running after 5 minutes), so it started nothing. Since v60 a release that changed `networks:` normally doesn't end here (the guard's probe joins the live network instead of recreating it); if it still does, the error says the probe ran on that network, and the recovery is `down` (no `-v`) first, then the manual rollback below. The checkout and containers were left as they were. | Read the guard's error in the log, fix it, then re-check the guard by hand (below) before rolling back manually. |
 | failed | The rollback itself broke part-way. The stack may be down. | "Roll back to a known-good version manually" below, to the target the message names (`.last-good`, or the pre-deploy version if it says so). |
 | not needed, the new version passed its health gate | A step after the health gate failed (writing `.last-good`, say). The new version is up. | Check the Summary; `.last-good` may still name the previous release. |
 | UNKNOWN, the deploy job reported nothing | The deploy job produced no step outcomes (the runner died, the host rebooted, a cancel before it started). | Check the host's state (HEAD, `IMAGE_TAG`, `compose ps`) before doing anything. |
@@ -344,10 +404,16 @@ git reset --hard <COMMIT from .last-good>
 sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=<IMAGE_TAG from .last-good>/" .env
 # Before starting anything: is the database ahead of this image? (the guard is new in v33, so
 # take it from main). Exit 3 = stop here and follow "The database is ahead" below.
+# If the failed release changed `networks:` (v60), its stack holds a network this commit's files
+# define differently, and the guard fails with "has active endpoints": take it down first
+# (no -v, the data stays; the site is down until the `up` below), then run the guard.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel down
 git show origin/main:.github/scripts/migration_guard.sh > /tmp/migration_guard.sh
 bash /tmp/migration_guard.sh "$PWD"
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel pull
-docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build --remove-orphans
+# --force-recreate (v60): after a network change, a container `up` wouldn't otherwise recreate
+# (the pinned redis, cloudflared) comes back without its service name, and nothing resolves it.
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel up -d --no-build --remove-orphans --force-recreate
 bash .github/scripts/wait_for_stack_health.sh "$PWD" 420
 ```
 Always move the commit and the tag **together**. Afterwards, if you recovered by hand onto a
@@ -561,13 +627,14 @@ sudo -u postgres psql -c "SHOW hba_file;"
 ### 2. Create the role and database
 
 ```bash
-sudo -u postgres psql -c "CREATE ROLE spotdl_web WITH LOGIN PASSWORD 'changeme';"
-sudo -u postgres psql -c "CREATE DATABASE spotdl_web OWNER spotdl_web;"
+sudo -u postgres psql -c "CREATE ROLE spotdlweb WITH LOGIN PASSWORD 'changeme';"
+sudo -u postgres psql -c "CREATE DATABASE spotdlweb OWNER spotdlweb;"
 ```
 
-(2026-10-19, v48: this host's real role and database are both **`spotdlweb`**, not the
-`spotdl_web` shown here, in §3's `pg_hba.conf` line and in `.env.example`. Local dev's
-`spotdlwebtest` is owned by the same role. `app/config.py` treats both names as production.)
+The role and the database are both **`spotdlweb`**, as on this host (checked against the host's
+`.env` in v60; this section, §3's `pg_hba.conf` line and `.env.example` said `spotdl_web` until
+then). Local dev's `spotdlwebtest` is owned by the same role. `app/config.py` treats `spotdlweb`,
+and the old template name `spotdl_web`, as production names.
 
 If you need to change the password later, use `\password <role>` inside an interactive
 `psql` session rather than passing it on the command line — special characters (`!`,
@@ -586,7 +653,7 @@ PGCONF=/etc/postgresql/18/main/postgresql.conf   # whatever `SHOW config_file` p
 sudo sed -i "s/^#\?listen_addresses\s*=.*/listen_addresses = '*'/" "$PGCONF"
 
 PGHBA=/etc/postgresql/18/main/pg_hba.conf   # whatever `SHOW hba_file` printed
-echo "host    spotdl_web    spotdl_web    172.16.0.0/12    scram-sha-256" | sudo tee -a "$PGHBA"
+echo "host    spotdlweb    spotdlweb    172.16.0.0/12    scram-sha-256" | sudo tee -a "$PGHBA"
 sudo systemctl restart postgresql
 ```
 
@@ -771,7 +838,9 @@ sudo systemctl restart docker
 ```
 
 Removing the `networks:` block from `docker-compose.prod.yml` (once added) and re-running
-`docker compose up -d` reverts this app's own containers to IPv4-only without needing the daemon
+`docker compose up -d --force-recreate` (with the prod pair and `--profile tunnel`; without
+`--force-recreate` the containers it doesn't otherwise recreate lose their service name, v60)
+reverts this app's own containers to IPv4-only without needing the daemon
 change reverted too, if the daemon-level change itself turns out safe but this app's own IPv6 usage
 needs to be paused independently.
 
@@ -794,7 +863,8 @@ compose service). What it actually does, step by step:
 3. Runs `pg_dump -Fc --no-owner` — **custom format**, compressed and restorable with
    `pg_restore` (including `--clean` for a from-scratch overwrite), not a plain-SQL dump you'd
    have to pipe into `psql` by hand.
-4. Writes to `$SPOTDL_WEB_BACKUP_DIR/spotdl_web_<UTC-timestamp>.dump` — default
+4. Writes to `$SPOTDL_WEB_BACKUP_DIR/spotdl_web_<UTC-timestamp>.dump` (`spotdl_web_` is the
+   script's own fixed file prefix, which its retention also matches, not the database name) — default
    `<repo root>/backups` (derived from the script's own location, so it always lands next to
    whatever checkout is running it — on this host, `/mnt/raid1/spotdl-web/backups`). **v21
    correction:** this used to default to a hardcoded `/srv/spotdl-web/backups`, which never
