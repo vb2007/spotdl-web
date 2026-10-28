@@ -7071,7 +7071,8 @@ independently-found production bug from the same conversation)
   (the live review proved it through a mirroring proxy: the PUT reached Synapse, the client timed
   out, two retries under the same txn, one message). **Accepted limit:** a lost answer followed by
   more than ~30 min of failed retries can still post twice, since nothing can ask Synapse whether
-  a txn landed.
+  a txn landed; so can one followed by a 429 whose `retry_after` is over ~30 min (a 429 must be
+  honoured, review round 4).
 - **Rows are stamped with the database's `clock_timestamp()`**, not the caller's `now`: delivery
   order is `created_at`, and it must follow the order rows were really written. The release is
   recorded under `SELECT … FOR SHARE` on `worker_state`: a trip updates that row (the savepoint's

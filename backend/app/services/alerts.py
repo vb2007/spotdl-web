@@ -17,7 +17,8 @@ Categories (plan/master-v4/v36-alerting.md, plus v59's worker_down):
 v59: delivery is durable. Raising an alert inserts a row into the `alert_outbox` table
 (`record`; `enqueue` for callers without a session) and returns: that is where the cooldown
 and the category toggle are decided, and an alert held back is recorded too, as
-`suppressed`. `deliver_due` sends the due rows, oldest first, with backoff
+`suppressed` (a watchdog category switched off isn't even checked, as in v36, so it leaves no
+row; one switched off after an alert was recorded is suppressed at send time). `deliver_due` sends the due rows, oldest first, with backoff
 (DELIVERY_BACKOFF_SECONDS), and gives a row up as `failed` once it is still unsent
 ALERT_GIVE_UP_AFTER after it was raised. It runs from beat's `deliver_alerts` tick on
 worker-meta and from the watchdog after each check (beat is one of the things alerted on: a
@@ -430,6 +431,7 @@ def send_test(db: Session, text: str) -> None:
     # Inserted already claimed (attempts 1, a lease ahead), so no delivery pass picks it up
     # while this request sends it; if the request dies mid-send, the lease runs out and a
     # pass finishes it, under the same transaction id.
+    txn = uuid.uuid4().hex
     try:
         row = AlertOutbox(
             category=CATEGORY_TEST,
@@ -446,10 +448,13 @@ def send_test(db: Session, text: str) -> None:
         db.commit()
     except Exception as exc:
         # The wiring check must work even when the history can't be written (mid-deploy, the
-        # table not migrated yet): send it unrecorded (review round 3).
+        # table not migrated yet): send it unrecorded (review round 3). Under the row's own txn
+        # once it had one: a commit that failed after the server had committed leaves a leased
+        # row a pass sends later, and the same txn makes that one land on this message
+        # (review round 4).
         db.rollback()
         logger.warning("alerts: test alert not recorded (%s); sending it anyway", type(exc).__name__)
-        _put(config, format_body(text), uuid.uuid4().hex)
+        _put(config, format_body(text), txn)
         return
     # Read before the commit: after it, touching the row would open a transaction that stays
     # idle through the send.
