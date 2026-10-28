@@ -91,6 +91,16 @@ def test_cooldown_decisions_are_recorded_as_suppressed(configured, db_session, c
     assert "spike alert suppressed (cooldown" in caplog.text
 
 
+def test_a_late_delivery_starts_the_window_when_the_room_heard_it(configured, db_session):
+    _record(db_session, "beat_stale", "stale")
+    (first,) = _rows(db_session)
+    first.state = AlertState.SENT
+    first.created_at = first.created_at - timedelta(minutes=70)
+    first.sent_at = datetime.now(timezone.utc) - timedelta(minutes=20)
+    db_session.commit()
+    assert _record(db_session, "beat_stale", "stale") == AlertState.SUPPRESSED
+
+
 def test_a_lasting_condition_records_one_suppressed_row_per_window(configured, db_session):
     """Beat dead for hours: the watchdog re-raises it every minute (review round 1)."""
     for _ in range(5):
@@ -300,6 +310,18 @@ def test_a_row_backing_off_past_24h_is_given_up_without_another_try(
     assert len(homeserver.requests) == 1
 
 
+def test_a_refusal_of_one_message_gives_up_that_row_and_goes_on(
+    configured, db_session, sessions, homeserver, clock
+):
+    """A 400/413 is about the message, not the homeserver: it can't hold its category back."""
+    _record(db_session, "library", "run1", "one")
+    _record(db_session, "library", "run2", "two")
+    homeserver.answer(413)
+    assert alerts.deliver_due(sessions) == 1
+    assert [r.state for r in _rows(db_session)] == [AlertState.FAILED, AlertState.SENT]
+    assert homeserver.messages == ["[spotdl-web] two"]
+
+
 def test_a_category_reaches_the_room_in_the_order_raised(
     configured, db_session, sessions, homeserver, clock
 ):
@@ -425,6 +447,32 @@ def test_the_test_alert_is_recorded_sent(admin_client, configured, db_session, h
     assert homeserver.requests[0]["txn"] == row.id.hex
 
 
+def test_a_test_send_that_outlived_its_lease_keeps_the_passs_outcome(
+    configured, db_session, sessions, homeserver, clock, monkeypatch
+):
+    """The request's send hangs past its lease, a delivery pass sends the row meanwhile (same
+    txn id), then the request's own send times out: the row stays sent (review round 2)."""
+    real_put = alerts._put
+    first = []
+
+    def put(config, body, txn):
+        if first:
+            return real_put(config, body, txn)
+        first.append(txn)
+        clock.advance(alerts.DELIVERY_LEASE_SECONDS + 1)
+        alerts.deliver_due(sessions)
+        raise alerts.AlertSendError("ReadTimeout: timed out")
+
+    monkeypatch.setattr(alerts, "_put", put)
+    with pytest.raises(alerts.AlertSendError):
+        alerts.send_test(db_session, "Test alert.")
+    (row,) = _rows(db_session)
+    db_session.refresh(row)
+    assert row.state == AlertState.SENT
+    (message,) = homeserver.messages
+    assert message.startswith("[spotdl-web] Test alert.")
+
+
 def test_a_failed_test_alert_is_recorded_failed_and_never_retried(
     admin_client, configured, db_session, sessions, homeserver, clock
 ):
@@ -541,7 +589,9 @@ def _attempt(db_session, track, minutes_ago, outcome, error_type=None, message=N
     db_session.flush()
 
 
-def test_a_spike_is_re_raised_only_with_a_newer_attempt(configured, watchdog, db_session, make_user):
+def test_a_spike_is_re_raised_only_with_a_newer_attempt(
+    configured, watchdog, db_session, make_user, fake_redis
+):
     track = _track(db_session, make_user)
     for i in range(5):
         _attempt(db_session, track, 5 - i, TrackAttemptOutcome.FAILED, TrackErrorType.NO_OUTPUT)
@@ -552,8 +602,16 @@ def test_a_spike_is_re_raised_only_with_a_newer_attempt(configured, watchdog, db
     _attempt(db_session, track, 0, TrackAttemptOutcome.FAILED, TrackErrorType.NO_OUTPUT)
     db_session.commit()
     watchdog.check_once()
-    # Raised again, and suppressed by the cooldown: recorded, not sent.
+    # Raised again, and suppressed by the cooldown: recorded, not sent...
     assert [r.state for r in _rows(db_session, "spike")] == [AlertState.SENT, AlertState.SUPPRESSED]
+    # ...and the "newest seen" stamp stayed on the sent one, so once the cooldown lapses the
+    # still-running spike is announced again, as v36 did (review round 2).
+    sent_row = _rows(db_session, "spike")[0]
+    stamp = fake_redis.store[f"{alerts.SPIKE_NEWEST_KEY_PREFIX}no_output"]
+    assert stamp != max(
+        a.finished_at for a in db_session.execute(select(TrackAttempt)).scalars()
+    ).isoformat()
+    assert sent_row.state == AlertState.SENT
 
 
 def test_a_stale_beat_is_raised(configured, watchdog, db_session, fake_redis):
@@ -691,6 +749,21 @@ def test_worker_down_ignores_beats_reclaim_rows(configured, watchdog, db_session
     watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
     watchdog.check_once()
     assert len(_rows(db_session, "worker_down")) == 1
+
+
+def test_worker_down_waits_out_a_long_download(configured, watchdog, db_session, backlog, make_user):
+    """A download's progress isn't written to the database: one running for 20 minutes (under
+    beat's stale threshold) is busy, not down (review round 2)."""
+    from app.config import get_settings
+
+    assert get_settings().stale_track_after_seconds > 20 * 60
+    long_one = _track(db_session, make_user, state=TrackState.DOWNLOADING, email="second@example.com")
+    db_session.commit()
+    long_one.updated_at = datetime.now(timezone.utc) - timedelta(minutes=20)
+    db_session.commit()
+    watchdog._open_since = datetime.now(timezone.utc) - timedelta(hours=1)
+    watchdog.check_once()
+    assert _rows(db_session, "worker_down") == []
 
 
 def test_worker_down_counts_a_download_in_progress(configured, watchdog, db_session, backlog, make_user):

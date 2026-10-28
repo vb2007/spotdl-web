@@ -125,6 +125,9 @@ DELIVERY_LOCK_KEY = 5_905_901
 DELIVERY_PASS_SECONDS = 20.0
 
 _ENV_VARS = ("MATRIX_HOMESERVER_URL", "MATRIX_ACCESS_TOKEN", "MATRIX_ROOM_ID")
+# Refusals about one message, not the homeserver: that row is given up at once and the pass
+# goes on, so it can't hold its category back for 24h (review round 2).
+ROW_ONLY_STATUSES = (400, 413)
 
 
 class MatrixConfig(NamedTuple):
@@ -141,9 +144,12 @@ class AlertSendError(Exception):
     """Carries only a redacted, token-free description of what went wrong, and a 429's
     retry_after (seconds) when the homeserver gave one."""
 
-    def __init__(self, message: str, retry_after: float | None = None) -> None:
+    def __init__(
+        self, message: str, retry_after: float | None = None, row_only: bool = False
+    ) -> None:
         super().__init__(message)
         self.retry_after = retry_after
+        self.row_only = row_only
 
 
 def _config_values() -> tuple[str, str, str]:
@@ -239,6 +245,8 @@ def _put(config: MatrixConfig, body: str, txn_id: str) -> None:
         raise AlertSendError(
             redact_text(f"HTTP {response.status_code}: {response.text[:200]}"),
             retry_after=_retry_after(response) if response.status_code == 429 else None,
+            # 400 (a body Matrix won't take) and 413 (too large) are about this message alone.
+            row_only=response.status_code in ROW_ONLY_STATUSES,
         )
 
 
@@ -329,7 +337,8 @@ def record(db: Session, category: str, fingerprint: str, text: str):
                         (AlertOutbox.state == AlertState.PENDING)
                         | (
                             (AlertOutbox.state == AlertState.SENT)
-                            & (AlertOutbox.created_at > window_start)
+                            # From when the room heard it: a late delivery starts the window late.
+                            & (func.coalesce(AlertOutbox.sent_at, AlertOutbox.created_at) > window_start)
                         ),
                     )
                 )
@@ -421,22 +430,30 @@ def send_test(db: Session, text: str) -> None:
     )
     db.add(row)
     db.flush()
-    body, txn = row.body, row.id.hex
+    row_id, body, txn = row.id, row.body, row.id.hex
     db.commit()
     # Read before the commit: after it, touching the row would open a transaction that stays
     # idle through the send.
+    error: AlertSendError | None = None
     try:
         _put(config, body, txn)
     except AlertSendError as exc:
-        row.state = AlertState.FAILED
-        row.last_error = str(exc)
-        row.next_attempt_at = None
-        db.commit()
-        raise
-    row.state = AlertState.SENT
-    row.sent_at = _utcnow()
-    row.next_attempt_at = None
+        error = exc
+    # Only while still pending: a send that outlived its lease may have been finished by a
+    # delivery pass meanwhile (same txn id), whose outcome stands.
+    values = (
+        {"state": AlertState.SENT, "sent_at": _utcnow(), "next_attempt_at": None}
+        if error is None
+        else {"state": AlertState.FAILED, "last_error": str(error), "next_attempt_at": None}
+    )
+    db.execute(
+        update(AlertOutbox)
+        .where(AlertOutbox.id == row_id, AlertOutbox.state == AlertState.PENDING)
+        .values(**values)
+    )
     db.commit()
+    if error is not None:
+        raise error
 
 
 # --- the outbox: delivery ----------------------------------------------------------------
@@ -561,7 +578,7 @@ def deliver_due(make_session: Callable[[], Session], *, limit: int = DELIVERY_BA
                             row.next_attempt_at = None
                         else:
                             row.last_error = str(error)
-                            if now - _aware(row.created_at) >= ALERT_GIVE_UP_AFTER:
+                            if error.row_only or now - _aware(row.created_at) >= ALERT_GIVE_UP_AFTER:
                                 row.state = AlertState.FAILED
                                 row.next_attempt_at = None
                             else:
@@ -581,6 +598,8 @@ def deliver_due(make_session: Callable[[], Session], *, limit: int = DELIVERY_BA
                     logger.warning(
                         "alerts: %s alert given up after %s attempts: %s", category, attempts, error
                     )
+                    if error.row_only:
+                        continue
                 else:
                     logger.warning(
                         "alerts: %s alert not sent (attempt %s, next at %s): %s",
@@ -590,7 +609,12 @@ def deliver_due(make_session: Callable[[], Session], *, limit: int = DELIVERY_BA
                         error,
                     )
                 break
-            lock.commit()
+            try:
+                lock.commit()
+            except Exception:
+                # Only the lock's own empty transaction (an idle-in-transaction timeout, say):
+                # every row's outcome is already committed.
+                pass
     except Exception as exc:
         logger.warning("alerts: delivery pass failed (%s)", type(exc).__name__)
     return sent
@@ -740,11 +764,13 @@ def due_backlog(db: Session, now: datetime):
     return oldest, count
 
 
-def last_consumed(db: Session):
+def last_consumed(db: Session, now: datetime):
     """The latest moment worker-dl is known to have taken a track: the start of the newest
     attempt it recorded (beat's reclaim rows are recorded on a stuck invocation's behalf, so
-    they prove nothing), or a track it has in `downloading` now (an attempt row is written
-    only when the attempt ends). None if neither exists."""
+    they prove nothing), or `now` while it has a track in `downloading` younger than
+    STALE_TRACK_AFTER_SECONDS (a download's progress isn't written to the database, so a long
+    one is busy, not down, until beat's stale sweep would call it stuck; review round 2). None
+    if neither exists."""
     from app.models import Track, TrackAttempt, TrackState
     from app.services.attempts import RECLAIM_PREFIX
 
@@ -764,6 +790,10 @@ def last_consumed(db: Session):
     downloading = db.execute(
         select(func.max(Track.updated_at)).where(Track.state == TrackState.DOWNLOADING)
     ).scalar_one_or_none()
+    if downloading is not None and now - _aware(downloading) < timedelta(
+        seconds=get_settings().stale_track_after_seconds
+    ):
+        downloading = now
     moments = [_aware(m) for m in (started, downloading) if m is not None]
     return max(moments) if moments else None
 
@@ -924,7 +954,7 @@ class Watchdog:
                 )
             backlog = None
             if enabled[CATEGORY_WORKER_DOWN]:
-                backlog = (*due_backlog(db, now), last_consumed(db))
+                backlog = (*due_backlog(db, now), last_consumed(db, now))
             db.commit()
 
         # A trip is released only for a trip the room heard about (sent), once per trip.
@@ -949,7 +979,9 @@ class Watchdog:
                     "(fingerprint %s)",
                     fingerprint,
                 )
-            elif self._record(CATEGORY_SPIKE, fingerprint, text) is not None:
+            # Stamped only when it will reach the room, as v36 stamped only a sent one: a
+            # suppressed repeat mustn't move it, or the reminder after the cooldown is lost.
+            elif self._record(CATEGORY_SPIKE, fingerprint, text) == AlertState.PENDING:
                 self._redis_read(lambda: _redis().set(newest_key, stamp, ex=7 * 24 * 3600))
 
         if enabled[CATEGORY_BEAT_STALE] and beat_known and not beat_alive:
