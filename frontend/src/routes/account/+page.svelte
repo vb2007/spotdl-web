@@ -99,8 +99,11 @@
 		return typeof days !== 'number' || !Number.isInteger(days) || days < 1 || days > MAX_DAYS;
 	}
 
-	async function showDaysError() {
+	async function showDaysError(refocus: boolean) {
 		daysError = () => m.account_retention_days_invalid({ max: formatNumber(MAX_DAYS) });
+		// A commit on leaving the field (blur) keeps focus where the user took it (review round
+		// 4); the field's error is on it for when they come back.
+		if (!refocus) return;
 		// Nothing is sent, so focus the field: its error is read out from there.
 		await tick();
 		const field = document.getElementById('retention-days');
@@ -113,14 +116,14 @@
 	// mode button is pressed): saved right after it, never dropped (review round 2).
 	let saveAgain = false;
 
-	async function saveRetention() {
+	async function saveRetention(refocus = true) {
 		daysError = null;
 		if (saving) {
 			saveAgain = true;
 			return;
 		}
 		if (!dirty) return;
-		if (!neverArchive && daysInvalid()) return showDaysError();
+		if (!neverArchive && daysInvalid()) return showDaysError(refocus);
 		// Saving disables the field or button that had focus: give it back afterwards.
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		saving = true;
@@ -143,7 +146,9 @@
 		await keepFocus(from);
 		if (saveAgain) {
 			saveAgain = false;
-			await saveRetention();
+			// v42's late-write guard for the queued choice too (review round 4): a sign-out or
+			// another identity meanwhile means it isn't this session's to send.
+			if (queue.getResetCount() === resets) await saveRetention();
 		}
 	}
 
@@ -358,7 +363,7 @@
 									max={MAX_DAYS}
 									step="1"
 									bind:value={days}
-									onchange={saveRetention}
+									onchange={() => saveRetention(false)}
 									disabled={saving || neverArchive}
 									aria-invalid={daysError ? 'true' : undefined}
 									aria-describedby="retention-days-unit retention-days-hint retention-days-error"

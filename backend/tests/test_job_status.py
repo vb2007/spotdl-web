@@ -349,3 +349,17 @@ def test_publishers_of_one_job_take_turns_so_the_last_status_is_the_real_one(com
         ("active", "waiting"),
         ("waiting", "settled:partial"),
     ]
+
+
+def test_the_client_used_under_the_lock_never_retries(monkeypatch):
+    """Review round 4: a stalled Redis must cost the lock one timeout, not redis-py's default
+    three retries with backoff."""
+    monkeypatch.setattr(job_status, "_client", None)
+    client = job_status._get_client()
+    try:
+        kwargs = client.connection_pool.connection_kwargs
+        assert kwargs["socket_timeout"] == job_status.REDIS_TIMEOUT_SECONDS
+        assert kwargs["socket_connect_timeout"] == job_status.REDIS_TIMEOUT_SECONDS
+        assert client.get_retry()._retries == 0
+    finally:
+        monkeypatch.setattr(job_status, "_client", None)

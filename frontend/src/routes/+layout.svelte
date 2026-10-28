@@ -106,7 +106,11 @@
 					const now = await api.me();
 					// Alive, but someone else's (the shared cookie changed under this tab): the
 					// page is built for the previous identity, so start over as v42 does.
-					if (now.email !== data.session?.email) window.location.reload();
+					if (now.email !== data.session?.email) {
+						// v62 (F6): leaving because the session changed is never held (review round 4).
+						setLeavingSession(true);
+						window.location.reload();
+					}
 					return;
 				} catch {
 					// A 401 confirms it; any other failure can't tell, and the request's 401 stands.

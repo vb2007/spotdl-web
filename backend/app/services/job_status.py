@@ -35,6 +35,8 @@ from collections.abc import Iterable
 from typing import Any
 
 import redis
+from redis.backoff import NoBackoff
+from redis.retry import Retry
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -59,10 +61,13 @@ _client: redis.Redis | None = None
 def _get_client() -> redis.Redis:
     global _client
     if _client is None:
+        # No retries (review round 4): redis-py's default retries a timeout three times with
+        # backoff, which turned 2s into ~15-22s under the lock. A lost swap is a lost event.
         _client = redis.Redis.from_url(
             get_settings().redis_url,
             socket_timeout=REDIS_TIMEOUT_SECONDS,
             socket_connect_timeout=REDIS_TIMEOUT_SECONDS,
+            retry=Retry(NoBackoff(), 0),
         )
     return _client
 

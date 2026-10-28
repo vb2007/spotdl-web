@@ -688,7 +688,9 @@ here.
 
 - **2026-10-28, v62: three items needed backend changes; F7's model (owner's decisions).** The
   plan's premises for F1, F4 and F10 didn't match the code, and the owner chose a backend change
-  for each (all outside v62's "Files owned"; none touches a wave-3 sibling's files):
+  for each (all outside v62's "Files owned"; `tasks/beat.py` is v59's for its schedule entry and
+  alert hooks only, and v62 edits other functions there, `dispatch_due_tracks` and
+  `_reclaim_stale_tracks`, reconciled by the rebase protocol):
   - **F1:** `job.state` doesn't say old → new; a rollup move (a track settling) publishes no job
     event at all. The backend now publishes `job.status {status, prev_status?, archived}` after
     every announced change (`services/job_status.py`, chained through Redis `SET … GET`; hooked
@@ -707,3 +709,5 @@ here.
     view's counts cover every job clear log would archive (`mine`/`all`, no search); in `others`
     and under a search the button stays on, since the action ignores the view.
   - **F11** (owner, 2026-10-27) is done in v62 as the ledger row says.
+  - **For later slices:** a new path that moves a job's rollup status (v63's re-run expansion and
+    "retry all failed", say) calls `job_status.publish_change` after its commit (CLAUDE.md).
