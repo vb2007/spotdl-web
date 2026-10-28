@@ -62,14 +62,19 @@
 	// v62 (F6): with every preference saved on choice (F7), only a typed value not yet
 	// committed is unsaved: retention's days, or a key's name not yet created.
 	let keyNameTyped = $state(false);
-	// A choice already being saved isn't unsaved (review round 3). A valid number typed and not
-	// yet committed is committed on the way out (leaving the field does that anyway, and the
-	// guard's own question would: live review), so only a value that can't be saved, or a key
-	// name, is asked about.
-	guardUnsavedEdits(() => (dirty && !saving && !neverArchive && daysInvalid()) || keyNameTyped);
-	beforeNavigate(() => {
-		if (dirty && !saving && !leavingSession() && (neverArchive || !daysInvalid()))
-			saveRetention(false);
+	// A choice already being saved isn't unsaved (review round 3). Within the app, a valid number
+	// typed and not yet committed is committed on the way out (leaving the field does that
+	// anyway, and the guard's own question would: live review), so only what can't be saved is
+	// asked about: an invalid value, a choice whose save failed (review round 6), a key name.
+	// An unloading page can't finish a save (the request dies with it), so there anything not
+	// saved is asked about (review round 6).
+	const retentionSaveable = () => error === null && (neverArchive || !daysInvalid());
+	guardUnsavedEdits(
+		(unloading) => (dirty && !saving && (unloading || !retentionSaveable())) || keyNameTyped
+	);
+	beforeNavigate((navigation) => {
+		if (navigation.willUnload || leavingSession()) return;
+		if (dirty && !saving && retentionSaveable()) saveRetention(false);
 	});
 
 	function syncForm(settings: api.RetentionSettings) {

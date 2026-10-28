@@ -997,8 +997,9 @@ The form vocabulary lives in `app.css` so the routes can't drift:
   once, and a typed value (retention's days) saves when committed (Enter, or leaving the field),
   checked first, with a `.field-hint` saying so. Each group ends in the same `role="status"` line:
   "Saving…", then "Saved at 14:03"; "Unsaved changes" only while a typed value isn't committed
-  yet. Leaving the page commits a valid one, as leaving the field does; the unsaved-edits guard
-  asks only about what can't be saved (an invalid value, a key name not yet created). Never a save button on `/account`, and
+  yet. Leaving for another page commits a valid one, as leaving the field does; the unsaved-edits
+  guard asks only about what can't be saved (an invalid value, a choice whose save failed, a key
+  name not yet created), and on a reload or close about anything not saved yet. Never a save button on `/account`, and
   never a mixed page. Actions (an API key's create and revoke) take effect on their press and
   report on the same line.
 - Validation mirrors the backend's rules (alert bounds, the proxy pattern, non-blank paths and

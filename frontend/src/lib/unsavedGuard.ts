@@ -5,8 +5,8 @@ import { leavingSession } from '$lib/session';
 import * as m from '$lib/paraglide/messages';
 
 /** v62 (F6): asks before a page with unsaved edits is left. Call it during a page's component
- * init with what "unsaved" means there (/settings: a section differs from what was loaded;
- * /account: a typed value not yet committed).
+ * init with what "unsaved" means there, told whether the page is unloading (/settings: a
+ * section differs from what was loaded; /account: see its own note).
  *
  * - An in-app navigation (a link, Back/Forward, a `g` chord, any `goto`) is held and asked
  *   about through the one `ConfirmDialog`, keyboard-complete like every other question. "keep
@@ -15,12 +15,12 @@ import * as m from '$lib/paraglide/messages';
  *   (`beforeunload`; SvelteKit's `cancel()` of an unloading navigation asks the same).
  * - Leaving because the session ended or changed (another tab's sign-out, a 401) is never
  *   held: nothing typed here can be saved by this session any more. */
-export function guardUnsavedEdits(isDirty: () => boolean): void {
+export function guardUnsavedEdits(isDirty: (unloading: boolean) => boolean): void {
 	// Set once "discard changes" was chosen, so the re-sent navigation goes through.
 	let discarding = false;
 
 	beforeNavigate((navigation) => {
-		if (discarding || leavingSession() || !isDirty()) return;
+		if (discarding || leavingSession() || !isDirty(navigation.willUnload)) return;
 		if (navigation.willUnload) {
 			navigation.cancel();
 			return;
@@ -60,7 +60,7 @@ export function guardUnsavedEdits(isDirty: () => boolean): void {
 
 	onMount(() => {
 		const onBeforeUnload = (event: BeforeUnloadEvent) => {
-			if (discarding || leavingSession() || !isDirty()) return;
+			if (discarding || leavingSession() || !isDirty(true)) return;
 			event.preventDefault();
 			// Older browsers ask only when a return value is set.
 			event.returnValue = '';

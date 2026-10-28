@@ -160,6 +160,8 @@ def expand_job(job_id: str) -> None:
         # every track a second time).
         if job.state == JobState.EXPANDED:
             _enqueue_pending_tracks(db, job, "already expanded (redelivery)")
+            # v62 (F1): its expanding -> active move may never have been announced (review round 6).
+            job_status.publish_change(db, job.id)
             return
 
         events.publish_job_event(job.user_id, job.id, job.state.value)
@@ -252,6 +254,8 @@ def expand_job(job_id: str) -> None:
                     # a publish above raised): the tracks are committed, so enqueue them
                     # rather than leave them `pending` forever under an acked task.
                     _enqueue_pending_tracks(db, job, "failed after its EXPANDED commit")
+                    # v62 (F1): its expanding -> active move may never have been announced (review round 6).
+                    job_status.publish_change(db, job.id)
                     return
                 logger.info(
                     "expand_job: job %s is %s, not expanding; not marking it failed",

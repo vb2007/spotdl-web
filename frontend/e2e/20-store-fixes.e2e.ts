@@ -414,6 +414,44 @@ test.describe('F7/F8 on the real stack', () => {
 		).toHaveAttribute('aria-pressed', 'true');
 	});
 
+	test('F6 on /account: a typed number is asked about on a reload, committed on an in-app exit', async ({
+		page
+	}) => {
+		await page.goto('/account');
+		const retention = page.getByRole('group', { name: t(m.account_retention_heading) });
+		const auto = retention.getByRole('button', { name: t(m.account_retention_auto) });
+		await expect(auto).toBeEnabled();
+		if ((await auto.getAttribute('aria-pressed')) !== 'true') {
+			await auto.click();
+			await expect(retention.getByRole('status')).toHaveText(/\d/);
+		}
+		const days = page.locator('#retention-days');
+		const typed = (await days.inputValue()) === '47' ? '48' : '47';
+		await days.fill(typed);
+		// A reload can't finish a save: the browser asks.
+		const asked: string[] = [];
+		page.on('dialog', async (d) => {
+			asked.push(d.type());
+			await d.dismiss();
+		});
+		await page.reload({ timeout: 3_000 }).catch(() => {});
+		expect(asked).toEqual(['beforeunload']);
+		await expect(days).toHaveValue(typed);
+		// An in-app exit commits it on the way out, with no question.
+		await page.getByRole('link', { name: t(m.nav_queue), exact: true }).click();
+		await expect(page).toHaveURL(/\/$/);
+		await page.goto('/account');
+		await expect(page.locator('#retention-days')).toHaveValue(typed);
+		// Back to never, the identity's default.
+		await page
+			.getByRole('group', { name: t(m.account_retention_heading) })
+			.getByRole('button', { name: t(m.account_retention_never) })
+			.click();
+		await expect(
+			page.getByRole('group', { name: t(m.account_retention_heading) }).getByRole('status')
+		).toHaveText(/\d/);
+	});
+
 	test('F8: clear log is off with its reason once there is nothing to clear', async ({
 		page,
 		baseURL
