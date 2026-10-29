@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import Job, Track, TrackAttempt
+from app.models import Job, Track, TrackAttempt, TrackState
 from app.services import proxies
 from app.services.rollup import derive_rollup
 
@@ -101,6 +101,11 @@ def track_to_dict(track: Track) -> dict:
         "scheduled_at": track.scheduled_at.isoformat() if track.scheduled_at is not None else None,
         "last_error": track.last_error,
         "last_error_type": track.last_error_type.value if track.last_error_type is not None else None,
+        # v62 (F10): the current run's start (the claim's write), only while it runs; the same
+        # value its `downloading` events carry. Nothing else writes a downloading track's row.
+        "download_started_at": (
+            track.updated_at.isoformat() if track.state == TrackState.DOWNLOADING else None
+        ),
     }
 
 

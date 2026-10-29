@@ -282,9 +282,39 @@
 		queue.setFilters({ dir: $filters.dir === 'asc' ? 'desc' : 'asc' });
 	}
 
+	// v62 (F8): what "clear log" archives (archive.py's eligible jobs): every finished one.
+	const CLEARABLE = ['settled:complete', 'settled:partial', 'cancelled', 'failed'];
+	// Off (aria-disabled, still focusable so its reason is read) when the view's counts say
+	// there's nothing finished to archive. Only where those counts can say it: the viewer's jobs
+	// are all in them (mine, all; not others, which leaves them out, nor under a search, which
+	// counts only its matches), and the page has loaded. Anywhere else it stays on: the
+	// action archives every finished job of yours, whatever the view shows.
+	const nothingToClear = $derived(
+		!$page.loading &&
+			$page.error === null &&
+			view !== 'others' &&
+			!$filters.q.trim() &&
+			CLEARABLE.every((key) => !((countsByStatus[key] ?? 0) > 0))
+	);
+
 	// v43 (F08): archives every settled job of yours in one go, so it asks first.
 	let clearError = $state('');
+	// It answers one press; it doesn't stay under the heading for the rest of the visit.
+	function showClearNote(text: string) {
+		clearError = text;
+		setTimeout(() => {
+			if (clearError === text) clearError = '';
+		}, 10_000);
+	}
 	async function onClearLog() {
+		if (nothingToClear) {
+			// Says why where a sighted keyboard user sees it too, and asks the server again in
+			// case the local counts drifted (review round 7): if it has something to clear, the
+			// button turns back on.
+			showClearNote(m.queuectl_clear_none());
+			void queue.recountJobs();
+			return;
+		}
 		const session = queue.getResetCount();
 		clearError = '';
 		const confirmed = await confirmAction({
@@ -301,14 +331,11 @@
 			await queue.archiveJobs({ allSettled: true });
 		} catch (err) {
 			if (queue.getResetCount() !== session) return;
-			clearError = m.queuectl_clear_failed({
-				reason: errorText(err, m.queuectl_clear_unreachable)
-			});
-			// It answers one press; it doesn't stay under the heading for the rest of the visit.
-			const shown = clearError;
-			setTimeout(() => {
-				if (clearError === shown) clearError = '';
-			}, 10_000);
+			showClearNote(
+				m.queuectl_clear_failed({
+					reason: errorText(err, m.queuectl_clear_unreachable)
+				})
+			);
 		}
 	}
 </script>
@@ -329,7 +356,17 @@
 		{#if $filters.scope === 'jobs'}
 			<!-- Archives every settled job of *yours*, whatever the search, filters or all-users
 			     view (archive.archive_jobs), after a confirmation (v43). -->
-			<button type="button" class="chip danger" onclick={onClearLog}>{m.queuectl_clear()}</button>
+			<button
+				type="button"
+				class="chip danger"
+				aria-disabled={nothingToClear ? 'true' : undefined}
+				aria-describedby={nothingToClear ? 'clear-log-none' : undefined}
+				title={nothingToClear ? m.queuectl_clear_none() : undefined}
+				onclick={onClearLog}>{m.queuectl_clear()}</button
+			>
+			<span id="clear-log-none" class="sr-only"
+				>{nothingToClear ? m.queuectl_clear_none() : ''}</span
+			>
 		{/if}
 	</div>
 </div>
@@ -650,6 +687,16 @@
 			border-color: var(--fail);
 			color: var(--fail);
 		}
+	}
+
+	/* v62 (F8): nothing to clear. The disabled look of a .btn (DESIGN.md §6): the edge drops to
+	   --line and the text to --text-dim, and no hover answers it. */
+	.chip.danger[aria-disabled='true'],
+	.chip.danger[aria-disabled='true']:hover,
+	.chip.danger[aria-disabled='true']:focus-visible {
+		border-color: var(--line);
+		color: var(--text-dim);
+		cursor: default;
 	}
 
 	.chip.dir {

@@ -6,6 +6,7 @@
 	import Countdown from '$lib/components/Countdown.svelte';
 	import WorkerStatus from '$lib/components/WorkerStatus.svelte';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
+	import { guardUnsavedEdits } from '$lib/unsavedGuard';
 	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
@@ -392,6 +393,10 @@
 				(key) => alertForm[key] !== alertSettings?.[key]
 			)
 	);
+
+	// v62 (F6): leaving with a section changed and not saved asks first. A typed proxy address
+	// not yet added counts too.
+	guardUnsavedEdits(() => outputDirty || libraryDirty || alertDirty || newProxyUrl.trim() !== '');
 
 	function syncAlertForm(settings: api.AlertSettings) {
 		const { configured: _configured, ...editable } = settings;

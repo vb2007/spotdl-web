@@ -153,7 +153,9 @@ export default defineConfig(({ command }) => ({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter: adapter(),
+			// v62 (F5): a SPA shell for paths no route prerenders, which nginx serves on a 404
+			// (nginx.conf's error_page) so the app's own +error.svelte answers an unknown address.
+			adapter: adapter({ fallback: '404.html' }),
 			// v37: the Playwright suite isn't under src/, so the generated tsconfig (and with it
 			// `npm run check`'s svelte-check) wouldn't see it otherwise.
 			typescript: {

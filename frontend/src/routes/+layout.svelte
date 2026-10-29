@@ -23,6 +23,7 @@
 	import * as api from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { link as streamLink } from '$lib/stores/link';
+	import { onSessionMessage, setLeavingSession } from '$lib/session';
 	import {
 		cancelChord,
 		helpOpen,
@@ -105,17 +106,55 @@
 					const now = await api.me();
 					// Alive, but someone else's (the shared cookie changed under this tab): the
 					// page is built for the previous identity, so start over as v42 does.
-					if (now.email !== data.session?.email) window.location.reload();
+					if (now.email !== data.session?.email) {
+						// v62 (F6): leaving because the session changed is never held (review round 4).
+						setLeavingSession(true);
+						window.location.reload();
+					}
 					return;
 				} catch {
 					// A 401 confirms it; any other failure can't tell, and the request's 401 stands.
 				}
 				if (api.isSigningOut() || page.url.pathname === resolve('/login')) return;
-				await goto(resolve('/login'), { state: { sessionEnded: true } });
+				// v62 (F6): a page's unsaved-edits guard lets this through: nothing can be saved now.
+				setLeavingSession(true);
+				try {
+					await goto(resolve('/login'), { state: { sessionEnded: true } });
+				} finally {
+					setLeavingSession(false);
+				}
 				queue.reset();
 			} finally {
 				ending = false;
 			}
+		})
+	);
+
+	// v62 (F9): another tab signed out, or signed someone in. The cookie is shared, so this tab
+	// is signed out (or someone else) too, and it follows at once rather than on its next
+	// request (the v47 401 handler above and the layout's own load stay as the fallback).
+	// Navigate before resetting, as the 401 handler does: reset under a mounted `/`, its
+	// stream and poll would read it as an identity change and reload the tab first.
+	$effect(() =>
+		onSessionMessage(async (message) => {
+			const mine = data.session?.email ?? null;
+			if (message.type === 'logout') {
+				if (mine === null || page.url.pathname === resolve('/login')) return;
+				setLeavingSession(true);
+				try {
+					await goto(resolve('/login'), { state: { sessionEnded: true } });
+				} finally {
+					setLeavingSession(false);
+				}
+				queue.reset();
+				return;
+			}
+			if (message.email === mine) return;
+			// Someone else holds the session now (or this tab was signed out): start over as
+			// them, as v42 does for an identity change found on a stream reconnect.
+			setLeavingSession(true);
+			queue.reset();
+			window.location.reload();
 		})
 	);
 
@@ -198,7 +237,8 @@
 	// would; the first load leaves focus where the browser put it. The page title is announced
 	// by SvelteKit's own route announcer (`#svelte-announcer`), so no second live region here.
 	afterNavigate(async ({ from, to, type }) => {
-		if (type === 'enter' || !from || !to || from.url.pathname === to.url.pathname) return;
+		// v62: an error page's load has a `from` with no url (live review: a TypeError there).
+		if (type === 'enter' || !from?.url || !to?.url || from.url.pathname === to.url.pathname) return;
 		await tick();
 		const heading =
 			// i18n-ignore: a selector

@@ -1,4 +1,5 @@
 import { PUBLIC_API_BASE_URL } from '$env/static/public';
+import { announceSession } from '$lib/session';
 
 /** v12: both production (via the `web` container's nginx /api/ proxy, see
  * frontend/nginx.conf) and local dev (via Vite's dev-server /api proxy, see
@@ -108,6 +109,9 @@ export interface Track {
 	scheduled_at: string | null;
 	last_error: string | null;
 	last_error_type: TrackErrorType | null;
+	/** v62 (F10): which run of `downloading` this is (null otherwise); its `downloading` events
+	 * carry the same value. Absent on rows from before v62. */
+	download_started_at?: string | null;
 }
 
 export type TrackAttemptOutcome =
@@ -143,6 +147,8 @@ export interface TrackAttempt {
 	/** v35: `null` when the row never reached the network (held, duplicate, cancelled
 	 * before dispatch), and on rows written before v29 recorded it. */
 	network_path: NetworkPath | null;
+	/** v55 (E11): a `held` row stands for this many consecutive holds (1 otherwise). */
+	hold_count?: number;
 }
 
 /** The parent-job summary `GET /api/tracks`/`?scope=track` embeds on every row -- not a
@@ -181,6 +187,8 @@ export interface TrackStateEvent {
 	title?: string | null;
 	artists?: string[] | null;
 	album?: string | null;
+	/** v62 (F10): on `downloading` events, the run they belong to (see `Track`). */
+	download_started_at?: string;
 	ts: string;
 }
 
@@ -211,7 +219,19 @@ export interface LibraryProgressEvent {
 	ts: string;
 }
 
-export type StreamEvent = TrackStateEvent | JobStateEvent | LibraryProgressEvent;
+/** v62 (F1): a job's rollup status moved (`statusKey()` form). Each event's `prev_status` is the
+ * previous one's `status`; `null` means the job is new (counted under nothing before), and no
+ * `prev_status` at all means the server doesn't know what it left. */
+export interface JobStatusEvent {
+	type: 'job.status';
+	job_id: string;
+	status: string;
+	prev_status?: string | null;
+	archived: boolean;
+	ts: string;
+}
+
+export type StreamEvent = TrackStateEvent | JobStateEvent | JobStatusEvent | LibraryProgressEvent;
 
 export interface WorkerStatus {
 	paused: boolean;
@@ -631,6 +651,8 @@ export async function login(email: string, password: string): Promise<SessionInf
 	});
 	signingOut = false;
 	signedOut = false;
+	// v62 (F9): the other tabs follow at once (session.ts).
+	announceSession({ type: 'login', email: session.email });
 	return session;
 }
 
@@ -652,11 +674,13 @@ export async function logout(): Promise<{ status: string }> {
 	try {
 		const answer = await request<{ status: string }>('/api/auth/logout', { method: 'POST' });
 		signedOut = true;
+		announceSession({ type: 'logout' });
 		return answer;
 	} catch (err) {
 		// A 401: there was no session left to end, so this tab is signed out all the same.
 		if (err instanceof ApiError && err.status === 401) {
 			signedOut = true;
+			announceSession({ type: 'logout' });
 			return { status: 'ok' };
 		}
 		// Still signed in: a later 401 means what it says again.

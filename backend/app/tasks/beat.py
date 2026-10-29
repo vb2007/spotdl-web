@@ -6,7 +6,7 @@ from sqlalchemy import and_, or_, select, update
 from app.config import get_settings
 from app.db import SessionLocal
 from app.models import Job, Track, TrackAttemptOutcome, TrackState, UserSettings
-from app.services import alerts, archive, attempts, events, retry
+from app.services import alerts, archive, attempts, events, job_status, retry
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
@@ -146,6 +146,8 @@ def _reclaim_stale_tracks(db) -> None:
             failure_count=recorded.failure_count,
             **track_song_meta(song_json),
         )
+    # v62 (F1): a reclaim can turn a job `waiting`; one bulk status check for its jobs.
+    job_status.publish_changes(db, job_ids)
 
 
 @celery_app.task(name="app.tasks.beat.dispatch_due_tracks")
@@ -198,8 +200,15 @@ def dispatch_due_tracks() -> None:
                 **track_song_meta(track.song_json),
             )
 
-        for track in due_tracks:
-            download_track.delay(str(track.id))
+        # v62 (F1): a `waiting` track's dispatch can turn its job `active` again; one bulk
+        # status check for the jobs dispatched. Before the sends (the commit above already made
+        # the moves), so a broker error part-way can't leave them unpublished (review round 2);
+        # it ends the transaction, so the ids are read first.
+        track_ids = [str(track.id) for track in due_tracks]
+        job_status.publish_changes(db, {track.job_id for track in due_tracks})
+
+        for track_id in track_ids:
+            download_track.delay(track_id)
     finally:
         db.close()
 

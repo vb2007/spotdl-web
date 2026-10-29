@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime, timezone
 
 from spotdl.types.song import Song
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -18,7 +18,7 @@ from app.models import (
     TrackErrorType,
     TrackState,
 )
-from app.services import app_settings, attempts, dedup, downloads, events, proxies, retry, tagging
+from app.services import app_settings, attempts, dedup, downloads, events, job_status, proxies, retry, tagging
 from app.services import network_path as network_path_svc
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
@@ -110,6 +110,7 @@ def _hold(
         failure_count=track.failure_count,
         **track_song_meta(track.song_json),
     )
+    job_status.publish_change(db, track.job_id)
 
 
 def _give_up_claim(db: Session, track: Track, attempt_started_at: datetime, when: str) -> None:
@@ -173,6 +174,7 @@ def _record_mid_download_cancel(
         failure_count=recorded.failure_count,
         **track_meta,
     )
+    job_status.publish_change(db, track.job_id)
 
 
 @celery_app.task(name="app.tasks.download.download_track")
@@ -320,6 +322,7 @@ def download_track(track_id: str) -> None:
                 failure_count=track.failure_count,
                 **track_song_meta(track.song_json),
             )
+            job_status.publish_change(db, track.job_id)
             return
 
         # Pacing hook (declared since v07, actually consumed as of v15). Deliberately
@@ -424,14 +427,18 @@ def download_track(track_id: str) -> None:
                 Track.state == entry_state,
                 ~attempts.recorded_since(track_uuid, entry_attempt),
             )
-            .values(**claim)
-            .returning(Track.id)
+            # v62 (F10): the claim's own time, not the transaction's start (now()): this
+            # run's identity for the browser's progress cache, so it must differ per run.
+            .values(**claim, updated_at=func.clock_timestamp())
+            .returning(Track.id, Track.updated_at)
             .execution_options(synchronize_session=False)
         ).one_or_none()
         if claimed is None:
             db.rollback()
             _give_up_claim(db, track, attempt_started_at, "before its download started")
             return
+        # v62 (F10): this run's start, as the track's row now has it (see track_to_dict).
+        download_started_at = claimed.updated_at
         if proxy_id is not None:
             logger.info(
                 "download_track: track %s attempting via proxy %s",
@@ -446,6 +453,7 @@ def download_track(track_id: str) -> None:
             TrackState.DOWNLOADING.value,
             progress=0,
             attempt_count=attempt_count,
+            download_started_at=download_started_at,
             **track_meta,
         )
 
@@ -466,7 +474,12 @@ def download_track(track_id: str) -> None:
             # rebind this per attempt rather than threading track/job ids through
             # get_downloader's cache key.
             downloader.progress_handler.update_callback = events.make_progress_callback(
-                owner_id, track_uuid, job_id, attempt_count=attempt_count, **track_meta
+                owner_id,
+                track_uuid,
+                job_id,
+                attempt_count=attempt_count,
+                download_started_at=download_started_at,
+                **track_meta,
             )
             # force_family covers ytmusicapi's search calls too, which have no
             # family-forcing knob of their own (see network_path.py's docstring) -- yt-dlp's
@@ -636,6 +649,7 @@ def download_track(track_id: str) -> None:
                         failure_count=recorded.failure_count,
                         **track_meta,
                     )
+                    job_status.publish_change(db, job_id)
                     return
                 track.state = TrackState.SKIPPED_DUPLICATE
                 track.output_path = str(output_path)
@@ -663,6 +677,7 @@ def download_track(track_id: str) -> None:
                     failure_count=recorded.failure_count,
                     **track_meta,
                 )
+                job_status.publish_change(db, job_id)
                 return
 
             track.state = TrackState.COMPLETED
@@ -705,6 +720,7 @@ def download_track(track_id: str) -> None:
                 failure_count=track.failure_count,
                 **track_meta,
             )
+            job_status.publish_change(db, job_id)
         except Exception as exc:
             # Some exceptions (e.g. spotdl's DownloaderError for a malformed proxy) echo
             # the proxy string verbatim — never let that reach worker logs or the
@@ -800,5 +816,6 @@ def download_track(track_id: str) -> None:
                 failure_count=track.failure_count,
                 **track_meta,
             )
+            job_status.publish_change(db, job_id)
     finally:
         db.close()

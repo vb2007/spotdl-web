@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
@@ -22,6 +22,8 @@
 	import LanguageSwitch from '$lib/components/LanguageSwitch.svelte';
 	import RichText from '$lib/components/RichText.svelte';
 	import ApiKeys from '$lib/components/ApiKeys.svelte';
+	import { guardUnsavedEdits } from '$lib/unsavedGuard';
+	import { leavingSession, setLeavingSession } from '$lib/session';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
@@ -57,6 +59,53 @@
 				(!neverArchive && days !== saved.retention_days))
 	);
 
+	// v62 (F6): with every preference saved on choice (F7), only a typed value not yet
+	// committed is unsaved: retention's days, or a key's name not yet created.
+	let keyNameTyped = $state(false);
+	// A choice already being saved isn't unsaved (review round 3). Within the app, a valid number
+	// typed and not yet committed is committed on the way out (leaving the field does that
+	// anyway, and the guard's own question would: live review), so only what can't be saved is
+	// asked about: an invalid value, a choice whose save failed (review round 6), a key name.
+	// An unloading page can't finish a save (the request dies with it), so there anything not
+	// saved is asked about (review round 6).
+	const retentionSaveable = () => error === null && (neverArchive || !daysInvalid());
+	// A switch whose save failed shows its saved value again, with the failure: the choice isn't
+	// saved, so leaving asks too (live review round 2).
+	guardUnsavedEdits(
+		(unloading) =>
+			(dirty && !saving && (unloading || !retentionSaveable())) ||
+			keyNameTyped ||
+			keyboardError !== null ||
+			languageError !== null ||
+			clockError !== null
+	);
+	// An in-app exit with a save to make (or one under way) waits for it, and leaves only once it
+	// landed: a failure stays here, shown, never on a page that's gone (review round 7).
+	let leavingSaved = false;
+	beforeNavigate((navigation) => {
+		if (leavingSaved || navigation.willUnload || leavingSession()) return;
+		if (!saving && !(dirty && retentionSaveable())) return;
+		const to = navigation.to?.url;
+		if (!to || to.pathname === navigation.from?.url?.pathname) return;
+		const { type, delta } = navigation;
+		navigation.cancel();
+		queueMicrotask(async () => {
+			await saveRetention(false);
+			if (error !== null || dirty) return;
+			leavingSaved = true;
+			if (type === 'popstate' && delta) {
+				history.go(delta);
+				return;
+			}
+			try {
+				// eslint-disable-next-line svelte/no-navigation-without-resolve -- `to` is the URL SvelteKit was already navigating to, resolved.
+				await goto(to.pathname + to.search + to.hash);
+			} finally {
+				leavingSaved = false;
+			}
+		});
+	});
+
 	function syncForm(settings: api.RetentionSettings) {
 		saved = settings;
 		neverArchive = settings.retention_days === null;
@@ -82,37 +131,92 @@
 		keepFocusOnHeading('retention-heading');
 	}
 
-	async function onSubmit(event: SubmitEvent) {
-		event.preventDefault();
-		daysError = null;
-		if (!neverArchive) {
-			daysError =
-				typeof days !== 'number' || !Number.isInteger(days) || days < 1 || days > MAX_DAYS
-					? () => m.account_retention_days_invalid({ max: formatNumber(MAX_DAYS) })
-					: null;
-			if (daysError) {
-				// Nothing is sent, so focus the field: its error is read out from there.
-				await tick();
-				const field = document.getElementById('retention-days');
-				// Already focused: leave and come back so its new error is read.
-				if (field === document.activeElement) field?.blur();
-				field?.focus();
-				return;
-			}
+	// v62 (F7): one save model on /account (owner's decision): a preference is saved the moment
+	// it's chosen, as the shortcut, language and time-format switches always were. Retention's
+	// mode saves on its press; the number of days when it's committed (Enter, or leaving the
+	// field), checked first. Nothing is held for a save button, so "Unsaved changes" now means
+	// only a number typed and not yet committed (or one that failed its check).
+	function daysInvalid(): boolean {
+		return typeof days !== 'number' || !Number.isInteger(days) || days < 1 || days > MAX_DAYS;
+	}
+
+	async function showDaysError(refocus: boolean) {
+		daysError = () => m.account_retention_days_invalid({ max: formatNumber(MAX_DAYS) });
+		// A commit on leaving the field (blur) keeps focus where the user took it (review round
+		// 4); the field's error is on it for when they come back.
+		if (!refocus) return;
+		// Nothing is sent, so focus the field: its error is read out from there.
+		await tick();
+		const field = document.getElementById('retention-days');
+		// Already focused: leave and come back so its new error is read.
+		if (field === document.activeElement) field?.blur();
+		field?.focus();
+	}
+
+	// A choice made while a save is under way (the days field's commit on blur runs as the
+	// mode button is pressed): saved right after it, never dropped (review round 2).
+	let saveAgain = false;
+	// The save under way, the follow-up for a choice made meanwhile included: what an in-app
+	// exit waits on (review round 7).
+	let retentionRun: Promise<void> = Promise.resolve();
+
+	function saveRetention(refocus = true): Promise<void> {
+		if (saving) {
+			saveAgain = true;
+			return retentionRun;
 		}
+		retentionRun = runRetentionSave(refocus);
+		return retentionRun;
+	}
+
+	async function runRetentionSave(refocus: boolean): Promise<void> {
+		daysError = null;
+		if (!dirty) return;
+		if (!neverArchive && daysInvalid()) return showDaysError(refocus);
 		// Saving disables the field or button that had focus: give it back afterwards.
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		saving = true;
 		error = null;
+		// v42's late-write guard: a sign-out meanwhile resets the store.
+		const resets = queue.getResetCount();
 		try {
-			syncForm(await api.updateRetentionSettings(neverArchive ? null : days));
+			const settings = await api.updateRetentionSettings(neverArchive ? null : days);
+			if (queue.getResetCount() !== resets) {
+				saveAgain = false;
+				return;
+			}
+			// A choice made meanwhile is saved next: the form keeps it, only what's saved moves
+			// (review round 3: syncForm put the older answer back over it).
+			if (saveAgain) saved = settings;
+			else syncForm(settings);
 			savedAt = new Date();
 		} catch (err) {
 			error = () => errorText(err);
 		} finally {
 			saving = false;
 		}
+		if (saveAgain) {
+			saveAgain = false;
+			// v42's late-write guard for the queued choice too (review round 4): a sign-out or
+			// another identity meanwhile means it isn't this session's to send. Started before
+			// any await, so no other press can start a second run in between (review round 7).
+			if (queue.getResetCount() === resets) {
+				await runRetentionSave(true);
+				return;
+			}
+		}
 		await keepFocus(from);
+	}
+
+	function chooseMode(never: boolean) {
+		neverArchive = never;
+		saveRetention();
+	}
+
+	// Enter in the field: the form's only submit, with no button of its own.
+	function onSubmit(event: SubmitEvent) {
+		event.preventDefault();
+		saveRetention();
 	}
 
 	// v45: the single-key shortcut switch (WCAG 2.1.4), stored per user server-side so it
@@ -122,10 +226,40 @@
 	let keyboardError = $state<Shown>(null);
 	let keyboardSavedAt = $state<Date | null>(null);
 
-	async function setShortcuts(enabled: boolean) {
+	// v62 (F7): one model for every preference, retention's: a choice made while one is saving
+	// is saved right after it, the last one winning, never dropped on a disabled button (live
+	// review round 2). A sign-out or another identity meanwhile ends the queue (v42's guard).
+	function lastChoiceWins<T>(save: (value: T) => Promise<void>): (value: T) => Promise<void> {
+		let running = false;
+		let next: { value: T } | null = null;
+		return async (value: T) => {
+			if (running) {
+				next = { value };
+				return;
+			}
+			running = true;
+			const resets = queue.getResetCount();
+			try {
+				let current: { value: T } | null = { value };
+				while (current !== null && queue.getResetCount() === resets) {
+					next = null;
+					await save(current.value);
+					current = next;
+				}
+			} finally {
+				running = false;
+				next = null;
+			}
+		};
+	}
+
+	const setShortcuts = lastChoiceWins(saveShortcuts);
+	const setLanguage = lastChoiceWins(saveLanguage);
+	const setClock = lastChoiceWins(saveClock);
+
+	async function saveShortcuts(enabled: boolean) {
 		// Always sent, even for the choice shown as pressed: another device may have changed
 		// it since this page read it (the PATCH is idempotent).
-		if (keyboardSaving) return;
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		keyboardSaving = true;
 		keyboardError = null;
@@ -148,10 +282,9 @@
 	let languageError = $state<Shown>(null);
 	let languageSavedAt = $state<Date | null>(null);
 
-	async function setLanguage(next: Locale | null) {
+	async function saveLanguage(next: Locale | null) {
 		// Always sent, even for the choice shown as pressed: another device may have changed it
 		// since this page read it (the PATCH is idempotent). `null` is automatic.
-		if (languageSaving) return;
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		languageSaving = true;
 		languageError = null;
@@ -188,8 +321,7 @@
 		{ value: '24h', label: (example) => m.account_clock_24h({ example }) }
 	];
 
-	async function setClock(next: Clock | null) {
-		if (clockSaving) return;
+	async function saveClock(next: Clock | null) {
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		clockSaving = true;
 		clockError = null;
@@ -224,7 +356,13 @@
 		// The module-level queue store outlives this navigation; clear it before leaving so
 		// the next identity on this tab never sees a flash of these rows.
 		queue.reset();
-		await goto(resolve('/login'));
+		// v62 (F6): the session is gone, so nothing unsaved here can be saved: never held.
+		setLeavingSession(true);
+		try {
+			await goto(resolve('/login'));
+		} finally {
+			setLeavingSession(false);
+		}
 	}
 </script>
 
@@ -286,17 +424,11 @@
 								<button
 									type="button"
 									aria-pressed={!neverArchive}
-									disabled={saving}
-									onclick={() => (neverArchive = false)}
+									onclick={() => chooseMode(false)}
 								>
 									{m.account_retention_auto()}
 								</button>
-								<button
-									type="button"
-									aria-pressed={neverArchive}
-									disabled={saving}
-									onclick={() => (neverArchive = true)}
-								>
+								<button type="button" aria-pressed={neverArchive} onclick={() => chooseMode(true)}>
 									{m.account_retention_never()}
 								</button>
 							</div>
@@ -315,28 +447,26 @@
 									max={MAX_DAYS}
 									step="1"
 									bind:value={days}
-									disabled={saving || neverArchive}
+									onchange={() => saveRetention(false)}
+									disabled={neverArchive}
 									aria-invalid={daysError ? 'true' : undefined}
-									aria-describedby="retention-days-unit retention-days-error"
+									aria-describedby="retention-days-unit retention-days-hint retention-days-error"
 								/>
 								<span class="unit" id="retention-days-unit">{m.account_retention_unit()}</span>
 							</div>
+							<p class="field-hint" id="retention-days-hint">{m.account_retention_days_hint()}</p>
 							<p id="retention-days-error" class="field-error">{daysError?.()}</p>
 						</div>
-
-						<div class="save-row wide">
-							<button type="submit" class="btn" disabled={saving}>
-								{saving ? m.common_saving() : m.common_save()}
-							</button>
-							<p class="save-state" class:saved={!dirty && savedAt} role="status">
-								{dirty
-									? m.common_unsaved_changes()
-									: savedAt
-										? m.common_saved_at({ time: formatClock(savedAt) })
-										: ''}
-							</p>
-						</div>
 					</form>
+					<p class="save-state" class:saved={!saving && !dirty && savedAt !== null} role="status">
+						{saving
+							? m.common_saving_status()
+							: dirty
+								? m.common_unsaved_changes()
+								: savedAt
+									? m.common_saved_at({ time: formatClock(savedAt) })
+									: ''}
+					</p>
 				{/if}
 				<p class="form-error" class:sr-only={saved === null && loadError !== null} role="alert">
 					{saved === null && loadError !== null ? loadError() : error?.()}
@@ -358,7 +488,6 @@
 							<button
 								type="button"
 								aria-pressed={$shortcutsEnabled}
-								disabled={keyboardSaving}
 								onclick={() => setShortcuts(true)}
 							>
 								{m.account_keyboard_on()}
@@ -366,7 +495,6 @@
 							<button
 								type="button"
 								aria-pressed={!$shortcutsEnabled}
-								disabled={keyboardSaving}
 								onclick={() => setShortcuts(false)}
 							>
 								{m.account_keyboard_off()}
@@ -396,7 +524,6 @@
 						preference={languagePreference.current}
 						detected={detectLocale()}
 						onchoose={setLanguage}
-						disabled={languageSaving}
 						labelledby="language-mode-label"
 						describedby="language-hint"
 					/>
@@ -426,7 +553,6 @@
 							<button
 								type="button"
 								aria-pressed={clockPreference.current === choice.value}
-								disabled={clockSaving}
 								onclick={() => setClock(choice.value)}
 								>{choice.label(clockExample(now, choice.value))}</button
 							>
@@ -445,7 +571,7 @@
 		</section>
 
 		<!-- v53: keys for the browser extension (create, list, revoke). -->
-		<ApiKeys />
+		<ApiKeys onnametyped={(typed) => (keyNameTyped = typed)} />
 	</main>
 </div>
 
@@ -545,10 +671,6 @@
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: var(--space-3) var(--space-4);
 		align-items: start;
-	}
-
-	.wide {
-		grid-column: 1 / -1;
 	}
 
 	.with-unit {

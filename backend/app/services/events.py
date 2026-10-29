@@ -71,6 +71,7 @@ def publish_track_event(
     title: str | None = None,
     artists: list[str] | None = None,
     album: str | None = None,
+    download_started_at: datetime | None = None,
 ) -> None:
     # v35: attempts_made/failure_count ride along wherever the caller just wrote an
     # attempt row, so a live row's displayed counts move without a refetch.
@@ -106,6 +107,11 @@ def publish_track_event(
         event["artists"] = artists
     if album is not None:
         event["album"] = album
+    # v62 (F10): which run of `downloading` this is (the claim's updated_at, the same value the
+    # track's REST row carries as download_started_at), so the browser's progress cache can
+    # tell one run from the next even when attempt_count doesn't move (a reclaim, a redelivery).
+    if download_started_at is not None:
+        event["download_started_at"] = download_started_at.isoformat()
     publish(user_id, event)
 
 
@@ -123,6 +129,56 @@ def publish_job_event(
     if archived is not None:
         event["archived"] = archived
     publish(user_id, event)
+
+
+#: `publish_job_status_event`'s "the previous status isn't known" (no `prev_status` key at all),
+#: as opposed to `None` (the job is new: it wasn't counted under any status before).
+PREV_STATUS_UNKNOWN = object()
+
+
+def job_status_event(
+    job_id: Any, status: str, *, archived: bool, prev_status: Any = PREV_STATUS_UNKNOWN
+) -> dict[str, Any]:
+    """v62 (F1): a job's rollup status moved (`rollup.status_key` form: `active`,
+    `settled:partial`, ...). Published by `job_status.publish_change`, which keeps the chain:
+    each event's `prev_status` is the previous event's `status`. The dashboard moves its state
+    chips from it, a job off its loaded page included."""
+    event: dict[str, Any] = {
+        "type": "job.status",
+        "job_id": str(job_id),
+        "status": status,
+        "archived": archived,
+    }
+    if prev_status is not PREV_STATUS_UNKNOWN:
+        event["prev_status"] = prev_status
+    return event
+
+
+def publish_job_status_event(
+    user_id: uuid.UUID | str,
+    job_id: Any,
+    status: str,
+    *,
+    archived: bool,
+    prev_status: Any = PREV_STATUS_UNKNOWN,
+) -> None:
+    publish(user_id, job_status_event(job_id, status, archived=archived, prev_status=prev_status))
+
+
+def publish_batch(items: list[tuple[uuid.UUID | str, dict[str, Any]]], client: redis.Redis) -> None:
+    """v62: several events in one round trip on `client`, in order (job_status publishes a whole
+    beat tick's moves under the jobs' row locks: a stalled Redis costs one timeout, not one per
+    event). Best effort, like `publish`."""
+    if not items:
+        return
+    ts = datetime.now(timezone.utc).isoformat()
+    pipe = client.pipeline(transaction=False)
+    for user_id, event in items:
+        pipe.publish(channel_for(user_id), json.dumps({"ts": ts, **event}))
+    try:
+        pipe.execute()
+    except redis.RedisError:
+        logger.warning("events.publish_batch: failed to publish %d event(s)", len(items), exc_info=True)
 
 
 def publish_library_progress(
@@ -162,6 +218,7 @@ def make_progress_callback(
     artists: list[str] | None = None,
     album: str | None = None,
     attempt_count: int | None = None,
+    download_started_at: datetime | None = None,
 ) -> Callable[[Any, str], None]:
     """Returns a callback for spotdl's `ProgressHandler.update_callback` hook — every
     `SongTracker.notify_*` call (searching/getting-meta/downloading/converting/complete)
@@ -175,8 +232,9 @@ def make_progress_callback(
     `tracker` each call -- the caller already has `song_json` loaded once per track, and
     every one of these callback invocations describes the same track.
 
-    attempt_count (v34.2) is the attempt this run is, so the frontend can tell this
-    attempt's ticks from a previous one's (its localStorage progress cache keys on it).
+    attempt_count (v34.2) is the attempt this run is. download_started_at (v62, F10) is
+    this run's own start, which the frontend's localStorage progress cache keys on instead:
+    a re-run that doesn't bump attempt_count (beat's reclaim, a redelivery) still differs.
     """
 
     def _callback(tracker: Any, message: str) -> None:
@@ -190,6 +248,7 @@ def make_progress_callback(
             title=title,
             artists=artists,
             album=album,
+            download_started_at=download_started_at,
         )
 
     return _callback

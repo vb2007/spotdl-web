@@ -7,6 +7,15 @@ import * as m from '$lib/paraglide/messages';
 export interface AttemptGroup {
 	key: string;
 	attempts: TrackAttempt[];
+	/** v62 (F11): what the run's "×N" counts: every row, a collapsed hold as its `hold_count`. */
+	count: number;
+}
+
+/** v62 (F11): how many attempts a row stands for. Since v55 (E11) a hold straight after an
+ * identical one extends that row (`hold_count`) instead of adding another, so one `held`
+ * row can be many holds. */
+export function attemptCount(attempt: TrackAttempt): number {
+	return attempt.outcome === 'held' ? Math.max(1, attempt.hold_count ?? 1) : 1;
 }
 
 function sameReading(a: TrackAttempt, b: TrackAttempt): boolean {
@@ -30,7 +39,8 @@ export function groupAttempts(oldestFirst: TrackAttempt[]): AttemptGroup[] {
 		if (last && sameReading(last.attempts[0], attempt)) {
 			last.attempts.push(attempt);
 			last.key = attempt.id;
-		} else groups.push({ key: attempt.id, attempts: [attempt] });
+			last.count += attemptCount(attempt);
+		} else groups.push({ key: attempt.id, attempts: [attempt], count: attemptCount(attempt) });
 	}
 	return groups;
 }
@@ -79,7 +89,8 @@ export function summarizeVia(attempts: TrackAttempt[]): string {
 	const counts = new Map<AttemptPath, number>();
 	for (const attempt of attempts) {
 		const path = attemptPath(attempt);
-		counts.set(path, (counts.get(path) ?? 0) + 1);
+		// v62 (F11): a collapsed hold counts as its holds, as the run's ×N does.
+		counts.set(path, (counts.get(path) ?? 0) + attemptCount(attempt));
 	}
 	return [...counts]
 		.map(([path, n]) =>

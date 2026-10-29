@@ -653,6 +653,15 @@ needed" claim — rather than silently deleted.
 - The jobs scope's state chips are patched locally, not re-read, so every path that replaces or
   removes a job row must move its count too. A row refreshed after a track event used to swap the
   row only, so a settled job stayed counted as "active" until a hard reload → *v40.2*
+  *(2026-10-28, v62: a job off the loaded page moves too, from the server's `job.status` event.)*
+- A job's rollup status moves without any `job.state` event (a track settling); `job.status`
+  (old → new) is published by `job_status.publish_change` after the commit, chained through Redis
+  `SET … GET`, once per job for bulk changes → *v62*
+- The SSE heartbeat is a named event since v62 (`event: heartbeat`), not only a comment: an event
+  with no `data:` line is never dispatched, and patching `time.monotonic` in a stream test also
+  drives asyncio's own clock → *v62*
+- A downloading run is identified by its claim's `updated_at` (`clock_timestamp()`, not `now()`,
+  which is fixed for a whole transaction and so for a whole rollback-isolated test) → *v62*
 - Vite's dev `/api` proxy never closes the browser's SSE response when `api` dies, so in the
   normal `docker compose up` loop an `api` restart never triggers a reconnect at all (production
   nginx does close it). Test reconnect behavior through the real `web` image → *v34* (fixed
@@ -854,7 +863,17 @@ needed" claim — rather than silently deleted.
 - Width breakpoints are `em`, so a larger browser text size moves the layout; `px` ones kept the
   desktop grid at 200% text and squeezed titles to 0px. Test with CDP `Page.setFontSizes` → *v47*
 - An open `EventSource` can outlive the network silently; `/` watches `offline` and unreached polls
-  (the SSE comment heartbeat is invisible to JS) → *v47*
+  (the SSE comment heartbeat is invisible to JS) → *v47* *(2026-10-28, v62: the heartbeat is an
+  event now, so a stream silent past it restarts on a return to the tab or `online`.)*
+- A page's `beforeNavigate` runs before the layout's `ConfirmDialog` one, which answers every open
+  question "no" on a navigation, the cancelled one included: open a guard's question after the
+  callbacks (a microtask). Back across two hard loads is a document unload (`beforeunload`), not
+  a popstate → *v62*
+- adapter-static's `fallback: '404.html'` plus nginx `error_page 404 /404.html` (in `location /`
+  only, so a missing `/_app/` chunk keeps a plain 404) is what renders `+error.svelte` for an
+  unknown path → *v62*
+- `lastKnownTrackState` survives `queue.reset()`, so a store test reusing a track id and state
+  sees no state change (no refresh): give each test its own ids → *v62*
 - The session-ended handler navigates to `/login` before `queue.reset()`, or `/`'s outlived-check
   reloads the tab first → *v47*
 - An empty live region in a flex column still takes a gap; take it out of the flow with
@@ -5404,7 +5423,9 @@ independently-found production bug from the same conversation)
   from the old `statusKey` to the new one. The comparison is against the row as it is now, so the
   job event's second re-fetch of the same status moves nothing. The two 404 removal paths had the
   same gap and now share `dropPageJob`. Limitation: a job off the loaded page can't be moved (its
-  old status is unknown locally); its chips catch up on the next reload.
+  old status is unknown locally); its chips catch up on the next reload. *(Corrected 2026-10-28,
+  v62: the server now publishes each move, old → new (`job.status`), and the store applies it to
+  a job on the page or off it.)*
 - **Real-stack check that reproduced it:** a scratch Playwright script logging in through the real
   upstream, opening `/`, submitting the age-gated `2veKKJYeJjc3MnyhfZ2Gma` (it lands
   `lookup_failed` in about 6s) and sampling the lane count and chip text every 250ms. Against the
@@ -7332,4 +7353,54 @@ independently-found production bug from the same conversation)
   finish out of order on the one runner. And a signed file fetched back from
   AMO must equal the commit's `extension/` file for file (a web-ext build of it, minus
   `META-INF/`).
+
+### v62 frontend-store-fixes gotchas (learned closing F1–F11)
+
+- **The plan's F1 premise didn't hold.** `job.state` carries only the job's own state
+  (`expanding`/`expanded`/`failed`/`cancelled`, plus `archived`), and a rollup move (a track
+  settling turns `active` into `settled:complete`) publishes no job event at all. The owner chose
+  to publish it: `job_status.publish_change(db, job_id)` (the owner is read from the job's row) runs
+  after every announced change
+  (the caller's commit first; once per job after a bulk loop: beat's dispatch and reclaim),
+  computes the job's `status_key`, and swaps it into `spotdl:job-status:<id>` with `SET … GET`,
+  under the job's row lock (`FOR NO KEY UPDATE`) together with its PUBLISH, so the chain is also
+  the delivery order (review rounds 1–3).
+  Two writers finishing together (the worker and an API cancel) can't both report the same old
+  status, so the events form one chain. A missing key (a job from before v62, a 90-day-quiet job,
+  a flushed Redis) sends no `prev_status`, and the browser re-reads its counts (one 1-row page);
+  `prev_status: null` means a new job (`create_job`). It reads with the caller's session (a
+  test's `db_session` fails a stray `SessionLocal`), ends that read's transaction (the download
+  waits after some calls), never raises (the completion's call sits inside the download's
+  `try`), and skips a session holding unflushed changes.
+- **The browser counts a move once whichever way it arrives.** `countedJobStatus` is the status a
+  job is counted under; a row refresh moves a count only while no `job.status` event has spoken
+  for the job (a `getJob` answer can be older than an event already applied). F2: a page response
+  whose request started before a later move doesn't overwrite it: "load more" never takes its
+  page's counts (the same set as the local ones, kept current by every move; review round 5), a
+  reload corrects the moved jobs it lists and re-reads the counts for one it doesn't.
+  Residual: a reload snapshot taken after a commit whose event reaches the browser only after
+  the response (the stream slower than a whole HTTP round trip) counts that move twice until the
+  next reload.
+- **The heartbeat had to become visible (F4).** As an SSE comment it never reached the page (v47),
+  so "silent longer than the heartbeat" couldn't be told from "quiet". It's also a named event
+  now (`event: heartbeat` with `data: {}`: an event with no data isn't dispatched), and each wait
+  is the time left until the next one is due: in `others`, dropped messages used to stretch the
+  silence to nearly two intervals. The page treats 15 s + 3 s of silence as dead, on
+  `visibilitychange` → visible, `online`, and its 5 s worker poll: a laptop resumed with the tab
+  visible can fire neither event (live review), and the poll's overdue timer runs at once on wake. Simulating sleep in Playwright: `setOffline`
+  fires `offline` (the v47 path), so the new path is tested with `page.clock` fast-forwarding past
+  the threshold and a dispatched `visibilitychange`.
+- **No attempt id exists during a run (F10).** The attempt row is written when the invocation
+  ends. The claim's `updated_at` (`clock_timestamp()`) is the run's identity: on every
+  `downloading` event as `download_started_at`, and on the track's REST row while it downloads
+  (nothing else writes a downloading track's row; a proxy delete's `SET NULL` is a DB-side FK
+  action with no ORM `onupdate`). The cache key moved to `spotdl:live-progress:v2`.
+- **F8's "current view" vs what clear log does.** The action archives every finished job of the
+  viewer's, whatever the view shows, so the view's counts can only say "nothing to clear" where
+  they cover all of the viewer's jobs: `mine`/`all`, no search, page loaded. Elsewhere it stays
+  on. It's `aria-disabled` (still focusable, so its `aria-describedby` reason is read), not
+  `disabled`.
+- **F6 and the session.** Navigations that leave because the session ended or changed (a 401,
+  another tab's sign-out or sign-in) set `leavingSession()`, which the unsaved-edits guard lets
+  through without asking.
 

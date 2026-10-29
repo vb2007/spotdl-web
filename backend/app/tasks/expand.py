@@ -6,7 +6,7 @@ from sqlalchemy import case, select, update
 
 from app.db import SessionLocal
 from app.models import Job, JobState, Track, TrackState
-from app.services import events, expansion
+from app.services import events, expansion, job_status
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
@@ -160,6 +160,8 @@ def expand_job(job_id: str) -> None:
         # every track a second time).
         if job.state == JobState.EXPANDED:
             _enqueue_pending_tracks(db, job, "already expanded (redelivery)")
+            # v62 (F1): its expanding -> active move may never have been announced (review round 6).
+            job_status.publish_change(db, job.id)
             return
 
         events.publish_job_event(job.user_id, job.id, job.state.value)
@@ -227,6 +229,7 @@ def expand_job(job_id: str) -> None:
                 return
 
             events.publish_job_event(job.user_id, job.id, job.state.value)
+            job_status.publish_change(db, job.id)
         except Exception as exc:
             # Covers both expansion.expand() itself (assorted exception types spotdl raises
             # for malformed/unreachable URLs) and any DB error while inserting tracks (e.g. a
@@ -251,6 +254,8 @@ def expand_job(job_id: str) -> None:
                     # a publish above raised): the tracks are committed, so enqueue them
                     # rather than leave them `pending` forever under an acked task.
                     _enqueue_pending_tracks(db, job, "failed after its EXPANDED commit")
+                    # v62 (F1): its expanding -> active move may never have been announced (review round 6).
+                    job_status.publish_change(db, job.id)
                     return
                 logger.info(
                     "expand_job: job %s is %s, not expanding; not marking it failed",
@@ -260,6 +265,7 @@ def expand_job(job_id: str) -> None:
                 return
             db.refresh(job)
             events.publish_job_event(job.user_id, job.id, job.state.value, error=job.error)
+            job_status.publish_change(db, job.id)
         else:
             _dispatch_due(db, job, [track.id for track in tracks])
     finally:

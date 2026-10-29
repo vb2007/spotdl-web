@@ -10,7 +10,11 @@
 	let {
 		current,
 		isAdmin
-	}: { current: 'settings' | 'library' | 'stats' | 'account'; isAdmin: boolean } = $props();
+	}: {
+		// v62: none on the error page (+error.svelte), which is none of these.
+		current?: 'settings' | 'library' | 'stats' | 'account';
+		isAdmin: boolean;
+	} = $props();
 </script>
 
 <header class="masthead">

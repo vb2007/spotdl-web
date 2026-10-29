@@ -426,10 +426,30 @@
 		queue.reload();
 	}
 
+	// v62 (F4): the server's heartbeat is an event since v62 (it was an SSE comment, which a
+	// page never sees), so a stream silent for longer than its interval is dead, not quiet: a
+	// laptop's sleep, with the network back on wake and no `offline` ever fired. On a return
+	// to the tab or back online, such a stream starts over at once instead of waiting out the
+	// browser's socket timeout. The interval is the server's (stream.py's
+	// HEARTBEAT_INTERVAL_SEC), plus a margin for the event's own way here.
+	const STREAM_HEARTBEAT_MS = 15_000;
+	const STREAM_SILENT_MS = STREAM_HEARTBEAT_MS + 3_000;
+	// When the current stream last said anything (an open, an event, a heartbeat).
+	let streamHeardAt = 0;
+
+	function streamSilent(): boolean {
+		return Date.now() - streamHeardAt > STREAM_SILENT_MS;
+	}
+
 	function connectStream() {
 		if (unmounted) return;
 		const stream = api.createEventSource(view);
 		source = stream;
+		streamHeardAt = Date.now();
+		// `onmessage` never sees a named event: the heartbeat only says the stream is alive.
+		stream.addEventListener('heartbeat', () => {
+			if (source === stream) streamHeardAt = Date.now();
+		});
 		// v42: the stream belongs to the session it was opened under. If the store is reset
 		// meanwhile without this page logging out (an identity change in another tab, or a
 		// session gone stale, caught by the layout -- possibly on a hover preload, with this
@@ -485,6 +505,7 @@
 			// The stream may have dropped, or been replaced by a scope switch, meanwhile.
 			if (outlived() || !current()) return;
 			verified = true;
+			streamHeardAt = Date.now();
 			link.set('live');
 			awaitingResync = false;
 			clearTimeout(resyncFallbackTimer);
@@ -495,6 +516,7 @@
 		};
 		stream.onmessage = (event) => {
 			if (outlived() || !verified) return;
+			streamHeardAt = Date.now();
 			queue.applyEvent(JSON.parse(event.data));
 		};
 		stream.onerror = () => {
@@ -549,9 +571,10 @@
 	// while the page runs): no error, no events, the tell still "linked". The server's
 	// heartbeat is an SSE comment, which a page can't see, so the poll is the watchdog: two
 	// polls in a row that never reached the server (a network failure, not an error answer)
-	// mean the link is down too, and the stream starts over. Not covered: a stream the server
-	// dropped while the machine slept, if the network is back on wake (no poll fails, and a
-	// quiet stream looks the same as a dead one); the browser's own socket timeout ends it.
+	// mean the link is down too, and the stream starts over. A stream the server dropped while
+	// the machine slept, with the network back on wake (no poll fails), used to look the same
+	// as a quiet one; since v62 (F4) the heartbeat is visible, and a return to the tab or back
+	// online restarts a stream silent past it (streamSilent).
 	let unreachedPolls = 0;
 	// A poll with no answer after 10s counts as unreached too, once: a request that hangs on
 	// a dead connection never rejects. Later polls still go out, so one stuck request can't
@@ -566,6 +589,10 @@
 			window.location.reload();
 			return;
 		}
+		// v62 (F4): a laptop resumed with this tab visible may fire neither `visibilitychange`
+		// nor `online`; the poll (whose overdue timer runs at once on wake) checks too (live
+		// review).
+		if (get(link) === 'live' && streamSilent()) restartStream();
 		let settled = false;
 		const overdue = setTimeout(() => {
 			if (settled || unmounted) return;
@@ -624,14 +651,16 @@
 	}
 
 	// Only a link that is down starts over: an `online` with the stream still live (a VPN or
-	// Wi-Fi handoff that never broke it) would otherwise wipe the list for a resync.
+	// Wi-Fi handoff that never broke it) would otherwise wipe the list for a resync. v62 (F4):
+	// a "live" stream silent past its heartbeat is down too.
 	function onOnline() {
 		unreachedPolls = 0;
-		if (get(link) !== 'live') restartStream();
+		if (get(link) !== 'live' || streamSilent()) restartStream();
 	}
 
 	function onVisible() {
-		if (document.visibilityState === 'visible' && get(link) === 'reconnecting') restartStream();
+		if (document.visibilityState !== 'visible') return;
+		if (get(link) === 'reconnecting' || (get(link) === 'live' && streamSilent())) restartStream();
 	}
 
 	onMount(() => {
