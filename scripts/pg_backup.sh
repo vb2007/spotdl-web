@@ -59,7 +59,10 @@ PG_URL="${PG_URL/host.docker.internal/localhost}"
 
 mkdir -p "$BACKUP_DIR"
 TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-DUMP_FILE="$BACKUP_DIR/spotdl_web_${TIMESTAMP}.dump"
+# v60.1: dumps were `spotdl_web_*`, which read like a database name the host doesn't have (it's
+# `spotdlweb`). New dumps use `spotdlweb_`; retention and the count still match the old prefix,
+# so the dumps from before the rename age out on the same schedule.
+DUMP_FILE="$BACKUP_DIR/spotdlweb_${TIMESTAMP}.dump"
 
 echo "pg_backup: dumping to $DUMP_FILE"
 # -Fc (custom format): compressed, and restorable with pg_restore (including --clean for
@@ -68,7 +71,8 @@ pg_dump -Fc --no-owner --dbname="$PG_URL" --file="$DUMP_FILE"
 
 # Retention: prune dumps older than RETENTION_DAYS. A daily cron with the 14-day default
 # keeps roughly the last 14 dumps, per the plan's "keep last 14 daily" bullet.
-find "$BACKUP_DIR" -maxdepth 1 -name 'spotdl_web_*.dump' -mtime "+$RETENTION_DAYS" -print -delete
+find "$BACKUP_DIR" -maxdepth 1 \( -name 'spotdlweb_*.dump' -o -name 'spotdl_web_*.dump' \) \
+  -mtime "+$RETENTION_DAYS" -print -delete
 
-REMAINING="$(find "$BACKUP_DIR" -maxdepth 1 -name 'spotdl_web_*.dump' | wc -l)"
+REMAINING="$(find "$BACKUP_DIR" -maxdepth 1 \( -name 'spotdlweb_*.dump' -o -name 'spotdl_web_*.dump' \) | wc -l)"
 echo "pg_backup: done. $REMAINING dump(s) retained in $BACKUP_DIR."

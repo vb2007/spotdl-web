@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1793218863.2381628,
-    "ast_hash": "85870fdc8260e8203239e45e2e78b3a8",
+    "mtime": 1793228703.6162882,
+    "ast_hash": "206e28924f823ed38260f78041fb9ad3",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -1620,8 +1620,8 @@
     "semantic_hash": ""
   },
   "plan/master-v5/00-master-plan.md": {
-    "mtime": 1793218863.4801726,
-    "ast_hash": "d5c17d16606ed74b084f4e24a02a6c21",
+    "mtime": 1793228703.6172447,
+    "ast_hash": "e0111ca769062ef79a563300752825e7",
     "semantic_hash": ""
   },
   "plan/master-v5/IMPLEMENTATION_PROMPT.md": {
@@ -2005,8 +2005,8 @@
     "semantic_hash": ""
   },
   "docs/EXTENSION.md": {
-    "mtime": 1793218863.2371628,
-    "ast_hash": "93ea235fdcede8f44940b6c72dd6f567",
+    "mtime": 1793228703.617086,
+    "ast_hash": "2a26c75c7320eb3bbcb9a445e3b9300f",
     "semantic_hash": ""
   },
   "extension/DESIGN.md": {
@@ -2105,8 +2105,8 @@
     "semantic_hash": ""
   },
   ".github/workflows/extension-release.yml": {
-    "mtime": 1793218863.4801726,
-    "ast_hash": "58c906598d9f3a614573f23f7df7eade",
+    "mtime": 1793221910.0339463,
+    "ast_hash": "576518db08321b8af75c92160d7ebcf9",
     "semantic_hash": ""
   },
   "frontend/project.inlang/.lix/README.md": {

@@ -677,3 +677,11 @@ here.
   could never be repaired. v61.1 (`dev-extension-manifest-compare`, no app bump, no extension
   bump) compares `manifest.json` as JSON. The auto-update proof (`1.0.2`) is a separate PR merged
   after it (owner's choice), so its run signs with the fixed check.
+
+- **2026-10-28, v60.1: the backup dumps are named after the real database (owner's request).**
+  v60 (X3) left `scripts/pg_backup.sh`'s `spotdl_web_<timestamp>.dump` prefix alone: it's a file
+  prefix, not the database name, and renaming it meant changing the script, outside v60's files.
+  The owner asked for the rename as a follow-up patch PR. New dumps are
+  `spotdlweb_<timestamp>.dump`. Retention and the retained count match both prefixes, so the
+  dumps written before the rename still age out after 14 days. Script and docs only: no app
+  version bump, no release.
