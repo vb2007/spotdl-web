@@ -238,7 +238,9 @@ class UpdateExportSettingsRequest(BaseModel):
 
 
 _EXPORT_BOUNDS = {
-    "export_max_files": (1, 100_000),
+    # Under 65,535 entries with the playlist and MISSING.txt: zipstream-ng (1.9.3) counts a
+    # 65,535-entry archive's length without the zip64 end records it then writes.
+    "export_max_files": (1, 65_000),
     "export_max_gb": (1, 10_000),
 }
 
