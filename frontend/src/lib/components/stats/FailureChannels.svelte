@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { AdminStats } from '$lib/api';
+	import type { RecordedWindow } from '$lib/api';
 	import {
 		axisTickEvery,
 		bucketHeld,
@@ -20,13 +20,19 @@
 	// the bottom channel on that same axis: a spike and the trip it caused line up vertically.
 	// One crosshair reads every channel at once. The drawing is an image whose alternative is
 	// the summary in its label and the table below it.
-	let { stats }: { stats: AdminStats } = $props();
+	// v66: a user's own stats (`/stats`'s "mine") carry no breaker: it holds everyone's downloads,
+	// not theirs. Without one the recorder has no breaker channel, line or column, and draws
+	// nothing at all when nothing failed (the scale line says so).
+	let { stats }: { stats: RecordedWindow } = $props();
+	const hasBreaker = $derived(stats.breaker !== undefined);
 
 	const n = $derived(stats.failures.buckets.length);
 	const peak = $derived(failurePeak(stats));
 	// Explicit rows: the plot overlay spans every channel's strip, and auto-placement would
 	// route the strips around it.
 	const breakerRow = $derived(stats.failures.series.length + 1);
+	// The last channel's row: the breaker's, or the last failure class's without one.
+	const lastRow = $derived(hasBreaker ? breakerRow : stats.failures.series.length);
 	const spans = $derived(holdSpans(stats));
 	const tickEvery = $derived(axisTickEvery(stats));
 	const unit = $derived(stats.bucket_seconds < 86400 ? 'hour' : 'day');
@@ -49,11 +55,17 @@
 	const breakerLine = $derived(
 		spans.length === 0
 			? m.stats_breaker_no_hold()
-			: m.stats_breaker_held({ span: formatSpan(heldSeconds), ...counted(stats.breaker.trips) })
+			: m.stats_breaker_held({
+					span: formatSpan(heldSeconds),
+					...counted(stats.breaker?.trips ?? 0)
+				})
 	);
 
 	const summary = $derived.by(() => {
-		if (stats.failures.series.length === 0) return m.stats_summary_none({ breaker: breakerLine });
+		if (stats.failures.series.length === 0)
+			return hasBreaker
+				? m.stats_summary_none({ breaker: breakerLine })
+				: m.stats_no_failed_attempts();
 		const parts = stats.failures.series.map((series) => {
 			const most = Math.max(...series.counts);
 			const at = series.counts.indexOf(most);
@@ -65,6 +77,10 @@
 			};
 			return unit === 'hour' ? m.stats_summary_part_hour(values) : m.stats_summary_part_day(values);
 		});
+		if (!hasBreaker) {
+			const values = { parts: parts.join('; ') };
+			return unit === 'hour' ? m.stats_mine_summary_hour(values) : m.stats_mine_summary_day(values);
+		}
 		const values = { parts: parts.join('; '), breaker: breakerLine };
 		return unit === 'hour' ? m.stats_summary_hour(values) : m.stats_summary_day(values);
 	});
@@ -117,137 +133,158 @@
 		{/if}
 	</p>
 
-	<div
-		class="channels"
-		style:--n={n}
-		role="img"
-		aria-label={summary}
-		onpointermove={onPointerMove}
-		onpointerleave={() => (hovered = null)}
-	>
-		{#each stats.failures.series as series, row (series.error_type)}
-			<span class="name mono" style:grid-row={row + 1}>
-				<span class="key {errorTypeCondition(series.error_type)}"></span>{errorTypeLabel(
-					series.error_type
-				)}
-			</span>
-			<span class="strip" style:grid-row={row + 1}>
-				{#each series.counts as count, i (i)}
-					<span class="cell" class:hover={shown === i}>
+	{#if lastRow > 0}
+		<div
+			class="channels"
+			style:--n={n}
+			role="img"
+			aria-label={summary}
+			onpointermove={onPointerMove}
+			onpointerleave={() => (hovered = null)}
+		>
+			{#each stats.failures.series as series, row (series.error_type)}
+				<span class="name mono" style:grid-row={row + 1}>
+					<span class="key {errorTypeCondition(series.error_type)}"></span>{errorTypeLabel(
+						series.error_type
+					)}
+				</span>
+				<span class="strip" style:grid-row={row + 1}>
+					{#each series.counts as count, i (i)}
+						<span class="cell" class:hover={shown === i}>
+							<span
+								class="column {errorTypeCondition(series.error_type)}"
+								style:height={height(count)}
+							></span>
+						</span>
+					{/each}
+				</span>
+				<span class="total mono" style:grid-row={row + 1}>{formatNumber(series.total)}</span>
+			{/each}
+
+			{#if hasBreaker}
+				<span class="name mono" style:grid-row={breakerRow}
+					><span class="key key-hold"></span>{m.stats_channel_breaker()}</span
+				>
+				<span class="strip holds" style:grid-row={breakerRow}>
+					{#each spans as span (span.startedAt)}
 						<span
-							class="column {errorTypeCondition(series.error_type)}"
-							style:height={height(count)}
+							class="hold"
+							class:ongoing={span.ongoing}
+							class:manual={span.manual}
+							style:left="{holdGeometry(span, n).left * 100}%"
+							style:width="{holdGeometry(span, n).width * 100}%"
 						></span>
-					</span>
+					{/each}
+				</span>
+				<!-- 4: no bare number here (every other total counts failures); the line below counts trips. -->
+				<span class="total" style:grid-row={breakerRow}></span>
+			{/if}
+
+			<span class="axis" style:grid-row={lastRow + 1}>
+				{#each stats.failures.buckets as bucket, i (bucket)}
+					<span class="tick" class:minor={(i / tickEvery) % 2 === 1}
+						>{i % tickEvery === 0 ? bucketLabel(stats, bucket) : ''}</span
+					>
 				{/each}
 			</span>
-			<span class="total mono" style:grid-row={row + 1}>{formatNumber(series.total)}</span>
-		{/each}
 
-		<span class="name mono" style:grid-row={breakerRow}
-			><span class="key key-hold"></span>{m.stats_channel_breaker()}</span
-		>
-		<span class="strip holds" style:grid-row={breakerRow}>
-			{#each spans as span (span.startedAt)}
-				<span
-					class="hold"
-					class:ongoing={span.ongoing}
-					class:manual={span.manual}
-					style:left="{holdGeometry(span, n).left * 100}%"
-					style:width="{holdGeometry(span, n).width * 100}%"
-				></span>
-			{/each}
-		</span>
-		<!-- 4: no bare number here (every other total counts failures); the line below counts trips. -->
-		<span class="total" style:grid-row={breakerRow}></span>
-
-		<span class="axis" style:grid-row={breakerRow + 1}>
-			{#each stats.failures.buckets as bucket, i (bucket)}
-				<span class="tick" class:minor={(i / tickEvery) % 2 === 1}
-					>{i % tickEvery === 0 ? bucketLabel(stats, bucket) : ''}</span
-				>
-			{/each}
-		</span>
-
-		<!-- The plot area: the crosshair and its readout, over every channel's strip. -->
-		<span class="plot" style:grid-row="1 / span {breakerRow}" bind:this={plot}>
-			{#if shown !== null}
-				<span class="crosshair" style:left="{((shown + 0.5) / n) * 100}%"></span>
-				<span class="readout" class:flip={shown > n / 2} style:left="{((shown + 0.5) / n) * 100}%">
-					<span class="when mono">{bucketLabel(stats, stats.failures.buckets[shown], true)}</span>
-					{#each stats.failures.series as series (series.error_type)}
-						<span class="row">
-							<span class="line-key {errorTypeCondition(series.error_type)}"></span>
-							<strong class="mono">{formatNumber(series.counts[shown])}</strong>
-							<span class="series">{errorTypeLabel(series.error_type)}</span>
-						</span>
-					{/each}
-					<span class="row">
-						<span class="line-key key-hold"></span>
-						<span class="series">
-							{bucketHeld(stats, spans, shown)
-								? m.stats_readout_breaker_held()
-								: m.stats_readout_breaker_clear()}
-						</span>
-					</span>
-				</span>
-			{/if}
-		</span>
-	</div>
-
-	<p class="breaker-line">{breakerLine}</p>
-
-	<details class="as-table">
-		<summary>{m.stats_show_as_table()}</summary>
-		<!-- Focusable, so a keyboard can scroll it (axe: scrollable-region-focusable). -->
-		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-		<div class="table-wrap" tabindex="0" role="region" aria-label={m.stats_tables_label()}>
-			<table>
-				<caption class="sr-only"
-					>{unit === 'hour' ? m.stats_table_caption_hour() : m.stats_table_caption_day()}</caption
-				>
-				<thead>
-					<tr>
-						<th scope="col">{unit === 'hour' ? m.stats_col_hour() : m.stats_col_day()}</th>
+			<!-- The plot area: the crosshair and its readout, over every channel's strip. -->
+			<span class="plot" style:grid-row="1 / span {lastRow}" bind:this={plot}>
+				{#if shown !== null}
+					<span class="crosshair" style:left="{((shown + 0.5) / n) * 100}%"></span>
+					<span
+						class="readout"
+						class:flip={shown > n / 2}
+						style:left="{((shown + 0.5) / n) * 100}%"
+					>
+						<span class="when mono">{bucketLabel(stats, stats.failures.buckets[shown], true)}</span>
 						{#each stats.failures.series as series (series.error_type)}
-							<th scope="col" class="mono">{errorTypeLabel(series.error_type)}</th>
+							<span class="row">
+								<span class="line-key {errorTypeCondition(series.error_type)}"></span>
+								<strong class="mono">{formatNumber(series.counts[shown])}</strong>
+								<span class="series">{errorTypeLabel(series.error_type)}</span>
+							</span>
 						{/each}
-						<th scope="col">{m.stats_col_breaker()}</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each stats.failures.buckets as bucket, i (bucket)}
-						<tr>
-							<th scope="row" class="mono">{bucketLabel(stats, bucket, true)}</th>
-							{#each stats.failures.series as series (series.error_type)}
-								<td class="mono">{formatNumber(series.counts[i])}</td>
-							{/each}
-							<td>{bucketHeld(stats, spans, i) ? m.stats_cell_held() : '—'}</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-			{#if spans.length > 0}
+						{#if hasBreaker}
+							<span class="row">
+								<span class="line-key key-hold"></span>
+								<span class="series">
+									{bucketHeld(stats, spans, shown)
+										? m.stats_readout_breaker_held()
+										: m.stats_readout_breaker_clear()}
+								</span>
+							</span>
+						{/if}
+					</span>
+				{/if}
+			</span>
+		</div>
+	{/if}
+
+	{#if hasBreaker}
+		<p class="breaker-line">{breakerLine}</p>
+	{/if}
+
+	{#if lastRow > 0}
+		<details class="as-table">
+			<summary>{m.stats_show_as_table()}</summary>
+			<!-- Focusable, so a keyboard can scroll it (axe: scrollable-region-focusable). -->
+			<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+			<div class="table-wrap" tabindex="0" role="region" aria-label={m.stats_tables_label()}>
 				<table>
-					<caption class="caption">{m.stats_holds_caption()}</caption>
+					<caption class="sr-only"
+						>{hasBreaker
+							? unit === 'hour'
+								? m.stats_table_caption_hour()
+								: m.stats_table_caption_day()
+							: unit === 'hour'
+								? m.stats_mine_table_caption_hour()
+								: m.stats_mine_table_caption_day()}</caption
+					>
 					<thead>
-						<tr
-							><th scope="col">{m.stats_col_hold()}</th><th scope="col">{m.stats_col_until()}</th
-							></tr
-						>
+						<tr>
+							<th scope="col">{unit === 'hour' ? m.stats_col_hour() : m.stats_col_day()}</th>
+							{#each stats.failures.series as series (series.error_type)}
+								<th scope="col" class="mono">{errorTypeLabel(series.error_type)}</th>
+							{/each}
+							{#if hasBreaker}<th scope="col">{m.stats_col_breaker()}</th>{/if}
+						</tr>
 					</thead>
 					<tbody>
-						{#each spans as span (span.startedAt)}
+						{#each stats.failures.buckets as bucket, i (bucket)}
 							<tr>
-								<td>{holdLabel(span)}</td>
-								<td class="mono">{instantLabel(stats, span.endedAt)}</td>
+								<th scope="row" class="mono">{bucketLabel(stats, bucket, true)}</th>
+								{#each stats.failures.series as series (series.error_type)}
+									<td class="mono">{formatNumber(series.counts[i])}</td>
+								{/each}
+								{#if hasBreaker}<td>{bucketHeld(stats, spans, i) ? m.stats_cell_held() : '—'}</td
+									>{/if}
 							</tr>
 						{/each}
 					</tbody>
 				</table>
-			{/if}
-		</div>
-	</details>
+				{#if spans.length > 0}
+					<table>
+						<caption class="caption">{m.stats_holds_caption()}</caption>
+						<thead>
+							<tr
+								><th scope="col">{m.stats_col_hold()}</th><th scope="col">{m.stats_col_until()}</th
+								></tr
+							>
+						</thead>
+						<tbody>
+							{#each spans as span (span.startedAt)}
+								<tr>
+									<td>{holdLabel(span)}</td>
+									<td class="mono">{instantLabel(stats, span.endedAt)}</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				{/if}
+			</div>
+		</details>
+	{/if}
 </div>
 
 <style>

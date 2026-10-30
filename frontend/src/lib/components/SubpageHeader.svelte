@@ -33,12 +33,13 @@
 				href={resolve('/settings')}
 				aria-current={current === 'settings' ? 'page' : undefined}>{m.nav_settings()}</a
 			>
-			<a
-				class="nav-link"
-				href={resolve('/stats')}
-				aria-current={current === 'stats' ? 'page' : undefined}>{m.nav_stats()}</a
-			>
 		{/if}
+		<!-- v66: /stats is everyone's now (their own downloads; the admin also everyone's). -->
+		<a
+			class="nav-link"
+			href={resolve('/stats')}
+			aria-current={current === 'stats' ? 'page' : undefined}>{m.nav_stats()}</a
+		>
 		<a
 			class="nav-link"
 			href={resolve('/account')}

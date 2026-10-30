@@ -14,17 +14,23 @@
   multi-channel recorder sharing one time axis.
   FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review,
   the verdict, and DESIGN.md
+  v66: every user's own downloads too ("mine"), the same split: an all-time "Your library" plate
+  beside the window plate. A non-admin sees only that; the admin lands on the global recorder
+  (owner's choice) and switches in the title row (`?scope=mine` keeps it across a reload).
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { replaceState } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 	import { relativeTime } from '$lib/attempts';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
-	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
 	import OutcomeBar from '$lib/components/stats/OutcomeBar.svelte';
 	import FailureChannels from '$lib/components/stats/FailureChannels.svelte';
 	import AlertHistory from '$lib/components/stats/AlertHistory.svelte';
+	import CompletedColumns from '$lib/components/stats/CompletedColumns.svelte';
 	import {
+		formatBytes,
 		formatRate,
 		formatSpan,
 		pathLabel,
@@ -41,15 +47,25 @@
 		formatNumber,
 		keepReadings
 	} from '$lib/i18n/format';
-	import { trackStateLabel } from '$lib/i18n/labels';
+	import { jobStatusLabel, trackStateLabel } from '$lib/i18n/labels';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
 
 	const WINDOWS: api.StatsWindow[] = ['24h', '7d', '30d'];
 
+	// v66: whose downloads. A non-admin's are always their own; the admin starts on everyone's.
+	type Scope = 'mine' | 'global';
+	function initialScope(): Scope {
+		if (!(data.session?.is_admin ?? false)) return 'mine';
+		if (typeof window === 'undefined') return 'global';
+		return new URL(window.location.href).searchParams.get('scope') === 'mine' ? 'mine' : 'global';
+	}
+	let scope = $state<Scope>(initialScope());
+
 	let selected = $state<api.StatsWindow>('24h');
 	let stats = $state<api.AdminStats | null>(null);
+	let mine = $state<api.MyStats | null>(null);
 	let loading = $state(false);
 	let error = $state('');
 	// A window switch while a read is in flight: only the newest read may land (DESIGN.md's
@@ -60,26 +76,47 @@
 	let alertsRead = $state(0);
 
 	function refresh() {
-		alertsRead += 1;
+		if (scope === 'global') alertsRead += 1;
 		void load();
 	}
 
+	// The reading on screen: the scope's own, so a scope switch never shows the other's numbers.
+	const current = $derived(scope === 'mine' ? mine : stats);
+
 	async function load() {
-		const mine = ++sequence;
+		const turn = ++sequence;
+		const reading = scope;
 		loading = true;
 		error = '';
 		try {
-			const fresh = await api.getAdminStats(selected);
-			if (mine !== sequence) return;
-			stats = fresh;
+			// One request per load, window change and scope change.
+			if (reading === 'mine') {
+				const fresh = await api.getMyStats(selected);
+				if (turn !== sequence) return;
+				mine = fresh;
+			} else {
+				const fresh = await api.getAdminStats(selected);
+				if (turn !== sequence) return;
+				stats = fresh;
+			}
 		} catch (err) {
-			if (mine !== sequence) return;
+			if (turn !== sequence) return;
 			error = errorText(err);
 			// The switch didn't happen: the pressed window is the one still shown.
-			if (stats !== null) selected = stats.window;
+			if (current !== null) selected = current.window;
 		} finally {
-			if (mine === sequence) loading = false;
+			if (turn === sequence) loading = false;
 		}
+	}
+
+	function chooseScope(next: Scope) {
+		if (next === scope) return;
+		scope = next;
+		// `resolve()` builds the path; the rule can't see that a query string after it stays on
+		// that same resolved route (as `/`'s view switch).
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		replaceState(`${resolve('/stats')}${next === 'mine' ? '?scope=mine' : ''}`, {});
+		refresh();
 	}
 
 	function choose(next: api.StatsWindow) {
@@ -89,13 +126,25 @@
 	}
 
 	onMount(() => {
-		// A non-admin makes no admin request at all (F17): the page is the notice.
-		if (isAdmin) refresh();
+		// A non-admin reads their own and makes no admin request at all (F17). The admin starts
+		// on everyone's unless the address asks for theirs (`initialScope`).
+		scope = initialScope();
+		refresh();
 	});
 
-	const generated = $derived(stats === null ? 0 : Date.parse(stats.generated_at));
-	const readAt = $derived(stats === null ? '' : formatClock(stats.generated_at));
-	const shownWindow = $derived(stats?.window ?? selected);
+	const generated = $derived(current === null ? 0 : Date.parse(current.generated_at));
+	const readAt = $derived(current === null ? '' : formatClock(current.generated_at));
+	const shownWindow = $derived(current?.window ?? selected);
+
+	// v66: the jobs a user queued in the window, in the state filter's order (still in flight
+	// first), only the states that occur.
+	const jobRows = $derived(
+		mine === null
+			? []
+			: api.STATUS_TOKENS.filter((token) => (mine?.jobs.by_status[token] ?? 0) > 0).map(
+					(token) => ({ token, value: mine?.jobs.by_status[token] ?? 0 })
+				)
+	);
 
 	function clock(iso: string): string {
 		const date = new Date(iso);
@@ -167,28 +216,167 @@
 
 	<main id="main" class="main">
 		<div class="title-row">
-			<h1 class="page-title">{m.stats_heading()}</h1>
-			{#if isAdmin}
-				<div class="read">
-					<span class="read-at mono" role="status">
-						{#if loading}{m.stats_reading()}{:else if readAt}{m.stats_read_at({
-								time: readAt
-							})}{/if}
-					</span>
-					<button type="button" class="btn small" disabled={loading} onclick={refresh}>
-						{m.stats_refresh()}
-					</button>
-				</div>
-			{/if}
+			<h1 class="page-title">{scope === 'mine' ? m.stats_mine_heading() : m.stats_heading()}</h1>
+			<div class="read">
+				{#if isAdmin}
+					<div class="choice-group" role="group" aria-label={m.stats_scope_label()}>
+						<button
+							type="button"
+							aria-pressed={scope === 'global'}
+							onclick={() => chooseScope('global')}>{m.stats_scope_global()}</button
+						>
+						<button
+							type="button"
+							aria-pressed={scope === 'mine'}
+							onclick={() => chooseScope('mine')}>{m.stats_scope_mine()}</button
+						>
+					</div>
+				{/if}
+				<span class="read-at mono" role="status">
+					{#if loading}{m.stats_reading()}{:else if readAt}{m.stats_read_at({
+							time: readAt
+						})}{/if}
+				</span>
+				<button type="button" class="btn small" disabled={loading} onclick={refresh}>
+					{m.stats_refresh()}
+				</button>
+			</div>
 		</div>
 
-		{#if !isAdmin}
-			<AdminOnlyNotice page="stats" />
-		{:else}
-			<p class="form-error" role="alert">
-				{#if error}{m.stats_read_failed({ error })}{/if}
-			</p>
+		<p class="form-error" role="alert">
+			{#if error}{m.stats_read_failed({ error })}{/if}
+		</p>
 
+		{#if scope === 'mine'}
+			<div class="layout" class:stale={loading && mine !== null}>
+				<section class="panel now" aria-labelledby="library-heading">
+					<h2 id="library-heading" class="label">{m.stats_mine_library_heading()}</h2>
+					{#if mine === null}
+						<p class="quiet">{loading ? m.stats_reading_status() : m.stats_nothing_read()}</p>
+					{:else}
+						<dl class="readout">
+							<div class="reading">
+								<dt>{m.stats_mine_library_files()}</dt>
+								<dd class="mono">{formatNumber(mine.library.files)}</dd>
+							</div>
+							<div class="reading">
+								<dt>{m.stats_mine_library_size()}</dt>
+								<dd class="mono">{formatBytes(mine.library.bytes)}</dd>
+							</div>
+						</dl>
+						<p class="note">{m.stats_mine_library_note()}</p>
+						{#if mine.library.unreadable > 0}
+							<p class="note">
+								{m.stats_mine_library_unreadable(counted(mine.library.unreadable))}
+							</p>
+						{/if}
+					{/if}
+				</section>
+
+				<section class="panel window" aria-labelledby="window-heading" aria-busy={loading}>
+					<header class="window-head">
+						<h2 id="window-heading" class="label">{windowHeading(shownWindow)}</h2>
+						<div class="choice-group values" role="group" aria-label={m.stats_window_label()}>
+							{#each WINDOWS as option (option)}
+								<button
+									type="button"
+									aria-pressed={selected === option}
+									onclick={() => choose(option)}>{windowName(option)}</button
+								>
+							{/each}
+						</div>
+					</header>
+
+					{#if mine === null}
+						<p class="quiet">{loading ? m.stats_reading_status() : m.stats_nothing_read()}</p>
+					{:else}
+						<section class="block" aria-labelledby="tracks-heading">
+							<div class="block-head">
+								<h3 id="tracks-heading" class="block-title">{m.stats_mine_tracks_heading()}</h3>
+								{#if mine.attempts.attempts > 0}
+									<p class="legend" aria-hidden="true">
+										<span class="swatch completed"></span>{m.stats_legend_completed()}
+										<span class="swatch failed"></span>{m.stats_legend_failed()}
+										<span class="swatch not-found"></span>{m.stats_legend_not_found()}
+									</p>
+								{/if}
+							</div>
+							{#if mine.attempts.attempts > 0}
+								<div class="tally">
+									<OutcomeBar counts={mine.attempts} />
+									<p class="tally-line">
+										<span class="counts mono">
+											{keepReadings(
+												m.stats_outcome_counts({
+													completed: formatNumber(mine.attempts.completed),
+													failed: formatNumber(mine.attempts.failed),
+													not_found: formatNumber(mine.attempts.not_found)
+												})
+											)}
+										</span>
+										<span class="tally-rate"
+											>{m.stats_col_success()}
+											<span class="mono rate">{formatRate(mine.attempts.success_rate)}</span></span
+										>
+									</p>
+								</div>
+								<p class="quiet">{m.stats_rate_definition()}</p>
+							{:else}
+								<p class="quiet">{m.stats_mine_no_attempts()}</p>
+							{/if}
+							<CompletedColumns stats={mine} />
+						</section>
+
+						<section class="block" aria-labelledby="time-heading">
+							<div class="block-head">
+								<h3 id="time-heading" class="block-title">{m.stats_mine_time_heading()}</h3>
+							</div>
+							{#if mine.time_to_complete.median_seconds !== null}
+								<dl class="readout inline">
+									<div class="reading">
+										<dt>{m.stats_mine_median()}</dt>
+										<dd class="mono">{formatSpan(mine.time_to_complete.median_seconds)}</dd>
+									</div>
+								</dl>
+								<p class="quiet">
+									{m.stats_mine_median_note(counted(mine.time_to_complete.tracks))}
+								</p>
+							{:else}
+								<p class="quiet">{m.stats_mine_no_completed()}</p>
+							{/if}
+						</section>
+
+						<section class="block" aria-labelledby="jobs-heading">
+							<div class="block-head">
+								<h3 id="jobs-heading" class="block-title">{m.stats_mine_jobs_heading()}</h3>
+							</div>
+							{#if mine.jobs.total === 0}
+								<p class="quiet">{m.stats_mine_no_jobs()}</p>
+							{:else}
+								<dl class="readout inline">
+									{#each jobRows as row (row.token)}
+										<div class="reading">
+											<dt>{jobStatusLabel(row.token)}</dt>
+											<dd class="mono">{formatNumber(row.value)}</dd>
+										</div>
+									{/each}
+								</dl>
+								<p class="quiet">{m.stats_mine_jobs_note(counted(mine.jobs.total))}</p>
+							{/if}
+						</section>
+
+						<section class="block" aria-labelledby="failures-heading">
+							<div class="block-head">
+								<h3 id="failures-heading" class="block-title">
+									{m.stats_failures_by_type_heading()}
+								</h3>
+							</div>
+							<FailureChannels stats={mine} />
+						</section>
+					{/if}
+				</section>
+			</div>
+		{:else}
 			<div class="layout" class:stale={loading && stats !== null}>
 				<section class="panel now" aria-labelledby="now-heading">
 					<h2 id="now-heading" class="label">{m.stats_now_heading()}</h2>
@@ -433,6 +621,8 @@
 
 	.read {
 		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
 		align-items: center;
 		gap: var(--space-3);
 	}
@@ -517,6 +707,57 @@
 		font-size: var(--fs-lead);
 		font-weight: var(--fw-medium);
 		color: var(--text-primary);
+	}
+
+	/* v66: readings side by side in the window plate (the median, the jobs by state): the
+	   label over its value, the plate's rules left to the blocks. */
+	.readout.inline {
+		flex-direction: row;
+		flex-wrap: wrap;
+		gap: var(--space-3) var(--space-6);
+		margin: 0;
+	}
+
+	/* Specific enough to win over the tablet rule that spreads the "Right now" readings. */
+	.readout.inline .reading {
+		flex: none;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--space-1);
+		padding: 0;
+		border-bottom: none;
+	}
+
+	.readout.inline dd {
+		margin: 0;
+	}
+
+	/* v66: a user's attempts: the part-to-whole bar, then its counts and the success rate. */
+	.tally {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	.tally :global(.bar) {
+		width: 100%;
+	}
+
+	.tally-line {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		align-items: baseline;
+		gap: var(--space-2) var(--space-4);
+	}
+
+	.tally-line .counts {
+		margin-top: 0;
+	}
+
+	.tally-rate {
+		font-size: var(--fs-detail);
+		color: var(--text-muted);
 	}
 
 	.state {
