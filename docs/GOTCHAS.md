@@ -736,6 +736,15 @@ needed" claim — rather than silently deleted.
   the dev-only Vite fallback middleware that impersonates it locally) needs the second root added
   too, or a moved file silently 404s in exactly one of those environments while working in the
   others → *v28*
+- Since v64 `api` mounts the downloads and library volumes **read-only** (base, dev override and
+  prod overlay): the job zip is streamed by `api` itself, not nginx. Single-track downloads still
+  go through `X-Accel-Redirect`, and their path check stays lexical (`follow_symlinks=False`):
+  with the mounts, `.resolve()` would now follow a real symlink and refuse one nginx used to
+  serve (review round 2). The zip is STORED with `Content-Length` known up front; nginx's
+  `/api/` already had `proxy_buffering off`, so no location was added → *v64*
+- An endpoint that streams for hours ends its transaction with `db.commit()` before returning the
+  response (the connection goes back to the pool); `db.close()` on the request's session detaches
+  every object the test's shared `db_session` holds → *v64*
 
 **Frontend (SvelteKit)**
 - SvelteKit's `replaceState` leaves `page.url` at the last navigation and records that stale URL
@@ -1196,6 +1205,17 @@ needed" claim — rather than silently deleted.
   loopback included → *v51*
 - Running Alembic from a test with an ini file runs `fileConfig()`, which disables every logger
   the app already made (and every `caplog` assertion with it) → *v51*
+- A dev-web page whose route modules fail to load shows SvelteKit's "500 Internal Error"
+  ("Failed to fetch dynamically imported module"), failing whatever spec was on it: three single
+  failures in v64's e2e runs (mobile `/account` twice, a desktop dashboard once). Every failed
+  fetch in those traces was Chromium's `net::ERR_NETWORK_CHANGED`, which aborts in-flight
+  requests when the host's network changes; no Docker network event lined up with the last one,
+  so the trigger is unknown. Editing `frontend/` mid-run makes Vite reload pages too, so don't.
+  Re-run the failed spec, and read its trace's console before calling it a flake → *v64*
+- A browser's download progress can't be seen on localhost (1.2 GB lands in seconds) and CDP's
+  `Network.emulateNetworkConditions` doesn't throttle downloads: put a rate-limited TCP relay in
+  front of the server instead. Playwright saves a download under a GUID, so `chrome://downloads`
+  shows that name; the real one is `download.suggestedFilename()` → *v64*
 
 **CI**
 - The `pytest` job's Postgres is a service container the runner pulls with the shared
@@ -7403,4 +7423,146 @@ independently-found production bug from the same conversation)
 - **F6 and the session.** Navigations that leave because the session ended or changed (a 401,
   another tab's sign-out or sign-in) set `leavingSession()`, which the unsaved-edits guard lets
   through without asking.
+
+### v64 job-export gotchas (learned building the streamed zip and the M3U)
+
+- **`api` couldn't read a single file.** Until v64 only nginx served audio (`X-Accel-Redirect`,
+  v27), so `api` had no volume mounts; a zip built by `api` (needed for a known `Content-Length`,
+  `MISSING.txt` from a real existence check and the zip's own layout) can't exist without them.
+  The owner approved read-only mounts in all three compose files (2026-10-30). `DOWNLOADS_DIR` and
+  `LIBRARY_DIR` were already required in production, so no new variable.
+- **The plan's nginx change was already there.** `location /api/` has had `proxy_buffering off`
+  since v12 (for SSE), and the export also sends `X-Accel-Buffering: no`. Verified against the
+  nginx build (`docker build frontend`, run on the slot's network): a 1.2 GB zip streamed with
+  `Content-Length: 1258291999`, `api` at 235 → 241 MiB throughout, and `pg_stat_activity` showing
+  only `idle` pool connections (no `idle in transaction`) during the stream.
+- **One expansion's tracks share a `created_at`.** `expand_job` inserts them in one transaction,
+  and `now()` is the transaction's start, so a playlist in `created_at` order is random among ties.
+  The export orders by `created_at`, then the song's `list_position`, `disc_number` and
+  `track_number`. *(2026-10-30, review round 2: spotdl sets `list_position` only for playlists,
+  so an artist job's albums interleaved; the key is now `created_at`, `list_position`, the album's
+  `date` and `album_id`, then disc and track number: album by album, oldest first.)*
+- **Membership is completed/skipped_duplicate *and* a file at its recorded path.** A track in any
+  other state goes to `MISSING.txt` with its state, so the UI's "N of M files" (from
+  `track_counts`, no request per row) and the zip agree unless a file vanished from disk, which
+  `MISSING.txt` then names ("file not found at its recorded path").
+  *(2026-10-30, live review round 2: the plan shows the strip "only when ≥1 track has a file",
+  and a deleted file still counted. The strip's count is now the zip's own: `X-Export-Files` /
+  `X-Export-Tracks` on the export's HEAD, read once when a job is opened and again when its
+  settled count moves. One request per opening, never one per row.)*
+- **Zip entry names are hostile input.** A basename can carry `\` (a separator to Windows
+  extractors, so `..\..\x` would escape the folder), `:` and the rest of Windows' refused set:
+  they become `_`. Duplicates are compared case-insensitively (an archive extracted on Windows or
+  macOS folds case), and the playlist's and `MISSING.txt`'s names are reserved before any track.
+- **A name is cut in UTF-8 bytes, from the stem** (review round 1). Cutting at 150 characters took
+  the extension with it (`…(Remastered 2015).op`), and filesystems limit a name to 255 *bytes*:
+  a Hungarian name's accented letters are two each, so a cut name plus ` (2)` could overflow on
+  extraction. The cut is 200 bytes, taken from the stem; an "extension" is a short dot-suffix
+  without spaces, so "No. 3" in a title isn't one.
+- **An M3U line starting with `#` is a comment.** A track file named `#1 Crush.opus` would drop
+  out of the playlist while staying in the zip, so such an entry is written `./#1 Crush.opus`.
+- **`?paths=library` paths are the container's.** The library is mounted at the same path in
+  every container (`/mnt/raid1/media/music`), so those are real for a media server only where
+  `LIBRARY_DIR` is that path on the host too (production). A file still on the downloads volume
+  (`/downloads/...`, meaningless on the host) is a `# not in the library yet:` comment line.
+- **A library sweep during a long export: found again through the ledger** (owner's decision,
+  2026-10-30). The plan stats each file once (the `Content-Length` is fixed), but a file is opened
+  only when the stream reaches it, and a sweep may have moved it by then. The sweep commits the
+  ledger's new path *before* it unlinks the source (`tasks/library.py`), so a miss re-reads that
+  row once (its own short session, ended at once) and streams the file from the library if it's
+  the size the plan counted; otherwise the stream ends (`ExportFileChanged`). Opening every file
+  up front was the alternative, but the `api` container's soft open-file limit is 1024, below the
+  2000-file default. One case still ends the stream: a target that already existed (the sweep's
+  "already exists" is folder and filename only, any bitrate) with another size than the plan
+  counted; a retry then exports it from its new place. Proven live: a sweep moved 13 files mid-stream, 7 were read from their new
+  path, and every entry matched byte for byte. The server runs ahead of a slow client by the
+  socket and nginx buffers, so the files already read never needed it.
+- **Entries are added as sized iterables, not paths,** so the miss can be handled; the entry's
+  timestamp in the archive is then the export's, not the file's.
+- **`zipstream-ng`'s `add()` entries carry no file-type bits** (`zipinfo` lists the `.m3u8` as
+  `?rw-------`); every extractor tried (Info-ZIP, Python) writes a normal file. Harmless.
+  *(2026-10-30, review round 2: not harmless. Info-ZIP restores the mode, `0600`, so a media
+  server reading the extracted folder as another user can't open the files; and since round 1
+  every entry is an `add()`. `_ExportZip` sets `0644` on every file entry in the central
+  directory, which is written last, just before it goes out.)*
+- **An aborted download must close its iterator** (live review round 2). Starlette iterates a
+  sync iterator in its threadpool and, on a disconnect, just drops it: the generator, and the file
+  it was reading, stayed open until the cyclic garbage collector ran (30 aborts, 30 open files
+  after 50 s). The response now wraps it in an async generator whose `finally` closes it, and
+  `iter_chunks` closes the archive's own generator. Proven: 0 files open 3 s after 10 aborts.
+  *(Review round 3: under ASGI spec ≥ 2.4 a disconnect surfaces as an `OSError` from `send()`
+  (Starlette re-raises it as `ClientDisconnect`) and Starlette never calls `aclose()` on the
+  body, so that `finally` still waited for the async generator's finalizer. The response
+  (`_ClosingStreamingResponse`) now closes its body itself; a plain `StreamingResponse` in the
+  same disconnect leaves the file open, which the test now checks.)*
+- **zipstream-ng 1.9.3 counts a 65,535-entry archive's length without the zip64 end records**
+  it then writes (`__len__` tests `>` the limit, the footer `>=`), so its Content-Length would be
+  76 bytes short. The files limit is capped at 65,000 (env and settings). Above 4 GiB the count
+  holds: a sparse 4.5 GiB test streams exactly the declared length.
+- **A file can move between the plan's read and its stat too.** The rows are read, the
+  transaction ends, then each file is stat'ed: a sweep in between left a moved file in
+  `MISSING.txt`. The misses get one batched ledger re-read after the stats (one query, its own
+  short session), as the stream does for a file that moves later.
+  What's left is the allocator: the worker's VmRSS rises with many *concurrent* aborted streams
+  (242 → 466 MB over 110, about 0.5 MB each and slowing), while tracemalloc shows 0 KiB net
+  Python allocation over 100 aborted streams of our own code, and a single stream stays flat.
+  *(Live review round 5, 25 at a time: 278 → 576 MB for the first 25, then 589, 662, 680 MB,
+  never given back. Several MB per concurrent aborted stream, far more than one at a time; the
+  production limit is 768M. Not reproduced as a Python-level leak; `MALLOC_ARENA_MAX` would be
+  the env/compose dial.)*
+- **nginx's `send_timeout` (60 s) cut off a paused download.** `location /api/` only raised
+  `proxy_read_timeout`/`proxy_send_timeout`, which time the upstream side. It's 3600 s now; a
+  reader paused 75 s gets the whole 1.2 GB. There's no `Range` support, so a download can't
+  be resumed.
+- **Measure a stream's memory as the worker's VmRSS, not `docker stats`.** `docker stats`
+  counts the page cache the stream reads through (516 → 965 MiB while VmRSS stayed at 255 MB).
+- **An ending stream logs a traceback.** A file that can't be streamed as planned raises
+  `ExportFileChanged` mid-response, and uvicorn logs the "Exception in ASGI application" with its
+  traceback. Expected; there's no quieter way to end a response with a declared length.
+- **An unreadable file is missing, not present** (live review round 4). `stat()` succeeds on a
+  `chmod 000` file, so it was counted, the probe passed, and every download then broke at that
+  file (`PermissionError` in the stream; retrying never helped). The plan checks `os.access(R_OK)`
+  and lists it in `MISSING.txt` ("file can't be read (permissions)"); one that turns unreadable
+  mid-stream ends the stream like a vanished file.
+- **The strip follows the download's own probe.** Its count is read when the job opens and when
+  the settled count moves, so a file renamed on disk while the job is open kept being counted;
+  the probe's `X-Export-*` headers now refresh it (a job with no file left hides the strip).
+- **An effect that reads `job.id` depends on the whole `job` prop.** The queue store replaces a
+  row's object on every SSE event, so the strip re-read on each one (2 HEADs per event); a
+  `$derived(job.id)` re-runs only when the id changes. And a read queued behind one in flight
+  must run even if the row was closed and opened in between, or the reopened row stays empty.
+- **`Path.resolve()` raises `RuntimeError` on a symlink loop** in Python 3.12, `strict=False`
+  included (live review round 5): one track whose recorded path looped made the whole job's
+  export, HEAD and playlist answer 500. The export's two resolve sites catch it, and the track
+  is listed ("recorded path can't be resolved"). A file in an unreadable folder fails `stat()`
+  with `PermissionError` and is listed with the permissions reason.
+- **A name that isn't UTF-8 reaches Python with surrogate escapes** (live review round 6): a
+  symlink to `bad\xff\xfename.opus` made `safe_name`'s byte count raise `UnicodeEncodeError` and
+  the whole job's export answer 500. Names now go through `surrogateescape` → UTF-8 `replace`
+  (each bad byte is U+FFFD), and an absolute playlist path that can't be encoded is a comment.
+  Postgres `text` can't store such a path, so it only ever arrives through a link or a folder.
+- **A `?paths=` value other than `library` answered 422 naming `library`,** which told a non-admin
+  the admin-only variant exists; any other value is now the same bare 404.
+- **Open the streamed file non-blocking, without following, and check it's the planned one**
+  (live review round 7). A FIFO swapped in for a planned file blocked `open()` in an
+  uncancellable threadpool read, and 40 such downloads stalled every sync endpoint; a symlink
+  swapped in streamed a file from outside the roots (the guard ran only at plan time).
+  `_open_regular` opens with `O_NONBLOCK | O_NOFOLLOW`, requires `S_ISREG` on `fstat`, and
+  compares `(st_dev, st_ino)` with the plan's stat, which catches a folder swapped for a link
+  out. It can't catch a same-size file written over a freed inode in place (tmpfs hands the
+  number straight back), but that file is inside a root anyway.
+  *(Live review round 8: not enough. A folder swapped between the plan's resolve and its stat
+  put the outside file's identity into the plan, and the ledger re-read had no identity at all;
+  85 of 638 exports under a `renameat2` swap loop streamed the container's `/etc/hostname`.
+  The opened file's own path, `/proc/self/fd/N`, is now checked against the roots after every
+  open: 0 of the same loop's 5.7 million swaps leaked. Any other state at the planned path also
+  consults the ledger once before ending the stream.)*
+- **Every value the export reads from `song_json` or the title is coerced.** A non-string
+  `list_name` (the job title), a non-object `song_json` and a `duration` too big for a float
+  (`math.isfinite(10**400)` raises `OverflowError`) each made the whole job's export answer 500.
+  *(Live review round 8: a non-object `song_json` on the job's **first** track still fails it,
+  in `rollup.derive_job_title`, which `GET /api/jobs/{id}` shares: pre-existing, outside v64.)*
+  The ledger re-read is chunked (10,000 ids per query): Postgres takes at most 65,535 bound
+  parameters in one statement.
+  Bidi controls (U+202E) are stripped from entry names.
 

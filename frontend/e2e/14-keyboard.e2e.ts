@@ -191,6 +191,28 @@ test.describe('as the admin', () => {
 				exact: true
 			})
 		).toBeFocused();
+		// v64: an open job with files starts with its export strip, both actions reachable. The
+		// strip comes with its own HEAD, apart from the track list: wait for it before Tab.
+		await expect(
+			jobRow(page, admin.title).getByRole('button', {
+				name: t(m.job_export_zip_label, { title: admin.title }),
+				exact: true
+			})
+		).toBeVisible();
+		await page.keyboard.press('Tab');
+		await expect(
+			jobRow(page, admin.title).getByRole('button', {
+				name: t(m.job_export_zip_label, { title: admin.title }),
+				exact: true
+			})
+		).toBeFocused();
+		await page.keyboard.press('Tab');
+		await expect(
+			jobRow(page, admin.title).getByRole('button', {
+				name: t(m.job_export_playlist_label, { title: admin.title }),
+				exact: true
+			})
+		).toBeFocused();
 		await page.keyboard.press('Tab');
 		await expectFocusInList(page, `job-tracks:${admin.jobId}`);
 		await page.keyboard.press('Tab');

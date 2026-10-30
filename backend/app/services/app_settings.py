@@ -137,3 +137,31 @@ def update_alert_settings(db: Session, **fields: object) -> AppSettings:
         if value is not None:
             setattr(row, key, value)
     return row
+
+
+# v64: the job export's limits (app/services/export.py). Both nullable: NULL means the env
+# default (EXPORT_MAX_FILES/EXPORT_MAX_GB), and an admin's explicit null clears an override.
+EXPORT_SETTING_FIELDS = ("export_max_files", "export_max_gb")
+
+
+def get_export_settings(db: Session) -> AppSettings:
+    return _get_or_create_settings_row(db)
+
+
+def export_limits(db: Session) -> tuple[int, int]:
+    """The limits in force: (most files, most bytes) one export may hold."""
+    row = _get_or_create_settings_row(db)
+    env = get_settings()
+    max_files = row.export_max_files if row.export_max_files is not None else env.export_max_files
+    max_gb = row.export_max_gb if row.export_max_gb is not None else env.export_max_gb
+    # GB as the settings page and the env say it: 10^9 bytes.
+    return max_files, max_gb * 1000**3
+
+
+def update_export_settings(db: Session, **fields: int | None) -> AppSettings:
+    row = _get_or_create_settings_row(db)
+    for key, value in fields.items():
+        if key not in EXPORT_SETTING_FIELDS:
+            raise ValueError(f"not an export setting: {key}")
+        setattr(row, key, value)
+    return row

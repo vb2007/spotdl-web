@@ -19,7 +19,9 @@ const FIELD_LABEL: Record<string, () => string> = {
 	alert_spike_window_minutes: m.settings_alert_spike_window,
 	alert_beat_stale_seconds: m.settings_alert_beat_stale_after,
 	alert_worker_down_minutes: m.settings_alert_worker_down_after,
-	alert_cooldown_minutes: m.settings_alert_cooldown
+	alert_cooldown_minutes: m.settings_alert_cooldown,
+	export_max_files: m.settings_export_max_files,
+	export_max_gb: m.settings_export_max_gb
 };
 
 const field = (params: Params) => {
@@ -81,6 +83,7 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	file_not_found: () => m.error_file_not_found(),
 	download_failed: (p) => m.error_download_failed({ status: String(p.status ?? '') }),
 	file_empty: () => m.error_file_empty(),
+	export_too_large: () => m.error_export_too_large(),
 	proxy_target_exists: (p) =>
 		p.source === 'file'
 			? m.error_proxy_target_exists_file({ target: String(p.target) })

@@ -1,6 +1,6 @@
 [project]
 name = "spotdl-web-backend"
-version = "5.62.0"
+version = "5.64.0"
 description = "Self-hosted spotdl web wrapper — API, Celery workers, and Alembic migrations"
 requires-python = ">=3.12,<3.13"
 dependencies = [
@@ -17,6 +17,9 @@ dependencies = [
     "spotdl==4.5.2",
     "python-json-logger>=3.0",
     "mutagen>=1.48",
+    # v64: the job zip export (app/services/export.py) streams a STORED archive with a size
+    # known up front. Pinned, as everything but yt-dlp is.
+    "zipstream-ng==1.9.3",
 ]
 
 [project.optional-dependencies]

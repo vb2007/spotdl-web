@@ -122,12 +122,51 @@
 	let outputError = $state('');
 	let outputTemplateError = $state('');
 
-	const outputDirty = $derived(
+	// v64: the job export's limits, saved with the output panel. `null` (an empty field) is
+	// the server's default, shown as the placeholder.
+	let exportSettings = $state<api.ExportSettings | null>(null);
+	let exportForm = $state<api.EditableExportSettings>({
+		export_max_files: null,
+		export_max_gb: null
+	});
+	let exportFieldErrors = $state<Partial<Record<keyof api.EditableExportSettings, string>>>({});
+	const EXPORT_FIELDS = [
+		{
+			key: 'export_max_files',
+			label: m.settings_export_max_files,
+			unit: m.settings_export_max_files_unit,
+			placeholder: (s: api.ExportSettings) => s.default_max_files,
+			min: 1,
+			max: 65_000
+		},
+		{
+			key: 'export_max_gb',
+			label: m.settings_export_max_gb,
+			unit: m.settings_export_max_gb_unit,
+			placeholder: (s: api.ExportSettings) => s.default_max_gb,
+			min: 1,
+			max: 10_000
+		}
+	] as const;
+	// An emptied number field reads as null, or as '' on some engines: both mean the default.
+	const exportValue = (v: number | null | string) => (v === '' || v === null ? null : Number(v));
+	const exportDirty = $derived(
+		exportSettings !== null &&
+			EXPORT_FIELDS.some(
+				({ key }) => exportValue(exportForm[key]) !== (exportSettings as api.ExportSettings)[key]
+			)
+	);
+
+	const outputFieldsDirty = $derived(
 		outputSettings !== null &&
 			(outputForm.default_format !== outputSettings.default_format ||
 				outputForm.default_bitrate !== outputSettings.default_bitrate ||
 				outputForm.output_template !== outputSettings.output_template)
 	);
+	const outputDirty = $derived(outputFieldsDirty || exportDirty);
+	// v64: the export limits load on their own, so a failed read of them leaves the output half
+	// usable (the reverse isn't so: the block sits inside the output form).
+	let exportLoadError = $state('');
 
 	function syncOutputForm(settings: api.OutputSettings) {
 		outputForm = {
@@ -171,11 +210,27 @@
 	}
 
 	async function loadOutputSettings() {
+		exportLoadError = '';
+		const exportRead = api.getExportSettings().then(
+			(settings) => {
+				exportSettings = settings;
+				syncExportForm(settings);
+			},
+			(err) => (exportLoadError = errorText(err))
+		);
 		[outputSettings, outputOptions] = await Promise.all([
 			api.getOutputSettings(),
 			api.getOutputOptions()
 		]);
 		syncOutputForm(outputSettings);
+		await exportRead;
+	}
+
+	function syncExportForm(settings: api.ExportSettings) {
+		exportForm = {
+			export_max_files: settings.export_max_files,
+			export_max_gb: settings.export_max_gb
+		};
 	}
 
 	async function onOutputSubmit(event: SubmitEvent) {
@@ -185,15 +240,64 @@
 			? ''
 			: m.settings_output_template_required({ example: TEMPLATE_EXAMPLE });
 		if (outputTemplateError) return focusInvalid('output-template');
+		// v64: the export limits' range, checked here as the server does, under the field.
+		const exportErrors: Partial<Record<keyof api.EditableExportSettings, string>> = {};
+		for (const { key, label, min, max } of EXPORT_FIELDS) {
+			const value = exportValue(exportForm[key]);
+			// An unparsable entry (Firefox takes letters in a number field) binds as null too, which
+			// would save as "the default": it's refused like any other value out of range.
+			const input = document.getElementById(key);
+			const unparsable = input instanceof HTMLInputElement && input.validity.badInput;
+			if (
+				unparsable ||
+				(value !== null && !(Number.isInteger(value) && value >= min && value <= max))
+			)
+				exportErrors[key] = m.error_setting_out_of_range({
+					field: label(),
+					min: formatNumber(min),
+					max: formatNumber(max)
+				});
+		}
+		exportFieldErrors = exportErrors;
+		if (Object.keys(exportErrors).length > 0) return focusInvalid(Object.keys(exportErrors)[0]);
 		const from = focused();
 		outputSaving = true;
 		outputError = '';
 		try {
-			outputSettings = await api.updateOutputSettings(outputForm);
-			syncOutputForm(outputSettings);
-			outputSavedAt = new Date();
-		} catch (err) {
-			outputError = errorText(err);
+			// v64: each half is saved only when it changed, and on its own: the server refusing
+			// one half doesn't stop the other's save. (The page's own checks above still stop the
+			// whole form, as on any panel with one save button.)
+			const [outputResult, exportResult] = await Promise.allSettled([
+				outputFieldsDirty ? api.updateOutputSettings(outputForm) : Promise.resolve(null),
+				exportDirty
+					? api.updateExportSettings({
+							export_max_files: exportValue(exportForm.export_max_files),
+							export_max_gb: exportValue(exportForm.export_max_gb)
+						})
+					: Promise.resolve(null)
+			]);
+			if (outputResult.status === 'fulfilled' && outputResult.value !== null) {
+				outputSettings = outputResult.value;
+				syncOutputForm(outputSettings);
+			}
+			if (exportResult.status === 'fulfilled' && exportResult.value !== null) {
+				exportSettings = exportResult.value;
+				syncExportForm(exportSettings);
+			}
+			const outputFailed = outputResult.status === 'rejected' ? outputResult.reason : null;
+			const exportFailed = exportResult.status === 'rejected' ? exportResult.reason : null;
+			if (outputFailed === null && exportFailed === null) outputSavedAt = new Date();
+			if (outputFailed !== null) outputError = errorText(outputFailed);
+			if (exportFailed !== null) {
+				// A limit the server refuses goes under its own field, as the page's own check does.
+				const field = exportFailed instanceof api.ApiError ? exportFailed.params.field : undefined;
+				if (typeof field === 'string' && field in exportForm) {
+					exportFieldErrors = { [field]: errorText(exportFailed) };
+					outputSaving = false;
+					return focusInvalid(field);
+				}
+				outputError = outputError || errorText(exportFailed);
+			}
 		} finally {
 			outputSaving = false;
 		}
@@ -784,6 +888,60 @@
 									{outputTemplateError}
 								</p>
 							</div>
+
+							<!-- v64: the job export's limits. -->
+							{#if exportSettings !== null}
+								{@const defaults = exportSettings}
+								<fieldset class="group wide">
+									<legend class="group-title">{m.settings_export_limits()}</legend>
+									<p class="field-hint" id="export-hint">
+										{m.settings_export_hint({
+											files: formatNumber(defaults.default_max_files),
+											gb: formatNumber(defaults.default_max_gb)
+										})}
+									</p>
+									<div class="grid">
+										{#each EXPORT_FIELDS as field (field.key)}
+											<div class="form-field">
+												<label class="label" for={field.key}>{field.label()}</label>
+												<div class="with-unit">
+													<input
+														id={field.key}
+														class="well"
+														type="number"
+														inputmode="numeric"
+														min={field.min}
+														max={field.max}
+														step="1"
+														placeholder={formatNumber(field.placeholder(defaults))}
+														bind:value={exportForm[field.key]}
+														oninput={() => {
+															// The error goes once the field is edited, not only on the next save.
+															if (exportFieldErrors[field.key])
+																exportFieldErrors = {
+																	...exportFieldErrors,
+																	[field.key]: undefined
+																};
+														}}
+														disabled={outputSaving}
+														aria-invalid={exportFieldErrors[field.key] ? 'true' : undefined}
+														aria-describedby="{field.key}-unit export-hint {field.key}-error"
+													/>
+													<span class="unit" id="{field.key}-unit">{field.unit()}</span>
+												</div>
+												<p id="{field.key}-error" class="field-error">
+													{exportFieldErrors[field.key] ?? ''}
+												</p>
+											</div>
+										{/each}
+									</div>
+								</fieldset>
+							{:else if exportLoadError}
+								<p class="field-error wide" role="alert">
+									{m.settings_section_load_failed({ error: exportLoadError })}
+								</p>
+							{/if}
+							<!-- end v64 -->
 
 							<div class="save-row wide">
 								<button type="submit" class="btn" disabled={outputSaving || outputSettings === null}

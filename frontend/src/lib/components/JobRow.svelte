@@ -233,9 +233,111 @@
 		}
 	}
 
+	// --- v64: export ------------------------------------------------------------------
+	// How many of the job's tracks have a file on disk: the export's own count, read from its
+	// HEAD once the job is opened (one request per opening, never one per row), and read
+	// again whenever the job's settled tracks change while it's open. A file deleted from disk
+	// isn't counted, so a job with none left shows no strip.
+	let settledTracks = $derived(
+		(job.track_counts.completed ?? 0) + (job.track_counts.skipped_duplicate ?? 0)
+	);
+	let exportCounts = $state<{ files: number; tracks: number } | null>(null);
+	let exportFiles = $derived(exportCounts?.files ?? 0);
+	// One read at a time: a burst of settles (dedup resolving a whole album) asks for one
+	// more read after the one in flight, not one per settle. A closed row (or a new identity)
+	// drops whatever answer is still on its way.
+	// The id alone: a dependency on `job` itself would re-read on every row refresh (each SSE
+	// event replaces the row's object), not only when the settled count moves.
+	let jobId = $derived(job.id);
+	let exportRead = 0;
+	let exportInFlight = false;
+	let exportAgain = false;
+	function readExportCounts() {
+		if (exportInFlight) {
+			exportAgain = true;
+			return;
+		}
+		const read = ++exportRead;
+		const session = queue.getResetCount();
+		exportInFlight = true;
+		api
+			.getJobExportCounts(jobId)
+			.then((counts) => {
+				if (read === exportRead && queue.getResetCount() === session) exportCounts = counts;
+			})
+			.catch(() => {
+				if (read === exportRead && queue.getResetCount() === session) exportCounts = null;
+			})
+			.finally(() => {
+				exportInFlight = false;
+				// Asked for meanwhile (a settle, or the row closed and opened again): the new read
+				// takes its own generation, so this one's answer, already dropped, can't land.
+				if (exportAgain) {
+					exportAgain = false;
+					readExportCounts();
+				}
+			});
+	}
+	$effect(() => {
+		// Read on opening and on every change of the settled count; nothing while closed.
+		if (!isOpen || settledTracks === 0) {
+			exportRead++;
+			exportAgain = false;
+			exportCounts = null;
+			return;
+		}
+		readExportCounts();
+	});
+	let exportProbing = $state<'zip' | 'playlist' | null>(null);
+
+	// v35 (e)'s technique: probe first (a 404, or the zip's 413 over the export limits, shows
+	// in the row's notice), then hand the URL to a real browser download, so a multi-gigabyte
+	// zip streams straight to disk with the browser's own progress, never through tab memory.
+	async function handleExport(kind: 'zip' | 'playlist') {
+		if (exportProbing !== null) return;
+		const url = kind === 'zip' ? api.jobExportUrl(job.id) : api.jobPlaylistUrl(job.id);
+		const session = queue.getResetCount();
+		const generation = exportRead;
+		exportProbing = kind;
+		try {
+			const counts = await api.checkJobExport(url);
+			if (counts !== null && queue.getResetCount() === session) {
+				// The strip follows the probe, so a file gone from disk since the job opened stops
+				// being counted, unless a read that started after it has answered meanwhile.
+				if (exportRead === generation) {
+					exportRead++;
+					exportCounts = counts;
+				}
+				if (counts.files === 0) {
+					// Nothing left to zip: the strip (and the button that had focus) goes, so the
+					// row says why and keeps focus.
+					showNotice(m.job_notice_export_nothing(), true);
+					toggleButton?.focus();
+					return;
+				}
+			}
+		} catch (err) {
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.job_notice_export_failed), true);
+			return;
+		} finally {
+			exportProbing = null;
+		}
+		if (queue.getResetCount() !== session) return;
+		const anchor = document.createElement('a');
+		anchor.href = url;
+		anchor.download = '';
+		document.body.appendChild(anchor);
+		anchor.click();
+		anchor.remove();
+	}
+	// --- end v64 ----------------------------------------------------------------------
+
 	// v45: the row's keys (registry's `x`, `a`, `b`, `Shift+B`/`+`, `-`), each only where its
 	// button is offered, so a key never does what the row doesn't show.
 	const keys = kbRow({
+		// v64: `d`, the zip, offered only on an open job with files (the export strip).
+		download: () => isOpen && exportFiles > 0 && (handleExport('zip'), true),
 		cancel: () => showInFlight && (handleCancel(), true),
 		archive: () =>
 			showArchive ? (handleArchive(), true) : job.archived_at !== null && (handleUnarchive(), true),
@@ -377,6 +479,40 @@
 	</p>
 
 	{#if isOpen}
+		<!-- v64: export. Shown once a file of the job is on disk (see exportCounts). -->
+		{#if exportFiles > 0}
+			<div class="export" role="group" aria-label={m.job_export_label({ title: job.title })}>
+				<span class="export-count mono"
+					>{m.job_export_files({
+						count: formatNumber(exportFiles),
+						total: formatNumber(exportCounts?.tracks ?? totalTracks)
+					})}</span
+				>
+				<button
+					type="button"
+					class="action"
+					aria-label={exportProbing === 'zip'
+						? m.job_export_preparing()
+						: m.job_export_zip_label({ title: job.title })}
+					aria-busy={exportProbing === 'zip'}
+					onclick={() => handleExport('zip')}
+					>{exportProbing === 'zip' ? m.job_export_preparing() : m.job_export_zip()}</button
+				>
+				<button
+					type="button"
+					class="action"
+					aria-label={exportProbing === 'playlist'
+						? m.job_export_preparing()
+						: m.job_export_playlist_label({ title: job.title })}
+					aria-busy={exportProbing === 'playlist'}
+					onclick={() => handleExport('playlist')}
+					>{exportProbing === 'playlist'
+						? m.job_export_preparing()
+						: m.job_export_playlist()}</button
+				>
+			</div>
+		{/if}
+		<!-- end v64 -->
 		<JobTrackList
 			jobId={job.id}
 			{isAdmin}
@@ -655,6 +791,22 @@
 		}
 	}
 
+	/* v64: the export strip of an open job, hanging off the title column as its tracks do: a
+	   reading (how many files there are), then two plain row actions. */
+	.export {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2) var(--space-3);
+		padding: 0 var(--row-pad-x) var(--space-3) calc(var(--row-pad-x) + var(--row-nest));
+	}
+
+	.export-count {
+		color: var(--text-muted);
+		font-size: var(--fs-meta);
+		margin-right: var(--space-1);
+	}
+
 	.archived-tag {
 		font-size: var(--fs-label);
 		color: var(--text-muted);
@@ -756,6 +908,17 @@
 		.row-actions {
 			grid-column: 2;
 			grid-row: auto;
+		}
+		/* v64: the count on a line of its own, then the two actions side by side, sharing the
+		   width (a long label, Hungarian's, wraps inside its button instead of pushing the
+		   other one to a line of its own). */
+		.export-count {
+			flex-basis: 100%;
+		}
+
+		.export .action {
+			flex: 1 1 0;
+			white-space: normal;
 		}
 	}
 	/* v47: in a forced-colors theme (Windows High Contrast) a bar's fills were dropped to empty

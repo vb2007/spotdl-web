@@ -21,7 +21,10 @@ def _make_job(db_session, owner, *, source_type=JobSourceType.ALBUM, track_state
     db_session.commit()
     for i, state in enumerate(track_states):
         song = {"name": f"Song {i}"}
-        if i == 0 and list_name:
+        # On every track, as spotdl's album/playlist songs carry it: the title comes from the
+        # first track by created_at, which ties within one test transaction (v64 found the
+        # order flip once more tests ran before this file).
+        if list_name:
             song["list_name"] = list_name
         db_session.add(Track(job_id=job.id, spotify_track_id=f"{job.id}-{i}", song_json=song, state=state))
     db_session.commit()

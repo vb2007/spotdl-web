@@ -70,6 +70,12 @@ services:
     # run beside the owner's; unset, it's today's 8000 (dev and production alike).
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
+    # v64: read-only, so a job's zip export (app/routers/export.py) can check which files exist
+    # and stream them. `:ro` for the same reason as worker-dl's library mount: api never writes
+    # either volume (single-track downloads still go through nginx's X-Accel-Redirect).
+    volumes:
+      - downloads:/downloads:ro
+      - library:/mnt/raid1/media/music:ro
     healthcheck:
       # python:3.12-slim has neither curl nor wget; urllib is stdlib. urlopen raises
       # HTTPError on a non-2xx response (the 503 branch health.py returns when a
