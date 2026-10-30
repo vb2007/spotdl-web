@@ -383,6 +383,14 @@ needed" claim — rather than silently deleted.
   anything measuring "due" must use `coalesce(scheduled_at, updated_at)` → *v59*
 - `expand_job`'s tracks carry an outbox marker (`pending` + `scheduled_at`) under a lease, so a
   broker error mid-enqueue is beat's next tick, never a stranded track → *v56*
+- A watched job's schedule is `jobs.next_expand_at` alone (beat's tick, never an ETA); "one
+  re-expansion at a time per job" is a Redis marker (`spotdl:reexpand:<id>`, 1h expiry), not a
+  lock the work relies on: the re-expansion itself is safe to run twice → *v63*
+- A re-expanded track is told from a first expansion's by `created_at` (`clock_timestamp()` on
+  the re-expansion, the transaction's `now()` on the first) → *v63*
+- `tasks/beat.py` can't `from app.tasks.expand import expand_job` (celery_app imports beat while
+  expand is still loading); it imports the module, as `routers/jobs.py` must import
+  `tasks.download` after `tasks.expand` → *v63*
 - `timedelta(days=10**9)` raises OverflowError: an unbounded `retention_days` stopped the archive
   sweep for every later user (v56 bounds new values and clamps old rows) → *v56*
 - A server timestamp compared with `Date.now()` is a skewed countdown: use the worker status's
@@ -7403,4 +7411,39 @@ independently-found production bug from the same conversation)
 - **F6 and the session.** Navigations that leave because the session ended or changed (a 401,
   another tab's sign-out or sign-in) set `leavingSession()`, which the unsaved-edits guard lets
   through without asking.
+
+### v63 watch-jobs gotchas (learned building watched jobs, re-run expansion and retry failed)
+
+- **The schedule is Postgres; only the per-job mutex is Redis.** Beat's existing 30s tick picks
+  due watched jobs (`next_expand_at <= now`, expanded, unarchived, playlist/artist) under a
+  transaction-level advisory lock, so two overlapping ticks can't spend one hour's budget twice.
+  The next run is scheduled when a run is *claimed* (`next_expand_at = now + interval`), not when
+  it ends, so a run lost with its worker is retried on schedule and never stops the watch. "One at
+  a time per job" (409 `reexpand_running`) is `SET spotdl:reexpand:<id> NX EX 3600`, set by
+  whoever hands the run to the broker and cleared by the task's `finally`; it expires by itself if
+  the worker dies. The run doesn't depend on it: it inserts under the job's row lock and only ids
+  the job lacks, so a second run (a redelivery, an expired marker behind a backed-up `expand`
+  queue) costs a Spotify read, never a duplicate track.
+- **The hourly cap counts `last_expanded_at`.** Every re-expansion start (beat's or "check now")
+  sets it, and beat's budget is `REEXPAND_MAX_PER_HOUR` minus the jobs started in the last hour.
+  "Check now" counts but is never refused by the cap (it is one user action, one job, and 409s
+  while running); scheduled runs yield to it.
+- **`now()` can't tell the new tracks apart in a test.** "N new since" counts a job's tracks
+  created after its first expansion's batch, which shares one `created_at` (`now()` is the
+  transaction's start). Under the suite's rollback isolation every insert is in one outer
+  transaction, so a re-expansion's tracks stamp `clock_timestamp()` explicitly (the same reason
+  as v62's `download_started_at`).
+- **An import cycle the existing modules dodge by order.** `celery_app` imports `download`,
+  `expand`, then `beat`; `expand` imports `celery_app` before its own body runs. So `beat` can't
+  import `expand_job` by name (it imports `app.tasks.expand` as a module and resolves the task at
+  call time), and `routers/jobs.py` imports `tasks.download` only after `tasks.expand`.
+- **Retry failed keeps single retry's rules per track, in one UPDATE.** A non-admin's waiting
+  tracks are made due only where `retry_now_step IS DISTINCT FROM attempt_count` (v56's A8), and
+  the answer counts the rest as `cooldown`. The admin's `include_not_found` puts `lookup_failed`
+  tracks straight to `queued` and sends them (the plan's wording), each with a
+  `manual_override` attempt row (no network, so no counter moves); while the worker is paused or
+  the breaker holds, download_track holds them like any other.
+- **A watched job can be archived by retention.** A settled watched playlist is archivable like
+  any settled job, and beat skips archived jobs, so retention quietly ends a watch (the plan's
+  "jobs not archived"). Unarchiving resumes it at its stored `next_expand_at`.
 
