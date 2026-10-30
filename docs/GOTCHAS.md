@@ -7443,7 +7443,17 @@ independently-found production bug from the same conversation)
   tracks straight to `queued` and sends them (the plan's wording), each with a
   `manual_override` attempt row (no network, so no counter moves); while the worker is paused or
   the breaker holds, download_track holds them like any other.
-- **A watched job can be archived by retention.** A settled watched playlist is archivable like
-  any settled job, and beat skips archived jobs, so retention quietly ends a watch (the plan's
-  "jobs not archived"). Unarchiving resumes it at its stored `next_expand_at`.
+- **A watched job is never archived** (owner's decision, 2026-10-30). Beat skips archived jobs
+  (the plan's "jobs not archived"), and a watched job is settled most of its life, so "clear
+  log", retention and the admin's library sweep (all through `archive.archive_jobs`) would each
+  have ended a watch silently. `_eligible_job_ids` leaves out a watched job, and `archive_jobs`
+  re-derives eligibility under the jobs' row locks, so a re-expansion's new tracks (or a watch)
+  landing between the read and the write keep the job unarchived. The row offers no archive
+  button while watched: stop watching it first.
+- **"Check now" is never capped** (owner's decision, 2026-10-30): one run per job at a time is
+  its only bound (allowlisted users); it counts toward the hour, so scheduled runs yield to it.
+- **A failed Spotify read waits out the interval.** The next check is set when the run is
+  claimed, and a read error only logs; a monthly watch hit by one transient error is next
+  checked a month later. A sooner retry would need a backoff that a dead link can't turn into
+  hourly Spotify traffic; not built.
 

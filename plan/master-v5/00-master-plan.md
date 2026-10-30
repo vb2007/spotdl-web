@@ -711,3 +711,15 @@ here.
   - **F11** (owner, 2026-10-27) is done in v62 as the ledger row says.
   - **For later slices:** a new path that moves a job's rollup status (v63's re-run expansion and
     "retry all failed", say) calls `job_status.publish_change` after its commit (CLAUDE.md).
+
+- **2026-10-30, v63: watched jobs are never archived; "check now" is uncapped (owner's
+  decisions).** The plan has beat skip archived jobs, and a watched job is settled most of its
+  life, so "clear log", retention and the admin's library sweep would each have ended a watch
+  silently. A watched job is now never archived by any of them (`services/archive.py`, outside
+  v63's files): stop watching it first. "Check now" (`POST /api/jobs/{id}/reexpand`) counts
+  toward the hourly re-expansion cap but is never refused by it; one run per job at a time is its
+  bound. Also recorded for the owner: the master plan's v63 interaction says re-expansion
+  queues only tracks "not already in the job or the ledger", while v63's plan inserts every track
+  new to the job and lets download-time dedup resolve a ledger hit as `skipped_duplicate` (its
+  Done-when evidences exactly that); v63 follows its own plan.
+
