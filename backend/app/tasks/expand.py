@@ -206,15 +206,16 @@ def _reexpand(db, job_id: str) -> None:
 # v53: nothing reads its result, and storing one made every enqueue wait on the result
 # backend: with Redis down, its 20 reconnect retries held a job create about 19s.
 @celery_app.task(name="app.tasks.expand.expand_job", ignore_result=True)
-def expand_job(job_id: str, reexpand: bool = False) -> None:
-    """`reexpand` (v63): a watched job's scheduled run or "check now" (see _reexpand)."""
+def expand_job(job_id: str, reexpand: bool = False, marker: str | None = None) -> None:
+    """`reexpand` (v63): a watched job's scheduled run or "check now" (see _reexpand);
+    `marker` is its claim's token (watch.claim_run), released when it ends."""
     if reexpand:
         db = SessionLocal()
         try:
             _reexpand(db, job_id)
         finally:
             db.close()
-            watch.release_run(job_id)
+            watch.release_run(job_id, marker)
         return
     db = SessionLocal()
     try:

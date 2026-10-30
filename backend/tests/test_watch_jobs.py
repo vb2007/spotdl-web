@@ -28,14 +28,18 @@ class _FakeMarkers:
     """The two commands watch.py's run marker uses, with real expiry."""
 
     def __init__(self) -> None:
-        self.values: dict[str, float] = {}
+        self.values: dict[str, tuple[str, float]] = {}
 
     def set(self, key, value, nx=False, ex=None):
-        if key in self.values and self.values[key] > time.monotonic():
+        if key in self.values and self.values[key][1] > time.monotonic():
             if nx:
                 return None
-        self.values[key] = time.monotonic() + (ex or 10**9)
+        self.values[key] = (value, time.monotonic() + (ex or 10**9))
         return True
+
+    def get(self, key):
+        held = self.values.get(key)
+        return None if held is None or held[1] <= time.monotonic() else held[0].encode()
 
     def delete(self, key):
         return int(self.values.pop(key, None) is not None)
@@ -60,7 +64,7 @@ def _quiet_events(monkeypatch):
 def sent_expansions(monkeypatch) -> list:
     sent = []
 
-    def fake_delay(job_id, reexpand=False):
+    def fake_delay(job_id, reexpand=False, marker=None):
         sent.append((job_id, reexpand))
 
     monkeypatch.setattr(expand_task.expand_job, "delay", fake_delay)
@@ -367,7 +371,7 @@ def test_a_refused_send_leaves_the_job_due_and_uncounted(db_session, monkeypatch
     due_at = now - timedelta(minutes=1)
     job = _watched(db_session, _user(db_session), due_at=due_at)
 
-    def refuse(job_id, reexpand=False):
+    def refuse(job_id, reexpand=False, marker=None):
         raise ConnectionError("broker down")
 
     monkeypatch.setattr(expand_task.expand_job, "delay", refuse)
@@ -561,7 +565,7 @@ def test_a_refused_check_now_send_is_a_503_and_frees_the_job(
 ):
     job = _job(db_session, owner)
 
-    def refuse(job_id, reexpand=False):
+    def refuse(job_id, reexpand=False, marker=None):
         raise ConnectionError("broker down")
 
     monkeypatch.setattr(expand_task.expand_job, "delay", refuse)
@@ -867,7 +871,7 @@ def test_a_refused_check_now_keeps_a_watch_set_meanwhile(
 ):
     job = _job(db_session, owner)
 
-    def refuse_after_a_watch(job_id, reexpand=False):
+    def refuse_after_a_watch(job_id, reexpand=False, marker=None):
         # Another request watches the job while this one's send is failing.
         db_session.query(Job).filter(Job.id == job.id).update(
             {
@@ -911,7 +915,7 @@ def test_beats_refused_send_keeps_an_interval_changed_meanwhile(db_session, monk
     job = _watched(db_session, _user(db_session), due_at=due_at)
     weekly = now + timedelta(hours=168)
 
-    def refuse_after_a_change(job_id, reexpand=False):
+    def refuse_after_a_change(job_id, reexpand=False, marker=None):
         # The owner switched to weekly while the broker stalled.
         db_session.query(Job).filter(Job.id == job.id).update(
             {Job.watch_interval_hours: 168, Job.next_expand_at: weekly}
@@ -978,3 +982,33 @@ def test_a_started_run_keeps_a_watch_changed_after_its_claim(db_session, monkeyp
     _reexpand_without_claim()
     db_session.refresh(job)
     assert job.next_expand_at == weekly
+
+
+# --- review round 6 ----------------------------------------------------------------------
+
+
+def test_the_marker_lasts_as_long_as_the_lease():
+    assert watch.RUN_MARKER_TTL_SECONDS == watch.CLAIM_LEASE.total_seconds()
+
+
+def test_a_run_never_frees_a_later_claim(markers):
+    job_id = "00000000-0000-4000-8000-000000000063"
+    first = watch.claim_run(job_id)
+    # Its marker expired behind a backed-up queue; a second run was claimed meanwhile.
+    markers.values.clear()
+    second = watch.claim_run(job_id)
+    assert first and second and first != second
+    watch.release_run(job_id, first)
+    assert watch.claim_run(job_id) is None
+    watch.release_run(job_id, second)
+    assert watch.claim_run(job_id) is not None
+
+
+def test_a_held_marker_takes_no_slot_of_the_budget(db_session, monkeypatch, sent_expansions, markers):
+    monkeypatch.setattr(get_settings(), "reexpand_max_per_hour", 1)
+    now = datetime.now(timezone.utc)
+    busy = _watched(db_session, _user(db_session), due_at=now - timedelta(minutes=5))
+    other = _watched(db_session, _user(db_session), due_at=now - timedelta(minutes=1))
+    markers.set(f"{watch.KEY_PREFIX}{busy.id}", "someone-else")
+    _tick(db_session, monkeypatch)
+    assert sent_expansions == [(str(other.id), True)]

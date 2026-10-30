@@ -45,9 +45,11 @@ CLAIM_LEASE = timedelta(minutes=15)
 _CAP_LOCK_KEY = 0x7370_6463_7665_6170  # "spdcveap"
 
 KEY_PREFIX = "spotdl:reexpand:"
-# Covers a backed-up expand queue (a library sweep shares it). Past it, a second run may start;
-# that costs a redundant Spotify read, never a duplicate track.
-RUN_MARKER_TTL_SECONDS = 3600
+# As long as the claim's lease (review round 6): a run lost before its task started is
+# claimed again once the lease is due, not an hour later. A run still queued behind a
+# backed-up expand queue (a library sweep shares it) past it may get a second claim; that
+# costs a redundant Spotify read, never a duplicate track.
+RUN_MARKER_TTL_SECONDS = int(CLAIM_LEASE.total_seconds())
 
 _client: redis.Redis | None = None
 
@@ -70,18 +72,30 @@ def _redis() -> redis.Redis:
     return _client
 
 
-def claim_run(job_id: uuid.UUID) -> bool:
-    """Marks a re-expansion of `job_id` as queued or running; False if one already is."""
+def claim_run(job_id: uuid.UUID) -> str | None:
+    """Marks a re-expansion of `job_id` as queued or running: the claim's token, or None if
+    one already is. The run hands the token back to release_run."""
+    token = uuid.uuid4().hex
     try:
-        return bool(_redis().set(f"{KEY_PREFIX}{job_id}", "1", nx=True, ex=RUN_MARKER_TTL_SECONDS))
+        claimed = _redis().set(f"{KEY_PREFIX}{job_id}", token, nx=True, ex=RUN_MARKER_TTL_SECONDS)
     except redis.RedisError as exc:
         raise MarkerUnavailable(str(exc)) from exc
+    return token if claimed else None
 
 
-def release_run(job_id: uuid.UUID | str) -> None:
-    """Best effort: a marker left behind expires by itself."""
+def release_run(job_id: uuid.UUID | str, token: str | None) -> None:
+    """Clears the claim `token` made, never a later one: a run whose marker expired behind a
+    backed-up queue mustn't free the claim of the run that replaced it. `None` (a message
+    sent without one) clears whatever is there. Best effort: a marker left behind expires by
+    itself."""
+    key = f"{KEY_PREFIX}{job_id}"
     try:
-        _redis().delete(f"{KEY_PREFIX}{job_id}")
+        client = _redis()
+        if token is not None:
+            held = client.get(key)
+            if held is None or (held.decode() if isinstance(held, bytes) else held) != token:
+                return
+        client.delete(key)
     except redis.RedisError as exc:
         logger.warning("watch: couldn't clear the re-expansion marker of job %s: %s", job_id, exc)
 

@@ -627,10 +627,10 @@ def reexpand_job(
             {"reason": "source_type", "source_type": job.source_type.value},
         )
     try:
-        claimed = watch.claim_run(job.id)
+        token = watch.claim_run(job.id)
     except watch.MarkerUnavailable:
         raise ApiError(503, "queue_unavailable", "The queue is unavailable; try again shortly") from None
-    if not claimed:
+    if token is None:
         raise ApiError(409, "reexpand_running", "This job is already being checked")
     previous = (job.last_expanded_at, job.next_expand_at)
     now = datetime.now(timezone.utc)
@@ -639,11 +639,11 @@ def reexpand_job(
     try:
         db.commit()
     except Exception:
-        # Nothing was queued: the marker mustn't hold the job "running" for an hour.
-        watch.release_run(job.id)
+        # Nothing was queued: the marker mustn't hold the job "running" until it expires.
+        watch.release_run(job.id, token)
         raise
     try:
-        expand_job.delay(str(job.id), reexpand=True)
+        expand_job.delay(str(job.id), reexpand=True, marker=token)
     except Exception as exc:
         # Put back only what this request wrote: a watch set meanwhile (its own next check)
         # must survive, as beat's own rollback does.
@@ -659,7 +659,7 @@ def reexpand_job(
             )
         )
         db.commit()
-        watch.release_run(job.id)
+        watch.release_run(job.id, token)
         logger.warning("reexpand_job: %s not enqueued: %s", job.id, type(exc).__name__)
         raise ApiError(503, "queue_unavailable", "The queue is unavailable; try again shortly") from None
     events.publish_job_event(job.user_id, job.id, job.state.value, watch=True)

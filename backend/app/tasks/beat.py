@@ -179,7 +179,6 @@ def _dispatch_due_watched_jobs(db) -> None:
                 Job.source_type.in_(watch.WATCHABLE_SOURCE_TYPES),
             )
             .order_by(Job.next_expand_at.asc())
-            .limit(budget)
             .with_for_update(skip_locked=True)
         )
         .scalars()
@@ -187,25 +186,30 @@ def _dispatch_due_watched_jobs(db) -> None:
     )
     started = []
     for job in due:
+        # A job whose run is already queued or running ("check now") takes no slot of the
+        # hour's budget (review round 6): the next due one does.
+        if len(started) >= budget:
+            break
         try:
-            if not watch.claim_run(job.id):
-                continue
+            token = watch.claim_run(job.id)
         except watch.MarkerUnavailable as exc:
             logger.warning("dispatch_due_tracks: no watched job started, Redis unavailable: %s", exc)
             break
+        if token is None:
+            continue
         previous_last, previous_next = job.last_expanded_at, job.next_expand_at
         watch.mark_started(job, now)
-        started.append((job.id, previous_last, previous_next, job.next_expand_at))
+        started.append((job.id, token, previous_last, previous_next, job.next_expand_at))
     try:
         db.commit()
     except Exception:
-        # Nothing was queued: the markers mustn't hold these jobs "running" for an hour.
-        for job_id, *_times in started:
-            watch.release_run(job_id)
+        # Nothing was queued: the markers mustn't hold these jobs "running" until they expire.
+        for job_id, token, *_times in started:
+            watch.release_run(job_id, token)
         raise
-    for job_id, last_expanded_at, next_expand_at, ours_next in started:
+    for job_id, token, last_expanded_at, next_expand_at, ours_next in started:
         try:
-            expand_tasks.expand_job.delay(str(job_id), reexpand=True)
+            expand_tasks.expand_job.delay(str(job_id), reexpand=True, marker=token)
         except Exception as exc:
             # The broker refused it: due again on the next tick, and not counted. Only what
             # this tick wrote is put back: an interval changed (or a watch stopped) meanwhile
@@ -223,7 +227,7 @@ def _dispatch_due_watched_jobs(db) -> None:
                 )
             )
             db.commit()
-            watch.release_run(job_id)
+            watch.release_run(job_id, token)
             continue
         logger.info("dispatch_due_tracks: watched job %s re-expansion started", job_id)
 
