@@ -666,7 +666,7 @@
 											<span class="via"
 												>{rows > 1 ? summarizeVia(group.attempts) : attemptVia(head)}</span
 											>
-											{#if rows === 1 && head.outcome !== 'held'}
+											{#if rows === 1 && head.outcome !== 'held' && head.outcome !== 'manual_override'}
 												<span class="dur">{formatDuration(head.duration_seconds)}</span>
 											{/if}
 										</p>
@@ -719,7 +719,7 @@
 																	>×{formatNumber(attemptCount(attempt))}</span
 																>{/if}
 															<span class="via">{attemptVia(attempt)}</span>
-															{#if attempt.outcome !== 'held'}
+															{#if attempt.outcome !== 'held' && attempt.outcome !== 'manual_override'}
 																<span class="dur">{formatDuration(attempt.duration_seconds)}</span>
 															{/if}
 															<span class="quiet">{m.track_same_reading()}</span>

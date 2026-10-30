@@ -5,7 +5,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel
-from sqlalchemy import func, update
+from sqlalchemy import case, func, update
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -626,6 +626,7 @@ def reexpand_job(
     previous = (job.last_expanded_at, job.next_expand_at)
     now = datetime.now(timezone.utc)
     watch.mark_started(job, now)
+    ours_next = job.next_expand_at
     try:
         db.commit()
     except Exception:
@@ -635,7 +636,19 @@ def reexpand_job(
     try:
         expand_job.delay(str(job.id), reexpand=True)
     except Exception as exc:
-        job.last_expanded_at, job.next_expand_at = previous
+        # Put back only what this request wrote: a watch set meanwhile (its own next check)
+        # must survive, as beat's own rollback does.
+        db.execute(
+            update(Job)
+            .where(Job.id == job.id, Job.last_expanded_at == now)
+            .values(
+                last_expanded_at=previous[0],
+                next_expand_at=case(
+                    (Job.next_expand_at.is_not_distinct_from(ours_next), previous[1]),
+                    else_=Job.next_expand_at,
+                ),
+            )
+        )
         db.commit()
         watch.release_run(job.id)
         logger.warning("reexpand_job: %s not enqueued: %s", job.id, type(exc).__name__)

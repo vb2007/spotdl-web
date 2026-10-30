@@ -313,7 +313,7 @@
 			"declarations": ["input count", "input n"],
 			"selectors": [],
 			"match": {
-				"*": "A {n} várakozó száma is most újrapróbálkozik."
+				"*": "Emellett a {n} várakozó számot is most újrapróbálja."
 			}
 		}
 	],

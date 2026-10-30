@@ -122,6 +122,9 @@ def new_track_counts(db: Session, job_ids: Sequence[uuid.UUID]) -> dict[uuid.UUI
     rows = db.execute(
         select(Track.job_id, func.count())
         .join(first, and_(first.c.job_id == Track.job_id, Track.created_at > first.c.first_at))
+        # Only a job that has been re-expanded: a job from before v63 never was, whatever its
+        # tracks' timestamps say.
+        .join(Job, and_(Job.id == Track.job_id, Job.last_expanded_at.is_not(None)))
         .group_by(Track.job_id)
     ).all()
     return {job_id: count for job_id, count in rows}

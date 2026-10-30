@@ -284,8 +284,12 @@
 	let watchSelect: HTMLSelectElement | undefined = $state();
 	let watchBusy = false;
 	let watchWanted: { hours: number | null } | null = null;
+	// The watch as last asked for, while a save is still answering: `w` toggles from it, so two
+	// quick presses cancel out instead of both asking for "daily".
+	let watchRequested: { hours: number | null } | null = null;
 	async function handleWatch(intervalHours: number | null) {
 		watchWanted = { hours: intervalHours };
+		watchRequested = { hours: intervalHours };
 		if (watchBusy) return;
 		watchBusy = true;
 		const session = queue.getResetCount();
@@ -314,6 +318,7 @@
 		} finally {
 			watchBusy = false;
 			watchWanted = null;
+			watchRequested = null;
 			await tick();
 			if (watchSelect)
 				watchSelect.value =
@@ -321,7 +326,11 @@
 		}
 	}
 
+	let checking = false;
 	async function handleCheckNow() {
+		// A second press while the first is answering would only read "already being checked".
+		if (checking) return;
+		checking = true;
 		const session = queue.getResetCount();
 		try {
 			await queue.reexpandJob(job.id);
@@ -329,6 +338,8 @@
 		} catch (err) {
 			if (queue.getResetCount() === session)
 				showNotice(errorText(err, m.job_notice_check_failed), true);
+		} finally {
+			checking = false;
 		}
 	}
 
@@ -409,7 +420,12 @@
 			isOpen &&
 			showWatch &&
 			(watched || actionable) &&
-			(handleWatch(watched ? null : api.WATCH_INTERVALS.daily), true),
+			(handleWatch(
+				(watchRequested ? watchRequested.hours !== null : watched)
+					? null
+					: api.WATCH_INTERVALS.daily
+			),
+			true),
 		retryFailed: () => isOpen && showRetryFailed && (handleRetryFailed(), true)
 	});
 

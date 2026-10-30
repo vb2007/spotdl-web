@@ -133,6 +133,9 @@ def _job_track_ids(db_session, job) -> list[str]:
 
 
 def _reexpand(db_session, monkeypatch, job, songs):
+    """Runs a re-expansion as beat or "check now" would, claim included (`last_expanded_at`)."""
+    job.last_expanded_at = datetime.now(timezone.utc)
+    db_session.commit()
     monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
     monkeypatch.setattr(expansion, "expand", lambda url: [_FakeSong(s) for s in songs])
     expand_task.expand_job(str(job.id), reexpand=True)
@@ -842,3 +845,46 @@ def test_watch_and_check_now_announce_the_job_to_its_owner(admin_client, db_sess
     admin_client.put(f"/api/jobs/{job.id}/watch", json={"interval_hours": 24})
     admin_client.post(f"/api/jobs/{job.id}/reexpand")
     assert published == [(other.id, job.id, "expanded"), (other.id, job.id, "expanded")]
+
+
+# --- review round 3 ----------------------------------------------------------------------
+
+
+def test_a_refused_check_now_keeps_a_watch_set_meanwhile(
+    authenticated_client, db_session, owner, monkeypatch, markers
+):
+    job = _job(db_session, owner)
+
+    def refuse_after_a_watch(job_id, reexpand=False):
+        # Another request watches the job while this one's send is failing.
+        db_session.query(Job).filter(Job.id == job.id).update(
+            {
+                Job.watch_interval_hours: 24,
+                Job.next_expand_at: datetime.now(timezone.utc) + timedelta(hours=24),
+            }
+        )
+        db_session.commit()
+        raise ConnectionError("broker down")
+
+    monkeypatch.setattr(expand_task.expand_job, "delay", refuse_after_a_watch)
+    assert authenticated_client.post(f"/api/jobs/{job.id}/reexpand").status_code == 503
+    db_session.refresh(job)
+    assert job.last_expanded_at is None
+    assert job.watch_interval_hours == 24
+    assert job.next_expand_at is not None
+
+
+def test_new_tracks_counts_nothing_for_a_job_never_re_expanded(db_session):
+    job = _job(db_session, _user(db_session), track_ids=("a",))
+    # A later-stamped track on a job no re-expansion ever touched (an older path's).
+    db_session.add(
+        Track(
+            job_id=job.id,
+            spotify_track_id="late",
+            song_json={"name": "late"},
+            state=TrackState.COMPLETED,
+            created_at=datetime.now(timezone.utc) + timedelta(seconds=5),
+        )
+    )
+    db_session.commit()
+    assert watch.new_tracks(db_session, job.id) == 0
