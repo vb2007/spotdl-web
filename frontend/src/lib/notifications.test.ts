@@ -38,8 +38,10 @@ describe('v66: one tab announces', () => {
 	let shown: string[];
 	// A message that arrives only after both tabs' windows ended: the race the lowest-id rule is for.
 	let slow = false;
-	// The saved switch as the server has it (`getJobNotificationSettings`).
+	// The saved switch as the server has it (`getJobNotificationSettings`), and a promise its
+	// answer waits for (a read still in flight when something newer happens).
 	let server = false;
+	let hold: Promise<void> | null = null;
 
 	beforeEach(() => {
 		vi.useFakeTimers();
@@ -78,9 +80,14 @@ describe('v66: one tab announces', () => {
 		vi.stubGlobal('Notification', Recorded);
 		vi.stubGlobal('document', { documentElement: { lang: 'en' } });
 		server = false;
+		hold = null;
 		vi.doMock('$lib/api', () => ({
 			getJob: async (id: string) => ({ id, title: `Album ${id}`, track_counts: { completed: 2 } }),
-			getJobNotificationSettings: async () => ({ job_notifications: server })
+			getJobNotificationSettings: async () => {
+				const answer = server;
+				if (hold) await hold;
+				return { job_notifications: answer };
+			}
 		}));
 	});
 
@@ -143,6 +150,36 @@ describe('v66: one tab announces', () => {
 		one.observe({ ...settle, ts: 'again' });
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(shown).toEqual(['Album j1']);
+	});
+
+	it('a save made while the fresh read is in flight wins over its answer', async () => {
+		const one = await tab();
+		one.setEnabled(true);
+		server = false;
+		let release = () => {};
+		hold = new Promise((resolve) => (release = resolve));
+		one.adopt('a@example.com', false);
+		// The user turns it on again here before the read (which says off) answers.
+		one.setEnabled(true);
+		release();
+		await vi.advanceTimersByTimeAsync(10);
+		one.observe(settle);
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(shown).toEqual(['Album j1']);
+	});
+
+	it('a reset while the fresh read is in flight drops its answer', async () => {
+		const one = await tab();
+		one.setEnabled(false);
+		server = true;
+		let release = () => {};
+		hold = new Promise((resolve) => (release = resolve));
+		one.adopt('a@example.com', false);
+		one.reset();
+		release();
+		await vi.advanceTimersByTimeAsync(10);
+		const { get } = await import('svelte/store');
+		expect(get(one.jobNotifications)).toBe(false);
 	});
 
 	it('ignores a late offer for an event already decided', async () => {
