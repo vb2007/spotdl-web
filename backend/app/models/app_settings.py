@@ -22,7 +22,11 @@ class AppSettings(Base):
     v36 adds the Matrix alert controls (per-category on/off plus the thresholds and the
     cooldown, see app/services/alerts.py) the same way, and v59 the worker-down category.
     server_default on each, so the migration fills the existing row with the documented
-    defaults."""
+    defaults.
+
+    v64 adds the job export's limits as nullable overrides: NULL means the env default
+    (EXPORT_MAX_FILES/EXPORT_MAX_GB), so a deploy that changes the env still takes effect
+    until an admin pins a value."""
 
     __tablename__ = "app_settings"
 
@@ -59,3 +63,6 @@ class AppSettings(Base):
     alert_worker_down_minutes: Mapped[int] = mapped_column(Integer, nullable=False, server_default="15")
     # How long an identical alert (same category + fingerprint) stays suppressed.
     alert_cooldown_minutes: Mapped[int] = mapped_column(Integer, nullable=False, server_default="60")
+    # v64: the job export's limits; NULL = the env default (config.py's export_max_*).
+    export_max_files: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    export_max_gb: Mapped[int | None] = mapped_column(Integer, nullable=True)
