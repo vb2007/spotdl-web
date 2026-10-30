@@ -24,6 +24,8 @@
 	import ApiKeys from '$lib/components/ApiKeys.svelte';
 	import { guardUnsavedEdits } from '$lib/unsavedGuard';
 	import { leavingSession, setLeavingSession } from '$lib/session';
+	// v66: the job-notifications switch (its block below; v65 owns the install block).
+	import * as notifications from '$lib/notifications';
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
@@ -77,7 +79,8 @@
 			keyNameTyped ||
 			keyboardError !== null ||
 			languageError !== null ||
-			clockError !== null
+			clockError !== null ||
+			notifyError !== null
 	);
 	// An in-app exit with a save to make (or one under way) waits for it, and leaves only once it
 	// landed: a failure stays here, shown, never on a page that's gone (review round 7).
@@ -339,6 +342,80 @@
 		await keepFocus(from);
 	}
 
+	// v66: notifications when one of the user's own jobs is done. The switch is the account's
+	// (server-side, saved on choice like every preference here); showing them is this browser's
+	// permission, asked for from the click that turns the switch on. Refused, the switch stays
+	// off and says why, so it never reads "on" for a browser that can't show one.
+	const notifyOn = notifications.jobNotifications;
+	let notifySaving = $state(false);
+	let notifyError = $state<Shown>(null);
+	let notifySavedAt = $state<Date | null>(null);
+	let browserPermission = $state<notifications.Permission>('default');
+	// What this page's own ask came back with, until the next choice.
+	let permissionAnswer = $state<'denied' | 'dismissed' | 'unsupported' | null>(null);
+
+	onMount(() => {
+		if (data.session)
+			notifications.adopt(data.session.email, data.session.job_notifications ?? false);
+		browserPermission = notifications.permission();
+		// The site's permission can change under the page (its settings, another tab).
+		const reread = () => (browserPermission = notifications.permission());
+		document.addEventListener('visibilitychange', reread);
+		let status: PermissionStatus | null = null;
+		navigator.permissions
+			?.query({ name: 'notifications' })
+			.then((answer) => {
+				status = answer;
+				status.addEventListener('change', reread);
+			})
+			.catch(() => {});
+		return () => {
+			document.removeEventListener('visibilitychange', reread);
+			status?.removeEventListener('change', reread);
+		};
+	});
+
+	const setNotify = lastChoiceWins(saveNotify);
+
+	async function chooseNotify(enabled: boolean) {
+		permissionAnswer = null;
+		if (enabled && notifications.permission() !== 'granted') {
+			// First thing in the click: a browser only asks from the user's own gesture.
+			const answer = await notifications.requestPermission();
+			browserPermission = answer;
+			if (answer !== 'granted') {
+				permissionAnswer = answer === 'default' ? 'dismissed' : answer;
+				return;
+			}
+		}
+		await setNotify(enabled);
+	}
+
+	async function allowHere() {
+		permissionAnswer = null;
+		const answer = await notifications.requestPermission();
+		browserPermission = answer;
+		if (answer !== 'granted') permissionAnswer = answer === 'default' ? 'dismissed' : answer;
+	}
+
+	async function saveNotify(enabled: boolean) {
+		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+		notifySaving = true;
+		notifyError = null;
+		const resets = queue.getResetCount();
+		try {
+			const saved = await api.updateJobNotificationSettings(enabled);
+			if (queue.getResetCount() !== resets) return;
+			notifications.setEnabled(saved.job_notifications);
+			notifySavedAt = new Date();
+		} catch (err) {
+			notifyError = () => errorText(err);
+		} finally {
+			notifySaving = false;
+		}
+		await keepFocus(from);
+	}
+
 	// v43 (F31): the account page could not sign out; it now does, the way `/` does.
 	async function onLogout() {
 		loggingOut = true;
@@ -567,6 +644,48 @@
 							: ''}
 				</p>
 				<p class="form-error" role="alert">{clockError?.()}</p>
+			</div>
+
+			<!-- v66: job notifications (v65's install block is its own). -->
+			<div class="group" role="group" aria-labelledby="notify-heading">
+				<h3 id="notify-heading" class="group-title">{m.account_notify_heading()}</h3>
+				<p class="hint" id="notify-hint">{m.account_notify_hint()}</p>
+				<div class="form-field">
+					<span class="label" id="notify-mode-label">{m.account_notify_label()}</span>
+					<div class="keyboard-row">
+						<div
+							class="choice-group"
+							role="group"
+							aria-labelledby="notify-mode-label"
+							aria-describedby="notify-hint notify-browser"
+						>
+							<button type="button" aria-pressed={$notifyOn} onclick={() => chooseNotify(true)}>
+								{m.account_notify_on()}
+							</button>
+							<button type="button" aria-pressed={!$notifyOn} onclick={() => chooseNotify(false)}>
+								{m.account_notify_off()}
+							</button>
+						</div>
+						{#if $notifyOn && browserPermission === 'default' && permissionAnswer === null}
+							<button type="button" class="btn" onclick={allowHere}
+								>{m.account_notify_allow()}</button
+							>
+						{/if}
+					</div>
+				</div>
+				<!-- What this browser does with the switch: the reason a press didn't turn it on, or,
+				     with it on, whether notifications can show here. -->
+				<p class="hint notify-browser" id="notify-browser" role="status">
+					{#if permissionAnswer === 'denied'}{m.account_notify_denied()}{:else if permissionAnswer === 'dismissed'}{m.account_notify_dismissed()}{:else if permissionAnswer === 'unsupported' || browserPermission === 'unsupported'}{m.account_notify_unsupported()}{:else if $notifyOn && browserPermission === 'denied'}{m.account_notify_blocked_here()}{:else if $notifyOn && browserPermission === 'default'}{m.account_notify_ask_here()}{:else if $notifyOn}{m.account_notify_shown_here()}{/if}
+				</p>
+				<p class="save-state" class:saved={notifySavedAt !== null} role="status">
+					{notifySaving
+						? m.common_saving_status()
+						: notifySavedAt
+							? m.common_saved_at({ time: formatClock(notifySavedAt) })
+							: ''}
+				</p>
+				<p class="form-error" role="alert">{notifyError?.()}</p>
 			</div>
 		</section>
 
