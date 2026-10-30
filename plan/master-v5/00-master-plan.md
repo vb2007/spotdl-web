@@ -730,5 +730,14 @@ here.
     redirect adds `next` for `/share`, and a signed-in `/login?next=` goes on to it: the redirect
     lives there, not in the login page), `lib/api.ts` (`createJob`'s client header,
     `resolveLink`), `lib/i18n/errors.ts` (three codes) and `DESIGN.md` (the new page and section).
+    New helpers serving owned features: `lib/nextPath.ts`, `lib/shareTarget.ts`, `lib/install.ts`,
+    `lib/components/InstallApp.svelte` (the `/account` block, kept in its own file beside v66's)
+    and `scripts/render-icons.sh` (the icons, reproducibly).
+  - **"A toast and a link to the job", as built:** the app has no toast and no page that shows one
+    job. `/share` says what happened in place (a `role="status"` line at the shared words' size)
+    and links to the viewer's own queue (`/?view=mine`, so an admin's dashboard left in another
+    view still shows the new job). A per-job link needs a job page, which no v5 slice plans.
+  - **`next` accepts `/share` only** (with its query): it's the one page that sends anyone to
+    `/login` with one, and every other path stays out of the redirect's reach.
   - **The real phone share** is the owner's, from production after merge (owner's choice); v65
     evidences it with the share formats emulated on the nginx build.

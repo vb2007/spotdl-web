@@ -58,9 +58,10 @@ test.describe('signed out', () => {
 		const job = (await response.json()) as Job;
 
 		await expect(page.locator('#share-outcome')).toHaveText(OUTCOMES());
-		await expect(
-			page.getByRole('link', { name: t(m.share_open_queue), exact: true })
-		).toBeFocused();
+		const openQueue = page.getByRole('link', { name: t(m.share_open_queue), exact: true });
+		await expect(openQueue).toBeFocused();
+		// The viewer's own jobs, where the new one is, whatever view the dashboard was left in.
+		await expect(openQueue).toHaveAttribute('href', '/?view=mine');
 		// The job is this user's own.
 		expect((await page.request.get(`/api/jobs/${job.id}`)).status()).toBe(200);
 	});
@@ -96,7 +97,10 @@ test.describe('signed in', () => {
 		'https://evil.example/',
 		'//evil.example/share',
 		'/\\evil.example',
-		'javascript:alert(1)'
+		'javascript:alert(1)',
+		// Dot segments the URL parser collapses into `//host` (review round 1).
+		'/..//evil.example',
+		'/%2e%2e//evil.example/share'
 	]) {
 		test(`/login?next=${next} goes home, not off the site`, async ({ page, baseURL }) => {
 			await page.goto(`/login?next=${encodeURIComponent(next)}`);
