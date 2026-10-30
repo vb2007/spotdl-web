@@ -1,0 +1,694 @@
+"""v63: watched jobs (beat's re-expansion under the hourly cap), expand_job's re-expand mode,
+"check now" (`POST /api/jobs/{id}/reexpand`), `PUT /api/jobs/{id}/watch` and "retry failed"
+(`POST /api/jobs/{id}/retry-failed`)."""
+
+import time
+from datetime import datetime, timedelta, timezone
+
+import pytest
+
+from app.config import get_settings
+from app.models import (
+    Job,
+    JobSourceType,
+    JobState,
+    Track,
+    TrackAttempt,
+    TrackAttemptOutcome,
+    TrackState,
+    User,
+)
+from app.routers import jobs as jobs_router
+from app.services import events, expansion, job_status, retry, watch
+from app.tasks import beat as beat_task
+from app.tasks import expand as expand_task
+
+
+class _FakeMarkers:
+    """The two commands watch.py's run marker uses, with real expiry."""
+
+    def __init__(self) -> None:
+        self.values: dict[str, float] = {}
+
+    def set(self, key, value, nx=False, ex=None):
+        if key in self.values and self.values[key] > time.monotonic():
+            if nx:
+                return None
+        self.values[key] = time.monotonic() + (ex or 10**9)
+        return True
+
+    def delete(self, key):
+        return int(self.values.pop(key, None) is not None)
+
+
+@pytest.fixture(autouse=True)
+def markers(monkeypatch) -> _FakeMarkers:
+    fake = _FakeMarkers()
+    monkeypatch.setattr(watch, "_redis", lambda: fake)
+    return fake
+
+
+@pytest.fixture(autouse=True)
+def _quiet_events(monkeypatch):
+    """No test here reaches the stack's Redis through a publish."""
+    monkeypatch.setattr(events, "publish", lambda *args, **kwargs: None)
+    monkeypatch.setattr(job_status, "publish_change", lambda *args, **kwargs: None)
+    monkeypatch.setattr(job_status, "publish_changes", lambda *args, **kwargs: None)
+
+
+@pytest.fixture()
+def sent_expansions(monkeypatch) -> list:
+    sent = []
+
+    def fake_delay(job_id, reexpand=False):
+        sent.append((job_id, reexpand))
+
+    monkeypatch.setattr(expand_task.expand_job, "delay", fake_delay)
+    return sent
+
+
+@pytest.fixture()
+def sent_downloads(monkeypatch) -> list:
+    sent = []
+    monkeypatch.setattr(expand_task.download_track, "delay", lambda track_id: sent.append(track_id))
+    return sent
+
+
+class _NonClosingSession:
+    def __init__(self, session):
+        self._session = session
+
+    def __getattr__(self, name):
+        return getattr(self._session, name)
+
+    def close(self):
+        pass
+
+
+class _FakeSong:
+    def __init__(self, song_id):
+        self.song_id = song_id
+        self.json = {"name": f"Song {song_id}", "song_id": song_id}
+
+
+def _user(db_session, email="owner@example.com", *, is_admin=False) -> User:
+    user = db_session.query(User).filter(User.email == email).one_or_none()
+    if user is None:
+        user = User(email=email, is_admin=is_admin)
+        db_session.add(user)
+        db_session.flush()
+    return user
+
+
+def _job(
+    db_session,
+    user,
+    *,
+    source_type=JobSourceType.PLAYLIST,
+    state=JobState.EXPANDED,
+    track_ids=(),
+    track_state=TrackState.COMPLETED,
+    **fields,
+) -> Job:
+    job = Job(
+        source_url=f"https://open.spotify.com/{source_type.value}/x",
+        source_type=source_type,
+        state=state,
+        user_id=user.id,
+        **fields,
+    )
+    db_session.add(job)
+    db_session.flush()
+    for spotify_id in track_ids:
+        db_session.add(
+            Track(job_id=job.id, spotify_track_id=spotify_id, song_json={"name": spotify_id}, state=track_state)
+        )
+    db_session.commit()
+    return job
+
+
+def _job_track_ids(db_session, job) -> list[str]:
+    db_session.expire_all()
+    return sorted(t.spotify_track_id for t in db_session.query(Track).filter(Track.job_id == job.id))
+
+
+def _reexpand(db_session, monkeypatch, job, songs):
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(expansion, "expand", lambda url: [_FakeSong(s) for s in songs])
+    expand_task.expand_job(str(job.id), reexpand=True)
+
+
+# --- expand_job's re-expand mode ---------------------------------------------------------
+
+
+def test_reexpand_adds_only_the_tracks_new_to_the_job(db_session, monkeypatch, sent_downloads, markers):
+    job = _job(db_session, _user(db_session), track_ids=("a", "b"))
+    markers.set(f"{watch.KEY_PREFIX}{job.id}", "1")
+
+    _reexpand(db_session, monkeypatch, job, ["a", "b", "c", "c"])
+
+    assert _job_track_ids(db_session, job) == ["a", "b", "c"]
+    new = db_session.query(Track).filter(Track.job_id == job.id, Track.spotify_track_id == "c").one()
+    assert new.state == TrackState.PENDING
+    # Handed to the broker through the outbox marker, as a first expansion's tracks are.
+    assert sent_downloads == [str(new.id)]
+    assert new.scheduled_at is None
+    # The run's marker is cleared when it ends.
+    assert markers.values == {}
+
+
+def test_reexpand_keeps_a_track_gone_from_the_playlist(db_session, monkeypatch, sent_downloads):
+    job = _job(db_session, _user(db_session), track_ids=("a", "b"))
+
+    _reexpand(db_session, monkeypatch, job, ["a"])
+
+    assert _job_track_ids(db_session, job) == ["a", "b"]
+    assert sent_downloads == []
+
+
+def test_reexpand_with_nothing_changed_adds_nothing(db_session, monkeypatch, sent_downloads):
+    job = _job(db_session, _user(db_session), source_type=JobSourceType.ARTIST, track_ids=("a", "b"))
+    published = []
+    monkeypatch.setattr(events, "publish_job_event", lambda *args, **kwargs: published.append(args))
+
+    _reexpand(db_session, monkeypatch, job, ["b", "a"])
+
+    assert _job_track_ids(db_session, job) == ["a", "b"]
+    assert sent_downloads == []
+    assert published == []
+
+
+def test_reexpand_announces_new_tracks_as_the_first_expansion_does(db_session, monkeypatch, sent_downloads):
+    job = _job(db_session, _user(db_session), track_ids=("a",))
+    published, changes = [], []
+    monkeypatch.setattr(events, "publish_job_event", lambda *args, **kwargs: published.append(args))
+    monkeypatch.setattr(job_status, "publish_change", lambda db, job_id, **kw: changes.append(job_id))
+
+    _reexpand(db_session, monkeypatch, job, ["a", "n"])
+
+    assert published == [(job.user_id, job.id, "expanded")]
+    assert changes == [job.id]
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"state": JobState.CANCELLED},
+        {"state": JobState.FAILED},
+        {"state": JobState.EXPANDING},
+        {"archived_at": datetime(2026, 1, 1, tzinfo=timezone.utc)},
+    ],
+)
+def test_reexpand_leaves_a_job_that_isnt_expanded_and_unarchived(db_session, monkeypatch, sent_downloads, fields):
+    job = _job(db_session, _user(db_session), track_ids=("a",), **fields)
+    calls = []
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(expansion, "expand", lambda url: calls.append(url) or [_FakeSong("n")])
+
+    expand_task.expand_job(str(job.id), reexpand=True)
+
+    assert calls == []
+    assert _job_track_ids(db_session, job) == ["a"]
+
+
+def test_reexpand_adds_nothing_to_a_job_cancelled_during_the_spotify_read(db_session, monkeypatch, sent_downloads):
+    job = _job(db_session, _user(db_session), track_ids=("a",), track_state=TrackState.QUEUED)
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+
+    def cancel_meanwhile(url):
+        db_session.query(Job).filter(Job.id == job.id).update({Job.state: JobState.CANCELLED})
+        db_session.commit()
+        return [_FakeSong("a"), _FakeSong("n")]
+
+    monkeypatch.setattr(expansion, "expand", cancel_meanwhile)
+    expand_task.expand_job(str(job.id), reexpand=True)
+
+    assert _job_track_ids(db_session, job) == ["a"]
+    assert sent_downloads == []
+
+
+def test_a_failed_spotify_read_leaves_the_job_and_clears_the_marker(db_session, monkeypatch, markers):
+    job = _job(db_session, _user(db_session), track_ids=("a",))
+    markers.set(f"{watch.KEY_PREFIX}{job.id}", "1")
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+
+    def boom(url):
+        raise RuntimeError("Spotify said no")
+
+    monkeypatch.setattr(expansion, "expand", boom)
+    expand_task.expand_job(str(job.id), reexpand=True)
+
+    db_session.refresh(job)
+    assert job.state == JobState.EXPANDED
+    assert job.error is None
+    assert markers.values == {}
+
+
+def test_new_tracks_counts_only_what_reexpansion_added(db_session, monkeypatch, sent_downloads):
+    job = _job(db_session, _user(db_session), track_ids=("a", "b"))
+    assert watch.new_tracks(db_session, job.id) == 0
+    _reexpand(db_session, monkeypatch, job, ["a", "b", "c", "d"])
+    assert watch.new_tracks(db_session, job.id) == 2
+
+
+# --- beat's watched-job selection ------------------------------------------------------
+
+
+def _watched(db_session, user, *, due_at, **fields) -> Job:
+    return _job(
+        db_session, user, track_ids=("a",), watch_interval_hours=24, next_expand_at=due_at, **fields
+    )
+
+
+def _tick(db_session, monkeypatch):
+    monkeypatch.setattr(beat_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(beat_task.download_track, "delay", lambda track_id: None)
+    beat_task.dispatch_due_tracks()
+
+
+def test_beat_starts_a_due_watched_job_and_schedules_its_next_check(db_session, monkeypatch, sent_expansions, markers):
+    now = datetime.now(timezone.utc)
+    due = _watched(db_session, _user(db_session), due_at=now - timedelta(minutes=1))
+    later = _watched(db_session, _user(db_session), due_at=now + timedelta(hours=1))
+
+    _tick(db_session, monkeypatch)
+
+    assert sent_expansions == [(str(due.id), True)]
+    db_session.refresh(due)
+    db_session.refresh(later)
+    assert due.last_expanded_at >= now
+    assert due.next_expand_at == due.last_expanded_at + timedelta(hours=24)
+    assert later.last_expanded_at is None
+    assert f"{watch.KEY_PREFIX}{due.id}" in markers.values
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"state": JobState.CANCELLED},
+        {"state": JobState.FAILED},
+        {"archived_at": datetime(2026, 1, 1, tzinfo=timezone.utc)},
+        {"source_type": JobSourceType.ALBUM},
+    ],
+)
+def test_beat_skips_a_watched_job_it_mustnt_reexpand(db_session, monkeypatch, sent_expansions, fields):
+    _watched(db_session, _user(db_session), due_at=datetime.now(timezone.utc) - timedelta(minutes=1), **fields)
+    _tick(db_session, monkeypatch)
+    assert sent_expansions == []
+
+
+def test_beat_reexpands_while_the_breaker_is_tripped(db_session, monkeypatch, sent_expansions):
+    job = _watched(db_session, _user(db_session), due_at=datetime.now(timezone.utc) - timedelta(minutes=1))
+    state = retry.get_worker_state(db_session)
+    state.breaker_tripped_until = datetime.now(timezone.utc) + timedelta(hours=1)
+    db_session.commit()
+
+    _tick(db_session, monkeypatch)
+
+    assert sent_expansions == [(str(job.id), True)]
+
+
+def test_the_hourly_cap_starts_k_and_leaves_the_rest_for_the_next_hour(db_session, monkeypatch, sent_expansions):
+    monkeypatch.setattr(get_settings(), "reexpand_max_per_hour", 2)
+    now = datetime.now(timezone.utc)
+    jobs = [
+        _watched(db_session, _user(db_session), due_at=now - timedelta(minutes=10 - i)) for i in range(3)
+    ]
+
+    _tick(db_session, monkeypatch)
+    _tick(db_session, monkeypatch)
+
+    # Oldest due first; the third stays due.
+    assert sent_expansions == [(str(jobs[0].id), True), (str(jobs[1].id), True)]
+    db_session.refresh(jobs[2])
+    assert jobs[2].last_expanded_at is None
+    assert jobs[2].next_expand_at <= now
+
+    # An hour on, the first two's starts are out of the window: the third runs.
+    for job in jobs[:2]:
+        db_session.refresh(job)
+        job.last_expanded_at -= timedelta(hours=1, seconds=1)
+    db_session.commit()
+    _tick(db_session, monkeypatch)
+    assert sent_expansions[2:] == [(str(jobs[2].id), True)]
+
+
+def test_the_cap_counts_check_now_runs(db_session, monkeypatch, sent_expansions):
+    monkeypatch.setattr(get_settings(), "reexpand_max_per_hour", 1)
+    now = datetime.now(timezone.utc)
+    _job(db_session, _user(db_session), track_ids=("a",), last_expanded_at=now - timedelta(minutes=5))
+    _watched(db_session, _user(db_session), due_at=now - timedelta(minutes=1))
+
+    _tick(db_session, monkeypatch)
+
+    assert sent_expansions == []
+
+
+def test_beat_leaves_a_due_job_whose_check_now_is_running(db_session, monkeypatch, sent_expansions, markers):
+    job = _watched(db_session, _user(db_session), due_at=datetime.now(timezone.utc) - timedelta(minutes=1))
+    markers.set(f"{watch.KEY_PREFIX}{job.id}", "1")
+
+    _tick(db_session, monkeypatch)
+
+    assert sent_expansions == []
+    db_session.refresh(job)
+    assert job.last_expanded_at is None
+
+
+def test_a_refused_send_leaves_the_job_due_and_uncounted(db_session, monkeypatch, markers):
+    now = datetime.now(timezone.utc)
+    due_at = now - timedelta(minutes=1)
+    job = _watched(db_session, _user(db_session), due_at=due_at)
+
+    def refuse(job_id, reexpand=False):
+        raise ConnectionError("broker down")
+
+    monkeypatch.setattr(expand_task.expand_job, "delay", refuse)
+    _tick(db_session, monkeypatch)
+
+    db_session.refresh(job)
+    assert job.last_expanded_at is None
+    assert job.next_expand_at == due_at
+    assert markers.values == {}
+
+
+def test_a_watched_job_pass_error_never_stops_track_dispatch(db_session, monkeypatch):
+    def boom(db):
+        raise RuntimeError("bad pass")
+
+    monkeypatch.setattr(beat_task, "_dispatch_due_watched_jobs", boom)
+    job = _job(db_session, _user(db_session))
+    track = Track(
+        job_id=job.id,
+        spotify_track_id="w",
+        song_json={"name": "w"},
+        state=TrackState.WAITING,
+        scheduled_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+    )
+    db_session.add(track)
+    db_session.commit()
+
+    _tick(db_session, monkeypatch)
+
+    db_session.refresh(track)
+    assert track.state == TrackState.QUEUED
+
+
+def test_no_celery_eta_or_countdown_in_the_watch_paths():
+    import inspect
+
+    for module in (beat_task, expand_task, jobs_router, watch):
+        source = inspect.getsource(module)
+        assert "countdown" not in source and "eta=" not in source and "apply_async" not in source, module
+
+
+# --- PUT /api/jobs/{id}/watch ------------------------------------------------------------
+
+
+def test_owner_watches_and_unwatches_a_playlist(authenticated_client, db_session, owner):
+    job = _job(db_session, owner, track_ids=("a",))
+    before = datetime.now(timezone.utc)
+
+    response = authenticated_client.put(f"/api/jobs/{job.id}/watch", json={"interval_hours": 24})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["watch_interval_hours"] == 24
+    next_at = datetime.fromisoformat(body["next_expand_at"])
+    assert before + timedelta(hours=24) <= next_at <= datetime.now(timezone.utc) + timedelta(hours=24)
+
+    # The same interval again keeps the check already scheduled.
+    again = authenticated_client.put(f"/api/jobs/{job.id}/watch", json={"interval_hours": 24}).json()
+    assert again["next_expand_at"] == body["next_expand_at"]
+
+    off = authenticated_client.put(f"/api/jobs/{job.id}/watch", json={"interval_hours": None}).json()
+    assert off["watch_interval_hours"] is None
+    assert off["next_expand_at"] is None
+
+
+@pytest.mark.parametrize("interval", [0, 23, 24 * 365 + 1, "24", 1.5, True, [24]])
+def test_watch_rejects_an_interval_outside_a_day_to_a_year(authenticated_client, db_session, owner, interval):
+    job = _job(db_session, owner)
+    response = authenticated_client.put(f"/api/jobs/{job.id}/watch", json={"interval_hours": interval})
+    assert response.status_code == 422
+    assert response.json()["code"] == "watch_interval_invalid"
+
+
+@pytest.mark.parametrize("source_type", [JobSourceType.ALBUM, JobSourceType.TRACK, JobSourceType.SEARCH])
+def test_only_a_playlist_or_artist_is_watchable(authenticated_client, db_session, owner, source_type):
+    job = _job(db_session, owner, source_type=source_type)
+    response = authenticated_client.put(f"/api/jobs/{job.id}/watch", json={"interval_hours": 168})
+    assert response.status_code == 409
+    assert response.json()["code"] == "job_not_watchable"
+    assert response.json()["params"]["reason"] == "source_type"
+
+
+@pytest.mark.parametrize(
+    "fields,reason",
+    [
+        ({"state": JobState.CANCELLED}, "state"),
+        ({"state": JobState.EXPANDING}, "state"),
+        ({"archived_at": datetime(2026, 1, 1, tzinfo=timezone.utc)}, "archived"),
+    ],
+)
+def test_a_job_not_expanded_or_archived_isnt_watchable(authenticated_client, db_session, owner, fields, reason):
+    job = _job(db_session, owner, **fields)
+    response = authenticated_client.put(f"/api/jobs/{job.id}/watch", json={"interval_hours": 168})
+    assert response.status_code == 409
+    assert response.json()["params"]["reason"] == reason
+
+
+def test_an_admin_watches_another_users_job(admin_client, db_session):
+    job = _job(db_session, _user(db_session, "someone@example.com"), source_type=JobSourceType.ARTIST)
+    response = admin_client.put(f"/api/jobs/{job.id}/watch", json={"interval_hours": 720})
+    assert response.status_code == 200
+    assert response.json()["watch_interval_hours"] == 720
+
+
+def test_the_listing_carries_the_watch_and_the_new_count(authenticated_client, db_session, owner):
+    job = _job(db_session, owner, track_ids=("a",), watch_interval_hours=168)
+    item = next(j for j in authenticated_client.get("/api/jobs").json()["items"] if j["id"] == str(job.id))
+    assert item["watch_interval_hours"] == 168
+    assert item["new_tracks"] == 0
+    assert "next_expand_at" in item and "last_expanded_at" in item
+
+
+# --- POST /api/jobs/{id}/reexpand ---------------------------------------------------------
+
+
+def test_owner_checks_now(authenticated_client, db_session, owner, sent_expansions, markers):
+    job = _job(db_session, owner, source_type=JobSourceType.ALBUM, track_ids=("a",))
+    response = authenticated_client.post(f"/api/jobs/{job.id}/reexpand")
+    assert response.status_code == 202
+    assert sent_expansions == [(str(job.id), True)]
+    assert response.json()["last_expanded_at"] is not None
+    assert f"{watch.KEY_PREFIX}{job.id}" in markers.values
+
+
+def test_check_now_moves_a_watched_jobs_next_check(authenticated_client, db_session, owner, sent_expansions):
+    job = _job(
+        db_session,
+        owner,
+        watch_interval_hours=24,
+        next_expand_at=datetime.now(timezone.utc) + timedelta(hours=2),
+    )
+    body = authenticated_client.post(f"/api/jobs/{job.id}/reexpand").json()
+    last = datetime.fromisoformat(body["last_expanded_at"])
+    assert datetime.fromisoformat(body["next_expand_at"]) == last + timedelta(hours=24)
+
+
+def test_a_second_check_while_one_runs_is_a_409(authenticated_client, db_session, owner, sent_expansions):
+    job = _job(db_session, owner)
+    assert authenticated_client.post(f"/api/jobs/{job.id}/reexpand").status_code == 202
+    second = authenticated_client.post(f"/api/jobs/{job.id}/reexpand")
+    assert second.status_code == 409
+    assert second.json()["code"] == "reexpand_running"
+    assert len(sent_expansions) == 1
+
+
+def test_check_now_runs_again_once_the_last_run_ended(
+    authenticated_client, db_session, owner, sent_expansions, monkeypatch
+):
+    job = _job(db_session, owner, track_ids=("a",))
+    assert authenticated_client.post(f"/api/jobs/{job.id}/reexpand").status_code == 202
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(expansion, "expand", lambda url: [_FakeSong("a")])
+    expand_task.expand_job(str(job.id), reexpand=True)
+    assert authenticated_client.post(f"/api/jobs/{job.id}/reexpand").status_code == 202
+
+
+def test_an_admin_checks_another_users_job(admin_client, db_session, sent_expansions):
+    job = _job(db_session, _user(db_session, "someone@example.com"))
+    assert admin_client.post(f"/api/jobs/{job.id}/reexpand").status_code == 202
+
+
+@pytest.mark.parametrize(
+    "fields,code",
+    [
+        ({"state": JobState.FAILED}, "job_not_reexpandable"),
+        ({"state": JobState.CANCELLED}, "job_not_reexpandable"),
+        ({"state": JobState.EXPANDING}, "job_not_reexpandable"),
+        ({"archived_at": datetime(2026, 1, 1, tzinfo=timezone.utc)}, "job_archived"),
+    ],
+)
+def test_check_now_needs_an_expanded_unarchived_job(
+    authenticated_client, db_session, owner, sent_expansions, fields, code
+):
+    job = _job(db_session, owner, **fields)
+    response = authenticated_client.post(f"/api/jobs/{job.id}/reexpand")
+    assert response.status_code == 409
+    assert response.json()["code"] == code
+    assert sent_expansions == []
+
+
+def test_a_refused_check_now_send_is_a_503_and_frees_the_job(
+    authenticated_client, db_session, owner, monkeypatch, markers
+):
+    job = _job(db_session, owner)
+
+    def refuse(job_id, reexpand=False):
+        raise ConnectionError("broker down")
+
+    monkeypatch.setattr(expand_task.expand_job, "delay", refuse)
+    response = authenticated_client.post(f"/api/jobs/{job.id}/reexpand")
+    assert response.status_code == 503
+    assert response.json()["code"] == "queue_unavailable"
+    db_session.refresh(job)
+    assert job.last_expanded_at is None
+    assert markers.values == {}
+
+
+# --- POST /api/jobs/{id}/retry-failed ----------------------------------------------------
+
+
+def _failed_job(db_session, user, *, waiting=3, not_found=2, attempt_count=1) -> Job:
+    job = _job(db_session, user, source_type=JobSourceType.ALBUM)
+    later = datetime.now(timezone.utc) + timedelta(hours=4)
+    for i in range(waiting):
+        db_session.add(
+            Track(
+                job_id=job.id,
+                spotify_track_id=f"w{i}",
+                song_json={"name": f"w{i}"},
+                state=TrackState.WAITING,
+                scheduled_at=later,
+                attempt_count=attempt_count,
+            )
+        )
+    for i in range(not_found):
+        db_session.add(
+            Track(job_id=job.id, spotify_track_id=f"n{i}", song_json={"name": f"n{i}"}, state=TrackState.LOOKUP_FAILED)
+        )
+    db_session.add(Track(job_id=job.id, spotify_track_id="done", song_json={"name": "d"}, state=TrackState.COMPLETED))
+    db_session.commit()
+    return job
+
+
+def _tracks(db_session, job, state):
+    db_session.expire_all()
+    return db_session.query(Track).filter(Track.job_id == job.id, Track.state == state).all()
+
+
+def test_retry_failed_makes_every_waiting_track_due_now(authenticated_client, db_session, owner):
+    job = _failed_job(db_session, owner)
+    before = datetime.now(timezone.utc)
+
+    response = authenticated_client.post(f"/api/jobs/{job.id}/retry-failed")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["retried"], body["cooldown"], body["overridden"]) == (3, 0, 0)
+    waiting = _tracks(db_session, job, TrackState.WAITING)
+    assert len(waiting) == 3
+    assert all(t.scheduled_at <= datetime.now(timezone.utc) and t.scheduled_at >= before for t in waiting)
+    # Not-found tracks stay terminal without the admin's override.
+    assert len(_tracks(db_session, job, TrackState.LOOKUP_FAILED)) == 2
+    assert body["job"]["id"] == str(job.id)
+
+
+def test_retry_failed_holds_a_non_admin_to_one_retry_per_step(authenticated_client, db_session, owner):
+    job = _failed_job(db_session, owner)
+    # One of them was retried in this step already (single retry, v56 A8).
+    one = _tracks(db_session, job, TrackState.WAITING)[0]
+    one.retry_now_step = one.attempt_count
+    later = one.scheduled_at
+    db_session.commit()
+
+    body = authenticated_client.post(f"/api/jobs/{job.id}/retry-failed").json()
+    assert (body["retried"], body["cooldown"]) == (2, 1)
+    db_session.refresh(one)
+    assert one.scheduled_at == later
+
+    # A second press in the same step retries none of them.
+    again = authenticated_client.post(f"/api/jobs/{job.id}/retry-failed").json()
+    assert (again["retried"], again["cooldown"]) == (0, 3)
+
+    # The next step (a failed attempt advances attempt_count) frees them again.
+    for track in _tracks(db_session, job, TrackState.WAITING):
+        track.attempt_count += 1
+    db_session.commit()
+    assert authenticated_client.post(f"/api/jobs/{job.id}/retry-failed").json()["retried"] == 3
+
+
+def test_an_admins_retry_failed_isnt_held_per_step(admin_client, db_session, admin_user):
+    job = _failed_job(db_session, admin_user)
+    for track in _tracks(db_session, job, TrackState.WAITING):
+        track.retry_now_step = track.attempt_count
+    db_session.commit()
+    assert admin_client.post(f"/api/jobs/{job.id}/retry-failed").json()["retried"] == 3
+
+
+def test_admin_include_not_found_queues_them_and_records_manual_override(
+    admin_client, db_session, sent_downloads, monkeypatch
+):
+    monkeypatch.setattr(jobs_router.download_track, "delay", lambda track_id: sent_downloads.append(track_id))
+    job = _failed_job(db_session, _user(db_session, "someone@example.com"))
+
+    response = admin_client.post(f"/api/jobs/{job.id}/retry-failed?include_not_found=true")
+
+    assert response.status_code == 200
+    assert response.json()["overridden"] == 2
+    queued = _tracks(db_session, job, TrackState.QUEUED)
+    assert sorted(t.spotify_track_id for t in queued) == ["n0", "n1"]
+    assert sorted(sent_downloads) == sorted(str(t.id) for t in queued)
+    rows = db_session.query(TrackAttempt).filter(TrackAttempt.track_id.in_([t.id for t in queued])).all()
+    assert len(rows) == 2
+    assert {r.outcome for r in rows} == {TrackAttemptOutcome.MANUAL_OVERRIDE}
+    assert all(r.network_path is None and r.warning_message for r in rows)
+    # Not a network attempt: the display counters don't move.
+    assert all(t.attempts_made == 0 and t.failure_count == 0 for t in queued)
+    history = admin_client.get(f"/api/tracks/{queued[0].id}/attempts").json()
+    assert [a["outcome"] for a in history] == ["manual_override"]
+
+
+def test_a_non_admin_cant_include_not_found(authenticated_client, db_session, owner):
+    job = _failed_job(db_session, owner)
+    response = authenticated_client.post(f"/api/jobs/{job.id}/retry-failed?include_not_found=true")
+    assert response.status_code == 403
+    assert response.json()["code"] == "admin_required"
+    assert len(_tracks(db_session, job, TrackState.LOOKUP_FAILED)) == 2
+    assert all(t.scheduled_at > datetime.now(timezone.utc) for t in _tracks(db_session, job, TrackState.WAITING))
+
+
+@pytest.mark.parametrize(
+    "fields,code",
+    [
+        ({"archived_at": datetime(2026, 1, 1, tzinfo=timezone.utc)}, "job_archived"),
+        ({"state": JobState.CANCELLED}, "job_cancelled"),
+    ],
+)
+def test_retry_failed_refuses_an_archived_or_cancelled_job(authenticated_client, db_session, owner, fields, code):
+    job = _failed_job(db_session, owner)
+    for name, value in fields.items():
+        setattr(job, name, value)
+    db_session.commit()
+    response = authenticated_client.post(f"/api/jobs/{job.id}/retry-failed")
+    assert response.status_code == 409
+    assert response.json()["code"] == code
+
+
+def test_retry_failed_says_when_the_breaker_holds(authenticated_client, db_session, owner):
+    job = _failed_job(db_session, owner)
+    state = retry.get_worker_state(db_session)
+    state.breaker_tripped_until = datetime.now(timezone.utc) + timedelta(hours=1)
+    db_session.commit()
+    assert authenticated_client.post(f"/api/jobs/{job.id}/retry-failed").json()["breaker_held"] is True

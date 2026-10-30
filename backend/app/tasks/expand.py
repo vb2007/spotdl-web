@@ -2,7 +2,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import case, select, update
+from sqlalchemy import case, func, select, update
 
 from app.db import SessionLocal
 from app.models import Job, JobState, Track, TrackState
@@ -174,7 +174,14 @@ def _reexpand(db, job_id: str) -> None:
         if not song.song_id or song.song_id in known:
             continue
         known.add(song.song_id)
-        track = Track(job_id=job.id, spotify_track_id=song.song_id, song_json=song.json)
+        # The statement's clock, not the transaction's `now()`: watch.new_track_counts tells a
+        # re-expansion's tracks from the first expansion's by being later.
+        track = Track(
+            job_id=job.id,
+            spotify_track_id=song.song_id,
+            song_json=song.json,
+            created_at=func.clock_timestamp(),
+        )
         db.add(track)
         tracks.append(track)
     _mark_due(tracks, datetime.now(timezone.utc))
