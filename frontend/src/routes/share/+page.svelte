@@ -60,6 +60,9 @@ RISK: a short link needs a server round-trip before there is anything to read.
 	let target = $state<Target | null>(link?.kind === 'full' ? link : null);
 	let phase = $state<Phase>(link === null ? 'none' : link.kind === 'full' ? 'ready' : 'resolving');
 	let problem = $state<(() => string) | null>(null);
+	// A look-up that can pass on a second try (the host down, busy or throttling, the network);
+	// a link that leads nowhere (422) fails the same way every time, so it gets no retry.
+	let retryable = $state(false);
 	let outcome = $state<(() => string) | null>(null);
 	// Only a track already in the library is settled at once; a new or still-queued one is
 	// in flight, never mint (DESIGN.md §2).
@@ -84,7 +87,7 @@ RISK: a short link needs a server round-trip before there is anything to read.
 			phase === 'ready'
 				? queueButton
 				: phase === 'resolve-failed'
-					? retryButton
+					? (retryButton ?? queueLink)
 					: phase === 'done' || phase === 'none'
 						? queueLink
 						: undefined;
@@ -100,6 +103,7 @@ RISK: a short link needs a server round-trip before there is anything to read.
 			phase = 'ready';
 		} catch (err) {
 			problem = () => errorText(err, m.share_resolve_failed);
+			retryable = !(err instanceof api.ApiError && err.status === 422);
 			phase = 'resolve-failed';
 		}
 		await focusNext();
@@ -202,11 +206,17 @@ RISK: a short link needs a server round-trip before there is anything to read.
 				<div class="actions">
 					{#if phase === 'resolving'}
 						<p class="pending" role="status">{m.share_resolving()}</p>
-					{:else if phase === 'resolve-failed'}
+					{:else if phase === 'resolve-failed' && retryable}
 						<button type="button" class="btn" bind:this={retryButton} onclick={lookUp}
 							>{m.share_retry()}</button
 						>
 						<a class="quiet-link" href={resolve('/')}>{m.share_not_now()}</a>
+					{:else if phase === 'resolve-failed'}
+						<!-- eslint-disable svelte/no-navigation-without-resolve -- resolve('/') plus ?view=mine, as below -->
+						<a class="btn" href={ownQueue} aria-describedby="share-problem" bind:this={queueLink}
+							>{m.share_open_queue()}</a
+						>
+						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					{:else if phase === 'ready' || phase === 'queueing'}
 						<button
 							type="button"
@@ -226,7 +236,7 @@ RISK: a short link needs a server round-trip before there is anything to read.
 						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					{/if}
 				</div>
-				<p class="form-error" role="alert">{problem?.() ?? ''}</p>
+				<p class="form-error" id="share-problem" role="alert">{problem?.() ?? ''}</p>
 			{/if}
 		</section>
 	</main>

@@ -73,6 +73,7 @@ describe('v65 share target: Spotify share formats', () => {
 			full('track')
 		],
 		['a link glued into a sentence', { text: `Hallgasd meg (${TRACK}?si=x)!` }, full('track')],
+		['a Hungarian case ending glued on', { text: `Hallgasd meg a ${TRACK}-t!` }, full('track')],
 		[
 			'a non-Spotify link first, then Spotify',
 			{ text: `https://example.com/x ${TRACK}` },

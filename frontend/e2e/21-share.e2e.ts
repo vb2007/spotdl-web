@@ -95,6 +95,7 @@ test.describe('signed out', () => {
 			body: JSON.stringify({ job_ids: [job.id] })
 		});
 		expect(archived.status).toBe(200);
+		expect(archived.body.archived_ids).toEqual([job.id]);
 	});
 
 	test('a share whose session ends before the confirm comes back after the next sign-in', async ({
@@ -104,6 +105,7 @@ test.describe('signed out', () => {
 		await page.goto(SHARE);
 		await signIn(page);
 		await expect(page).toHaveURL(`${baseURL}${SHARE}`);
+		await expect(page.getByRole('button', { name: t(m.share_queue), exact: true })).toBeFocused();
 		// The session ends under the page (expired, revoked): this tab's own cookie, so the
 		// saved sessions other specs use are untouched.
 		expect((await pageFetch(page, '/api/auth/logout', { method: 'POST' })).status).toBe(200);
@@ -150,6 +152,22 @@ test.describe('signed in', () => {
 		// expires the code, this fails for that reason. Shown, not queued: a playlist would expand
 		// into tracks for worker-dl.
 		const short = 'https://spotify.link/6tpneu0iVIb';
+		// A link that leads nowhere (422) fails the same way every time: no retry, the way out.
+		await page.route('**/api/links/resolve', (route) =>
+			route.fulfill({
+				status: 422,
+				contentType: 'application/json',
+				body: JSON.stringify({ detail: 'x', code: 'short_link_unresolved', params: {} })
+			})
+		);
+		await page.goto(`/share?text=${encodeURIComponent(short)}`);
+		await expect(page.getByRole('alert')).toHaveText(t(m.error_short_link_unresolved));
+		await expect(page.getByRole('button', { name: t(m.share_retry), exact: true })).toHaveCount(0);
+		await expect(
+			page.getByRole('link', { name: t(m.share_open_queue), exact: true })
+		).toBeFocused();
+		await page.unroute('**/api/links/resolve');
+
 		let fail = true;
 		await page.route('**/api/links/resolve', (route) =>
 			fail
