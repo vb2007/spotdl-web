@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1793389617.0122538,
-    "ast_hash": "393dcbf6bfb05bfd7d3b5fdcb2992d23",
+    "mtime": 1793391788.7082152,
+    "ast_hash": "27210821c200ba485dc6b90c41d3cdfb",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -2170,8 +2170,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/21-share.e2e.ts": {
-    "mtime": 1793390357.51589,
-    "ast_hash": "d0c3b87c3a6383a9bd9704e8e9e3162a",
+    "mtime": 1793391788.6975894,
+    "ast_hash": "57e20c6a9a20b1c967ab895631f9f0cd",
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/f5aeb67bdcf6d731.json": {
