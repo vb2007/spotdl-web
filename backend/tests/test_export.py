@@ -625,6 +625,30 @@ def test_an_unreadable_file_is_listed_as_missing_not_streamed(authenticated_clie
     assert "Locked -- file can't be read (permissions)" in archive.read("MISSING.txt").decode()
 
 
+def test_a_symlink_loop_or_a_locked_folder_is_listed_not_a_500(authenticated_client, db_session, owner, roots):
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "1.opus"))
+    (downloads / "loop.opus").symlink_to(downloads / "loop.opus")
+    _track(db_session, job, 2, path=downloads / "loop.opus", name="Loop")
+    locked_dir = downloads / "locked"
+    _file(locked_dir, "3.opus")
+    _track(db_session, job, 3, path=locked_dir / "3.opus", name="Locked")
+    locked_dir.chmod(0)
+    try:
+        response = authenticated_client.get(f"/api/jobs/{job.id}/export.zip")
+        head = authenticated_client.head(f"/api/jobs/{job.id}/export.zip")
+        playlist = authenticated_client.get(f"/api/jobs/{job.id}/playlist.m3u8")
+    finally:
+        locked_dir.chmod(0o755)
+
+    assert (response.status_code, head.status_code, playlist.status_code) == (200, 200, 200)
+    assert head.headers["x-export-files"] == "1"
+    missing = _zip(response).read("MISSING.txt").decode()
+    assert "Loop -- recorded path can't be resolved (a symlink loop?)" in missing
+    assert "Locked -- file can't be read (permissions)" in missing
+
+
 def test_a_zip_over_4_gib_has_the_length_it_declares(db_session, make_user, roots):
     """Past 4 GiB zipstream-ng writes zip64 records: the length counted up front must still
     be the bytes streamed (sparse files, so the test writes nothing real)."""
