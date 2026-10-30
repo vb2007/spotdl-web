@@ -291,3 +291,15 @@ def test_endpoint_measures_the_library_after_its_snapshot(authenticated_client, 
         "bytes": 4321,
         "unreadable": 0,
     }
+
+
+def test_a_window_switch_can_skip_the_library(authenticated_client, db_session, tmp_path):
+    me = db_session.query(User).filter(User.email == "allowed@example.com").one()
+    path = tmp_path / "mine.opus"
+    path.write_bytes(b"x" * 10)
+    db_session.add(DownloadedTrack(spotify_track_id="sskip", file_path=str(path), format="opus"))
+    _track(db_session, _job(db_session, me), spotify_id="sskip")
+    db_session.commit()
+    body = authenticated_client.get("/api/stats/me?window=7d&library=false").json()
+    assert body["library"] is None and body["window"] == "7d"
+    assert authenticated_client.get("/api/stats/me?window=7d").json()["library"]["files"] == 1

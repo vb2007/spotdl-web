@@ -5,8 +5,8 @@
 	// v43: the masthead of /settings, /library and /account, in the same terms as `/`'s
 	// (the wordmark left, the page links right). The page's own h1 opens its <main>
 	// (`.page-title`, app.css), so every piece of content sits inside a landmark. The admin pages
-	// are linked for the admin only: a non-admin reaches them only by typing the path
-	// (owner's decision), and then gets AdminOnlyNotice.
+	// (library, settings) are linked for the admin only: a non-admin reaches them only by typing
+	// the path (owner's decision), and then gets AdminOnlyNotice. /stats is everyone's (v66).
 	let {
 		current,
 		isAdmin

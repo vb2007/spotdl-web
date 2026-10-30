@@ -401,11 +401,13 @@ def my_stats(
     now: datetime | None = None,
     utc_offset_minutes: int = 0,
     measure_library: bool = True,
+    include_library: bool = True,
 ) -> dict:
     """v66: one user's own downloads over a window (the admin page's windows and buckets), plus
     their library contribution all time. Every statement is narrowed to `user_id`'s jobs. With
     `measure_library` off, `library` is the contributed paths (`contributed_files`) for the caller
-    to `measure_files` once its transaction is over (the router's snapshot)."""
+    to `measure_files` once its transaction is over (the router's snapshot); with
+    `include_library` off it's `None` (a window switch: the figure is the same in every window)."""
     now = now or datetime.now(timezone.utc)
     offset = utc_offset_minutes * 60
     start, end, bucket_seconds, first_bucket, bucket_count = _window(window, now, offset)
@@ -482,7 +484,9 @@ def my_stats(
         },
         "jobs": {"total": sum(by_status.values()), "by_status": by_status},
         "library": (
-            measure_files(contributed_files(db, user_id))
+            None
+            if not include_library
+            else measure_files(contributed_files(db, user_id))
             if measure_library
             else contributed_files(db, user_id)
         ),
