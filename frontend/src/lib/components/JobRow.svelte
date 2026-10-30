@@ -243,23 +243,45 @@
 	);
 	let exportCounts = $state<{ files: number; tracks: number } | null>(null);
 	let exportFiles = $derived(exportCounts?.files ?? 0);
+	// One read at a time: a burst of settles (dedup resolving a whole album) asks for one
+	// more read after the one in flight, not one per settle. A closed row (or a new identity)
+	// drops whatever answer is still on its way.
 	let exportRead = 0;
-	$effect(() => {
-		// Read on opening and on every change of the settled count; nothing while closed.
-		if (!isOpen || settledTracks === 0) {
-			exportCounts = null;
+	let exportInFlight = false;
+	let exportAgain = false;
+	function readExportCounts() {
+		if (exportInFlight) {
+			exportAgain = true;
 			return;
 		}
 		const read = ++exportRead;
 		const session = queue.getResetCount();
+		exportInFlight = true;
 		api
 			.getJobExportCounts(job.id)
 			.then((counts) => {
 				if (read === exportRead && queue.getResetCount() === session) exportCounts = counts;
 			})
 			.catch(() => {
-				if (read === exportRead) exportCounts = null;
+				if (read === exportRead && queue.getResetCount() === session) exportCounts = null;
+			})
+			.finally(() => {
+				exportInFlight = false;
+				if (exportAgain && read === exportRead) {
+					exportAgain = false;
+					readExportCounts();
+				}
 			});
+	}
+	$effect(() => {
+		// Read on opening and on every change of the settled count; nothing while closed.
+		if (!isOpen || settledTracks === 0) {
+			exportRead++;
+			exportAgain = false;
+			exportCounts = null;
+			return;
+		}
+		readExportCounts();
 	});
 	let exportProbing = $state<'zip' | 'playlist' | null>(null);
 

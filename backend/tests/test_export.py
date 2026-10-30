@@ -18,6 +18,26 @@ from app.models import AppSettings, DownloadedTrack, Job, JobSourceType, JobStat
 from app.services import app_settings, export
 
 
+class _NonClosingSession:
+    """db_session for the stream's own short read: its close() would detach the test's rows."""
+
+    def __init__(self, session):
+        self._session = session
+
+    def __getattr__(self, name):
+        return getattr(self._session, name)
+
+    def close(self):
+        pass
+
+
+@pytest.fixture(autouse=True)
+def _ledger_reads_on_the_test_session(db_session, monkeypatch):
+    """The export's own short ledger reads (a file that moved before its stat or mid-stream)
+    go through db_session, never a connection of their own."""
+    monkeypatch.setattr(export, "SessionLocal", lambda: _NonClosingSession(db_session))
+
+
 @pytest.fixture()
 def roots(tmp_path, monkeypatch):
     downloads = tmp_path / "downloads"
@@ -403,7 +423,7 @@ def test_admin_reads_and_overrides_the_export_settings(admin_client, monkeypatch
 
 
 @pytest.mark.parametrize(
-    "field, value", [("export_max_files", 0), ("export_max_files", 100_001), ("export_max_gb", 0), ("export_max_gb", 10_001)]
+    "field, value", [("export_max_files", 0), ("export_max_files", 65_001), ("export_max_gb", 0), ("export_max_gb", 10_001)]
 )
 def test_export_settings_out_of_range_are_refused(field, value, admin_client, db_session):
     response = admin_client.patch("/api/settings/export", json={field: value})
@@ -484,19 +504,6 @@ def test_library_paths_list_only_library_files_and_name_the_rest(admin_client, d
     )
 
 
-class _NonClosingSession:
-    """db_session for the stream's own short read: its close() would detach the test's rows."""
-
-    def __init__(self, session):
-        self._session = session
-
-    def __getattr__(self, name):
-        return getattr(self._session, name)
-
-    def close(self):
-        pass
-
-
 def _stream_after(plan, before_stream):
     """The zip's bytes, with `before_stream` run once the plan exists (and the
     Content-Length is fixed) but before any file is read."""
@@ -510,7 +517,6 @@ def test_a_file_a_sweep_moves_mid_stream_is_read_from_its_new_path(db_session, m
     """Owner's decision (2026-10-30): the sweep commits the ledger's new path before it removes
     the source, so the stream finds the file there, at the size the plan counted."""
     downloads, library = roots
-    monkeypatch.setattr(export, "SessionLocal", lambda: _NonClosingSession(db_session))
     job = _job(db_session, make_user("owner@example.com"))
     source = _file(downloads, "01 - a.opus")
     track = _track(db_session, job, 1, path=source, ledger=source)
@@ -536,7 +542,6 @@ def test_a_file_a_sweep_moves_mid_stream_is_read_from_its_new_path(db_session, m
 @pytest.mark.parametrize("case", ["gone", "other size", "grew"])
 def test_a_file_that_cant_be_streamed_as_planned_ends_the_stream(case, db_session, make_user, roots, monkeypatch):
     downloads, library = roots
-    monkeypatch.setattr(export, "SessionLocal", lambda: _NonClosingSession(db_session))
     job = _job(db_session, make_user("owner@example.com"))
     source = _file(downloads, "01 - a.opus")
     track = _track(db_session, job, 1, path=source, ledger=source)
@@ -557,10 +562,86 @@ def test_a_file_that_cant_be_streamed_as_planned_ends_the_stream(case, db_sessio
         _stream_after(plan, change)
 
 
+def test_a_file_moved_before_its_stat_is_found_through_the_ledger(db_session, make_user, roots):
+    """A sweep that commits the ledger's new path between the plan's read and its stat:
+    one batched re-read finds it, instead of listing it as missing."""
+    downloads, library = roots
+    job = _job(db_session, make_user("owner@example.com"))
+    source = _file(downloads, "01 - a.opus")
+    track = _track(db_session, job, 1, path=source, ledger=source)
+    rows = export.load_rows(db_session, job.id)
+    dest = library / "Artist" / "01 - a.opus"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(source.read_bytes())
+    db_session.get(DownloadedTrack, track.spotify_track_id).file_path = str(dest)
+    db_session.commit()
+    source.unlink()
+
+    plan = export.plan_from_rows(rows, "The Album")
+
+    assert [(f.arcname, f.path, f.in_library) for f in plan.files] == [("01 - a.opus", dest, True)]
+    assert plan.missing == []
+
+
+def test_a_zip_over_4_gib_has_the_length_it_declares(db_session, make_user, roots):
+    """Past 4 GiB zipstream-ng writes zip64 records: the length counted up front must still
+    be the bytes streamed (sparse files, so the test writes nothing real)."""
+    downloads, _library = roots
+    job = _job(db_session, make_user("owner@example.com"))
+    for number in (1, 2):
+        path = downloads / f"{number}.opus"
+        with path.open("wb") as handle:
+            handle.truncate(2_300 * 1024 * 1024)
+        _track(db_session, job, number, path=path)
+    _track(db_session, job, 3, state=TrackState.WAITING)
+    archive = export.build_zip(export.plan_export(db_session, job.id, "The Album"))
+    declared = len(archive)
+    assert declared > 4 * 1024**3
+
+    streamed = sum(len(chunk) for chunk in export.iter_chunks(archive))
+
+    assert streamed == declared
+
+
+def test_the_response_closes_its_stream_when_the_client_is_gone(db_session, make_user, roots):
+    """On a disconnect Starlette's send() raises and nothing closes the body: the response
+    does, so the file being read is closed at once, not by the garbage collector."""
+    import asyncio
+
+    from starlette.requests import ClientDisconnect
+
+    from app.routers import export as export_router
+
+    downloads, _library = roots
+    job = _job(db_session, make_user("owner@example.com"))
+    _track(db_session, job, 1, path=_file(downloads, "big.opus", size=4 * 1024 * 1024))
+    archive = export.build_zip(export.plan_export(db_session, job.id, "The Album"))
+    response = export_router._ClosingStreamingResponse(export_router._stream(archive), media_type="application/zip")
+    fd_dir = Path(f"/proc/{os.getpid()}/fd")
+    open_now = lambda: sum(1 for fd in fd_dir.iterdir() if fd.resolve() == downloads / "big.opus")  # noqa: E731
+    sent = []
+
+    async def send(message):
+        sent.append(message)
+        if len(sent) > 2:
+            raise OSError("client went away")
+
+    async def receive():
+        await asyncio.sleep(3600)
+
+    # Starlette reports the failed send as a ClientDisconnect.
+    with pytest.raises((OSError, ClientDisconnect)):
+        asyncio.run(response({"type": "http", "asgi": {"spec_version": "2.4"}}, receive, send))
+
+    assert len(sent) > 2
+    assert open_now() == 0
+
+
 @pytest.mark.parametrize(
     "name, expected",
     [
         ("Björk", "Björk"),
+        ("line\u2028sep\x85", "line_sep_"),
         ("AC/DC: Live", "AC_DC_ Live"),
         ("..\\..\\evil", "_.._evil"),
         ("...", "export"),

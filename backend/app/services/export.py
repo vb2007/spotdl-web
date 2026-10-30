@@ -44,7 +44,9 @@ _CHUNK_BYTES = 1024 * 1024
 # Characters a zip entry or download name can't safely carry: path separators (a
 # backslash is one to Windows extractors, so a name with `..\` could escape the folder),
 # the ones Windows refuses, and control characters.
-_UNSAFE_NAME = re.compile(r'[\\/:*?"<>|\x00-\x1f\x7f]')
+# C1 controls and the Unicode line/paragraph separators too: Python's splitlines() (and
+# some players) treat U+0085, U+2028 and U+2029 as line breaks.
+_UNSAFE_NAME = re.compile(r'[\\/:*?"<>|\x00-\x1f\x7f-\x9f\u2028\u2029]')
 # In UTF-8 bytes, under the common 255-byte filename limit with room left for a ` (N)`
 # duplicate suffix: a Hungarian name's accented letters take two bytes each.
 _MAX_NAME_BYTES = 200
@@ -205,44 +207,65 @@ def load_rows(db: Session, job_id: uuid.UUID) -> list:
     ).all()
 
 
+_NOT_FOUND = "file not found at its recorded path"
+
+
+def _locate(raw_path: str) -> tuple[Path, str, int] | str:
+    """The file at `raw_path`: its resolved path, its root's nginx prefix and its size, or
+    the reason it isn't in the export."""
+    location = allowed_file_location(Path(raw_path))
+    if location is None:
+        return "recorded path is outside the download and library folders"
+    resolved, _root, prefix = location
+    try:
+        stat = resolved.stat()
+    except OSError:
+        return _NOT_FOUND
+    if not resolved.is_file():
+        return _NOT_FOUND
+    return resolved, prefix, stat.st_size
+
+
 def plan_from_rows(rows: list, title: str) -> ExportPlan:
-    """Every track, sorted into the zip or MISSING.txt: filesystem checks only."""
+    """Every track, sorted into the zip or MISSING.txt: filesystem checks, plus one batched
+    ledger re-read only if a file wasn't where its row said (see below)."""
     rows = sorted(rows, key=_order_key)
+
+    # The ledger's path first (a library move repoints it), as the single-track download
+    # does (routers/tracks.py's _resolve_track_file_path).
+    found: dict[int, tuple[Path, str, int] | str] = {}
+    for index, row in enumerate(rows):
+        if row.state not in _FILE_STATES:
+            found[index] = f"not downloaded ({row.state.value.replace('_', ' ')})"
+            continue
+        raw_path = row.file_path if row.file_path is not None else row.output_path
+        found[index] = "no file recorded" if raw_path is None else _locate(raw_path)
+    # A library sweep may have moved a file between the rows' read and its stat (it commits
+    # the ledger's new path before unlinking the source): one read of those rows' current
+    # paths, as the stream does for a file that moves later (_open).
+    misses = {rows[i].spotify_track_id: i for i, result in found.items() if result == _NOT_FOUND}
+    if misses:
+        for spotify_track_id, file_path in _current_paths(list(misses)).items():
+            if file_path != rows[misses[spotify_track_id]].file_path:
+                found[misses[spotify_track_id]] = _locate(file_path)
 
     playlist_name = f"{safe_name(title)}.m3u8"
     taken = {MISSING_NAME.casefold(), playlist_name.casefold()}
     files: list[ExportFile] = []
     missing: list[tuple[str, str]] = []
-    for row in rows:
+    for index, row in enumerate(rows):
         song = row.song_json or {}
         label = _track_label(song)
-        if row.state not in _FILE_STATES:
-            missing.append((label, f"not downloaded ({row.state.value.replace('_', ' ')})"))
+        result = found[index]
+        if isinstance(result, str):
+            missing.append((label, result))
             continue
-        # The ledger's path first (a library move repoints it), as the single-track
-        # download does (routers/tracks.py's _resolve_track_file_path).
-        raw_path = row.file_path if row.file_path is not None else row.output_path
-        if raw_path is None:
-            missing.append((label, "no file recorded"))
-            continue
-        location = allowed_file_location(Path(raw_path))
-        if location is None:
-            missing.append((label, "recorded path is outside the download and library folders"))
-            continue
-        resolved, _root, prefix = location
-        try:
-            stat = resolved.stat()
-        except OSError:
-            missing.append((label, "file not found at its recorded path"))
-            continue
-        if not resolved.is_file():
-            missing.append((label, "file not found at its recorded path"))
-            continue
+        resolved, prefix, size = result
         files.append(
             ExportFile(
                 arcname=_dedupe(safe_name(resolved.name, "track", keep_extension=True), taken),
                 path=resolved,
-                size=stat.st_size,
+                size=size,
                 spotify_track_id=row.spotify_track_id,
                 duration=_duration(song),
                 label=label,
@@ -295,18 +318,26 @@ class ExportFileChanged(Exception):
     promised. The response is already under way, so the stream ends there."""
 
 
-def _current_path(spotify_track_id: str) -> Path | None:
-    """Where the ledger says the file is now, inside an allowed root. One short read on a
-    session of its own, ended at once: the stream around it may run for hours, and it must
-    not hold a transaction meanwhile (v31)."""
+def _current_paths(spotify_track_ids: list[str]) -> dict[str, str]:
+    """Where the ledger says these files are now. One short read on a session of its own,
+    ended at once: the request or stream around it may run for hours, and it must not hold a
+    transaction meanwhile (v31)."""
     session = SessionLocal()
     try:
-        file_path = session.execute(
-            select(DownloadedTrack.file_path).where(DownloadedTrack.spotify_track_id == spotify_track_id)
-        ).scalar_one_or_none()
+        rows = session.execute(
+            select(DownloadedTrack.spotify_track_id, DownloadedTrack.file_path).where(
+                DownloadedTrack.spotify_track_id.in_(spotify_track_ids)
+            )
+        ).all()
         session.rollback()
     finally:
         session.close()
+    return {row.spotify_track_id: row.file_path for row in rows}
+
+
+def _current_path(spotify_track_id: str) -> Path | None:
+    """Where the ledger says one file is now, inside an allowed root (the stream's re-read)."""
+    file_path = _current_paths([spotify_track_id]).get(spotify_track_id)
     if file_path is None:
         return None
     location = allowed_file_location(Path(file_path))

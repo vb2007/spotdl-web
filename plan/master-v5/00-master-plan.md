@@ -725,8 +725,12 @@ here.
     That adds a migration (additive, no data rewrite), `GET/PATCH /api/settings/export` (admin,
     403 like the other settings) and a `/settings` block, none of them in the plan's files.
   - **nginx:** the plan's "set `proxy_buffering off` for this location" was already true of
-    `location /api/` (v12), so `nginx.conf` is unchanged; streaming was verified against the
-    nginx build.
+    `location /api/` (v12). The live review then found nginx's own `send_timeout` (60 s) cutting
+    a paused download, so `location /api/` gains `send_timeout 3600s` (every API response, SSE
+    included); streaming was verified against the nginx build.
+  - **`routers/tracks.py`:** v27's path guard moved into `allowed_file_location`, shared with
+    the export (the plan's "v27's guard reused"). The single-track download keeps its lexical
+    check, so the new mounts don't change what it serves.
   - **Placement and key (owner, impeccable shape):** the export strip sits at the top of an
     opened job, and `d` on a job row downloads the zip (the existing `download` binding, one
     level up).

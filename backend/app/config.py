@@ -179,7 +179,7 @@ class Settings(BaseSettings):
     # Job export (v64), app/services/export.py: the most files and gigabytes one zip may hold;
     # over either, the export answers 413 `export_too_large`. Defaults only: an admin can
     # override each in the settings UI (app_settings.export_max_*, NULL = these).
-    export_max_files: int = Field(default=2000, ge=1, alias="EXPORT_MAX_FILES")
+    export_max_files: int = Field(default=2000, ge=1, le=65_000, alias="EXPORT_MAX_FILES")
     export_max_gb: int = Field(default=20, ge=1, alias="EXPORT_MAX_GB")
 
     @field_validator("allowed_emails", "frontend_origins", mode="before")

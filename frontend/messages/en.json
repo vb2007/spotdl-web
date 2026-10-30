@@ -238,7 +238,7 @@
 	"job_unarchive": "unarchive",
 	"job_unarchive_label": "unarchive {title}",
 	"job_export_label": "export {title}",
-	"job_export_files": "{count} of {total} files",
+	"job_export_files": "files: {count} of {total}",
 	"job_export_zip": "download all (zip)",
 	"job_export_zip_label": "download all (zip) of {title}",
 	"job_export_playlist": "playlist (.m3u8)",

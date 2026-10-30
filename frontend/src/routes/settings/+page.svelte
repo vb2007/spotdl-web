@@ -137,7 +137,7 @@
 			unit: m.settings_export_max_files_unit,
 			placeholder: (s: api.ExportSettings) => s.default_max_files,
 			min: 1,
-			max: 100_000
+			max: 65_000
 		},
 		{
 			key: 'export_max_gb',
@@ -157,13 +157,15 @@
 			)
 	);
 
-	const outputDirty = $derived(
-		(outputSettings !== null &&
+	const outputFieldsDirty = $derived(
+		outputSettings !== null &&
 			(outputForm.default_format !== outputSettings.default_format ||
 				outputForm.default_bitrate !== outputSettings.default_bitrate ||
-				outputForm.output_template !== outputSettings.output_template)) ||
-			exportDirty
+				outputForm.output_template !== outputSettings.output_template)
 	);
+	const outputDirty = $derived(outputFieldsDirty || exportDirty);
+	// v64: the export limits load on their own, so a failed read leaves the output panel usable.
+	let exportLoadError = $state('');
 
 	function syncOutputForm(settings: api.OutputSettings) {
 		outputForm = {
@@ -207,13 +209,20 @@
 	}
 
 	async function loadOutputSettings() {
-		[outputSettings, outputOptions, exportSettings] = await Promise.all([
+		exportLoadError = '';
+		const exportRead = api.getExportSettings().then(
+			(settings) => {
+				exportSettings = settings;
+				syncExportForm(settings);
+			},
+			(err) => (exportLoadError = errorText(err))
+		);
+		[outputSettings, outputOptions] = await Promise.all([
 			api.getOutputSettings(),
-			api.getOutputOptions(),
-			api.getExportSettings()
+			api.getOutputOptions()
 		]);
 		syncOutputForm(outputSettings);
-		syncExportForm(exportSettings);
+		await exportRead;
 	}
 
 	function syncExportForm(settings: api.ExportSettings) {
@@ -254,8 +263,12 @@
 		outputSaving = true;
 		outputError = '';
 		try {
-			outputSettings = await api.updateOutputSettings(outputForm);
-			syncOutputForm(outputSettings);
+			// v64: each half is saved only when it changed, so one half's failure can't block
+			// the other's save, and an untouched half isn't sent.
+			if (outputFieldsDirty) {
+				outputSettings = await api.updateOutputSettings(outputForm);
+				syncOutputForm(outputSettings);
+			}
 			if (exportDirty) {
 				exportSettings = await api.updateExportSettings({
 					export_max_files: exportValue(exportForm.export_max_files),
@@ -265,6 +278,13 @@
 			}
 			outputSavedAt = new Date();
 		} catch (err) {
+			// A limit the server refuses goes under its own field, as the page's own check does.
+			const field = err instanceof api.ApiError ? err.params.field : undefined;
+			if (typeof field === 'string' && field in exportForm) {
+				exportFieldErrors = { [field]: errorText(err) };
+				outputSaving = false;
+				return focusInvalid(field);
+			}
 			outputError = errorText(err);
 		} finally {
 			outputSaving = false;
@@ -904,6 +924,10 @@
 										{/each}
 									</div>
 								</fieldset>
+							{:else if exportLoadError}
+								<p class="field-error wide" role="alert">
+									{m.settings_section_load_failed({ error: exportLoadError })}
+								</p>
 							{/if}
 							<!-- end v64 -->
 

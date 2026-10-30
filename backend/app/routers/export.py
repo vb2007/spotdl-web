@@ -62,6 +62,18 @@ def _count_headers(plan: export.ExportPlan) -> dict[str, str]:
     return {"X-Export-Files": str(len(plan.files)), "X-Export-Tracks": str(plan.total_tracks)}
 
 
+class _ClosingStreamingResponse(StreamingResponse):
+    """Closes its body when the response ends, however it ends. On a client that went away,
+    Starlette's send() raises and nothing closes the body iterator: its `finally` (and the file
+    it was reading) waited for the garbage collector."""
+
+    async def __call__(self, scope, receive, send):
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            await self.body_iterator.aclose()
+
+
 async def _stream(archive):
     """The archive's chunks, read in the threadpool (file reads block). Closed explicitly
     when the client goes away: Starlette leaves an abandoned sync iterator to the garbage
@@ -72,8 +84,8 @@ async def _stream(archive):
         async for chunk in iterate_in_threadpool(chunks):
             yield chunk
     finally:
-        # A cancelled read isn't abandoned mid-call (anyio waits for the thread), so the
-        # generator isn't executing here and close() runs its cleanup at once.
+        # Reached from _ClosingStreamingResponse's aclose() between reads (a read in the
+        # threadpool isn't abandoned mid-call), so close() runs the cleanup at once.
         chunks.close()
 
 
@@ -99,7 +111,7 @@ def export_zip(
     }
     if request.method == "HEAD":
         return Response(status_code=200, media_type="application/zip", headers=headers)
-    return StreamingResponse(_stream(archive), media_type="application/zip", headers=headers)
+    return _ClosingStreamingResponse(_stream(archive), media_type="application/zip", headers=headers)
 
 
 # HEAD too, for the same probe as the zip's.

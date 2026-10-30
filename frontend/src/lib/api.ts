@@ -917,11 +917,16 @@ export async function getJobExportCounts(
 	jobId: string
 ): Promise<{ files: number; tracks: number } | null> {
 	const response = await fetch(jobExportUrl(jobId), { method: 'HEAD', credentials: 'include' });
+	// v47: an expired session is the session ending, as on any other request.
+	if (response.status === 401 && !signingOut) unauthorizedHandler?.();
 	// 413 (over the limit) still carries the counts: the playlist stays offered.
 	if (!response.ok && response.status !== 413) return null;
-	const files = Number(response.headers.get('X-Export-Files'));
-	const tracks = Number(response.headers.get('X-Export-Tracks'));
-	return Number.isFinite(files) && Number.isFinite(tracks) ? { files, tracks } : null;
+	// A header that didn't arrive (a proxy that drops it) is "unknown", never a count of 0.
+	const files = response.headers.get('X-Export-Files');
+	const tracks = response.headers.get('X-Export-Tracks');
+	if (files === null || tracks === null) return null;
+	const counts = { files: Number(files), tracks: Number(tracks) };
+	return Number.isInteger(counts.files) && Number.isInteger(counts.tracks) ? counts : null;
 }
 
 /** v64: the export's limits; each `null` is "the env default" (`default_*`). Admin only. */
