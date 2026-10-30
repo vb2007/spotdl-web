@@ -66,6 +66,16 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 		(PATHS_OVERLAP[`${p.field}_${p.other}_${p.relation}`] ?? m.error_library_paths_overlap)(),
 	track_not_found: () => m.error_track_not_found(),
 	job_archived: () => m.error_job_archived(),
+	// v63: watched jobs and "check now".
+	reexpand_running: () => m.error_reexpand_running(),
+	job_not_reexpandable: () => m.error_job_not_reexpandable(),
+	job_not_watchable: (p) =>
+		p.reason === 'source_type' ? m.error_job_not_watchable_type() : m.error_job_not_watchable(),
+	watch_interval_invalid: (p) =>
+		m.error_watch_interval_invalid({
+			min: formatNumber(Number(p.min)),
+			max: formatNumber(Number(p.max))
+		}),
 	track_not_retryable: (p) =>
 		m.error_track_not_retryable({ state: trackStateLabel(String(p.state)) }),
 	track_not_cancellable: (p) =>

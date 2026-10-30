@@ -101,7 +101,8 @@
 		failed: m.attempt_outcome_failed,
 		cancelled: m.attempt_outcome_cancelled,
 		skipped_duplicate: m.attempt_outcome_skipped_duplicate,
-		held: m.attempt_outcome_held
+		held: m.attempt_outcome_held,
+		manual_override: m.attempt_outcome_manual_override
 	};
 
 	// Same `.cond-*` vocabulary as the row (app.css), so a color means one thing everywhere.

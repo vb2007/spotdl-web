@@ -278,7 +278,12 @@ const BACKEND_CODES = [
 	'track_not_cancellable',
 	'retry_cooldown',
 	'job_cancelled',
-	'proxy_deleting'
+	'proxy_deleting',
+	// v63
+	'reexpand_running',
+	'job_not_reexpandable',
+	'job_not_watchable',
+	'watch_interval_invalid'
 ];
 const CLIENT_CODES = [
 	'request_invalid',

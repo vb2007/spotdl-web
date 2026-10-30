@@ -47,6 +47,11 @@
 	"error_library_paths_quarantine_downloads_contains": "The quarantine folder can't contain the downloads folder.",
 	"error_track_not_found": "Track not found",
 	"error_job_archived": "Job is archived; unarchive it first",
+	"error_reexpand_running": "This job is already being checked for new tracks.",
+	"error_job_not_reexpandable": "Only a job whose link has been read can be checked for new tracks.",
+	"error_job_not_watchable_type": "Only a playlist or an artist can be watched.",
+	"error_job_not_watchable": "Only a job whose link has been read, and that isn’t archived, can be watched.",
+	"error_watch_interval_invalid": "Checks can be {min} to {max} hours apart.",
 	"error_track_not_retryable": "Track is {state}, not retryable",
 	"error_track_not_cancellable": "Track is {state}, not cancellable",
 	"error_retry_cooldown": "“retry now” works once per wait. Next try in {time}.",
@@ -154,6 +159,7 @@
 	"attempt_outcome_cancelled": "cancelled",
 	"attempt_outcome_skipped_duplicate": "duplicate",
 	"attempt_outcome_held": "held · not attempted",
+	"attempt_outcome_manual_override": "manual override · queued again",
 	"track_unknown_title": "Unknown title",
 	"track_history_load_failed": "Could not load attempt history.",
 	"track_cancel_title": "Cancel this track?",
@@ -236,6 +242,127 @@
 	"job_archived": "archived",
 	"job_unarchive": "unarchive",
 	"job_unarchive_label": "unarchive {title}",
+	"job_watch": "watch",
+	"job_watch_of": "watch {title} for new tracks",
+	"job_watch_off": "not watched",
+	"job_watch_daily": "daily",
+	"job_watch_weekly": "weekly",
+	"job_watch_monthly": "monthly",
+	"job_watch_hours": "every {hours} h",
+	"job_watched_next": "watched · next check {time}",
+	"job_watched_soon": "watched · checking soon",
+	"job_new_since": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{n} new since {date}",
+				"countPlural=*": "{n} new since {date}"
+			}
+		}
+	],
+	"job_check_now": "check now",
+	"job_check_now_label": "check {title} for new tracks now",
+	"job_retry_failed": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "retry waiting ({n})",
+				"countPlural=*": "retry waiting ({n})"
+			}
+		}
+	],
+	"job_retry_failed_label": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "retry {title}’s waiting track now",
+				"countPlural=*": "retry {title}’s {n} waiting tracks now"
+			}
+		}
+	],
+	"job_retry_not_found": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "retry not found ({n})",
+				"countPlural=*": "retry not found ({n})"
+			}
+		}
+	],
+	"job_retry_not_found_label": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "retry {title}’s not-found track",
+				"countPlural=*": "retry {title}’s {n} not-found tracks"
+			}
+		}
+	],
+	"job_retry_not_found_title": "Retry the tracks not found?",
+	"job_retry_not_found_body": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "Its {n} not-found track gets one more search and download. Not found is normally final, so its history records this as a manual override. If it isn’t found again, it goes back to not found.",
+				"countPlural=*": "Its {n} not-found tracks get one more search and download each. Not found is normally final, so each one’s history records this as a manual override. One that isn’t found again goes back to not found."
+			}
+		}
+	],
+	"job_retry_not_found_confirm": "retry not found",
+	"job_retry_not_found_keep": "leave as not found",
+	"job_notice_watching": "watching {interval}; first check {time}",
+	"job_notice_unwatched": "no longer watched",
+	"job_notice_watch_failed": "Could not change watching.",
+	"job_notice_checking": "checking for new tracks…",
+	"job_notice_check_failed": "Could not check this job.",
+	"job_notice_retried": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{n} waiting track goes on the next pass",
+				"countPlural=*": "{n} waiting tracks go on the next pass"
+			}
+		}
+	],
+	"job_notice_retried_held": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{n} waiting track goes once the pause ends",
+				"countPlural=*": "{n} waiting tracks go once the pause ends"
+			}
+		}
+	],
+	"job_notice_retry_cooldown": "Already retried in this wait; they’re tried on schedule.",
+	"job_notice_retry_partly": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{n} retried; the rest were retried in this wait already",
+				"countPlural=*": "{n} retried; the rest were retried in this wait already"
+			}
+		}
+	],
+	"job_notice_overridden": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{n} not-found track queued again",
+				"countPlural=*": "{n} not-found tracks queued again"
+			}
+		}
+	],
+	"job_notice_retry_failed": "Could not retry this job’s tracks.",
 	"job_tracks_loading": "Loading tracks…",
 	"job_tracks_empty": "No tracks.",
 	"job_tracks_failed": "Couldn't load this job's tracks.",
@@ -800,6 +927,8 @@
 	"kbd_priority_up": "Raise the job’s priority by one",
 	"kbd_priority_down": "Lower the job’s priority by one",
 	"kbd_repeats": "Open the track’s history and show or hide every repeat",
+	"kbd_watch": "Watch the job daily, or stop watching it",
+	"kbd_retry_failed": "Retry the job’s waiting tracks now",
 	"kbd_scope_jobs": "Show jobs",
 	"kbd_scope_tracks": "Show tracks",
 	"kbd_filters": "Go to the filters (arrows move, Space toggles)",
