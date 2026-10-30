@@ -12,13 +12,14 @@ from app.db import get_db
 from app.errors import ApiError
 from app.models import DownloadedTrack, Job, JobSourceType, JobState, Track, TrackAttemptOutcome, TrackState, User
 from app.routers.auth import Principal, require_admin_hidden, require_session, require_session_or_api_key
-from app.tasks.download import download_track
 from app.services import archive, attempts, events, job_listing, job_status, rate_limit, retry, rollup, spotify_urls, track_listing, watch
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import job_to_dict, track_counts, track_song_meta
 from app.services.track_states import CANCELLABLE_TRACK_STATES, cancelled_used_proxy_id
 from app.services.view_scope import View, resolve_view
 from app.tasks.expand import expand_job
+# After expand: importing tasks.download first is a circular import (celery_app imports expand).
+from app.tasks.download import download_track  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

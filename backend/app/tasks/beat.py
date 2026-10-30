@@ -10,7 +10,8 @@ from app.services import alerts, archive, attempts, events, job_status, retry, w
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
-from app.tasks.expand import expand_job
+# A module, not the task: celery_app imports this module while tasks.expand is still loading.
+from app.tasks import expand as expand_tasks
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +198,7 @@ def _dispatch_due_watched_jobs(db) -> None:
     db.commit()
     for job_id, last_expanded_at, next_expand_at in started:
         try:
-            expand_job.delay(str(job_id), reexpand=True)
+            expand_tasks.expand_job.delay(str(job_id), reexpand=True)
         except Exception as exc:
             # The broker refused it: due again on the next tick, and not counted.
             logger.warning("dispatch_due_tracks: watched job %s not started: %s", job_id, exc)
