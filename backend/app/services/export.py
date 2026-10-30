@@ -243,11 +243,16 @@ def plan_from_rows(rows: list, title: str) -> ExportPlan:
     # A library sweep may have moved a file between the rows' read and its stat (it commits
     # the ledger's new path before unlinking the source): one read of those rows' current
     # paths, as the stream does for a file that moves later (_open).
-    misses = {rows[i].spotify_track_id: i for i, result in found.items() if result == _NOT_FOUND}
+    # A playlist can list one song twice, so an id may stand for more than one row.
+    misses: dict[str, list[int]] = {}
+    for index, result in found.items():
+        if result == _NOT_FOUND:
+            misses.setdefault(rows[index].spotify_track_id, []).append(index)
     if misses:
         for spotify_track_id, file_path in _current_paths(list(misses)).items():
-            if file_path != rows[misses[spotify_track_id]].file_path:
-                found[misses[spotify_track_id]] = _locate(file_path)
+            for index in misses[spotify_track_id]:
+                if file_path != rows[index].file_path:
+                    found[index] = _locate(file_path)
 
     playlist_name = f"{safe_name(title)}.m3u8"
     taken = {MISSING_NAME.casefold(), playlist_name.casefold()}

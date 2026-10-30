@@ -26,6 +26,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # v64: the job export's counts, read from its HEAD (only cross-origin needs this).
+    expose_headers=["X-Export-Files", "X-Export-Tracks"],
 )
 
 app.include_router(health.router)
