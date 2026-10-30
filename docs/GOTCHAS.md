@@ -7508,4 +7508,16 @@ independently-found production bug from the same conversation)
 - **An ending stream logs a traceback.** A file that can't be streamed as planned raises
   `ExportFileChanged` mid-response, and uvicorn logs the "Exception in ASGI application" with its
   traceback. Expected; there's no quieter way to end a response with a declared length.
+- **An unreadable file is missing, not present** (live review round 4). `stat()` succeeds on a
+  `chmod 000` file, so it was counted, the probe passed, and every download then broke at that
+  file (`PermissionError` in the stream; retrying never helped). The plan checks `os.access(R_OK)`
+  and lists it in `MISSING.txt` ("file can't be read (permissions)"); one that turns unreadable
+  mid-stream ends the stream like a vanished file.
+- **The strip follows the download's own probe.** Its count is read when the job opens and when
+  the settled count moves, so a file renamed on disk while the job is open kept being counted;
+  the probe's `X-Export-*` headers now refresh it (a job with no file left hides the strip).
+- **An effect that reads `job.id` depends on the whole `job` prop.** The queue store replaces a
+  row's object on every SSE event, so the strip re-read on each one (2 HEADs per event); a
+  `$derived(job.id)` re-runs only when the id changes. And a read queued behind one in flight
+  must run even if the row was closed and opened in between, or the reopened row stays empty.
 
