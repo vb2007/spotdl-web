@@ -7450,12 +7450,18 @@ independently-found production bug from the same conversation)
   every container (`/mnt/raid1/media/music`), so those are real for a media server only where
   `LIBRARY_DIR` is that path on the host too (production). A file still on the downloads volume
   (`/downloads/...`, meaningless on the host) is a `# not in the library yet:` comment line.
-- **Open, owner's call: a library sweep during a long export.** The plan stats each file once (the
-  `Content-Length` is fixed), but zipstream-ng opens a file only when the stream reaches it. A
-  sweep that moves that file's downloads copy into the library in between makes the stream fail
-  at that file (the browser reports a failed download; nothing is lost on disk). Opening every
-  file up front would survive the unlink, but the `api` container's soft open-file limit is 1024,
-  below the 2000-file default.
+- **A library sweep during a long export: found again through the ledger** (owner's decision,
+  2026-10-30). The plan stats each file once (the `Content-Length` is fixed), but a file is opened
+  only when the stream reaches it, and a sweep may have moved it by then. The sweep commits the
+  ledger's new path *before* it unlinks the source (`tasks/library.py`), so a miss re-reads that
+  row once (its own short session, ended at once) and streams the file from the library if it's
+  the size the plan counted; otherwise the stream ends (`ExportFileChanged`). Opening every file
+  up front was the alternative, but the `api` container's soft open-file limit is 1024, below the
+  2000-file default. Proven live: a sweep moved 13 files mid-stream, 7 were read from their new
+  path, and every entry matched byte for byte. The server runs ahead of a slow client by the
+  socket and nginx buffers, so the files already read never needed it.
+- **Entries are added as sized iterables, not paths,** so the miss can be handled; the entry's
+  timestamp in the archive is then the export's, not the file's.
 - **`zipstream-ng`'s `add()` entries carry no file-type bits** (`zipinfo` lists the `.m3u8` as
   `?rw-------`); every extractor tried (Info-ZIP, Python) writes a normal file. Harmless.
 
