@@ -1029,7 +1029,7 @@
 	"share_failed": "Nem sikerült sorba tenni.",
 	"share_resolve_failed": "Nem sikerült feloldani a rövid linket.",
 	"install_heading": "Telepítés alkalmazásként",
-	"install_hint": "Telepítve a spotdl-web saját ablakban nyílik, és megjelenik a telefonod megosztás menüjében: megosztod a Spotifyból, megerősíted, kész.",
+	"install_hint": "Telepítve a spotdl-web saját ablakban nyílik. Androidon a megosztás menüben is megjelenik: megosztod a Spotifyból, megerősíted, kész.",
 	"install_button": "telepítés",
 	"install_running": "A telepített alkalmazást használod.",
 	"install_done": "Telepítve.",

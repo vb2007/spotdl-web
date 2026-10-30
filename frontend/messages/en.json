@@ -1086,7 +1086,7 @@
 	"share_failed": "Couldn't queue it.",
 	"share_resolve_failed": "Couldn't look up the short link.",
 	"install_heading": "Install the app",
-	"install_hint": "Installed, spotdl-web opens in its own window and appears in your phone's share menu: share from Spotify, confirm, done.",
+	"install_hint": "Installed, spotdl-web opens in its own window. On Android it also appears in the share menu: share from Spotify, confirm, done.",
 	"install_button": "install app",
 	"install_running": "You're using the installed app.",
 	"install_done": "Installed.",

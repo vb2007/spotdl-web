@@ -58,6 +58,9 @@ RISK: a short link needs a server round-trip before there is anything to read.
 	let phase = $state<Phase>(link === null ? 'none' : link.kind === 'full' ? 'ready' : 'resolving');
 	let problem = $state<(() => string) | null>(null);
 	let outcome = $state<(() => string) | null>(null);
+	// Only a track already in the library is settled at once; a new or still-queued one is
+	// in flight, never mint (DESIGN.md §2).
+	let outcomeSettled = $state(false);
 
 	let queueButton: HTMLButtonElement | undefined = $state();
 	let retryButton: HTMLButtonElement | undefined = $state();
@@ -112,6 +115,7 @@ RISK: a short link needs a server round-trip before there is anything to read.
 					: job.hint === 'in_library'
 						? m.share_queued_in_library
 						: m.share_queued;
+			outcomeSettled = job.hint === 'in_library';
 			phase = 'done';
 		} catch (err) {
 			problem = () => errorText(err, m.share_failed);
@@ -147,40 +151,49 @@ RISK: a short link needs a server round-trip before there is anything to read.
 
 		<section class="panel incoming">
 			{#if phase === 'none'}
-				<p class="sentence" id="share-reading">{m.share_none()}</p>
-				<p class="hint">{m.share_none_hint()}</p>
+				<p class="sentence" id="share-none">{m.share_none()}</p>
+				<p class="hint" id="share-none-hint">{m.share_none_hint()}</p>
 				{#if received}
 					<div class="reading">
 						<span class="label">{m.share_received()}</span>
-						<p class="well mono value received">{received}</p>
+						<p class="mono value received">{received}</p>
 					</div>
 				{/if}
 				<div class="actions">
-					<a class="btn" href={resolve('/')} bind:this={queueLink}>{m.share_open_queue()}</a>
+					<a
+						class="btn"
+						href={resolve('/')}
+						aria-describedby="share-none share-none-hint"
+						bind:this={queueLink}>{m.share_open_queue()}</a
+					>
 				</div>
 			{:else}
 				{#if context}
-					<p class="context">{context}</p>
+					<p class="context" id="share-context">{context}</p>
 				{/if}
 				<dl class="readings" id="share-reading">
 					{#if target}
 						<div class="reading">
 							<dt class="label">{m.share_type()}</dt>
-							<dd class="well mono value">{TYPE_LABEL[target.type]()}</dd>
+							<dd class="mono value">{TYPE_LABEL[target.type]()}</dd>
 						</div>
 						<div class="reading">
 							<dt class="label">{m.share_id()}</dt>
-							<dd class="well mono value">{target.id}</dd>
+							<dd class="mono value">{target.id}</dd>
 						</div>
 					{:else if link?.kind === 'short'}
 						<div class="reading">
 							<dt class="label">{m.share_short_link()}</dt>
-							<dd class="well mono value">{link.url}</dd>
+							<dd class="mono value">{link.url}</dd>
 						</div>
 					{/if}
 				</dl>
 
-				<!-- The action row, then the outcome in its place: one row's height either way. -->
+				<!-- The outcome, once there is one, reads at the shared words' register, then the action
+				     row: the next step where the thumb was. The live region is there from the start. -->
+				<p class="outcome" class:settled={outcomeSettled} id="share-outcome" role="status">
+					{outcome?.() ?? ''}
+				</p>
 				<div class="actions">
 					{#if phase === 'resolving'}
 						<p class="pending" role="status">{m.share_resolving()}</p>
@@ -195,15 +208,20 @@ RISK: a short link needs a server round-trip before there is anything to read.
 							class="btn primary"
 							disabled={phase === 'queueing'}
 							bind:this={queueButton}
+							aria-describedby={context ? 'share-context share-reading' : 'share-reading'}
 							onclick={queueIt}
 							>{phase === 'queueing' ? m.share_queueing() : m.share_queue()}</button
 						>
 						<a class="quiet-link" href={resolve('/')}>{m.share_not_now()}</a>
 					{:else if phase === 'done'}
-						<a class="btn" href={resolve('/')} bind:this={queueLink}>{m.share_open_queue()}</a>
+						<a
+							class="btn"
+							href={resolve('/')}
+							aria-describedby="share-outcome"
+							bind:this={queueLink}>{m.share_open_queue()}</a
+						>
 					{/if}
 				</div>
-				<p class="outcome" class:settled={phase === 'done'} role="status">{outcome?.() ?? ''}</p>
 				<p class="form-error" role="alert">{problem?.() ?? ''}</p>
 			{/if}
 		</section>
@@ -262,6 +280,11 @@ RISK: a short link needs a server round-trip before there is anything to read.
 		margin: 0;
 	}
 
+	/* A short link alone (before it's resolved) takes the whole row. */
+	.reading:only-child {
+		grid-column: 1 / -1;
+	}
+
 	.reading {
 		display: flex;
 		flex-direction: column;
@@ -269,17 +292,17 @@ RISK: a short link needs a server round-trip before there is anything to read.
 		min-width: 0;
 	}
 
-	/* A reading in a recessed well, like the dial's readout: a value, not a sentence. */
+	/* A readout, not a field: the value printed under its label on the faceplate, with no
+	   control edge or recess to read as something to tap and edit. */
 	.value {
 		margin: 0;
-		padding: var(--space-2) var(--space-3);
-		border: 1px solid var(--line);
-		font-size: var(--fs-detail);
+		font-size: var(--fs-body);
 		color: var(--text-primary);
 		overflow-wrap: anywhere;
 	}
 
 	.received {
+		font-size: var(--fs-detail);
 		color: var(--text-muted);
 		max-height: 6.5em;
 		overflow: auto;
@@ -297,6 +320,14 @@ RISK: a short link needs a server round-trip before there is anything to read.
 	.primary {
 		padding: var(--space-3) var(--space-5);
 		font-size: var(--fs-body);
+	}
+
+	/* A link dressed as the page's one action: a .btn, not underlined text (as +error.svelte). */
+	.actions .btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		text-decoration: none;
 	}
 
 	.primary:disabled {
@@ -318,8 +349,10 @@ RISK: a short link needs a server round-trip before there is anything to read.
 		color: var(--text-muted);
 	}
 
+	/* What happened is the news the person stayed for: the shared words' register. */
 	.outcome {
-		font-size: var(--fs-detail);
+		font-size: var(--fs-lead);
+		font-weight: var(--fw-medium);
 		color: var(--text-primary);
 	}
 

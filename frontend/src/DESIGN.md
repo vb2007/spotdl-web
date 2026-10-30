@@ -1022,6 +1022,19 @@ whatever the unit's length); their legends are group headings, not one more `.la
 log retention, the keyboard-shortcut switch (v45), language and time format (v46), as groups that
 read apart (v47).
 
+> **v65 (2026-10-30):** `/account` ends with "Install the app" (`InstallApp.svelte`), only where it
+> can act: Chromium's install offer as a `.btn`, a one-line menu hint on Firefox for Android and
+> iOS, "you're using the installed app" inside it, plus the service worker's build in `--text-dim`
+> mono. Nothing at all elsewhere (desktop Firefox, a Chromium that hasn't offered).
+
+`/share` (v65) is the installed app's share target, one `.panel` under `SubpageHeader` (no page is
+current). Spotify's shared words open it at `--fs-lead`, as sent; then the **readouts**: a `.label`
+over a mono value printed on the faceplate, never in a `.well`, so a value nobody edits never reads
+as a field; then the action row (the page's one action, a size up as `/login`'s connect, and a
+quiet "not now" link). The outcome takes the shared words' register above the row, which then holds
+"open the queue": in `--settled` only when the track was already in the library, otherwise
+`--text-primary`, since a queued link is in flight. No amber: nothing on it is receiving.
+
 ### Admin stats page (`routes/stats/+page.svelte`, v44)
 
 A flight recorder, not a KPI wall: no big-number tiles and no per-chart filters. Owner-approved
