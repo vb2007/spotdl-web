@@ -175,7 +175,8 @@ def test_reexpand_with_nothing_changed_adds_nothing(db_session, monkeypatch, sen
 
     assert _job_track_ids(db_session, job) == ["a", "b"]
     assert sent_downloads == []
-    assert published == []
+    # The row still re-reads its watch (its next check moved when the run was claimed).
+    assert published == [(job.user_id, job.id, "expanded")]
 
 
 def test_reexpand_announces_new_tracks_as_the_first_expansion_does(db_session, monkeypatch, sent_downloads):
@@ -692,3 +693,83 @@ def test_retry_failed_says_when_the_breaker_holds(authenticated_client, db_sessi
     state.breaker_tripped_until = datetime.now(timezone.utc) + timedelta(hours=1)
     db_session.commit()
     assert authenticated_client.post(f"/api/jobs/{job.id}/retry-failed").json()["breaker_held"] is True
+
+
+# --- review round 1 ----------------------------------------------------------------------
+
+
+def test_a_new_batch_shares_one_stamp(db_session, monkeypatch, sent_downloads):
+    job = _job(db_session, _user(db_session), track_ids=("a",))
+    _reexpand(db_session, monkeypatch, job, ["a", "x", "y", "z"])
+    db_session.expire_all()
+    stamps = {
+        t.created_at
+        for t in db_session.query(Track).filter(Track.job_id == job.id, Track.spotify_track_id != "a")
+    }
+    assert len(stamps) == 1
+    assert watch.new_tracks(db_session, job.id) == 3
+
+
+def test_a_job_whose_first_read_was_empty_counts_its_first_batch_as_first(
+    db_session, monkeypatch, sent_downloads
+):
+    job = _job(db_session, _user(db_session))
+    _reexpand(db_session, monkeypatch, job, ["x", "y"])
+    assert watch.new_tracks(db_session, job.id) == 0
+
+
+def test_a_failed_read_still_announces_the_job(db_session, monkeypatch):
+    job = _job(db_session, _user(db_session), track_ids=("a",))
+    published = []
+    monkeypatch.setattr(events, "publish_job_event", lambda *args, **kwargs: published.append(args))
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+
+    def boom(url):
+        raise RuntimeError("Spotify said no")
+
+    monkeypatch.setattr(expansion, "expand", boom)
+    expand_task.expand_job(str(job.id), reexpand=True)
+    assert published == [(job.user_id, job.id, "expanded")]
+
+
+def test_watch_needs_the_interval_key(authenticated_client, db_session, owner):
+    job = _job(db_session, owner, watch_interval_hours=24)
+    response = authenticated_client.put(f"/api/jobs/{job.id}/watch", json={})
+    assert response.status_code == 422
+    db_session.refresh(job)
+    assert job.watch_interval_hours == 24
+
+
+def test_cancelling_a_watched_job_ends_its_watch(authenticated_client, db_session, owner):
+    job = _job(
+        db_session,
+        owner,
+        track_ids=("a",),
+        track_state=TrackState.QUEUED,
+        watch_interval_hours=24,
+        next_expand_at=datetime.now(timezone.utc) + timedelta(hours=3),
+    )
+    body = authenticated_client.delete(f"/api/jobs/{job.id}").json()
+    assert body["watch_interval_hours"] is None
+    assert body["next_expand_at"] is None
+
+
+def test_a_failed_commit_releases_the_check_now_marker(
+    authenticated_client, db_session, owner, monkeypatch, markers, sent_expansions
+):
+    job = _job(db_session, owner)
+    real_commit = db_session.commit
+    calls = {"n": 0}
+
+    def failing_commit():
+        # The handler's refresh-with-lock is followed by this commit: fail that one.
+        calls["n"] += 1
+        if any(v for v in markers.values):
+            raise RuntimeError("database went away")
+        return real_commit()
+
+    monkeypatch.setattr(db_session, "commit", failing_commit)
+    with pytest.raises(RuntimeError):
+        authenticated_client.post(f"/api/jobs/{job.id}/reexpand")
+    assert markers.values == {}
+    assert sent_expansions == []

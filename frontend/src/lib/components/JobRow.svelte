@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import { link } from '$lib/stores/link';
@@ -267,27 +268,46 @@
 	const shortDate = (value: string) =>
 		formatDateTime(value, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 
+	// One save at a time, and the last choice wins (DESIGN.md's save model, v62): arrowing
+	// through the closed menu fires a change per step, and only the one it stops on is saved.
+	// Afterwards the menu shows what the server has, a failed save included.
+	let watchSelect: HTMLSelectElement | undefined = $state();
 	let watchBusy = false;
+	let watchWanted: { hours: number | null } | null = null;
 	async function handleWatch(intervalHours: number | null) {
+		watchWanted = { hours: intervalHours };
 		if (watchBusy) return;
 		watchBusy = true;
 		const session = queue.getResetCount();
 		try {
-			const updated = await queue.setJobWatch(job.id, intervalHours);
-			if (queue.getResetCount() !== session) return;
-			if (updated.watch_interval_hours === null) showNotice(m.job_notice_unwatched());
-			else
-				showNotice(
-					m.job_notice_watching({
-						interval: intervalLabel(updated.watch_interval_hours),
-						time: updated.next_expand_at ? shortDate(updated.next_expand_at) : ''
-					})
-				);
-		} catch (err) {
-			if (queue.getResetCount() === session)
-				showNotice(errorText(err, m.job_notice_watch_failed), true);
+			while (watchWanted !== null) {
+				const { hours } = watchWanted;
+				watchWanted = null;
+				try {
+					const updated = await queue.setJobWatch(job.id, hours);
+					if (queue.getResetCount() !== session) return;
+					if (watchWanted !== null) continue;
+					if (updated.watch_interval_hours === null) showNotice(m.job_notice_unwatched());
+					else
+						showNotice(
+							m.job_notice_watching({
+								interval: intervalLabel(updated.watch_interval_hours),
+								time: updated.next_expand_at ? shortDate(updated.next_expand_at) : ''
+							})
+						);
+				} catch (err) {
+					if (queue.getResetCount() !== session) return;
+					watchWanted = null;
+					showNotice(errorText(err, m.job_notice_watch_failed), true);
+				}
+			}
 		} finally {
 			watchBusy = false;
+			watchWanted = null;
+			await tick();
+			if (watchSelect)
+				watchSelect.value =
+					job.watch_interval_hours === null ? '' : String(job.watch_interval_hours);
 		}
 	}
 
@@ -342,7 +362,11 @@
 				title: m.job_retry_not_found_title(),
 				subject: job.title,
 				subjectIsAddress: titleIsUrl,
-				body: m.job_retry_not_found_body(counted(notFoundCount)),
+				// The same request makes the waiting tracks due too: the question says so.
+				body: [
+					m.job_retry_not_found_body(counted(notFoundCount)),
+					...(waitingCount > 0 ? [m.job_retry_not_found_also_waiting(counted(waitingCount))] : [])
+				].join(' '),
 				confirmLabel: m.job_retry_not_found_confirm(),
 				cancelLabel: m.job_retry_not_found_keep()
 			});
@@ -454,9 +478,11 @@
 				<!-- v63: the watch and its next check, on a line of its own (in the title's tags it was
 				     cut to "watched…"). -->
 				<span class="breakdown mono"
-					>{nextCheckDue || job.next_expand_at === null
-						? m.job_watched_soon()
-						: m.job_watched_next({ time: keepReadings(shortDate(job.next_expand_at)) })}</span
+					>{!actionable
+						? m.job_watched_paused()
+						: nextCheckDue || job.next_expand_at === null
+							? m.job_watched_soon()
+							: m.job_watched_next({ time: keepReadings(shortDate(job.next_expand_at)) })}</span
 				>
 			{/if}
 			{#if job.new_tracks > 0}
@@ -538,6 +564,7 @@
 					<label class="watch mono">
 						{m.job_watch()}
 						<select
+							bind:this={watchSelect}
 							class="watch-select"
 							aria-label={m.job_watch_of({ title: job.title })}
 							value={job.watch_interval_hours === null ? '' : String(job.watch_interval_hours)}

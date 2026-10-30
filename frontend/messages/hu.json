@@ -250,6 +250,7 @@
 	"job_watch_hours": "{hours} óránként",
 	"job_watched_next": "figyelt · következő: {time}",
 	"job_watched_soon": "figyelt · hamarosan ellenőrzi",
+	"job_watched_paused": "figyelt · szünetel, amíg archivált",
 	"job_new_since": [
 		{
 			"declarations": ["input count", "input n"],
@@ -284,7 +285,7 @@
 			"declarations": ["input count", "input n"],
 			"selectors": [],
 			"match": {
-				"*": "nem találtak újra ({n})"
+				"*": "nem talált számok újra ({n})"
 			}
 		}
 	],
@@ -304,6 +305,15 @@
 			"selectors": [],
 			"match": {
 				"*": "A {n} nem talált szám még egy keresést és letöltést kap. A „nem található” rendesen végleges, ezért az előzményeikben kézi felülbírálásként szerepel. Amelyik most sem található, visszakerül a nem találtak közé."
+			}
+		}
+	],
+	"job_retry_not_found_also_waiting": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "A {n} várakozó száma is most újrapróbálkozik."
 			}
 		}
 	],
@@ -867,8 +877,8 @@
 	"kbd_priority_up": "A feladat prioritásának emelése eggyel",
 	"kbd_priority_down": "A feladat prioritásának csökkentése eggyel",
 	"kbd_repeats": "A szám előzményeinek kinyitása, és minden ismétlés megjelenítése vagy elrejtése",
-	"kbd_watch": "A feladat napi figyelése, vagy a figyelés leállítása",
-	"kbd_retry_failed": "A feladat várakozó számainak újrapróbálása most",
+	"kbd_watch": "A nyitott feladat napi figyelése, vagy a figyelés leállítása",
+	"kbd_retry_failed": "A nyitott feladat várakozó számainak újrapróbálása most",
 	"kbd_scope_jobs": "Feladatok mutatása",
 	"kbd_scope_tracks": "Számok mutatása",
 	"kbd_filters": "Ugrás a szűrőkre (a nyilak léptetnek, a szóköz kapcsol)",

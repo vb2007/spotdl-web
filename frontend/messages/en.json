@@ -251,6 +251,7 @@
 	"job_watch_hours": "every {hours} h",
 	"job_watched_next": "watched · next {time}",
 	"job_watched_soon": "watched · checking soon",
+	"job_watched_paused": "watched · paused while archived",
 	"job_new_since": [
 		{
 			"declarations": ["input count", "local countPlural = count: plural", "input n"],
@@ -311,6 +312,16 @@
 			"match": {
 				"countPlural=one": "Its {n} not-found track gets one more search and download. Not found is normally final, so its history records this as a manual override. If it isn’t found again, it goes back to not found.",
 				"countPlural=*": "Its {n} not-found tracks get one more search and download each. Not found is normally final, so each one’s history records this as a manual override. One that isn’t found again goes back to not found."
+			}
+		}
+	],
+	"job_retry_not_found_also_waiting": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "Its {n} waiting track is retried now too.",
+				"countPlural=*": "Its {n} waiting tracks are retried now too."
 			}
 		}
 	],
@@ -927,8 +938,8 @@
 	"kbd_priority_up": "Raise the job’s priority by one",
 	"kbd_priority_down": "Lower the job’s priority by one",
 	"kbd_repeats": "Open the track’s history and show or hide every repeat",
-	"kbd_watch": "Watch the job daily, or stop watching it",
-	"kbd_retry_failed": "Retry the job’s waiting tracks now",
+	"kbd_watch": "Watch the open job daily, or stop watching it",
+	"kbd_retry_failed": "Retry the open job’s waiting tracks now",
 	"kbd_scope_jobs": "Show jobs",
 	"kbd_scope_tracks": "Show tracks",
 	"kbd_filters": "Go to the filters (arrows move, Space toggles)",

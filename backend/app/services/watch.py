@@ -109,7 +109,7 @@ def new_track_counts(db: Session, job_ids: Sequence[uuid.UUID]) -> dict[uuid.UUI
     """Per job, the tracks re-expansions added: every track inserted after the first
     expansion's. That expansion inserts all its tracks in one transaction, so they share one
     `created_at` (Postgres's `now()` is the transaction's start), and a re-expansion stamps
-    its own with the statement's clock, later. One grouped query for the whole page, like serializers.track_counts_by_job; a job
+    its batch with one later reading of the clock. One grouped query for the whole page, like serializers.track_counts_by_job; a job
     with none is absent."""
     if not job_ids:
         return {}

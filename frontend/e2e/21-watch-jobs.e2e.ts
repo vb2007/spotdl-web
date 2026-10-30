@@ -93,7 +93,7 @@ import json, sys
 from sqlalchemy import text
 from app.db import SessionLocal
 rows = SessionLocal().execute(text(
-    "select state::text || case when scheduled_at <= now() then ':due' else '' end, count(*) "
+    "select state::text || case when scheduled_at <= now() then '|due' else '' end, count(*) "
     "from tracks where job_id = :id group by 1"), {"id": sys.argv[1]}).all()
 print(json.dumps({k: n for k, n in rows}))
 `,
@@ -165,7 +165,7 @@ test.describe('the watch and retry failed, keyboard only', () => {
 
 		await page.keyboard.press('Shift+R');
 		await expect(row.getByText(t(m.job_notice_retried_held, { count: 2, n: '2' }))).toBeVisible();
-		expect(trackStates(job.jobId)).toMatchObject({ 'waiting:due': 2, lookup_failed: 1 });
+		expect(trackStates(job.jobId)).toMatchObject({ 'waiting|due': 2, lookup_failed: 1 });
 		await page.screenshot({ path: info.outputPath('retried.png') });
 
 		// A second press in the same ladder step (v56's once-per-step rule, per track).

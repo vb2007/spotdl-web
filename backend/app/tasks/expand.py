@@ -146,7 +146,10 @@ def _reexpand(db, job_id: str) -> None:
     `skipped_duplicate` at once. Its new tracks go through the same outbox marker as a first
     expansion's, and wait out the breaker like any other.
 
-    An error reading the link leaves the job as it was: the next scheduled run tries again."""
+    An error reading the link leaves the job as it was: the next scheduled run tries again.
+
+    Every run that read the job ends with its `expanded` event, new tracks or not, so the row
+    re-reads its watch (the next check moved when the run was claimed)."""
     job = db.get(Job, uuid.UUID(job_id))
     if job is None or job.state != JobState.EXPANDED or job.archived_at is not None:
         logger.info("expand_job: job %s isn't an expanded, unarchived job; not re-expanding", job_id)
@@ -158,6 +161,7 @@ def _reexpand(db, job_id: str) -> None:
         songs = expansion.expand(source_url)
     except Exception as exc:
         logger.warning("expand_job: job %s couldn't be re-expanded: %s", job_id, exc)
+        events.publish_job_event(user_id, job.id, JobState.EXPANDED.value)
         return
 
     # The job's row lock, as a first expansion's commit and cancel_job take it: a cancel
@@ -169,19 +173,17 @@ def _reexpand(db, job_id: str) -> None:
         logger.info("expand_job: job %s is %s meanwhile; not re-expanding", job_id, job.state.value)
         return
     known = set(db.execute(select(Track.spotify_track_id).where(Track.job_id == job.id)).scalars())
+    # One stamp for the whole batch, read off the clock rather than the transaction's `now()`:
+    # watch.new_track_counts tells a re-expansion's tracks from the first expansion's by being
+    # later, and a batch's by sharing it (a job whose first expansion found nothing counts its
+    # first re-expansion's tracks as its first).
+    stamp = db.execute(select(func.clock_timestamp())).scalar_one()
     tracks = []
     for song in songs:
         if not song.song_id or song.song_id in known:
             continue
         known.add(song.song_id)
-        # The statement's clock, not the transaction's `now()`: watch.new_track_counts tells a
-        # re-expansion's tracks from the first expansion's by being later.
-        track = Track(
-            job_id=job.id,
-            spotify_track_id=song.song_id,
-            song_json=song.json,
-            created_at=func.clock_timestamp(),
-        )
+        track = Track(job_id=job.id, spotify_track_id=song.song_id, song_json=song.json, created_at=stamp)
         db.add(track)
         tracks.append(track)
     _mark_due(tracks, datetime.now(timezone.utc))
@@ -189,11 +191,11 @@ def _reexpand(db, job_id: str) -> None:
     logger.info(
         "expand_job: job %s re-expanded: %d new of %d tracks read", job_id, len(tracks), len(songs)
     )
+    # The row re-reads its counts (and an open job its tracks) on `expanded`, the event a
+    # first expansion sends; with new tracks its rollup moves back to `active` (v62's job.status).
+    events.publish_job_event(user_id, job.id, job.state.value)
     if not tracks:
         return
-    # The row re-reads its counts (and an open job its tracks) on `expanded`, the event a
-    # first expansion sends; its rollup moves back to `active` (v62's job.status).
-    events.publish_job_event(user_id, job.id, job.state.value)
     job_status.publish_change(db, job.id)
     _dispatch_due(db, job, [track.id for track in tracks])
 

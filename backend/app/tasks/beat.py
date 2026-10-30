@@ -195,7 +195,13 @@ def _dispatch_due_watched_jobs(db) -> None:
             break
         started.append((job.id, job.last_expanded_at, job.next_expand_at))
         watch.mark_started(job, now)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        # Nothing was queued: the markers mustn't hold these jobs "running" for an hour.
+        for job_id, _last, _next in started:
+            watch.release_run(job_id)
+        raise
     for job_id, last_expanded_at, next_expand_at in started:
         try:
             expand_tasks.expand_job.delay(str(job_id), reexpand=True)

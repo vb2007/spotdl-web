@@ -38,7 +38,8 @@ class SetPriorityRequest(BaseModel):
 
 class SetWatchRequest(BaseModel):
     # Any JSON value, checked in the handler, so a bad one answers with a stable code (v46).
-    interval_hours: Any = None
+    # Required: an empty body (or a misspelled key) must not read as "stop watching".
+    interval_hours: Any
 
 
 class ArchiveJobsRequest(BaseModel):
@@ -486,6 +487,9 @@ def cancel_job(
             {"lifecycle": status.lifecycle, "outcome": status.outcome},
         )
     job.state = JobState.CANCELLED
+    # v63: "don't download this" ends its watch too (beat skips a cancelled job anyway).
+    job.watch_interval_hours = None
+    job.next_expand_at = None
     db.commit()
     # Published to the job's *owner*, not the acting session -- an admin cancelling a
     # foreign job must update that owner's live view, not the admin's own channel.
@@ -620,7 +624,12 @@ def reexpand_job(
     previous = (job.last_expanded_at, job.next_expand_at)
     now = datetime.now(timezone.utc)
     watch.mark_started(job, now)
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        # Nothing was queued: the marker mustn't hold the job "running" for an hour.
+        watch.release_run(job.id)
+        raise
     try:
         expand_job.delay(str(job.id), reexpand=True)
     except Exception as exc:
