@@ -9,7 +9,7 @@ SIGNATURE: the readouts: label over a mono value, like the dial's own readout.
 RISK: a short link needs a server round-trip before there is anything to read.
 -->
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { afterNavigate, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
@@ -63,7 +63,8 @@ RISK: a short link needs a server round-trip before there is anything to read.
 	// (SvelteKit's first load starts the entry's state empty; review round 6).
 	const entryIndex = (history.state as Record<string, unknown> | null)?.['sveltekit:history'];
 	// i18n-ignore: a storage key
-	const storageKey = `spotdl:share-queued:${String(entryIndex)}:${window.location.search}`;
+	// Per identity too: another person signing in on this tab never sees someone else's outcome.
+	const storageKey = `spotdl:share-queued:${untrack(() => data.session?.email ?? '')}:${String(entryIndex)}:${window.location.search}`;
 	function storedQueued(): App.PageState['shareQueued'] | null {
 		try {
 			const raw = sessionStorage.getItem(storageKey);
@@ -149,21 +150,24 @@ RISK: a short link needs a server round-trip before there is anything to read.
 			problem = () => errorText(err, m.share_failed);
 			phase = 'ready';
 		}
-		// Recorded only while this page is still the one shown (a slow create answered after
-		// "not now" must not mark the dashboard's entry), and outside the try: a history write
-		// failing says nothing about the job, which exists.
-		if (queued && !left) remember(queued);
+		// Outside the try: a record failing says nothing about the job, which exists.
+		if (queued) remember(queued);
 		await focusNext();
 	}
 
 	let queued: App.PageState['shareQueued'] | null = null;
 	let left = false;
 	function remember(entry: NonNullable<App.PageState['shareQueued']>): void {
+		// The storage key is this share's own entry, so it's written even after leaving (a slow
+		// create answered after "not now"): a Back or Forward to it then shows the outcome.
 		try {
 			sessionStorage.setItem(storageKey, JSON.stringify(entry));
 		} catch {
 			// Storage full or off: the history state below still covers a Back.
 		}
+		// The history state only while this page is still shown: after leaving, '' would name
+		// the page that's shown now (the dashboard's entry).
+		if (left) return;
 		try {
 			replaceState('', { ...page.state, shareQueued: entry });
 		} catch {
@@ -285,8 +289,15 @@ RISK: a short link needs a server round-trip before there is anything to read.
 						<a class="quiet-link" href={resolve('/')}>{m.share_not_now()}</a>
 					{:else if phase === 'done'}
 						<!-- eslint-disable svelte/no-navigation-without-resolve -- resolve('/') plus ?view=mine, as above -->
-						<a class="btn" href={ownQueue} aria-describedby="share-outcome" bind:this={queueLink}
-							>{m.share_open_queue()}</a
+						<!-- A reload or a restored tab lands here: SvelteKit's first-load focus reset needs
+						     an autofocus to keep the next step focused (see "queue it" above). -->
+						<!-- svelte-ignore a11y_autofocus -->
+						<a
+							class="btn"
+							href={ownQueue}
+							autofocus={queuedBefore !== null}
+							aria-describedby="share-outcome"
+							bind:this={queueLink}>{m.share_open_queue()}</a
 						>
 						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					{/if}
