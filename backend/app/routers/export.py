@@ -31,10 +31,10 @@ def _plan(db: Session, job_id: uuid.UUID, user: User, *, limited: bool) -> expor
     plan = export.plan_export(db, job.id, rollup.job_title(db, job))
     max_files, max_bytes = app_settings.export_limits(db)
     # Ends the transaction before anything streams: the response below may run for hours,
-    # and a connection idle in transaction all that time is v31's leak. The plan is plain
-    # data, so nothing after this reads the session again.
+    # and a connection idle in transaction all that time is v31's leak. A commit hands the
+    # connection back to the pool, and the plan is plain data, so nothing after this reads
+    # the session again (an attribute read would begin a new transaction).
     db.commit()
-    db.close()
     if limited and (len(plan.files) > max_files or plan.total_bytes > max_bytes):
         raise ApiError(
             413,
