@@ -738,7 +738,9 @@ needed" claim — rather than silently deleted.
   others → *v28*
 - Since v64 `api` mounts the downloads and library volumes **read-only** (base, dev override and
   prod overlay): the job zip is streamed by `api` itself, not nginx. Single-track downloads still
-  go through `X-Accel-Redirect`. The zip is STORED with `Content-Length` known up front; nginx's
+  go through `X-Accel-Redirect`, and their path check stays lexical (`follow_symlinks=False`):
+  with the mounts, `.resolve()` would now follow a real symlink and refuse one nginx used to
+  serve (review round 2). The zip is STORED with `Content-Length` known up front; nginx's
   `/api/` already had `proxy_buffering off`, so no location was added → *v64*
 - An endpoint that streams for hours ends its transaction with `db.commit()` before returning the
   response (the connection goes back to the pool); `db.close()` on the request's session detaches
@@ -7430,7 +7432,9 @@ independently-found production bug from the same conversation)
 - **One expansion's tracks share a `created_at`.** `expand_job` inserts them in one transaction,
   and `now()` is the transaction's start, so a playlist in `created_at` order is random among ties.
   The export orders by `created_at`, then the song's `list_position`, `disc_number` and
-  `track_number`.
+  `track_number`. *(2026-10-30, review round 2: spotdl sets `list_position` only for playlists,
+  so an artist job's albums interleaved; the key is now `created_at`, `list_position`, the album's
+  `date` and `album_id`, then disc and track number: album by album, oldest first.)*
 - **Membership is completed/skipped_duplicate *and* a file at its recorded path.** A track in any
   other state goes to `MISSING.txt` with its state, so the UI's "N of M files" (from
   `track_counts`, no request per row) and the zip agree unless a file vanished from disk, which
@@ -7457,11 +7461,17 @@ independently-found production bug from the same conversation)
   row once (its own short session, ended at once) and streams the file from the library if it's
   the size the plan counted; otherwise the stream ends (`ExportFileChanged`). Opening every file
   up front was the alternative, but the `api` container's soft open-file limit is 1024, below the
-  2000-file default. Proven live: a sweep moved 13 files mid-stream, 7 were read from their new
+  2000-file default. One case still ends the stream: a target that already existed (the sweep's
+  "already exists" is folder and filename only, any bitrate) with another size than the plan
+  counted; a retry then exports it from its new place. Proven live: a sweep moved 13 files mid-stream, 7 were read from their new
   path, and every entry matched byte for byte. The server runs ahead of a slow client by the
   socket and nginx buffers, so the files already read never needed it.
 - **Entries are added as sized iterables, not paths,** so the miss can be handled; the entry's
   timestamp in the archive is then the export's, not the file's.
 - **`zipstream-ng`'s `add()` entries carry no file-type bits** (`zipinfo` lists the `.m3u8` as
   `?rw-------`); every extractor tried (Info-ZIP, Python) writes a normal file. Harmless.
+  *(2026-10-30, review round 2: not harmless. Info-ZIP restores the mode, `0600`, so a media
+  server reading the extracted folder as another user can't open the files; and since round 1
+  every entry is an `add()`. `_ExportZip` sets `0644` on every file entry in the central
+  directory, which is written last, just before it goes out.)*
 
