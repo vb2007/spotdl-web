@@ -30,6 +30,8 @@ const INTL_RE = /^intl-[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i;
 const SHORT_HOSTS = ['spotify.link', 'spotify.app.link'];
 const SHORT_CODE_RE = /^[0-9A-Za-z_-]{1,64}$/;
 const START_RE = /https?:\/\//gi;
+// The URL parser drops a default port (`:443`), which the server's allowlist still refuses.
+const HAS_PORT_RE = /^[a-z]+:\/\/[^/?#]*:\d*(?:[/?#]|$)/i;
 // A Spotify link ends at its id plus an optional query (submitLink.ts's rule, v47): Hungarian
 // writes a case ending onto a link with a hyphen ("…/track/<id>-t").
 const SPOTIFY_LINK_RE =
@@ -50,7 +52,7 @@ export function parseSpotifyLink(text: string): SharedLink | null {
 	}
 	if (!['http:', 'https:'].includes(parsed.protocol)) return null;
 	if (parsed.hostname !== 'open.spotify.com') return null;
-	if (parsed.username || parsed.password || parsed.port) return null;
+	if (parsed.username || parsed.password || parsed.port || HAS_PORT_RE.test(text)) return null;
 	let segments = parsed.pathname.split('/').filter(Boolean);
 	if (segments.length > 0 && INTL_RE.test(segments[0])) segments = segments.slice(1);
 	if (segments.length !== 2) return null;

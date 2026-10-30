@@ -90,6 +90,11 @@ describe('v65 share target: Spotify share formats', () => {
 			null
 		],
 		['a Spotify link with a port', { text: `https://open.spotify.com:8443/track/${ID}` }, null],
+		[
+			'a Spotify link with the default port',
+			{ text: `https://open.spotify.com:443/track/${ID}` },
+			null
+		],
 		['a Spotify link with a user', { text: `https://u:p@open.spotify.com/track/${ID}` }, null],
 		['a short id', { text: 'https://open.spotify.com/track/short' }, null],
 		['a short link over http', { text: 'http://spotify.link/6tpneu0iVIb' }, null],

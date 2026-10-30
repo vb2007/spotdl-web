@@ -88,6 +88,8 @@
 				<p class="hint">{m.install_hint_ios()}</p>
 			{:else if !justInstalled && hint === 'firefox'}
 				<p class="hint">{m.install_hint_firefox()}</p>
+			{:else if tried && !justInstalled && !prompting}
+				<p class="hint">{m.install_dismissed()}</p>
 			{/if}
 			<p class="save-state saved" role="status">{justInstalled ? m.install_done() : ''}</p>
 		{/if}

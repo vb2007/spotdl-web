@@ -1078,7 +1078,7 @@
 	"share_resolving": "Looking up the short link…",
 	"share_retry": "try again",
 	"share_queued": "Queued. It downloads in the background, however long that takes.",
-	"share_queued_in_library": "Queued. It's already in the library, so it's done in a moment.",
+	"share_queued_in_library": "Queued. It's already in the library, so it won't be downloaded again.",
 	"share_open_queue": "open the queue",
 	"share_none": "No Spotify link in what was shared.",
 	"share_none_hint": "Share a track, album, playlist or artist from Spotify, or paste its link on the queue page.",
@@ -1086,14 +1086,15 @@
 	"share_failed": "Couldn't queue it.",
 	"share_resolve_failed": "Couldn't look up the short link.",
 	"install_heading": "Install the app",
-	"install_hint": "Installed, spotdl-web opens in its own window. On Android it also appears in the share menu: share from Spotify, confirm, done.",
+	"install_hint": "Once installed, spotdl-web opens in its own window. On Android it also appears in the share menu: share from Spotify, confirm, done.",
 	"install_button": "install app",
 	"install_running": "You're using the installed app.",
 	"install_done": "Installed.",
 	"install_hint_ios": "On iPhone and iPad, install it with Safari's Share button, then Add to Home Screen. Sharing into the app works with Chrome on Android.",
 	"install_hint_firefox": "In Firefox, install it from the menu (⋮), then Add app to Home screen. Sharing into the app works with Chrome on Android.",
-	"install_version": "Offline copy: build {version}",
+	"install_version": "Offline copy, build: {version}",
 	"error_url_not_spotify": "Only open.spotify.com track, album, artist or playlist links can be queued from here.",
 	"error_short_link_unresolved": "That Spotify short link doesn't lead to a track, album, artist or playlist (it may have expired).",
-	"error_short_link_unavailable": "Spotify's short link service didn't answer. Try again in a moment."
+	"error_short_link_unavailable": "Spotify's short link service didn't answer. Try again in a moment.",
+	"install_dismissed": "Not installed. Your browser's menu can still install it."
 }

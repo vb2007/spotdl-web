@@ -168,9 +168,12 @@ RISK: a short link needs a server round-trip before there is anything to read.
 				{/if}
 				<div class="actions">
 					<!-- eslint-disable svelte/no-navigation-without-resolve -- resolve('/') plus ?view=mine, which resolve() can't type (as v54's ?view= writes) -->
+					<!-- The page's one next step, focused from the first paint (see "queue it" below). -->
+					<!-- svelte-ignore a11y_autofocus -->
 					<a
 						class="btn"
 						href={ownQueue}
+						autofocus
 						aria-describedby="share-none share-none-hint"
 						bind:this={queueLink}>{m.share_open_queue()}</a
 					>
@@ -218,9 +221,14 @@ RISK: a short link needs a server round-trip before there is anything to read.
 						>
 						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					{:else if phase === 'ready' || phase === 'queueing'}
+						<!-- The plan's "queue it focused": a share opens /share as a full page load, and
+						     SvelteKit's first-load focus reset moves focus to <body> after onMount unless
+						     an element is marked autofocus (live review). -->
+						<!-- svelte-ignore a11y_autofocus -->
 						<button
 							type="button"
 							class="btn primary"
+							autofocus
 							disabled={phase === 'queueing'}
 							bind:this={queueButton}
 							aria-describedby={context ? 'share-context share-reading' : 'share-reading'}

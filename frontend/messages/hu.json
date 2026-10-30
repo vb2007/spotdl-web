@@ -1021,7 +1021,7 @@
 	"share_resolving": "Feloldom a rövid linket…",
 	"share_retry": "újra",
 	"share_queued": "Sorba tettem. A háttérben töltöm le, akármeddig tart.",
-	"share_queued_in_library": "Sorba tettem. Már megvan a könyvtárban, így egy pillanat alatt kész.",
+	"share_queued_in_library": "Sorba tettem. Már megvan a könyvtárban, így nem töltöm le újra.",
 	"share_open_queue": "irány a várólista",
 	"share_none": "A megosztásban nincs Spotify-link.",
 	"share_none_hint": "Ossz meg a Spotifyból egy számot, albumot, lejátszási listát vagy előadót, vagy másold be a linkjét a várólistán.",
@@ -1029,14 +1029,15 @@
 	"share_failed": "Nem sikerült sorba tenni.",
 	"share_resolve_failed": "Nem sikerült feloldani a rövid linket.",
 	"install_heading": "Telepítés alkalmazásként",
-	"install_hint": "Telepítve a spotdl-web saját ablakban nyílik. Androidon a megosztás menüben is megjelenik: megosztod a Spotifyból, megerősíted, kész.",
+	"install_hint": "Telepítés után a spotdl-web saját ablakban nyílik. Androidon a megosztás menüben is megjelenik: megosztod a Spotifyból, megerősíted, kész.",
 	"install_button": "telepítés",
 	"install_running": "A telepített alkalmazást használod.",
 	"install_done": "Telepítve.",
 	"install_hint_ios": "iPhone-on és iPaden a Safari Megosztás gombjával telepítheted, aztán: Főképernyőhöz adás. Az alkalmazásba megosztani Androidon, Chrome-mal lehet.",
 	"install_hint_firefox": "Firefoxban a menüből (⋮) telepítheted, aztán: Alkalmazás hozzáadása a kezdőképernyőhöz. Az alkalmazásba megosztani Androidon, Chrome-mal lehet.",
-	"install_version": "Offline másolat: {version}. build",
+	"install_version": "Offline másolat, build: {version}",
 	"error_url_not_spotify": "Innen csak open.spotify.com szám-, album-, előadó- vagy lejátszásilista-linket lehet sorba tenni.",
 	"error_short_link_unresolved": "Ez a Spotify rövid link nem számhoz, albumhoz, előadóhoz vagy lejátszási listához vezet (lehet, hogy lejárt).",
-	"error_short_link_unavailable": "A Spotify rövidlink-szolgáltatása nem válaszolt. Próbáld újra egy kicsit később."
+	"error_short_link_unavailable": "A Spotify rövidlink-szolgáltatása nem válaszolt. Próbáld újra egy kicsit később.",
+	"install_dismissed": "Nincs telepítve. A böngésződ menüjéből továbbra is telepítheted."
 }
