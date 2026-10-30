@@ -249,7 +249,7 @@
 	"job_watch_weekly": "weekly",
 	"job_watch_monthly": "monthly",
 	"job_watch_hours": "every {hours} h",
-	"job_watched_next": "watched · next check {time}",
+	"job_watched_next": "watched · next {time}",
 	"job_watched_soon": "watched · checking soon",
 	"job_new_since": [
 		{

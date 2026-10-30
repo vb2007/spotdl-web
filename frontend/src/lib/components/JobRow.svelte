@@ -401,7 +401,9 @@
 </script>
 
 <li class="job" aria-labelledby="job-title-{job.id}" data-kb-row={job.id} {@attach keys}>
-	<div class="row">
+	<!-- v63: an open row's actions take a line of their own (open, it offers watch, check now and
+	     retry failed too, which would squeeze the title to a sliver). -->
+	<div class="row" class:open={isOpen}>
 		<!-- v41 (F16): no aria-label, so the button's name is what it shows (status, title,
 		     type, owner; WCAG 2.5.3), and aria-controls ties it to the track list (F29). -->
 		<button
@@ -422,14 +424,6 @@
 				<span class="source-type mono"
 					>{SOURCE_TYPE_LABEL[job.source_type]?.() ?? job.source_type}</span
 				>
-				<!-- v63: the watch, with its next check (the toggle's name says it too). -->
-				{#if watched}
-					<span class="watched mono"
-						>{nextCheckDue || job.next_expand_at === null
-							? m.job_watched_soon()
-							: m.job_watched_next({ time: shortDate(job.next_expand_at) })}</span
-					>
-				{/if}
 				{#if view !== 'mine'}
 					<span class="owner mono" title={job.owner_email}
 						>{api.displayName(job.owner_username, job.owner_email)}</span
@@ -455,6 +449,15 @@
 			     a lone "—" took a line of its own on a phone, like the bar DESIGN.md §6 already drops. -->
 			{#if totalTracks > 0 && (totalTracks !== 1 || !badgeSaysTrack)}
 				<span class="breakdown mono">{breakdownVisible}</span>
+			{/if}
+			{#if watched}
+				<!-- v63: the watch and its next check, on a line of its own (in the title's tags it was
+				     cut to "watched…"). -->
+				<span class="breakdown mono"
+					>{nextCheckDue || job.next_expand_at === null
+						? m.job_watched_soon()
+						: m.job_watched_next({ time: keepReadings(shortDate(job.next_expand_at)) })}</span
+				>
 			{/if}
 			{#if job.new_tracks > 0}
 				<!-- v63: what re-expansion has added since the job was submitted. -->
@@ -789,6 +792,20 @@
 		gap: var(--space-2);
 	}
 
+	/* v63: open, the actions drop under the title, as the tablet band's always do (the bands
+	   below place them themselves, so this is the wide screen's alone). */
+	@media (min-width: 60.0625em) {
+		.row.open .row-actions {
+			grid-column: 3 / -1;
+			grid-row: 2;
+			justify-content: flex-start;
+		}
+
+		.row.open .row-actions:empty {
+			display: none;
+		}
+	}
+
 	.priority {
 		display: inline-flex;
 		align-items: center;
@@ -859,17 +876,6 @@
 			border-color: var(--fail);
 			color: var(--fail);
 		}
-	}
-
-	/* v63: the watch reads as row metadata, like the source type: muted, never a live colour
-	   (nothing is receiving), and it ellipsizes with the tags. */
-	.watched {
-		min-width: 0;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		color: var(--text-muted);
-		font-size: var(--fs-meta);
 	}
 
 	/* v63: the watch interval, labelled like priority (a control's word in the label face). */
