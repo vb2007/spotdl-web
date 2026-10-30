@@ -649,6 +649,53 @@ def test_a_symlink_loop_or_a_locked_folder_is_listed_not_a_500(authenticated_cli
     assert "Locked -- file can't be read (permissions)" in missing
 
 
+def test_a_file_name_that_isnt_utf8_exports_under_a_replacement_name(admin_client, db_session, admin_user, roots):
+    """A filesystem name with bytes that aren't UTF-8 reaches Python with surrogate escapes:
+    it used to fail the whole job's export with a UnicodeEncodeError."""
+    downloads, library = roots
+    job = _job(db_session, admin_user)
+    raw = os.fsencode(downloads) + b"/bad\xff\xfename.opus"
+    with open(raw, "wb") as handle:
+        handle.write(b"audio")
+    os.symlink(b"bad\xff\xfename.opus", os.fsencode(downloads) + b"/link.opus")
+    _track(db_session, job, 1, path=downloads / "link.opus")
+    # Postgres text can't hold such a name, so it's only ever reached through a link.
+    with open(os.fsencode(library) + b"/lib\xffname.opus", "wb") as handle:
+        handle.write(b"audio")
+    os.symlink(b"lib\xffname.opus", os.fsencode(library) + b"/liblink.opus")
+    _track(db_session, job, 2, path=library / "liblink.opus")
+
+    zipped = admin_client.get(f"/api/jobs/{job.id}/export.zip")
+    library_list = admin_client.get(f"/api/jobs/{job.id}/playlist.m3u8?paths=library")
+
+    assert zipped.status_code == 200
+    assert sorted(_zip(zipped).namelist()) == sorted(["bad\ufffd\ufffdname.opus", "lib\ufffdname.opus", "The Album.m3u8"])
+    assert library_list.status_code == 200
+    assert "# unlistable path: Artist A, Artist B - Song 2" in library_list.text
+
+
+@pytest.mark.parametrize("value", ["library", "other", "", "LIBRARY"])
+def test_any_paths_value_is_a_bare_404_for_a_non_admin(value, authenticated_client, db_session, owner, roots):
+    """A 422 naming the accepted value would confirm the admin-only variant exists."""
+    job = _job(db_session, owner)
+
+    response = authenticated_client.get(f"/api/jobs/{job.id}/playlist.m3u8", params={"paths": value})
+
+    assert (response.status_code, response.json()) == (404, {"detail": "Not Found"})
+
+
+def test_odd_song_json_types_read_sanely(authenticated_client, db_session, owner, roots):
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "1.opus"), artists="Solo Artist", duration=True)
+    _track(db_session, job, 2, path=_file(downloads, "2.opus"), artists=[None, {"x": 1}, "Real"], duration=1e300)
+
+    playlist = authenticated_client.get(f"/api/jobs/{job.id}/playlist.m3u8").text
+
+    assert "#EXTINF:-1,Solo Artist - Song 1" in playlist
+    assert "#EXTINF:-1,Real - Song 2" in playlist
+
+
 def test_a_zip_over_4_gib_has_the_length_it_declares(db_session, make_user, roots):
     """Past 4 GiB zipstream-ng writes zip64 records: the length counted up front must still
     be the bytes streamed (sparse files, so the test writes nothing real)."""

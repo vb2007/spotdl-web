@@ -108,9 +108,12 @@ def safe_name(name: str, fallback: str = "export", *, keep_extension: bool = Fal
     cut to _MAX_NAME_BYTES; with `keep_extension` (a file's name) the cut is taken from the
     stem, so `....opus` never becomes `....op`, and a name that is only an extension
     (`.opus`, a hidden file once extracted) gets the fallback stem."""
+    # A filesystem name that isn't valid UTF-8 reaches Python with surrogate escapes, which
+    # can't be encoded into a zip entry, a header or a byte count: each bad byte becomes U+FFFD.
+    cleaned = name.encode("utf-8", "surrogateescape").decode("utf-8", "replace")
     # NFC: macOS hands out decomposed names (NFD), and two spellings of one name would land on
     # one file once extracted there. Leading dots go too, or the file extracts hidden.
-    cleaned = unicodedata.normalize("NFC", name)
+    cleaned = unicodedata.normalize("NFC", cleaned)
     cleaned = _UNSAFE_NAME.sub("_", cleaned).strip().rstrip(".").strip()
     stem, ext = cleaned, ""
     if keep_extension:
@@ -130,15 +133,28 @@ def safe_name(name: str, fallback: str = "export", *, keep_extension: bool = Fal
 
 def _track_label(song_json: dict) -> str:
     name = song_json.get("name") or song_json.get("song_id") or "Unknown track"
-    artists = song_json.get("artists") or ([song_json["artist"]] if song_json.get("artist") else [])
-    if artists:
-        return f"{', '.join(str(artist) for artist in artists)} - {name}"
+    # Shaped as spotdl writes it (a list of names), but read defensively: a bare string or a
+    # stray non-string must not come out as "S, o, l, o" or "None".
+    artists = song_json.get("artists")
+    if isinstance(artists, str):
+        artists = [artists]
+    if not isinstance(artists, list):
+        artists = [song_json.get("artist")]
+    names = [artist for artist in artists if isinstance(artist, str) and artist]
+    if names:
+        return f"{', '.join(names)} - {name}"
     return str(name)
+
+
+# A day: past it, a duration is a corrupt value, not a track.
+_MAX_DURATION = 24 * 3600
 
 
 def _duration(song_json: dict) -> int | None:
     value = song_json.get("duration")
-    if isinstance(value, (int, float)) and math.isfinite(value) and value > 0:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if math.isfinite(value) and 0 < value <= _MAX_DURATION:
         return int(round(value))
     return None
 
@@ -292,6 +308,14 @@ def plan_from_rows(rows: list, title: str) -> ExportPlan:
     return ExportPlan(title=title, files=files, missing=missing, total_tracks=len(rows))
 
 
+def _is_utf8(text: str) -> bool:
+    try:
+        text.encode("utf-8")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
 def _m3u_label(label: str) -> str:
     # One line per entry: a newline in a title would end the #EXTINF line early.
     return " ".join(label.splitlines())
@@ -313,8 +337,9 @@ def m3u_text(plan: ExportPlan, *, absolute: bool = False) -> str:
         if absolute:
             # A line break in a path would end the entry early and start another one.
             path = str(entry.path)
-            # Any line break a player might split on (`splitlines()`'s set, U+2028 included).
-            if len(path.splitlines()) != 1:
+            # Any line break a player might split on (`splitlines()`'s set, U+2028 included), or
+            # bytes that aren't UTF-8 (surrogate escapes): neither can be a playlist line.
+            if len(path.splitlines()) != 1 or not _is_utf8(path):
                 path = f"# unlistable path: {_m3u_label(entry.label)}"
             lines.append(path)
         else:
@@ -369,25 +394,31 @@ def _open(entry: ExportFile):
     """The entry's file, opened as the stream reaches it. A library sweep may have moved it
     since the plan (owner's decision, 2026-10-30): the sweep commits the ledger's new path
     before it removes the source (tasks/library.py), so a miss is re-resolved once through the
-    ledger. The file found there must be the size the plan counted, or the archive's sizes
-    (and the Content-Length) would be wrong: then the stream ends instead."""
+    ledger. The file found there must be a regular file of the size the plan counted, or the
+    archive's sizes (and the Content-Length) would be wrong: then the stream ends instead, as
+    it does for any other file that can't be read as planned (ExportFileChanged)."""
     try:
         return open(entry.path, "rb")
-    except PermissionError:
-        raise ExportFileChanged(f"{entry.arcname}: no longer readable") from None
     except FileNotFoundError:
-        moved = _current_path(entry.spotify_track_id)
-        if moved is None or moved == entry.path:
-            raise ExportFileChanged(f"{entry.arcname}: gone from {entry.path}") from None
-        try:
-            handle = open(moved, "rb")
-        except OSError:
-            raise ExportFileChanged(f"{entry.arcname}: can't be read at {moved} either") from None
-        if os.fstat(handle.fileno()).st_size != entry.size:
-            handle.close()
-            raise ExportFileChanged(f"{entry.arcname}: moved to {moved} with another size") from None
-        logger.info("export: %s moved during the stream, reading it from %s", entry.arcname, moved)
-        return handle
+        pass
+    except OSError as exc:
+        # Unreadable now, replaced by a folder, a loop, an I/O error.
+        raise ExportFileChanged(f"{entry.arcname}: can't be read ({exc.strerror or exc})") from None
+    moved = _current_path(entry.spotify_track_id)
+    if moved is None or moved == entry.path:
+        raise ExportFileChanged(f"{entry.arcname}: gone from {entry.path}")
+    # A regular file only, as the plan requires (a FIFO would block the read forever).
+    if not moved.is_file():
+        raise ExportFileChanged(f"{entry.arcname}: moved to {moved}, not a file")
+    try:
+        handle = open(moved, "rb")
+    except OSError:
+        raise ExportFileChanged(f"{entry.arcname}: can't be read at {moved} either") from None
+    if os.fstat(handle.fileno()).st_size != entry.size:
+        handle.close()
+        raise ExportFileChanged(f"{entry.arcname}: moved to {moved} with another size")
+    logger.info("export: %s moved during the stream, reading it from %s", entry.arcname, moved)
+    return handle
 
 
 def _file_bytes(entry: ExportFile):

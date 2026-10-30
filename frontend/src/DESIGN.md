@@ -875,13 +875,13 @@ indented by `--row-nest`, on the panel's own surface rather than v20's darker `-
 2026-10-14, F02).
 
 An open job with at least one file starts with its **export strip** (v64, 2026-10-30): a mono
-reading ("12 of 14 files": the files on disk, from the export's own HEAD when the job opens)
-and two plain row actions, "download all (zip)" and "playlist (.m3u8)", indented like the row's
-notice. Like a track's download, each
-probes first (`HEAD`) and then hands the URL to a real browser download, so a 404 or the zip's
-413 ("too large for one zip", pointing to the playlist) reads in the row's notice. While a probe
-runs, its button reads "preparing…". `d` on the job row is the zip. On a phone the reading takes
-its own line, and the two actions share the next (a long label wraps inside its button).
+reading ("files: 12 of 14", hu "14 fájlból 12": the files on disk, from the export's own HEAD when
+the job opens) and two plain row actions, "download all (zip)" and "playlist (.m3u8)", indented
+like the row's notice. Like a track's download, each probes first (`HEAD`) and then hands the URL
+to a real browser download, so a 404 or the zip's 413 ("too large for one zip", pointing to the
+playlist) reads in the row's notice. While a probe runs, its button reads "preparing…". `d` on the
+job row is the zip. On a phone the reading takes its own line, and the two actions share the next
+(a long label wraps inside its button).
 
 ### Page breakpoints (v42, F15/F37; em since v47)
 

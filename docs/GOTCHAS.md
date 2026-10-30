@@ -7536,4 +7536,11 @@ independently-found production bug from the same conversation)
   export, HEAD and playlist answer 500. The export's two resolve sites catch it, and the track
   is listed ("recorded path can't be resolved"). A file in an unreadable folder fails `stat()`
   with `PermissionError` and is listed with the permissions reason.
+- **A name that isn't UTF-8 reaches Python with surrogate escapes** (live review round 6): a
+  symlink to `bad\xff\xfename.opus` made `safe_name`'s byte count raise `UnicodeEncodeError` and
+  the whole job's export answer 500. Names now go through `surrogateescape` → UTF-8 `replace`
+  (each bad byte is U+FFFD), and an absolute playlist path that can't be encoded is a comment.
+  Postgres `text` can't store such a path, so it only ever arrives through a link or a folder.
+- **A `?paths=` value other than `library` answered 422 naming `library`,** which told a non-admin
+  the admin-only variant exists; any other value is now the same bare 404.
 

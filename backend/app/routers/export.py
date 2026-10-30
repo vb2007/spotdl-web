@@ -7,8 +7,6 @@ membership rule and the archive itself live in app/services/export.py.
 """
 
 import uuid
-from typing import Literal
-
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from starlette.concurrency import iterate_in_threadpool
@@ -119,7 +117,7 @@ def export_zip(
 def export_playlist(
     job_id: uuid.UUID,
     request: Request,
-    paths: Literal["library"] | None = None,
+    paths: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(require_session),
 ) -> Response:
@@ -127,8 +125,10 @@ def export_playlist(
     its absolute path on disk instead (for a media server pointed at the library). That
     reveals the filesystem layout, so it's the admin's alone: anyone else gets
     `require_admin_hidden`'s answer, an unknown route's 404 (CLAUDE.md, v56)."""
-    if paths == "library" and not user.is_admin:
-        # Deliberately no `code`, as in require_admin_hidden.
+    # Any value but `library`, and `library` for anyone but an admin, answers an unknown
+    # route's 404 (deliberately no `code`, as in require_admin_hidden): a 422 naming the
+    # accepted value would tell a non-admin the admin-only variant exists.
+    if paths is not None and (paths != "library" or not user.is_admin):
         raise HTTPException(status_code=404, detail="Not Found")
     plan = _plan(db, job_id, user, limited=False)
     body = export.m3u_text(plan, absolute=paths == "library").encode("utf-8")
