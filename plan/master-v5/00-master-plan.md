@@ -711,3 +711,37 @@ here.
   - **F11** (owner, 2026-10-27) is done in v62 as the ledger row says.
   - **For later slices:** a new path that moves a job's rollup status (v63's re-run expansion and
     "retry all failed", say) calls `job_status.publish_change` after its commit (CLAUDE.md).
+
+- **2026-10-30, v65: Spotify short links are resolved server-side (owner's decision).** The plan's
+  `/share` "extracts the first Spotify URL … the client only extracts", which assumed the share
+  holds an `open.spotify.com` link. Spotify's mobile share sheet often hands out
+  `https://spotify.link/<code>` instead, which would have answered a real share with "no Spotify
+  link". Asked during v65, the owner chose server-side resolution over logging it.
+  - **What it adds:** `POST /api/links/resolve` (new `routers/links.py`, cookie session only,
+    never an API key; rate limited per user in its own bucket) and
+    `spotify_urls.resolve_short_link`, which asks only Spotify's short link hosts, follows no
+    redirect anywhere else (at most two hops), and accepts only a target v53's `parse` accepts.
+    `/share` resolves a short link through it to show the type and id, then submits the canonical
+    link with `X-Spotdl-Client: share`, so the server enforces the allowlist as it does for the
+    extension.
+  - **Not changed:** job create itself still takes no short link (the dashboard's submit box and
+    the extension don't resolve one); that would be a later slice.
+  - **Files beyond v65's list:** the backend files above, `routes/+layout.ts` (the signed-out
+    redirect adds `next` for `/share`, and a signed-in `/login?next=` goes on to it: the redirect
+    lives there, not in the login page), `routes/+layout.svelte` (a session ending while a share is
+    open, by a 401 or another tab's sign-out, goes to `/login` with the share as `next` too),
+    `lib/api.ts` (`createJob`'s client header,
+    `resolveLink`), `lib/i18n/errors.ts` (three codes, and `i18n.test.ts`'s list of them),
+    `app.d.ts` (`PageState.shareQueued`: a Back to a queued share shows its outcome, not a second
+    armed confirm) and `DESIGN.md` (the new page and section).
+    New helpers serving owned features: `lib/nextPath.ts`, `lib/shareTarget.ts`, `lib/install.ts`,
+    `lib/components/InstallApp.svelte` (the `/account` block, kept in its own file beside v66's)
+    and `scripts/render-icons.sh` (the icons, reproducibly).
+  - **"A toast and a link to the job", as built:** the app has no toast and no page that shows one
+    job. `/share` says what happened in place (a `role="status"` line at the shared words' size)
+    and links to the viewer's own queue (`/?view=mine`, so an admin's dashboard left in another
+    view still shows the new job). A per-job link needs a job page, which no v5 slice plans.
+  - **`next` accepts `/share` only** (with its query): it's the one page that sends anyone to
+    `/login` with one, and every other path stays out of the redirect's reach.
+  - **The real phone share** is the owner's, from production after merge (owner's choice); v65
+    evidences it with the share formats emulated on the nginx build.

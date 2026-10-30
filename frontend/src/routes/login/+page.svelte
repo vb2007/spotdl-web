@@ -8,6 +8,7 @@
 	import * as api from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { counted, formatNumber } from '$lib/i18n/format';
+	import { safeNext } from '$lib/nextPath';
 
 	let email = $state('');
 	let password = $state('');
@@ -74,7 +75,17 @@
 			// v34.2: a fresh identity never inherits another's cached progress ids -- the
 			// logout reset can't run when the last session simply expired in a closed tab.
 			clearProgress();
-			await goto(resolve('/'));
+			// v65: back to what sent here (a share opened signed out), if it's a path of this
+			// site; read from `location`, since `replaceState` can leave `page.url` stale (v54).
+			const next = safeNext(new URLSearchParams(window.location.search).get('next'));
+			// The share replaces this /login entry (the redirect that brought here replaced the
+			// share's own): a Back then leaves, never re-running the login to a live confirm.
+			if (next) {
+				// eslint-disable-next-line svelte/no-navigation-without-resolve -- `next` is a same-origin path safeNext checked, query included, which resolve() can't type
+				await goto(next, { replaceState: true });
+			} else {
+				await goto(resolve('/'));
+			}
 		} catch (err) {
 			// The 401 copy is deliberately generic — it matches
 			// the backend's non-disclosure between an unknown/wrong-password upstream

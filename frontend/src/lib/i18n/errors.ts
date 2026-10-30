@@ -118,6 +118,10 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	api_key_not_found: () => m.error_api_key_not_found(),
 	queue_unavailable: () => m.error_queue_unavailable(),
 	submit_too_long: (p) => m.error_submit_too_long({ max: formatNumber(Number(p.max)) }),
+	// v65: a link from a share that the server's allowlist refused, or a short link it couldn't resolve.
+	url_not_spotify: () => m.error_url_not_spotify(),
+	short_link_unresolved: () => m.error_short_link_unresolved(),
+	short_link_unavailable: () => m.error_short_link_unavailable(),
 	request_invalid: () => m.error_request_invalid(),
 	server_error: (p) => m.error_server_error({ status: String(p.status ?? '') }),
 	request_failed: (p) => m.error_request_failed({ status: String(p.status ?? '') })
