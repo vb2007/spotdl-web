@@ -7423,9 +7423,10 @@ independently-found production bug from the same conversation)
   own). So a run lost between claim and start (beat killed after its commit, a broker that lost
   the message) is claimed again a quarter-hour later instead of skipping an interval (review
   round 5); before the fix the claim set the whole interval. "One at
-  a time per job" (409 `reexpand_running`) is `SET spotdl:reexpand:<id> NX EX 3600`, set by
-  whoever hands the run to the broker and cleared by the task's `finally`; it expires by itself if
-  the worker dies. The run doesn't depend on it: it inserts under the job's row lock and only ids
+  a time per job" (409 `reexpand_running`) is `SET spotdl:reexpand:<id> <token> NX EX 900`, set
+  by whoever hands the run to the broker and cleared by the task's `finally` only while it still
+  holds that run's token; it expires with the claim lease if the worker dies, so a lost run is
+  claimed again then (review round 6: an hour-long marker had kept the lease from mattering). The run doesn't depend on it: it inserts under the job's row lock and only ids
   the job lacks, so a second run (a redelivery, an expired marker behind a backed-up `expand`
   queue) costs a Spotify read, never a duplicate track.
 - **The hourly cap counts `last_expanded_at`.** Every re-expansion start (beat's or "check now")
@@ -7458,7 +7459,8 @@ independently-found production bug from the same conversation)
   button while watched: stop watching it first.
 - **"Check now" is never capped** (owner's decision, 2026-10-30): one run per job at a time is
   its only bound (allowlisted users); it counts toward the hour, so scheduled runs yield to it.
-  It refuses a `search` job (owner's decision, same day): a re-run repeats the search text, and
+  The consequence: one user pressing it on K different jobs every hour uses up the hour's budget,
+  and every user's scheduled watches wait. It refuses a `search` job (owner's decision, same day): a re-run repeats the search text, and
   a top match that drifted would be added, and downloaded, as "new".
 - **`job.state: expanded` re-reads an open job's track list from page 1.** The store reloads an
   open job's tracks on every `expanded` event, so v63's own announcements (a watch change, a check
