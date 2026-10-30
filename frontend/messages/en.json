@@ -1151,5 +1151,15 @@
 	"account_notify_ask_here": "On for your account; this browser hasn't been asked yet.",
 	"account_notify_allow": "allow in this browser",
 	"account_notify_shown_here": "This browser shows them.",
-	"notify_job_done": "Done — {done} of {total}"
+	"notify_job_done": "Done — {done} of {total}",
+	"stats_bytes": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{n} byte",
+				"countPlural=*": "{n} bytes"
+			}
+		}
+	]
 }

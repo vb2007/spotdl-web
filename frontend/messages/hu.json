@@ -1089,5 +1089,14 @@
 	"account_notify_ask_here": "A fiókodban be van kapcsolva; ez a böngésző még nem kapott engedélyt.",
 	"account_notify_allow": "engedélyezés ebben a böngészőben",
 	"account_notify_shown_here": "Ez a böngésző megjeleníti őket.",
-	"notify_job_done": "Kész — {done} / {total}"
+	"notify_job_done": "Kész — {done} / {total}",
+	"stats_bytes": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "{n} bájt"
+			}
+		}
+	]
 }

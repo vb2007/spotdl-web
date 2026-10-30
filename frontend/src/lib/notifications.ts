@@ -14,9 +14,10 @@
 // other's notification rather than stacking.
 //
 // The preference is server-side (`job_notifications`, `/account`). Every `/me` the pages read
-// carries it, and it's taken unless this tab already knows a newer value: one it saved, or one
-// another tab saved and announced on the channel (a `/me` preloaded before that save mustn't
-// undo it, as the layout does for the language).
+// carries it, and it's taken as is until this tab saves (or hears another tab save): from then
+// on a `/me` may have been read before that save (a hover preload), so the page asks the server
+// afresh instead, and a save made meanwhile wins (live review round 2: ignoring every later
+// `/me` kept a change made on another device out of the tab for its lifetime).
 import { writable, get } from 'svelte/store';
 import * as api from '$lib/api';
 import * as m from '$lib/paraglide/messages';
@@ -51,6 +52,8 @@ const tabId =
 let adoptedFor: string | null = null;
 /** This tab saved the switch, or heard another tab save it, since it adopted the identity. */
 let knownLocally = false;
+/** Counts this tab's saves and the ones it heard: a fresh read started before the latest is stale. */
+let saves = 0;
 let channel: BroadcastChannel | null | undefined;
 /** Offers seen per event key, own included. */
 const offers = new Map<string, { tabs: Set<string>; at: number }>();
@@ -98,6 +101,7 @@ function receive(message: Message) {
 		decided.set(message.key, Date.now());
 	} else if (message.type === 'pref' && message.email === adoptedFor) {
 		knownLocally = true;
+		saves += 1;
 		jobNotifications.set(message.enabled);
 	}
 }
@@ -125,6 +129,13 @@ export function adopt(email: string, enabled: boolean) {
 		reset();
 		adoptedFor = email;
 	} else if (knownLocally) {
+		const turn = saves;
+		void api
+			.getJobNotificationSettings()
+			.then((fresh) => {
+				if (turn === saves && adoptedFor === email) jobNotifications.set(fresh.job_notifications);
+			})
+			.catch(() => {});
 		return;
 	}
 	jobNotifications.set(enabled);
@@ -133,6 +144,7 @@ export function adopt(email: string, enabled: boolean) {
 /** After `/account` saved the switch: this tab and the user's other open tabs follow it. */
 export function setEnabled(enabled: boolean) {
 	knownLocally = true;
+	saves += 1;
 	jobNotifications.set(enabled);
 	if (adoptedFor !== null) shared()?.postMessage({ type: 'pref', email: adoptedFor, enabled });
 }
@@ -142,6 +154,7 @@ export function setEnabled(enabled: boolean) {
 export function reset() {
 	adoptedFor = null;
 	knownLocally = false;
+	saves += 1;
 	jobNotifications.set(false);
 	offers.clear();
 	decided.clear();

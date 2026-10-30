@@ -1138,6 +1138,11 @@ export interface JobNotificationSettings {
 	job_notifications: boolean;
 }
 
+/** v66: the saved switch, read afresh (a tab that saved it can't trust a `/me` read before). */
+export function getJobNotificationSettings(): Promise<JobNotificationSettings> {
+	return request('/api/settings/notifications');
+}
+
 /** v66: the per-user notifications switch, server-side like the other preferences. Whether this
  * browser may show them is its own permission, asked for by the page, never stored here. */
 export function updateJobNotificationSettings(enabled: boolean): Promise<JobNotificationSettings> {

@@ -38,6 +38,8 @@ describe('v66: one tab announces', () => {
 	let shown: string[];
 	// A message that arrives only after both tabs' windows ended: the race the lowest-id rule is for.
 	let slow = false;
+	// The saved switch as the server has it (`getJobNotificationSettings`).
+	let server = false;
 
 	beforeEach(() => {
 		vi.useFakeTimers();
@@ -75,8 +77,10 @@ describe('v66: one tab announces', () => {
 		vi.stubGlobal('window', { Notification: Recorded, focus() {} });
 		vi.stubGlobal('Notification', Recorded);
 		vi.stubGlobal('document', { documentElement: { lang: 'en' } });
+		server = false;
 		vi.doMock('$lib/api', () => ({
-			getJob: async (id: string) => ({ id, title: `Album ${id}`, track_counts: { completed: 2 } })
+			getJob: async (id: string) => ({ id, title: `Album ${id}`, track_counts: { completed: 2 } }),
+			getJobNotificationSettings: async () => ({ job_notifications: server })
 		}));
 	});
 
@@ -118,6 +122,25 @@ describe('v66: one tab announces', () => {
 		slow = true;
 		one.observe(settle);
 		two.observe(settle);
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(shown).toEqual(['Album j1']);
+	});
+
+	it('a tab that saved reads the server afresh on a later /me, and a change from elsewhere wins', async () => {
+		const one = await tab();
+		one.setEnabled(true);
+		// Changed on another device: the server says off, the page's /me read is stale (on).
+		server = false;
+		one.adopt('a@example.com', true);
+		await vi.advanceTimersByTimeAsync(10);
+		one.observe(settle);
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(shown).toEqual([]);
+		// And back on from elsewhere.
+		server = true;
+		one.adopt('a@example.com', false);
+		await vi.advanceTimersByTimeAsync(10);
+		one.observe({ ...settle, ts: 'again' });
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(shown).toEqual(['Album j1']);
 	});
