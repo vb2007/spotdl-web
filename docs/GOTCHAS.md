@@ -7431,6 +7431,10 @@ independently-found production bug from the same conversation)
   the lowest tab id among the offers shows it and says so; a late offer for a decided key is
   ignored. A background tab's throttled timer only makes it wait longer. The notification's `tag`
   is the job's, so two tabs without the channel replace each other rather than stack.
+- **The switch reaches an open tab from another device only on its next `/me`** (an in-app
+  navigation): a dashboard left open keeps announcing (or not) by the value it had. Its other tabs
+  follow at once (the channel). Accepted, as for every preference; a pushed preference event
+  would close it.
 - **A settle published while no stream is connected is never announced** (an api restart, a
   deploy: Redis pub/sub keeps nothing for a missing subscriber, and a reconnect only re-reads the
   state). Best effort, like a settle during a stream's identity check.
