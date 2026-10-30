@@ -6,6 +6,7 @@ from app.config import get_settings
 from app.errors import ApiError, api_error_handler, validation_error_handler
 from app.routers import admin, auth, health, jobs, library, proxies, settings, stream, tracks, worker
 from app.routers import account_keys
+from app.routers import export  # v64
 
 app = FastAPI(title="spotdl-web")
 # v46: an ApiError answers with its stable `code` beside `detail` (app/errors.py).
@@ -32,6 +33,7 @@ app.include_router(account_keys.router)
 app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(jobs.router)
+app.include_router(export.router)  # v64: /api/jobs/{id}/export.zip, playlist.m3u8
 app.include_router(library.router)
 app.include_router(proxies.router)
 app.include_router(settings.router)
