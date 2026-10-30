@@ -728,7 +728,9 @@ here.
     the extension don't resolve one); that would be a later slice.
   - **Files beyond v65's list:** the backend files above, `routes/+layout.ts` (the signed-out
     redirect adds `next` for `/share`, and a signed-in `/login?next=` goes on to it: the redirect
-    lives there, not in the login page), `lib/api.ts` (`createJob`'s client header,
+    lives there, not in the login page), `routes/+layout.svelte` (a session ending while a share is
+    open, by a 401 or another tab's sign-out, goes to `/login` with the share as `next` too),
+    `lib/api.ts` (`createJob`'s client header,
     `resolveLink`), `lib/i18n/errors.ts` (three codes) and `DESIGN.md` (the new page and section).
     New helpers serving owned features: `lib/nextPath.ts`, `lib/shareTarget.ts`, `lib/install.ts`,
     `lib/components/InstallApp.svelte` (the `/account` block, kept in its own file beside v66's)

@@ -24,6 +24,7 @@
 	import * as m from '$lib/paraglide/messages';
 	import { link as streamLink } from '$lib/stores/link';
 	import { onSessionMessage, setLeavingSession } from '$lib/session';
+	import { loginFor } from '$lib/nextPath';
 	import {
 		cancelChord,
 		helpOpen,
@@ -94,6 +95,16 @@
 	// while `/` is still mounted, its stream and poll would read the reset as an identity
 	// change and reload the tab.
 	let ending = false;
+	// v65: a share open when the session ends comes back to itself after the next sign-in, as a
+	// share opened signed out does (`+layout.ts`). Its query from `location` (v54).
+	async function toLoginAfterEnd(): Promise<void> {
+		if (page.url.pathname === resolve('/share')) {
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- /login plus a next that safeNext checks on arrival
+			await goto(loginFor('/share' + window.location.search), { state: { sessionEnded: true } });
+		} else {
+			await goto(resolve('/login'), { state: { sessionEnded: true } });
+		}
+	}
 	$effect(() =>
 		api.onUnauthorized(async () => {
 			if (ending || page.url.pathname === resolve('/login')) return;
@@ -119,7 +130,7 @@
 				// v62 (F6): a page's unsaved-edits guard lets this through: nothing can be saved now.
 				setLeavingSession(true);
 				try {
-					await goto(resolve('/login'), { state: { sessionEnded: true } });
+					await toLoginAfterEnd();
 				} finally {
 					setLeavingSession(false);
 				}
@@ -142,7 +153,7 @@
 				if (mine === null || page.url.pathname === resolve('/login')) return;
 				setLeavingSession(true);
 				try {
-					await goto(resolve('/login'), { state: { sessionEnded: true } });
+					await toLoginAfterEnd();
 				} finally {
 					setLeavingSession(false);
 				}

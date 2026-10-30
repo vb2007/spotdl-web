@@ -31,10 +31,13 @@ export async function promptInstall(): Promise<'accepted' | 'dismissed' | 'unava
 	const offer = installPrompt();
 	if (!offer) return 'unavailable';
 	window.__spotdlInstallPrompt = null;
-	await offer.prompt();
-	const { outcome } = await offer.userChoice;
-	dispatchEvent(new Event('spotdl:installprompt'));
-	return outcome;
+	try {
+		await offer.prompt();
+		return (await offer.userChoice).outcome;
+	} finally {
+		// Used up, whether the dialog answered or the browser refused it: the entry follows.
+		dispatchEvent(new Event('spotdl:installprompt'));
+	}
 }
 
 /** Whether this page runs as the installed app (its own window). */

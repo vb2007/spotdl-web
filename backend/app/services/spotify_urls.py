@@ -280,6 +280,10 @@ def resolve_short_link(text: str) -> SpotifyRef:
                     # The host refusing or throttling us says nothing about the link: retryable.
                     if response.status_code >= 500 or response.status_code in (403, 408, 429):
                         raise ShortLinkUnavailable
+                    if url != _short_link(text):
+                        # A hop that ended in a page: what the host gives a browser. If every short
+                        # link starts ending here, the host changed how it reads our user agent.
+                        logger.warning("short link: %s answered a page after a hop", url.split("?")[0])
                     raise ShortLinkUnresolved
                 location = response.headers.get("location")
                 if not location:
