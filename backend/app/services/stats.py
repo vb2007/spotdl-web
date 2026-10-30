@@ -363,18 +363,25 @@ def _owned_attempts(user_id):
     )
 
 
-def _library_contribution(db: Session, user_id) -> dict:
+def contributed_files(db: Session, user_id) -> list[str]:
     """The files the user's own jobs downloaded, all time: the ledger rows behind their
-    `completed` tracks (a `skipped_duplicate` was someone else's download), one per file. The
-    count is SQL; the size isn't recorded anywhere, so it's read off the disk (the api mounts
-    both roots read-only for this, v66). A file the disk doesn't show (moved mid-read, or a
-    root not mounted) is counted as `unreadable` rather than as zero bytes."""
-    paths = db.execute(
-        select(distinct(DownloadedTrack.file_path))
-        .join(Track, Track.spotify_track_id == DownloadedTrack.spotify_track_id)
-        .join(Job, Job.id == Track.job_id)
-        .where(Job.user_id == user_id, Track.state == TrackState.COMPLETED)
-    ).scalars().all()
+    `completed` tracks (a `skipped_duplicate` was someone else's download), one per file. A file
+    downloaded again for a second user after it was lost counts for both (rare, accepted)."""
+    return list(
+        db.execute(
+            select(distinct(DownloadedTrack.file_path))
+            .join(Track, Track.spotify_track_id == DownloadedTrack.spotify_track_id)
+            .join(Job, Job.id == Track.job_id)
+            .where(Job.user_id == user_id, Track.state == TrackState.COMPLETED)
+        ).scalars().all()
+    )
+
+
+def measure_files(paths: list[str]) -> dict:
+    """The contribution's count and size. The size isn't recorded anywhere, so it's read off the
+    disk (the api mounts both roots read-only for this, v66): call it after the request's
+    snapshot is over, one stat per file. A file the disk doesn't show (moved mid-read, or a root
+    not mounted) is counted as `unreadable` rather than as zero bytes."""
     size = 0
     unreadable = 0
     for path in paths:
@@ -388,10 +395,17 @@ def _library_contribution(db: Session, user_id) -> dict:
 
 
 def my_stats(
-    db: Session, user_id, window: str, now: datetime | None = None, utc_offset_minutes: int = 0
+    db: Session,
+    user_id,
+    window: str,
+    now: datetime | None = None,
+    utc_offset_minutes: int = 0,
+    measure_library: bool = True,
 ) -> dict:
     """v66: one user's own downloads over a window (the admin page's windows and buckets), plus
-    their library contribution all time. Every statement is narrowed to `user_id`'s jobs."""
+    their library contribution all time. Every statement is narrowed to `user_id`'s jobs. With
+    `measure_library` off, `library` is the contributed paths (`contributed_files`) for the caller
+    to `measure_files` once its transaction is over (the router's snapshot)."""
     now = now or datetime.now(timezone.utc)
     offset = utc_offset_minutes * 60
     start, end, bucket_seconds, first_bucket, bucket_count = _window(window, now, offset)
@@ -467,5 +481,9 @@ def my_stats(
             "tracks": median_row.tracks,
         },
         "jobs": {"total": sum(by_status.values()), "by_status": by_status},
-        "library": _library_contribution(db, user_id),
+        "library": (
+            measure_files(contributed_files(db, user_id))
+            if measure_library
+            else contributed_files(db, user_id)
+        ),
     }

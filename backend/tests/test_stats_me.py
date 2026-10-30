@@ -277,3 +277,17 @@ def test_endpoint_windows_and_offsets(authenticated_client):
 
 def test_unauthenticated_gets_401(client):
     assert client.get("/api/stats/me").status_code == 401
+
+
+def test_endpoint_measures_the_library_after_its_snapshot(authenticated_client, db_session, tmp_path):
+    me = db_session.query(User).filter(User.email == "allowed@example.com").one()
+    path = tmp_path / "mine.opus"
+    path.write_bytes(b"x" * 4321)
+    db_session.add(DownloadedTrack(spotify_track_id="smine", file_path=str(path), format="opus"))
+    _track(db_session, _job(db_session, me), spotify_id="smine")
+    db_session.commit()
+    assert authenticated_client.get("/api/stats/me").json()["library"] == {
+        "files": 1,
+        "bytes": 4321,
+        "unreadable": 0,
+    }

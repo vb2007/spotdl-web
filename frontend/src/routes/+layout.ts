@@ -1,6 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import * as api from '$lib/api';
 import { queue } from '$lib/stores/queue';
+import * as notifications from '$lib/notifications';
 import { consumeSessionEnded, markSessionEnded } from '$lib/stores/sessionEnded';
 import { shortcutsEnabled } from '$lib/keyboard/registry';
 import { applyClock, applyLanguagePreference } from '$lib/i18n/locale.svelte';
@@ -63,6 +64,7 @@ export const load: LayoutLoad = async ({ url }) => {
 		// that must clear it regardless of *why* the session is gone.
 		if (sessionGone) {
 			queue.reset();
+			notifications.reset();
 			// v47: only a tab that had a session here says it ended (not a first visit).
 			if (lastSessionEmail !== null && !api.isSigningOut()) markSessionEnded();
 		}
@@ -73,6 +75,7 @@ export const load: LayoutLoad = async ({ url }) => {
 		consumeSessionEnded();
 		if (lastSessionEmail !== null && lastSessionEmail !== session.email) {
 			queue.reset();
+			notifications.reset();
 			// v45: the new identity's own switch, at once. A hover preload's `data` is never
 			// applied, so the layout's effect wouldn't set it until the next real navigation.
 			shortcutsEnabled.set(session.keyboard_shortcuts ?? true);

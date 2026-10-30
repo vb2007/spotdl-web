@@ -714,7 +714,10 @@
 	});
 	const notifyOn = notifications.jobNotifications;
 	$effect(() => {
-		notifications.setOwnStream(isAdmin && view !== 'mine' && $notifyOn);
+		// Not without the browser's permission: nothing could be shown (review round 1).
+		notifications.setOwnStream(
+			isAdmin && view !== 'mine' && $notifyOn && notifications.permission() === 'granted'
+		);
 	});
 
 	/** A notification's click: the job's row, if this page lists it. */

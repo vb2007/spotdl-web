@@ -377,11 +377,17 @@
 
 	const setNotify = lastChoiceWins(saveNotify);
 
+	// Each press, in order: a press made while the browser's question is open (it doesn't block
+	// the page) wins over the one that asked, whatever the answer (review round 1).
+	let notifyChoice = 0;
+
 	async function chooseNotify(enabled: boolean) {
+		const choice = ++notifyChoice;
 		permissionAnswer = null;
 		if (enabled && notifications.permission() !== 'granted') {
 			// First thing in the click: a browser only asks from the user's own gesture.
 			const answer = await notifications.requestPermission();
+			if (choice !== notifyChoice) return;
 			browserPermission = answer;
 			if (answer !== 'granted') {
 				permissionAnswer = answer === 'default' ? 'dismissed' : answer;
@@ -433,6 +439,7 @@
 		// The module-level queue store outlives this navigation; clear it before leaving so
 		// the next identity on this tab never sees a flash of these rows.
 		queue.reset();
+		notifications.reset();
 		// v62 (F6): the session is gone, so nothing unsaved here can be saved: never held.
 		setLeavingSession(true);
 		try {
