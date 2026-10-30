@@ -342,6 +342,53 @@ def test_unknown_job_is_a_404(authenticated_client, roots):
     assert response.json()["code"] == "job_not_found"
 
 
+def test_a_long_file_name_keeps_its_extension_and_numbers_before_it(authenticated_client, db_session, owner, roots):
+    """Classical and multi-artist names run long: the stem is cut (to 200 UTF-8 bytes), never the
+    extension, and a dot inside the title ("No. 3") isn't taken for one."""
+    downloads, library = roots
+    job = _job(db_session, owner)
+    name = "Ádám Fischer, Karl Böhm, " * 7 + "Brandenburg Concerto No. 3, BWV 1048_ I. Allegro.opus"
+    assert 230 < len(name.encode("utf-8")) <= 255
+    _track(db_session, job, 1, path=_file(downloads / "a", name))
+    _track(db_session, job, 2, path=_file(library / "b", name))
+
+    names = sorted(_zip(authenticated_client.get(f"/api/jobs/{job.id}/export.zip")).namelist())
+
+    audio = [n for n in names if n.endswith(".opus")]
+    assert len(audio) == 2
+    first = min(audio, key=len)
+    assert len(first.encode("utf-8")) <= 200
+    assert first.startswith("Ádám Fischer, Karl Böhm, ")
+    assert first.removesuffix(".opus") + " (2).opus" in audio
+
+
+def test_a_file_name_starting_with_hash_is_not_a_comment_in_the_playlist(authenticated_client, db_session, owner, roots):
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "#1 Crush.opus"))
+
+    archive = _zip(authenticated_client.get(f"/api/jobs/{job.id}/export.zip"))
+
+    assert "#1 Crush.opus" in archive.namelist()
+    assert archive.read("The Album.m3u8").decode("utf-8").splitlines()[-1] == "./#1 Crush.opus"
+
+
+def test_library_paths_list_only_library_files_and_name_the_rest(admin_client, db_session, admin_user, roots):
+    downloads, library = roots
+    job = _job(db_session, admin_user)
+    _track(db_session, job, 1, path=_file(library, "Artist/01 - a.opus"))
+    _track(db_session, job, 2, path=_file(downloads, "02 - b.opus"))
+
+    response = admin_client.get(f"/api/jobs/{job.id}/playlist.m3u8?paths=library")
+
+    assert response.status_code == 200
+    assert response.text == (
+        "#EXTM3U\n"
+        f"#EXTINF:201,Artist A, Artist B - Song 1\n{library / 'Artist' / '01 - a.opus'}\n"
+        "# not in the library yet: Artist A, Artist B - Song 2\n"
+    )
+
+
 @pytest.mark.parametrize(
     "name, expected",
     [
@@ -351,8 +398,22 @@ def test_unknown_job_is_a_404(authenticated_client, roots):
         ("...", "export"),
         ("  ", "export"),
         ("line\nbreak", "line_break"),
-        ("x" * 200, "x" * 150),
+        ("x" * 300, "x" * 200),
+        ("é" * 150, "é" * 100),
     ],
 )
 def test_safe_name(name, expected):
     assert export.safe_name(name) == expected
+
+
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        ("a.opus", "a.opus"),
+        ("x" * 300 + ".opus", "x" * 195 + ".opus"),
+        ("Concerto No. 3", "Concerto No. 3"),
+        (".opus", "track.opus"),
+    ],
+)
+def test_safe_name_keeps_a_file_extension(name, expected):
+    assert export.safe_name(name, "track", keep_extension=True) == expected

@@ -28,13 +28,16 @@ def _plan(db: Session, job_id: uuid.UUID, user: User, *, limited: bool) -> expor
     """The job's export plan. `limited` applies the zip's limits; the playlist has none
     (a few bytes per track, and over the zip's limit it's what the UI points to instead)."""
     job, _owner_email, _owner_username = _get_job_or_404(db, job_id, user)
-    plan = export.plan_export(db, job.id, rollup.job_title(db, job))
+    rows = export.load_rows(db, job.id)
+    title = rollup.job_title(db, job)
     max_files, max_bytes = app_settings.export_limits(db)
-    # Ends the transaction before anything streams: the response below may run for hours,
-    # and a connection idle in transaction all that time is v31's leak. A commit hands the
-    # connection back to the pool, and the plan is plain data, so nothing after this reads
-    # the session again (an attribute read would begin a new transaction).
+    # Ends the transaction before the filesystem checks and before anything streams: the
+    # response below may run for hours, and a connection idle in transaction all that time is
+    # v31's leak. A commit hands the connection back to the pool; everything after this is
+    # plain data, so nothing reads the session again (an attribute read would begin a new
+    # transaction).
     db.commit()
+    plan = export.plan_from_rows(rows, title)
     if limited and (len(plan.files) > max_files or plan.total_bytes > max_bytes):
         raise ApiError(
             413,

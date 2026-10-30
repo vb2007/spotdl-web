@@ -234,7 +234,14 @@
 		const exportErrors: Partial<Record<keyof api.EditableExportSettings, string>> = {};
 		for (const { key, label, min, max } of EXPORT_FIELDS) {
 			const value = exportValue(exportForm[key]);
-			if (value !== null && !(Number.isInteger(value) && value >= min && value <= max))
+			// An unparsable entry (Firefox takes letters in a number field) binds as null too, which
+			// would save as "the default": it's refused like any other value out of range.
+			const input = document.getElementById(key);
+			const unparsable = input instanceof HTMLInputElement && input.validity.badInput;
+			if (
+				unparsable ||
+				(value !== null && !(Number.isInteger(value) && value >= min && value <= max))
+			)
 				exportErrors[key] = m.error_setting_out_of_range({
 					field: label(),
 					min: formatNumber(min),
@@ -876,6 +883,14 @@
 														step="1"
 														placeholder={formatNumber(field.placeholder(defaults))}
 														bind:value={exportForm[field.key]}
+														oninput={() => {
+															// The error goes once the field is edited, not only on the next save.
+															if (exportFieldErrors[field.key])
+																exportFieldErrors = {
+																	...exportFieldErrors,
+																	[field.key]: undefined
+																};
+														}}
 														disabled={outputSaving}
 														aria-invalid={exportFieldErrors[field.key] ? 'true' : undefined}
 														aria-describedby="{field.key}-unit export-hint {field.key}-error"

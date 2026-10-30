@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from zipstream import ZIP_STORED, ZipStream
 
 from app.models import DownloadedTrack, Track, TrackState
-from app.routers.tracks import allowed_file_location
+from app.routers.tracks import _INTERNAL_LIBRARY_PREFIX, allowed_file_location
 
 MISSING_NAME = "MISSING.txt"
 
@@ -38,7 +38,12 @@ _CHUNK_BYTES = 1024 * 1024
 # backslash is one to Windows extractors, so a name with `..\` could escape the folder),
 # the ones Windows refuses, and control characters.
 _UNSAFE_NAME = re.compile(r'[\\/:*?"<>|\x00-\x1f\x7f]')
-_MAX_NAME_CHARS = 150
+# In UTF-8 bytes, under the common 255-byte filename limit with room left for a ` (N)`
+# duplicate suffix: a Hungarian name's accented letters take two bytes each.
+_MAX_NAME_BYTES = 200
+# What counts as a file's extension when a name is cut or numbered: a short dot-suffix with no
+# space, so "No. 3" or "feat. X" in a title is never mistaken for one.
+_EXTENSION = re.compile(r"\.[^.\s]{1,10}$")
 
 
 @dataclass(frozen=True)
@@ -48,6 +53,8 @@ class ExportFile:
     size: int
     duration: int | None
     label: str
+    # Under the library mount (not still on the downloads volume): `?paths=library` lists only these.
+    in_library: bool
 
 
 @dataclass(frozen=True)
@@ -71,15 +78,31 @@ class ExportPlan:
         return f"{safe_name(self.title)}.zip"
 
 
-def safe_name(name: str, fallback: str = "export") -> str:
+def _split_extension(name: str) -> tuple[str, str]:
+    match = _EXTENSION.search(name)
+    if match is None or match.start() == 0:
+        return name, ""
+    return name[: match.start()], match.group()
+
+
+def safe_name(name: str, fallback: str = "export", *, keep_extension: bool = False) -> str:
     """A name usable as one path component on any common filesystem: unsafe characters
-    become `_`, and a name that ends up empty (or only dots) is the fallback."""
+    become `_`, and a name that ends up empty (or only dots) is the fallback. A long name is
+    cut to _MAX_NAME_BYTES; with `keep_extension` (a file's name) the cut is taken from the
+    stem, so `....opus` never becomes `....op`, and a name that is only an extension
+    (`.opus`, a hidden file once extracted) gets the fallback stem."""
     cleaned = _UNSAFE_NAME.sub("_", name).strip().rstrip(".").strip()
-    if len(cleaned) > _MAX_NAME_CHARS:
-        cleaned = cleaned[:_MAX_NAME_CHARS].rstrip()
-    if not cleaned.strip("."):
-        return fallback
-    return cleaned
+    stem, ext = cleaned, ""
+    if keep_extension:
+        match = _EXTENSION.search(cleaned)
+        if match is not None:
+            stem, ext = cleaned[: match.start()], match.group()
+    if len((stem + ext).encode("utf-8")) > _MAX_NAME_BYTES:
+        budget = _MAX_NAME_BYTES - len(ext.encode("utf-8"))
+        stem = stem.encode("utf-8")[:budget].decode("utf-8", "ignore").rstrip().rstrip(".").rstrip()
+    if not stem.strip("."):
+        return f"{fallback}{ext}"
+    return f"{stem}{ext}"
 
 
 def _track_label(song_json: dict) -> str:
@@ -120,21 +143,26 @@ def _order_key(row) -> tuple:
 def _dedupe(name: str, taken: set[str]) -> str:
     """`name`, or `name (2)`, `name (3)`... before its extension, compared case-insensitively
     (an archive extracted on Windows or macOS would fold two cases into one file)."""
-    stem, dot, ext = name.rpartition(".")
-    if not dot or not stem:
-        stem, ext = name, ""
+    stem, ext = _split_extension(name)
     candidate, counter = name, 1
     while candidate.casefold() in taken:
         counter += 1
-        candidate = f"{stem} ({counter}).{ext}" if ext else f"{stem} ({counter})"
+        candidate = f"{stem} ({counter}){ext}"
     taken.add(candidate.casefold())
     return candidate
 
 
 def plan_export(db: Session, job_id: uuid.UUID, title: str) -> ExportPlan:
-    """Every track of the job, sorted into the zip or MISSING.txt. One query (the ledger
-    joined in), then filesystem checks only."""
-    rows = db.execute(
+    """load_rows and plan_from_rows in one step, for a caller that holds no transaction open
+    on purpose (tests, scripts)."""
+    return plan_from_rows(load_rows(db, job_id), title)
+
+
+def load_rows(db: Session, job_id: uuid.UUID) -> list:
+    """Every track of the job with its ledger path: the export's one query. Plain rows, so
+    the caller can end its transaction before plan_from_rows touches the filesystem (a stat
+    per track on a spun-down disk is no reason to sit idle in transaction)."""
+    return db.execute(
         select(
             Track.id,
             Track.state,
@@ -146,7 +174,11 @@ def plan_export(db: Session, job_id: uuid.UUID, title: str) -> ExportPlan:
         .outerjoin(DownloadedTrack, DownloadedTrack.spotify_track_id == Track.spotify_track_id)
         .where(Track.job_id == job_id)
     ).all()
-    rows.sort(key=_order_key)
+
+
+def plan_from_rows(rows: list, title: str) -> ExportPlan:
+    """Every track, sorted into the zip or MISSING.txt: filesystem checks only."""
+    rows = sorted(rows, key=_order_key)
 
     playlist_name = f"{safe_name(title)}.m3u8"
     taken = {MISSING_NAME.casefold(), playlist_name.casefold()}
@@ -168,7 +200,7 @@ def plan_export(db: Session, job_id: uuid.UUID, title: str) -> ExportPlan:
         if location is None:
             missing.append((label, "recorded path is outside the download and library folders"))
             continue
-        resolved = location[0]
+        resolved, _root, prefix = location
         try:
             stat = resolved.stat()
         except OSError:
@@ -179,11 +211,12 @@ def plan_export(db: Session, job_id: uuid.UUID, title: str) -> ExportPlan:
             continue
         files.append(
             ExportFile(
-                arcname=_dedupe(safe_name(resolved.name, "track"), taken),
+                arcname=_dedupe(safe_name(resolved.name, "track", keep_extension=True), taken),
                 path=resolved,
                 size=stat.st_size,
                 duration=_duration(song),
                 label=label,
+                in_library=prefix == _INTERNAL_LIBRARY_PREFIX,
             )
         )
     return ExportPlan(title=title, files=files, missing=missing, total_tracks=len(rows))
@@ -196,12 +229,21 @@ def _m3u_label(label: str) -> str:
 
 def m3u_text(plan: ExportPlan, *, absolute: bool = False) -> str:
     """UTF-8 extended M3U. Relative entries are the zip's own names (the playlist sits next
-    to them in the archive); `absolute` lists each file at its path on disk instead."""
+    to them in the archive); a name starting with `#` gets `./`, or a player would read the
+    line as a comment and drop the track. `absolute` lists the files already in the library at
+    their path there, for a media server pointed at it; a file still on the downloads volume
+    has no such path yet, so it's a comment line naming the track instead."""
     lines = ["#EXTM3U"]
     for entry in plan.files:
+        if absolute and not entry.in_library:
+            lines.append(f"# not in the library yet: {_m3u_label(entry.label)}")
+            continue
         duration = entry.duration if entry.duration is not None else -1
         lines.append(f"#EXTINF:{duration},{_m3u_label(entry.label)}")
-        lines.append(str(entry.path) if absolute else entry.arcname)
+        if absolute:
+            lines.append(str(entry.path))
+        else:
+            lines.append(f"./{entry.arcname}" if entry.arcname.startswith("#") else entry.arcname)
     return "\n".join(lines) + "\n"
 
 
