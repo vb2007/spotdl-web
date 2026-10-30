@@ -234,12 +234,33 @@
 	}
 
 	// --- v64: export ------------------------------------------------------------------
-	// The files a job has, by its own counts (its completed and already-downloaded tracks):
-	// no request per row. The export itself checks each file on disk, and lists any it can't
-	// find, with every other track, in the zip's MISSING.txt.
-	let exportFiles = $derived(
+	// How many of the job's tracks have a file on disk: the export's own count, read from its
+	// HEAD once the job is opened (one request per opening, never one per row), and read
+	// again whenever the job's settled tracks change while it's open. A file deleted from disk
+	// isn't counted, so a job with none left shows no strip.
+	let settledTracks = $derived(
 		(job.track_counts.completed ?? 0) + (job.track_counts.skipped_duplicate ?? 0)
 	);
+	let exportCounts = $state<{ files: number; tracks: number } | null>(null);
+	let exportFiles = $derived(exportCounts?.files ?? 0);
+	let exportRead = 0;
+	$effect(() => {
+		// Read on opening and on every change of the settled count; nothing while closed.
+		if (!isOpen || settledTracks === 0) {
+			exportCounts = null;
+			return;
+		}
+		const read = ++exportRead;
+		const session = queue.getResetCount();
+		api
+			.getJobExportCounts(job.id)
+			.then((counts) => {
+				if (read === exportRead && queue.getResetCount() === session) exportCounts = counts;
+			})
+			.catch(() => {
+				if (read === exportRead) exportCounts = null;
+			});
+	});
 	let exportProbing = $state<'zip' | 'playlist' | null>(null);
 
 	// v35 (e)'s technique: probe first (a 404, or the zip's 413 over the export limits, shows
@@ -415,13 +436,13 @@
 	</p>
 
 	{#if isOpen}
-		<!-- v64: export. Shown once the job has a file; the count is its own (see exportFiles). -->
+		<!-- v64: export. Shown once a file of the job is on disk (see exportCounts). -->
 		{#if exportFiles > 0}
 			<div class="export" role="group" aria-label={m.job_export_label({ title: job.title })}>
 				<span class="export-count mono"
 					>{m.job_export_files({
 						count: formatNumber(exportFiles),
-						total: formatNumber(totalTracks)
+						total: formatNumber(exportCounts?.tracks ?? totalTracks)
 					})}</span
 				>
 				<button
@@ -845,9 +866,16 @@
 			grid-column: 2;
 			grid-row: auto;
 		}
-		/* v64: the count on a line of its own, so the two actions stay side by side. */
+		/* v64: the count on a line of its own, then the two actions side by side, sharing the
+		   width (a long label, Hungarian's, wraps inside its button instead of pushing the
+		   other one to a line of its own). */
 		.export-count {
 			flex-basis: 100%;
+		}
+
+		.export .action {
+			flex: 1 1 0;
+			white-space: normal;
 		}
 	}
 	/* v47: in a forced-colors theme (Windows High Contrast) a bar's fills were dropped to empty

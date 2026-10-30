@@ -312,6 +312,55 @@ def test_over_the_file_limit_is_a_413_and_the_playlist_still_works(authenticated
     assert playlist.status_code == 200 and playlist.text.count("#EXTINF") == 3
 
 
+def test_the_zip_says_how_many_tracks_have_a_file_on_disk(authenticated_client, db_session, owner, roots, monkeypatch):
+    """The open job's strip reads these (one HEAD), so a deleted file isn't counted, also
+    on a 413 (the playlist stays offered)."""
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "1.opus"))
+    gone = _file(downloads, "2.opus")
+    _track(db_session, job, 2, path=gone)
+    _track(db_session, job, 3, state=TrackState.WAITING)
+    gone.unlink()
+
+    head = authenticated_client.head(f"/api/jobs/{job.id}/export.zip")
+    monkeypatch.setattr(app_settings, "export_limits", lambda db: (0, 10**9))
+    over = authenticated_client.head(f"/api/jobs/{job.id}/export.zip")
+
+    assert (head.headers["x-export-files"], head.headers["x-export-tracks"]) == ("1", "3")
+    assert over.status_code == 413
+    assert (over.headers["x-export-files"], over.headers["x-export-tracks"]) == ("1", "3")
+
+
+def test_closing_the_stream_closes_the_file_being_read(db_session, make_user, roots):
+    """An aborted download: the response closes its iterator, and the file goes with it,
+    not whenever the garbage collector gets to it."""
+    downloads, _library = roots
+    job = _job(db_session, make_user("owner@example.com"))
+    _track(db_session, job, 1, path=_file(downloads, "big.opus", size=4 * 1024 * 1024))
+    plan = export.plan_export(db_session, job.id, "The Album")
+    chunks = export.iter_chunks(export.build_zip(plan))
+    next(chunks)
+    fd_dir = Path(f"/proc/{os.getpid()}/fd")
+    open_now = lambda: sum(1 for fd in fd_dir.iterdir() if fd.resolve() == downloads / "big.opus")  # noqa: E731
+    assert open_now() == 1
+
+    chunks.close()
+
+    assert open_now() == 0
+
+
+def test_a_title_with_a_line_break_stays_on_one_line_in_missing_txt(authenticated_client, db_session, owner, roots):
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "1.opus"), list_name="Evil\nX-Injected: 1")
+    _track(db_session, job, 2, state=TrackState.WAITING, list_name="Evil\nX-Injected: 1")
+
+    missing = _zip(authenticated_client.get(f"/api/jobs/{job.id}/export.zip")).read("MISSING.txt").decode()
+
+    assert missing.splitlines()[0] == "Evil X-Injected: 1: 1 of 2 tracks are not in this archive."
+
+
 def test_over_the_size_limit_is_a_413(authenticated_client, db_session, owner, roots, monkeypatch):
     downloads, _library = roots
     monkeypatch.setattr(app_settings, "export_limits", lambda db: (2000, 5000))

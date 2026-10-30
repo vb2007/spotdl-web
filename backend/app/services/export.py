@@ -283,7 +283,7 @@ def m3u_text(plan: ExportPlan, *, absolute: bool = False) -> str:
 
 def missing_text(plan: ExportPlan) -> str:
     lines = [
-        f"{plan.title}: {len(plan.missing)} of {plan.total_tracks} tracks are not in this archive.",
+        f"{_m3u_label(plan.title)}: {len(plan.missing)} of {plan.total_tracks} tracks are not in this archive.",
         "",
     ]
     lines.extend(f"{_m3u_label(label)} -- {reason}" for label, reason in plan.missing)
@@ -378,14 +378,19 @@ def build_zip(plan: ExportPlan) -> ZipStream:
 
 
 def iter_chunks(archive: ZipStream):
-    """The archive's bytes in ~1 MiB pieces (see _CHUNK_BYTES)."""
+    """The archive's bytes in ~1 MiB pieces (see _CHUNK_BYTES). Closing it closes the
+    archive's own generator, and with it the file being read."""
     pending: list[bytes] = []
     size = 0
-    for chunk in archive:
-        pending.append(chunk)
-        size += len(chunk)
-        if size >= _CHUNK_BYTES:
+    stream = iter(archive)
+    try:
+        for chunk in stream:
+            pending.append(chunk)
+            size += len(chunk)
+            if size >= _CHUNK_BYTES:
+                yield b"".join(pending)
+                pending, size = [], 0
+        if pending:
             yield b"".join(pending)
-            pending, size = [], 0
-    if pending:
-        yield b"".join(pending)
+    finally:
+        stream.close()

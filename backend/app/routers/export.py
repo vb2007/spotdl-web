@@ -11,6 +11,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
+from starlette.concurrency import iterate_in_threadpool
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -49,8 +50,31 @@ def _plan(db: Session, job_id: uuid.UUID, user: User, *, limited: bool) -> expor
                 "max_files": max_files,
                 "max_bytes": max_bytes,
             },
+            headers=_count_headers(plan),
         )
     return plan
+
+
+def _count_headers(plan: export.ExportPlan) -> dict[str, str]:
+    """How many of the job's tracks have a file on disk, out of how many: the open job's
+    strip reads them from its HEAD (one request per opening, never per row), so its count is
+    the zip's own, not the database's."""
+    return {"X-Export-Files": str(len(plan.files)), "X-Export-Tracks": str(plan.total_tracks)}
+
+
+async def _stream(archive):
+    """The archive's chunks, read in the threadpool (file reads block). Closed explicitly
+    when the client goes away: Starlette leaves an abandoned sync iterator to the garbage
+    collector, which kept the file being read open (and its buffers alive) after every
+    aborted download."""
+    chunks = export.iter_chunks(archive)
+    try:
+        async for chunk in iterate_in_threadpool(chunks):
+            yield chunk
+    finally:
+        # A cancelled read isn't abandoned mid-call (anyio waits for the thread), so the
+        # generator isn't executing here and close() runs its cleanup at once.
+        chunks.close()
 
 
 # HEAD too, the v35 (e) probe: the frontend checks first, so a 404 or 413 shows inline
@@ -71,10 +95,11 @@ def export_zip(
         "Cache-Control": "no-store",
         # nginx's /api/ location already has proxy_buffering off; this says so per response.
         "X-Accel-Buffering": "no",
+        **_count_headers(plan),
     }
     if request.method == "HEAD":
         return Response(status_code=200, media_type="application/zip", headers=headers)
-    return StreamingResponse(export.iter_chunks(archive), media_type="application/zip", headers=headers)
+    return StreamingResponse(_stream(archive), media_type="application/zip", headers=headers)
 
 
 # HEAD too, for the same probe as the zip's.

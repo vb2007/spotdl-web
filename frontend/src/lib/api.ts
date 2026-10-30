@@ -910,6 +910,20 @@ export async function checkJobExport(url: string): Promise<void> {
 	);
 }
 
+/** v64: how many of a job's tracks have a file on disk, out of how many: the zip's own
+ * counts, from its HEAD (one request when a job is opened, never one per row). `null` when
+ * the job can't be read (gone, or the session ended: the probe on download says why). */
+export async function getJobExportCounts(
+	jobId: string
+): Promise<{ files: number; tracks: number } | null> {
+	const response = await fetch(jobExportUrl(jobId), { method: 'HEAD', credentials: 'include' });
+	// 413 (over the limit) still carries the counts: the playlist stays offered.
+	if (!response.ok && response.status !== 413) return null;
+	const files = Number(response.headers.get('X-Export-Files'));
+	const tracks = Number(response.headers.get('X-Export-Tracks'));
+	return Number.isFinite(files) && Number.isFinite(tracks) ? { files, tracks } : null;
+}
+
 /** v64: the export's limits; each `null` is "the env default" (`default_*`). Admin only. */
 export interface ExportSettings {
 	export_max_files: number | null;
