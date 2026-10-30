@@ -1096,5 +1096,6 @@
 	"error_url_not_spotify": "Only open.spotify.com track, album, artist or playlist links can be queued from here.",
 	"error_short_link_unresolved": "That Spotify short link doesn't lead to a track, album, artist or playlist (it may have expired).",
 	"error_short_link_unavailable": "Spotify's short link service didn't answer. Try again in a moment.",
-	"install_dismissed": "Not installed. Your browser's menu can still install it."
+	"install_dismissed": "Not installed. Your browser's menu can still install it.",
+	"share_already_queued": "Already in your queue: nothing new was added."
 }

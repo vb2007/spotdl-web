@@ -1039,5 +1039,6 @@
 	"error_url_not_spotify": "Innen csak open.spotify.com szám-, album-, előadó- vagy lejátszásilista-linket lehet sorba tenni.",
 	"error_short_link_unresolved": "Ez a Spotify rövid link nem számhoz, albumhoz, előadóhoz vagy lejátszási listához vezet (lehet, hogy lejárt).",
 	"error_short_link_unavailable": "A Spotify rövidlink-szolgáltatása nem válaszolt. Próbáld újra egy kicsit később.",
-	"install_dismissed": "Nincs telepítve. A böngésződ menüjéből továbbra is telepítheted."
+	"install_dismissed": "Nincs telepítve. A böngésződ menüjéből továbbra is telepítheted.",
+	"share_already_queued": "Ez már a sorodban van: nem tettem hozzá újra."
 }
