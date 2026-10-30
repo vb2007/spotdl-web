@@ -74,9 +74,11 @@ def export_zip(
     return StreamingResponse(export.iter_chunks(archive), media_type="application/zip", headers=headers)
 
 
-@router.get("/{job_id}/playlist.m3u8")
+# HEAD too, for the same probe as the zip's.
+@router.api_route("/{job_id}/playlist.m3u8", methods=["GET", "HEAD"])
 def export_playlist(
     job_id: uuid.UUID,
+    request: Request,
     paths: Literal["library"] | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(require_session),
@@ -90,11 +92,11 @@ def export_playlist(
         raise HTTPException(status_code=404, detail="Not Found")
     plan = _plan(db, job_id, user, limited=False)
     body = export.m3u_text(plan, absolute=paths == "library").encode("utf-8")
-    return Response(
-        content=body,
-        media_type="audio/x-mpegurl; charset=utf-8",
-        headers={
-            "Content-Disposition": _content_disposition(plan.playlist_name),
-            "Cache-Control": "no-store",
-        },
-    )
+    headers = {
+        "Content-Disposition": _content_disposition(plan.playlist_name),
+        "Cache-Control": "no-store",
+    }
+    if request.method == "HEAD":
+        headers["Content-Length"] = str(len(body))
+        return Response(status_code=200, media_type="audio/x-mpegurl; charset=utf-8", headers=headers)
+    return Response(content=body, media_type="audio/x-mpegurl; charset=utf-8", headers=headers)
