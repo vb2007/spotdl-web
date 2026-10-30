@@ -718,7 +718,8 @@ here.
   silently. A watched job is now never archived by any of them (`services/archive.py`, outside
   v63's files): stop watching it first. "Check now" (`POST /api/jobs/{id}/reexpand`) counts
   toward the hourly re-expansion cap but is never refused by it; one run per job at a time is its
-  bound. Also recorded for the owner: the master plan's v63 interaction says re-expansion
+  bound. Same day: "check now" refuses a job submitted as search text (the plan's "any job"): a
+  re-run repeats the search, and a drifted top match would be added and downloaded as new. Also recorded for the owner: the master plan's v63 interaction says re-expansion
   queues only tracks "not already in the job or the ledger", while v63's plan inserts every track
   new to the job and lets download-time dedup resolve a ledger hit as `skipped_duplicate` (its
   Done-when evidences exactly that); v63 follows its own plan.

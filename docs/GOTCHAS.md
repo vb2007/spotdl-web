@@ -7452,6 +7452,16 @@ independently-found production bug from the same conversation)
   button while watched: stop watching it first.
 - **"Check now" is never capped** (owner's decision, 2026-10-30): one run per job at a time is
   its only bound (allowlisted users); it counts toward the hour, so scheduled runs yield to it.
+  It refuses a `search` job (owner's decision, same day): a re-run repeats the search text, and
+  a top match that drifted would be added, and downloaded, as "new".
+- **`job.state: expanded` re-reads an open job's track list from page 1.** The store reloads an
+  open job's tracks on every `expanded` event, so v63's own announcements (a watch change, a check
+  started, a run ending with nothing new or failing) carry `watch: true`, which re-reads only the
+  row: without it, an open artist job paged to 150 tracks collapsed to 50 under the user's focus
+  on every daily check. Only a run that added tracks sends a plain `expanded`.
+- **A rollback after a refused broker send puts back only what its own claim wrote** (beat's and
+  "check now"'s): the row lock is gone by then, and a watch set or changed meanwhile keeps its own
+  `next_expand_at` (`next_expand_at IS NOT DISTINCT FROM` the claimed value).
 - **A failed Spotify read waits out the interval.** The next check is set when the run is
   claimed, and a read error only logs; a monthly watch hit by one transient error is next
   checked a month later. A sooner retry would need a backoff that a dead link can't turn into
