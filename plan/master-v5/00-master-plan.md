@@ -711,3 +711,18 @@ here.
   - **F11** (owner, 2026-10-27) is done in v62 as the ledger row says.
   - **For later slices:** a new path that moves a job's rollup status (v63's re-run expansion and
     "retry all failed", say) calls `job_status.publish_change` after its commit (CLAUDE.md).
+- **2026-10-30, v66: two premises didn't match the code; the owner's choices.**
+  - **Library size isn't recorded, and the api couldn't see the files.** `downloaded_tracks` has
+    no size column, and `api` mounted neither `/downloads` nor the library. The owner chose
+    read-only mounts on `api` (base compose, the dev override's real directories, the production
+    overlay's `DOWNLOADS_DIR`/`LIBRARY_DIR`, all `:ro`) over a size column or files only: the
+    file count is SQL, the size is `os.stat` on the user's ledger paths in the same request, and
+    a file the disk doesn't show is reported as `unreadable`, never as zero bytes.
+  - **The dashboard's stream isn't `mine` for an admin in `all`/`others`.** It carries every
+    user's events, with no owner in them. Notifications listen to a `mine` stream only: the
+    dashboard's own when it is `mine` (always, for a non-admin), else one opened just for them.
+    The owner chose dashboard tabs only (as "Files owned" says), not every app page: a tab on
+    `/stats` or `/account` doesn't announce.
+  - **`/stats` for the admin** lands on everyone's (owner's choice); "mine" is one press away in
+    the title row and `?scope=mine` keeps it across a reload. "My stats" uses the library |
+    window split (owner's choice of the two layouts offered).
