@@ -7439,6 +7439,23 @@ independently-found production bug from the same conversation)
   extractors, so `..\..\x` would escape the folder), `:` and the rest of Windows' refused set:
   they become `_`. Duplicates are compared case-insensitively (an archive extracted on Windows or
   macOS folds case), and the playlist's and `MISSING.txt`'s names are reserved before any track.
+- **A name is cut in UTF-8 bytes, from the stem** (review round 1). Cutting at 150 characters took
+  the extension with it (`…(Remastered 2015).op`), and filesystems limit a name to 255 *bytes*:
+  a Hungarian name's accented letters are two each, so a cut name plus ` (2)` could overflow on
+  extraction. The cut is 200 bytes, taken from the stem; an "extension" is a short dot-suffix
+  without spaces, so "No. 3" in a title isn't one.
+- **An M3U line starting with `#` is a comment.** A track file named `#1 Crush.opus` would drop
+  out of the playlist while staying in the zip, so such an entry is written `./#1 Crush.opus`.
+- **`?paths=library` paths are the container's.** The library is mounted at the same path in
+  every container (`/mnt/raid1/media/music`), so those are real for a media server only where
+  `LIBRARY_DIR` is that path on the host too (production). A file still on the downloads volume
+  (`/downloads/...`, meaningless on the host) is a `# not in the library yet:` comment line.
+- **Open, owner's call: a library sweep during a long export.** The plan stats each file once (the
+  `Content-Length` is fixed), but zipstream-ng opens a file only when the stream reaches it. A
+  sweep that moves that file's downloads copy into the library in between makes the stream fail
+  at that file (the browser reports a failed download; nothing is lost on disk). Opening every
+  file up front would survive the unlink, but the `api` container's soft open-file limit is 1024,
+  below the 2000-file default.
 - **`zipstream-ng`'s `add()` entries carry no file-type bits** (`zipinfo` lists the `.m3u8` as
   `?rw-------`); every extractor tried (Info-ZIP, Python) writes a normal file. Harmless.
 
