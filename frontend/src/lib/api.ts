@@ -693,8 +693,28 @@ export async function logout(): Promise<{ status: string }> {
  * same link (nothing new was created), `in_library` a track the ledger already has. */
 export type CreateJobHint = 'already_queued' | 'in_library' | null;
 
-export function createJob(url: string): Promise<Job & { hint?: CreateJobHint }> {
+export function createJob(
+	url: string,
+	client?: string
+): Promise<Job & { hint?: CreateJobHint }> {
 	return request('/api/jobs', {
+		method: 'POST',
+		body: JSON.stringify({ url }),
+		// v65: `X-Spotdl-Client` (`share` from `/share`) makes the server take only an
+		// open.spotify.com track/album/artist/playlist link, as it does for the extension.
+		headers: client ? { 'X-Spotdl-Client': client } : undefined
+	});
+}
+
+/** v65: what a Spotify link (full, or a `spotify.link` short one) stands for. */
+export interface ResolvedLink {
+	url: string;
+	type: 'track' | 'album' | 'artist' | 'playlist';
+	id: string;
+}
+
+export function resolveLink(url: string): Promise<ResolvedLink> {
+	return request('/api/links/resolve', {
 		method: 'POST',
 		body: JSON.stringify({ url })
 	});
