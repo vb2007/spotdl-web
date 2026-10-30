@@ -74,6 +74,10 @@ _DIRECT_ID_CASES = [
     ("POST", "/api/tracks/{track_id}/retry"),
     ("GET", "/api/tracks/{track_id}/attempts"),
     ("GET", "/api/tracks/{track_id}/file"),
+    # v64: the job export.
+    ("GET", "/api/jobs/{job_id}/export.zip"),
+    ("HEAD", "/api/jobs/{job_id}/export.zip"),
+    ("GET", "/api/jobs/{job_id}/playlist.m3u8"),
 ]
 
 
@@ -170,6 +174,44 @@ def test_download_track_file_404s_for_non_owner_and_200s_for_owner_and_admin(
     # v35 (e): the frontend's HEAD probe goes through the same gate.
     assert _as(client, owner_cookie).head(f"/api/tracks/{track.id}/file").status_code == 200
     assert _as(client, stranger_cookie).head(f"/api/tracks/{track.id}/file").status_code == 404
+
+
+def test_job_export_404s_for_non_owner_and_200s_for_owner_and_admin(
+    client, db_session, make_user, session_cookie, tmp_path, monkeypatch
+):
+    """v64: the positive case beside the sweep above, with a real file: the owner and an
+    admin get the zip and the playlist, a stranger 404s although the file exists. And
+    `?paths=library` (absolute paths, the filesystem layout) is the admin's alone: every
+    non-admin, owner included, gets an unknown route's 404, never a 403."""
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "download_output_dir", str(tmp_path))
+    (tmp_path / "Song.opus").write_bytes(b"audio")
+    owner = make_user("owner@example.com")
+    owner_cookie = session_cookie("owner@example.com")
+    stranger_cookie = session_cookie("stranger@example.com")
+    make_user("root@example.com", is_admin=True)
+    admin_cookie = session_cookie("root@example.com", is_admin=True)
+
+    job = _make_job(db_session, owner)
+    track = _make_track(db_session, job, state=TrackState.COMPLETED)
+    track.output_path = str(tmp_path / "Song.opus")
+    db_session.commit()
+    zip_path, m3u_path = f"/api/jobs/{job.id}/export.zip", f"/api/jobs/{job.id}/playlist.m3u8"
+
+    for cookie in (owner_cookie, admin_cookie):
+        assert _as(client, cookie).get(zip_path).status_code == 200
+        assert _as(client, cookie).head(zip_path).status_code == 200
+        assert _as(client, cookie).get(m3u_path).text == "#EXTM3U\n#EXTINF:-1,Song\nSong.opus\n"
+    assert _as(client, stranger_cookie).get(zip_path).status_code == 404
+    assert _as(client, stranger_cookie).get(m3u_path).status_code == 404
+
+    library = _as(client, admin_cookie).get(f"{m3u_path}?paths=library")
+    assert library.status_code == 200
+    assert library.text == f"#EXTM3U\n#EXTINF:-1,Song\n{tmp_path / 'Song.opus'}\n"
+    for cookie in (owner_cookie, stranger_cookie):
+        refused = _as(client, cookie).get(f"{m3u_path}?paths=library")
+        assert (refused.status_code, refused.json()) == (404, {"detail": "Not Found"})
 
 
 def test_all_users_flag_from_non_admin_is_silently_ignored(client, db_session, make_user, session_cookie):

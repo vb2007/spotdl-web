@@ -1,0 +1,358 @@
+"""v64: a job's export, `GET /api/jobs/{id}/export.zip` and `/playlist.m3u8`.
+
+Real files in a temporary downloads root and library mount (both patched in, since the
+container's own /downloads is mounted read-only). Ownership cases live in
+test_ownership.py beside the other direct-id endpoints."""
+
+import hashlib
+import io
+import os
+import zipfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+import pytest
+
+from app.config import get_settings
+from app.models import AppSettings, DownloadedTrack, Job, JobSourceType, JobState, Track, TrackState
+from app.services import app_settings, export
+
+
+@pytest.fixture()
+def roots(tmp_path, monkeypatch):
+    downloads = tmp_path / "downloads"
+    library = tmp_path / "library"
+    downloads.mkdir()
+    library.mkdir()
+    monkeypatch.setattr(get_settings(), "download_output_dir", str(downloads))
+    monkeypatch.setattr(app_settings, "DEFAULT_LIBRARY_TARGET_DIR", str(library))
+    return downloads, library
+
+
+def _job(db_session, user, *, archived=False) -> Job:
+    job = Job(
+        source_url="https://open.spotify.com/album/x",
+        source_type=JobSourceType.ALBUM,
+        state=JobState.EXPANDED,
+        user_id=user.id,
+        archived_at=datetime.now(timezone.utc) if archived else None,
+    )
+    db_session.add(job)
+    db_session.commit()
+    return job
+
+
+def _track(db_session, job, number, *, path=None, state=TrackState.COMPLETED, name=None, ledger=None, **song):
+    track = Track(
+        job_id=job.id,
+        spotify_track_id=f"{job.id}-{number}",
+        song_json={
+            "name": name or f"Song {number}",
+            "artists": ["Artist A", "Artist B"],
+            "list_name": "The Album",
+            "track_number": number,
+            "duration": 200 + number,
+            **song,
+        },
+        state=state,
+        output_path=str(path) if path is not None else None,
+    )
+    db_session.add(track)
+    if ledger is not None:
+        db_session.add(DownloadedTrack(spotify_track_id=track.spotify_track_id, file_path=str(ledger), format="opus"))
+    db_session.commit()
+    return track
+
+
+def _file(root: Path, name: str, size: int = 4096) -> Path:
+    path = root / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(os.urandom(size))
+    return path
+
+
+def _sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _zip(response) -> zipfile.ZipFile:
+    return zipfile.ZipFile(io.BytesIO(response.content))
+
+
+def test_every_present_file_is_in_the_zip_byte_for_byte_with_an_m3u8(authenticated_client, db_session, owner, roots):
+    downloads, library = roots
+    job = _job(db_session, owner)
+    # Inserted out of album order: the archive's playlist follows track_number.
+    files = {3: _file(downloads, "03 - c.opus"), 1: _file(library, "Artist/Album/01 - a.opus"), 2: _file(downloads, "02 - b.opus")}
+    for number in (3, 1, 2):
+        _track(db_session, job, number, path=files[number])
+
+    response = authenticated_client.get(f"/api/jobs/{job.id}/export.zip")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert int(response.headers["content-length"]) == len(response.content)
+    archive = _zip(response)
+    assert archive.testzip() is None
+    names = archive.namelist()
+    assert sorted(names) == sorted(["01 - a.opus", "02 - b.opus", "03 - c.opus", "The Album.m3u8"])
+    for number, path in files.items():
+        info = archive.getinfo(path.name)
+        assert info.compress_type == zipfile.ZIP_STORED
+        assert _sha(archive.read(path.name)) == _sha(path.read_bytes())
+    assert "MISSING.txt" not in names
+    assert archive.read("The Album.m3u8").decode("utf-8") == (
+        "#EXTM3U\n"
+        "#EXTINF:201,Artist A, Artist B - Song 1\n01 - a.opus\n"
+        "#EXTINF:202,Artist A, Artist B - Song 2\n02 - b.opus\n"
+        "#EXTINF:203,Artist A, Artist B - Song 3\n03 - c.opus\n"
+    )
+
+
+def test_the_ledger_path_wins_over_output_path(authenticated_client, db_session, owner, roots):
+    """A library move repoints the ledger's file_path (master-v3 invariant), not the track."""
+    downloads, library = roots
+    job = _job(db_session, owner)
+    moved = _file(library, "Moved/01 - a.opus")
+    _track(db_session, job, 1, path=downloads / "01 - a.opus", ledger=moved)
+
+    archive = _zip(authenticated_client.get(f"/api/jobs/{job.id}/export.zip"))
+
+    assert _sha(archive.read("01 - a.opus")) == _sha(moved.read_bytes())
+
+
+def test_deleted_files_are_listed_in_missing_txt_and_the_rest_are_intact(authenticated_client, db_session, owner, roots):
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    kept = [_file(downloads, f"0{n} - kept.opus") for n in (1, 2)]
+    gone = [_file(downloads, f"0{n} - gone.opus") for n in (3, 4)]
+    for number, path in enumerate(kept + gone, start=1):
+        _track(db_session, job, number, path=path, name=f"Track {number}")
+    _track(db_session, job, 5, state=TrackState.LOOKUP_FAILED, name="Track 5")
+    _track(db_session, job, 6, state=TrackState.WAITING, name="Track 6")
+    for path in gone:
+        path.unlink()
+
+    archive = _zip(authenticated_client.get(f"/api/jobs/{job.id}/export.zip"))
+
+    assert sorted(archive.namelist()) == sorted([p.name for p in kept] + ["The Album.m3u8", "MISSING.txt"])
+    for path in kept:
+        assert _sha(archive.read(path.name)) == _sha(path.read_bytes())
+    missing = archive.read("MISSING.txt").decode("utf-8")
+    assert missing.startswith("The Album: 4 of 6 tracks are not in this archive.")
+    assert "Artist A, Artist B - Track 3 -- file not found at its recorded path" in missing
+    assert "Artist A, Artist B - Track 4 -- file not found at its recorded path" in missing
+    assert "Artist A, Artist B - Track 5 -- not downloaded (lookup failed)" in missing
+    assert "Artist A, Artist B - Track 6 -- not downloaded (waiting)" in missing
+    assert "Track 1" not in missing and "Track 2" not in missing
+    playlist = archive.read("The Album.m3u8").decode("utf-8")
+    assert "01 - kept.opus" in playlist and "gone" not in playlist
+
+
+def test_a_retention_archived_job_is_still_exportable(authenticated_client, db_session, owner, roots):
+    downloads, _library = roots
+    job = _job(db_session, owner, archived=True)
+    path = _file(downloads, "01 - a.opus")
+    _track(db_session, job, 1, path=path)
+
+    zipped = authenticated_client.get(f"/api/jobs/{job.id}/export.zip")
+    playlist = authenticated_client.get(f"/api/jobs/{job.id}/playlist.m3u8")
+
+    assert zipped.status_code == 200
+    assert _sha(_zip(zipped).read("01 - a.opus")) == _sha(path.read_bytes())
+    assert playlist.status_code == 200 and "01 - a.opus" in playlist.text
+
+
+@pytest.mark.parametrize(
+    "bad_path",
+    [
+        "/etc/hostname",  # exists, outside both roots
+        "{downloads}/../outside.opus",  # `..` out of the downloads root
+        "{downloads}",  # the root itself
+        "{downloads}/link.opus",  # a symlink pointing out of the root
+    ],
+)
+def test_a_path_outside_the_roots_is_excluded_and_listed_as_missing(
+    bad_path, authenticated_client, db_session, owner, roots, tmp_path
+):
+    downloads, _library = roots
+    outside = _file(tmp_path, "outside.opus")
+    (downloads / "link.opus").symlink_to(outside)
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "01 - ok.opus"))
+    _track(db_session, job, 2, path=bad_path.format(downloads=downloads), name="Corrupted")
+
+    archive = _zip(authenticated_client.get(f"/api/jobs/{job.id}/export.zip"))
+
+    assert sorted(archive.namelist()) == ["01 - ok.opus", "MISSING.txt", "The Album.m3u8"]
+    assert "Corrupted -- recorded path is outside the download and library folders" in archive.read(
+        "MISSING.txt"
+    ).decode("utf-8")
+
+
+def test_same_basenames_are_deduplicated_with_a_numbered_suffix(authenticated_client, db_session, owner, roots):
+    downloads, library = roots
+    job = _job(db_session, owner)
+    first = _file(downloads, "a/Intro.opus")
+    second = _file(downloads, "b/Intro.opus")
+    third = _file(library, "c/intro.OPUS")
+    for number, path in enumerate((first, second, third), start=1):
+        _track(db_session, job, number, path=path)
+
+    archive = _zip(authenticated_client.get(f"/api/jobs/{job.id}/export.zip"))
+
+    assert sorted(archive.namelist()) == sorted(["Intro.opus", "Intro (2).opus", "intro (3).OPUS", "The Album.m3u8"])
+    assert _sha(archive.read("Intro (2).opus")) == _sha(second.read_bytes())
+    assert "Intro (2).opus\n" in archive.read("The Album.m3u8").decode("utf-8")
+
+
+def test_a_track_file_named_like_the_playlist_or_missing_txt_is_renamed(authenticated_client, db_session, owner, roots):
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "MISSING.txt"))
+    _track(db_session, job, 2, path=_file(downloads, "The Album.m3u8"))
+    _track(db_session, job, 3, state=TrackState.WAITING)
+
+    archive = _zip(authenticated_client.get(f"/api/jobs/{job.id}/export.zip"))
+
+    assert sorted(archive.namelist()) == sorted(["MISSING (2).txt", "The Album (2).m3u8", "The Album.m3u8", "MISSING.txt"])
+
+
+def test_a_non_ascii_title_names_the_archive_rfc_5987(authenticated_client, db_session, owner, roots):
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "a.opus"), list_name="Björk: Homogénic / Ünïcode")
+
+    head = authenticated_client.head(f"/api/jobs/{job.id}/export.zip")
+    playlist = authenticated_client.get(f"/api/jobs/{job.id}/playlist.m3u8")
+
+    disposition = head.headers["content-disposition"]
+    assert 'filename="Bjrk_ Homognic _ ncode.zip"' in disposition
+    assert "filename*=UTF-8''Bj%C3%B6rk_%20Homog%C3%A9nic%20_%20%C3%9Cn%C3%AFcode.zip" in disposition
+    assert "filename*=UTF-8''Bj%C3%B6rk_%20Homog%C3%A9nic%20_%20%C3%9Cn%C3%AFcode.m3u8" in playlist.headers[
+        "content-disposition"
+    ]
+
+
+def test_head_answers_the_same_headers_without_a_body(authenticated_client, db_session, owner, roots):
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "a.opus", size=10_000))
+
+    head = authenticated_client.head(f"/api/jobs/{job.id}/export.zip")
+    get = authenticated_client.get(f"/api/jobs/{job.id}/export.zip")
+
+    assert head.status_code == 200
+    assert head.content == b""
+    assert head.headers["content-length"] == get.headers["content-length"] == str(len(get.content))
+    assert head.headers["content-disposition"] == get.headers["content-disposition"]
+
+
+def test_over_the_file_limit_is_a_413_and_the_playlist_still_works(authenticated_client, db_session, owner, roots, monkeypatch):
+    downloads, _library = roots
+    monkeypatch.setattr(get_settings(), "export_max_files", 2)
+    job = _job(db_session, owner)
+    for number in (1, 2, 3):
+        _track(db_session, job, number, path=_file(downloads, f"{number}.opus"))
+
+    zipped = authenticated_client.get(f"/api/jobs/{job.id}/export.zip")
+    head = authenticated_client.head(f"/api/jobs/{job.id}/export.zip")
+    playlist = authenticated_client.get(f"/api/jobs/{job.id}/playlist.m3u8")
+
+    assert zipped.status_code == 413
+    assert zipped.json()["code"] == "export_too_large"
+    assert zipped.json()["params"]["files"] == 3
+    assert zipped.json()["params"]["max_files"] == 2
+    assert head.status_code == 413
+    assert playlist.status_code == 200 and playlist.text.count("#EXTINF") == 3
+
+
+def test_over_the_size_limit_is_a_413(authenticated_client, db_session, owner, roots, monkeypatch):
+    downloads, _library = roots
+    monkeypatch.setattr(app_settings, "export_limits", lambda db: (2000, 5000))
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "1.opus", size=3000))
+    _track(db_session, job, 2, path=_file(downloads, "2.opus", size=3000))
+
+    response = authenticated_client.get(f"/api/jobs/{job.id}/export.zip")
+
+    assert response.status_code == 413
+    assert response.json()["params"] == {"files": 2, "bytes": 6000, "max_files": 2000, "max_bytes": 5000}
+
+
+def test_the_limits_are_the_env_defaults_until_an_admin_overrides_them(db_session, monkeypatch):
+    monkeypatch.setattr(get_settings(), "export_max_files", 2000)
+    monkeypatch.setattr(get_settings(), "export_max_gb", 20)
+    assert app_settings.export_limits(db_session) == (2000, 20 * 1024**3)
+
+    app_settings.update_export_settings(db_session, export_max_files=10, export_max_gb=1)
+    assert app_settings.export_limits(db_session) == (10, 1024**3)
+
+    app_settings.update_export_settings(db_session, export_max_files=None)
+    assert app_settings.export_limits(db_session) == (2000, 1024**3)
+
+
+def test_admin_reads_and_overrides_the_export_settings(admin_client, monkeypatch):
+    monkeypatch.setattr(get_settings(), "export_max_files", 2000)
+    monkeypatch.setattr(get_settings(), "export_max_gb", 20)
+
+    initial = admin_client.get("/api/settings/export")
+    pinned = admin_client.patch("/api/settings/export", json={"export_max_files": 50, "export_max_gb": 3})
+    cleared = admin_client.patch("/api/settings/export", json={"export_max_gb": None})
+    untouched = admin_client.patch("/api/settings/export", json={})
+
+    assert initial.json() == {"export_max_files": None, "export_max_gb": None, "default_max_files": 2000, "default_max_gb": 20}
+    assert pinned.json()["export_max_files"] == 50 and pinned.json()["export_max_gb"] == 3
+    assert cleared.json()["export_max_files"] == 50 and cleared.json()["export_max_gb"] is None
+    assert untouched.json() == cleared.json()
+
+
+@pytest.mark.parametrize(
+    "field, value", [("export_max_files", 0), ("export_max_files", 100_001), ("export_max_gb", 0), ("export_max_gb", 10_001)]
+)
+def test_export_settings_out_of_range_are_refused(field, value, admin_client, db_session):
+    response = admin_client.patch("/api/settings/export", json={field: value})
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "setting_out_of_range"
+    assert db_session.get(AppSettings, 1) is None or getattr(db_session.get(AppSettings, 1), field) is None
+
+
+def test_a_job_with_no_files_still_exports_its_missing_list(authenticated_client, db_session, owner, roots):
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, state=TrackState.WAITING)
+
+    archive = _zip(authenticated_client.get(f"/api/jobs/{job.id}/export.zip"))
+
+    assert sorted(archive.namelist()) == ["MISSING.txt", "The Album.m3u8"]
+    assert archive.read("The Album.m3u8").decode("utf-8") == "#EXTM3U\n"
+
+
+def test_export_needs_a_session(client, db_session, make_user, roots):
+    job = _job(db_session, make_user("owner@example.com"))
+
+    assert client.get(f"/api/jobs/{job.id}/export.zip").status_code == 401
+    assert client.get(f"/api/jobs/{job.id}/playlist.m3u8").status_code == 401
+
+
+def test_unknown_job_is_a_404(authenticated_client, roots):
+    response = authenticated_client.get("/api/jobs/00000000-0000-0000-0000-000000000000/export.zip")
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "job_not_found"
+
+
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        ("Björk", "Björk"),
+        ("AC/DC: Live", "AC_DC_ Live"),
+        ("..\\..\\evil", ".._.._evil"),
+        ("...", "export"),
+        ("  ", "export"),
+        ("line\nbreak", "line_break"),
+        ("x" * 200, "x" * 150),
+    ],
+)
+def test_safe_name(name, expected):
+    assert export.safe_name(name) == expected
