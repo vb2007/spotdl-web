@@ -122,11 +122,47 @@
 	let outputError = $state('');
 	let outputTemplateError = $state('');
 
+	// v64: the job export's limits, saved with the output panel. `null` (an empty field) is
+	// the server's default, shown as the placeholder.
+	let exportSettings = $state<api.ExportSettings | null>(null);
+	let exportForm = $state<api.EditableExportSettings>({
+		export_max_files: null,
+		export_max_gb: null
+	});
+	let exportFieldErrors = $state<Partial<Record<keyof api.EditableExportSettings, string>>>({});
+	const EXPORT_FIELDS = [
+		{
+			key: 'export_max_files',
+			label: m.settings_export_max_files,
+			unit: m.settings_export_max_files_unit,
+			placeholder: (s: api.ExportSettings) => s.default_max_files,
+			min: 1,
+			max: 100_000
+		},
+		{
+			key: 'export_max_gb',
+			label: m.settings_export_max_gb,
+			unit: m.settings_export_max_gb_unit,
+			placeholder: (s: api.ExportSettings) => s.default_max_gb,
+			min: 1,
+			max: 10_000
+		}
+	] as const;
+	// An emptied number field reads as null, or as '' on some engines: both mean the default.
+	const exportValue = (v: number | null | string) => (v === '' || v === null ? null : Number(v));
+	const exportDirty = $derived(
+		exportSettings !== null &&
+			EXPORT_FIELDS.some(
+				({ key }) => exportValue(exportForm[key]) !== (exportSettings as api.ExportSettings)[key]
+			)
+	);
+
 	const outputDirty = $derived(
-		outputSettings !== null &&
+		(outputSettings !== null &&
 			(outputForm.default_format !== outputSettings.default_format ||
 				outputForm.default_bitrate !== outputSettings.default_bitrate ||
-				outputForm.output_template !== outputSettings.output_template)
+				outputForm.output_template !== outputSettings.output_template)) ||
+			exportDirty
 	);
 
 	function syncOutputForm(settings: api.OutputSettings) {
@@ -171,11 +207,20 @@
 	}
 
 	async function loadOutputSettings() {
-		[outputSettings, outputOptions] = await Promise.all([
+		[outputSettings, outputOptions, exportSettings] = await Promise.all([
 			api.getOutputSettings(),
-			api.getOutputOptions()
+			api.getOutputOptions(),
+			api.getExportSettings()
 		]);
 		syncOutputForm(outputSettings);
+		syncExportForm(exportSettings);
+	}
+
+	function syncExportForm(settings: api.ExportSettings) {
+		exportForm = {
+			export_max_files: settings.export_max_files,
+			export_max_gb: settings.export_max_gb
+		};
 	}
 
 	async function onOutputSubmit(event: SubmitEvent) {
@@ -185,12 +230,32 @@
 			? ''
 			: m.settings_output_template_required({ example: TEMPLATE_EXAMPLE });
 		if (outputTemplateError) return focusInvalid('output-template');
+		// v64: the export limits' range, checked here as the server does, under the field.
+		const exportErrors: Partial<Record<keyof api.EditableExportSettings, string>> = {};
+		for (const { key, label, min, max } of EXPORT_FIELDS) {
+			const value = exportValue(exportForm[key]);
+			if (value !== null && !(Number.isInteger(value) && value >= min && value <= max))
+				exportErrors[key] = m.error_setting_out_of_range({
+					field: label(),
+					min: formatNumber(min),
+					max: formatNumber(max)
+				});
+		}
+		exportFieldErrors = exportErrors;
+		if (Object.keys(exportErrors).length > 0) return focusInvalid(Object.keys(exportErrors)[0]);
 		const from = focused();
 		outputSaving = true;
 		outputError = '';
 		try {
 			outputSettings = await api.updateOutputSettings(outputForm);
 			syncOutputForm(outputSettings);
+			if (exportDirty) {
+				exportSettings = await api.updateExportSettings({
+					export_max_files: exportValue(exportForm.export_max_files),
+					export_max_gb: exportValue(exportForm.export_max_gb)
+				});
+				syncExportForm(exportSettings);
+			}
 			outputSavedAt = new Date();
 		} catch (err) {
 			outputError = errorText(err);
@@ -784,6 +849,48 @@
 									{outputTemplateError}
 								</p>
 							</div>
+
+							<!-- v64: the job export's limits. -->
+							{#if exportSettings !== null}
+								{@const defaults = exportSettings}
+								<fieldset class="group wide">
+									<legend class="group-title">{m.settings_export_limits()}</legend>
+									<p class="field-hint" id="export-hint">
+										{m.settings_export_hint({
+											files: formatNumber(defaults.default_max_files),
+											gb: formatNumber(defaults.default_max_gb)
+										})}
+									</p>
+									<div class="grid">
+										{#each EXPORT_FIELDS as field (field.key)}
+											<div class="form-field">
+												<label class="label" for={field.key}>{field.label()}</label>
+												<div class="with-unit">
+													<input
+														id={field.key}
+														class="well"
+														type="number"
+														inputmode="numeric"
+														min={field.min}
+														max={field.max}
+														step="1"
+														placeholder={formatNumber(field.placeholder(defaults))}
+														bind:value={exportForm[field.key]}
+														disabled={outputSaving}
+														aria-invalid={exportFieldErrors[field.key] ? 'true' : undefined}
+														aria-describedby="{field.key}-unit export-hint {field.key}-error"
+													/>
+													<span class="unit" id="{field.key}-unit">{field.unit()}</span>
+												</div>
+												<p id="{field.key}-error" class="field-error">
+													{exportFieldErrors[field.key] ?? ''}
+												</p>
+											</div>
+										{/each}
+									</div>
+								</fieldset>
+							{/if}
+							<!-- end v64 -->
 
 							<div class="save-row wide">
 								<button type="submit" class="btn" disabled={outputSaving || outputSettings === null}
