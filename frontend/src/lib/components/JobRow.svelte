@@ -233,9 +233,47 @@
 		}
 	}
 
+	// --- v64: export ------------------------------------------------------------------
+	// The files a job has, by its own counts (its completed and already-downloaded tracks):
+	// no request per row. The export itself checks each file on disk, and lists any it can't
+	// find, with every other track, in the zip's MISSING.txt.
+	let exportFiles = $derived(
+		(job.track_counts.completed ?? 0) + (job.track_counts.skipped_duplicate ?? 0)
+	);
+	let exportProbing = $state<'zip' | 'playlist' | null>(null);
+
+	// v35 (e)'s technique: probe first (a 404, or the zip's 413 over the export limits, shows
+	// in the row's notice), then hand the URL to a real browser download, so a multi-gigabyte
+	// zip streams straight to disk with the browser's own progress, never through tab memory.
+	async function handleExport(kind: 'zip' | 'playlist') {
+		if (exportProbing !== null) return;
+		const url = kind === 'zip' ? api.jobExportUrl(job.id) : api.jobPlaylistUrl(job.id);
+		const session = queue.getResetCount();
+		exportProbing = kind;
+		try {
+			await api.checkJobExport(url);
+		} catch (err) {
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.job_notice_export_failed), true);
+			return;
+		} finally {
+			exportProbing = null;
+		}
+		if (queue.getResetCount() !== session) return;
+		const anchor = document.createElement('a');
+		anchor.href = url;
+		anchor.download = '';
+		document.body.appendChild(anchor);
+		anchor.click();
+		anchor.remove();
+	}
+	// --- end v64 ----------------------------------------------------------------------
+
 	// v45: the row's keys (registry's `x`, `a`, `b`, `Shift+B`/`+`, `-`), each only where its
 	// button is offered, so a key never does what the row doesn't show.
 	const keys = kbRow({
+		// v64: `d`, the zip, offered only on an open job with files (the export strip).
+		download: () => isOpen && exportFiles > 0 && (handleExport('zip'), true),
 		cancel: () => showInFlight && (handleCancel(), true),
 		archive: () =>
 			showArchive ? (handleArchive(), true) : job.archived_at !== null && (handleUnarchive(), true),
@@ -377,6 +415,36 @@
 	</p>
 
 	{#if isOpen}
+		<!-- v64: export. Shown once the job has a file; the count is its own (see exportFiles). -->
+		{#if exportFiles > 0}
+			<div class="export" role="group" aria-label={m.job_export_label({ title: job.title })}>
+				<span class="export-count mono"
+					>{m.job_export_files({
+						count: formatNumber(exportFiles),
+						total: formatNumber(totalTracks)
+					})}</span
+				>
+				<button
+					type="button"
+					class="action"
+					aria-label={m.job_export_zip_label({ title: job.title })}
+					aria-busy={exportProbing === 'zip'}
+					onclick={() => handleExport('zip')}
+					>{exportProbing === 'zip' ? m.job_export_preparing() : m.job_export_zip()}</button
+				>
+				<button
+					type="button"
+					class="action"
+					aria-label={m.job_export_playlist_label({ title: job.title })}
+					aria-busy={exportProbing === 'playlist'}
+					onclick={() => handleExport('playlist')}
+					>{exportProbing === 'playlist'
+						? m.job_export_preparing()
+						: m.job_export_playlist()}</button
+				>
+			</div>
+		{/if}
+		<!-- end v64 -->
 		<JobTrackList
 			jobId={job.id}
 			{isAdmin}
@@ -653,6 +721,22 @@
 			border-color: var(--fail);
 			color: var(--fail);
 		}
+	}
+
+	/* v64: the export strip of an open job, hanging off the title column as its tracks do: a
+	   reading (how many files there are), then two plain row actions. */
+	.export {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--space-2) var(--space-3);
+		padding: 0 var(--row-pad-x) var(--space-3) calc(var(--row-pad-x) + var(--row-nest));
+	}
+
+	.export-count {
+		color: var(--text-muted);
+		font-size: var(--fs-meta);
+		margin-right: var(--space-1);
 	}
 
 	.archived-tag {
