@@ -1205,6 +1205,10 @@ needed" claim — rather than silently deleted.
   loopback included → *v51*
 - Running Alembic from a test with an ini file runs `fileConfig()`, which disables every logger
   the app already made (and every `caplog` assertion with it) → *v51*
+- Never edit `frontend/` while the slot's e2e suite runs: Vite hot-reloads the dev web
+  mid-test, a page then fails to import its route module ("Failed to fetch dynamically
+  imported module") and shows SvelteKit's "500 Internal Error", failing whatever spec was on it
+  (twice on mobile `/account` in v64). The trace's console shows the `?t=<edit time>` URLs → *v64*
 - A browser's download progress can't be seen on localhost (1.2 GB lands in seconds) and CDP's
   `Network.emulateNetworkConditions` doesn't throttle downloads: put a rate-limited TCP relay in
   front of the server instead. Playwright saves a download under a GUID, so `chrome://downloads`
