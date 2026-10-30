@@ -10,6 +10,14 @@ declare global {
 			sessionEnded?: boolean;
 			/** v54: `/`'s admin view this history entry was left in, so a Back restores it. */
 			view?: 'mine' | 'all' | 'others';
+			/** v65: `/share`'s link was queued from this history entry (with the answer's hint), so a
+			 * Back to it shows the outcome rather than offering "queue it" again. */
+			shareQueued?: {
+				url: string;
+				type: 'track' | 'album' | 'artist' | 'playlist';
+				id: string;
+				hint: 'already_queued' | 'in_library' | null;
+			};
 		}
 		// interface Platform {}
 	}
