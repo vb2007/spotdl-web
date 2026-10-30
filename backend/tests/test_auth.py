@@ -30,6 +30,7 @@ def test_login_success_sets_cookie_and_me_returns_email(client, monkeypatch):
         "keyboard_shortcuts": True,
         "language": None,
         "clock": None,
+        "job_notifications": False,
     }
 
 
