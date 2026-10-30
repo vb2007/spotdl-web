@@ -29,6 +29,9 @@ const CLAIM_WINDOW_MS = 400;
 /** Decided events are remembered this long, so a late offer for one is ignored. */
 const REMEMBER_MS = 10 * 60_000;
 const OWN_STREAM_RETRY_MAX_MS = 30_000;
+/** The server's heartbeat (stream.py, 15 s) plus a margin: a stream silent longer is dead, as
+ * the dashboard's own stream decides (v62, F4). */
+const OWN_STREAM_SILENT_MS = 18_000;
 
 export type Permission = NotificationPermission | 'unsupported';
 
@@ -58,6 +61,8 @@ let ownStream: EventSource | null = null;
 let ownStreamWanted = false;
 let ownStreamTimer: ReturnType<typeof setTimeout> | undefined;
 let ownStreamDelay = 1000;
+/** When the own stream last said anything (an open, an event, a heartbeat). */
+let ownHeardAt = 0;
 
 export function supported(): boolean {
 	return typeof window !== 'undefined' && 'Notification' in window;
@@ -211,12 +216,14 @@ async function show(jobId: string) {
 	}
 }
 
-/** An admin whose dashboard isn't in `mine` needs a stream of their own events: on while
- * wanted, closed otherwise. Reconnects with backoff, as the dashboard's stream does. */
+/** An admin whose dashboard isn't in `mine` needs a stream of their own events: open while
+ * wanted (and this browser may show notifications at all), closed otherwise. Reconnects with
+ * backoff, as the dashboard's stream does, and `checkOwnStream` restarts a silent one. */
 export function setOwnStream(wanted: boolean) {
 	ownStreamWanted = wanted;
 	if (!wanted) {
 		clearTimeout(ownStreamTimer);
+		ownStreamTimer = undefined;
 		ownStream?.close();
 		ownStream = null;
 		ownStreamDelay = 1000;
@@ -224,37 +231,78 @@ export function setOwnStream(wanted: boolean) {
 	}
 	// A retry already armed is replaced by this connection, never added to it (review round 2).
 	clearTimeout(ownStreamTimer);
+	ownStreamTimer = undefined;
 	if (ownStream === null) connectOwnStream();
 }
 
+/** The dashboard's watchdog, on its 5 s poll, `online` and a return to the tab (review round
+ * 3): a stream the network dropped under it (a laptop's sleep) is silent, not closed, so it
+ * starts over; and one not open yet because the browser hadn't allowed notifications opens
+ * once it has (the permission can be granted from another tab). */
+export function checkOwnStream() {
+	if (!ownStreamWanted) return;
+	if (ownStream !== null) {
+		if (Date.now() - ownHeardAt <= OWN_STREAM_SILENT_MS) return;
+		ownStream.close();
+		ownStream = null;
+		ownStreamDelay = 1000;
+	} else if (ownStreamTimer !== undefined) {
+		return;
+	}
+	connectOwnStream();
+}
+
+function retryOwnStream() {
+	ownStream = null;
+	clearTimeout(ownStreamTimer);
+	ownStreamTimer = setTimeout(() => {
+		ownStreamTimer = undefined;
+		connectOwnStream();
+	}, ownStreamDelay);
+	ownStreamDelay = Math.min(ownStreamDelay * 2, OWN_STREAM_RETRY_MAX_MS);
+}
+
 function connectOwnStream() {
-	if (!ownStreamWanted || ownStream !== null) return;
+	if (!ownStreamWanted || ownStream !== null || permission() !== 'granted') return;
 	const stream = api.createEventSource('mine');
 	ownStream = stream;
+	ownHeardAt = Date.now();
 	// v42's rule for a stream: it belongs to the session it was opened under. Every (re)open
 	// checks whose session the cookie is now, and events pass only once that's the adopted
 	// identity (another tab's sign-in would otherwise reconnect it onto someone else's channel).
 	const identity = adoptedFor;
 	let verified = false;
-	const stop = () => {
-		stream.close();
-		if (ownStream === stream) ownStream = null;
-	};
+	stream.addEventListener('heartbeat', () => {
+		if (ownStream === stream) ownHeardAt = Date.now();
+	});
 	stream.onopen = async () => {
 		verified = false;
+		ownHeardAt = Date.now();
+		let email: string;
 		try {
-			const now = await api.me();
-			if (ownStream !== stream) return stream.close();
-			if (identity === null || now.email !== identity || adoptedFor !== identity) return stop();
-			verified = true;
-			ownStreamDelay = 1000;
+			email = (await api.me()).email;
 		} catch {
-			// Can't tell (a blip, or the session ended): the dashboard's own stream and the layout
-			// handle the session; this one stays unverified and passes nothing on.
+			// Can't tell (a blip, or the session ended): start over later and check again, rather
+			// than stay connected and deaf (review round 3). The layout handles a session that ended.
+			stream.close();
+			if (ownStream === stream) retryOwnStream();
+			return;
 		}
+		if (ownStream !== stream) return stream.close();
+		if (identity === null || email !== identity || adoptedFor !== identity) {
+			// Someone else's session now: stop for good (the dashboard reloads the tab for it), so
+			// the watchdog doesn't reopen it every poll.
+			stream.close();
+			ownStream = null;
+			ownStreamWanted = false;
+			return;
+		}
+		verified = true;
+		ownStreamDelay = 1000;
 	};
 	stream.onmessage = (event) => {
 		if (ownStream !== stream) return stream.close();
+		ownHeardAt = Date.now();
 		if (!verified || adoptedFor !== identity) return;
 		try {
 			observe(JSON.parse(event.data) as api.StreamEvent);
@@ -266,9 +314,6 @@ function connectOwnStream() {
 		if (ownStream !== stream) return stream.close();
 		if (stream.readyState !== EventSource.CLOSED) return;
 		// A 401 or 502 closes an EventSource for good: open a new one later.
-		ownStream = null;
-		clearTimeout(ownStreamTimer);
-		ownStreamTimer = setTimeout(connectOwnStream, ownStreamDelay);
-		ownStreamDelay = Math.min(ownStreamDelay * 2, OWN_STREAM_RETRY_MAX_MS);
+		retryOwnStream();
 	};
 }
