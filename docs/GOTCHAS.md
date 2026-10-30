@@ -7439,6 +7439,10 @@ independently-found production bug from the same conversation)
   other state goes to `MISSING.txt` with its state, so the UI's "N of M files" (from
   `track_counts`, no request per row) and the zip agree unless a file vanished from disk, which
   `MISSING.txt` then names ("file not found at its recorded path").
+  *(2026-10-30, live review round 2: the plan shows the strip "only when ≥1 track has a file",
+  and a deleted file still counted. The strip's count is now the zip's own: `X-Export-Files` /
+  `X-Export-Tracks` on the export's HEAD, read once when a job is opened and again when its
+  settled count moves. One request per opening, never one per row.)*
 - **Zip entry names are hostile input.** A basename can carry `\` (a separator to Windows
   extractors, so `..\..\x` would escape the folder), `:` and the rest of Windows' refused set:
   they become `_`. Duplicates are compared case-insensitively (an archive extracted on Windows or
@@ -7474,4 +7478,21 @@ independently-found production bug from the same conversation)
   server reading the extracted folder as another user can't open the files; and since round 1
   every entry is an `add()`. `_ExportZip` sets `0644` on every file entry in the central
   directory, which is written last, just before it goes out.)*
+- **An aborted download must close its iterator** (live review round 2). Starlette iterates a
+  sync iterator in its threadpool and, on a disconnect, just drops it: the generator, and the file
+  it was reading, stayed open until the cyclic garbage collector ran (30 aborts, 30 open files
+  after 50 s). The response now wraps it in an async generator whose `finally` closes it, and
+  `iter_chunks` closes the archive's own generator. Proven: 0 files open 3 s after 10 aborts.
+  What's left is the allocator: the worker's VmRSS rises with many *concurrent* aborted streams
+  (242 → 466 MB over 110, about 0.5 MB each and slowing), while tracemalloc shows 0 KiB net
+  Python allocation over 100 aborted streams of our own code, and a single stream stays flat.
+- **nginx's `send_timeout` (60 s) cut off a paused download.** `location /api/` only raised
+  `proxy_read_timeout`/`proxy_send_timeout`, which time the upstream side. It's 3600 s now; a
+  reader paused 75 s gets the whole 1.2 GB. There's no `Range` support, so a download can't
+  be resumed.
+- **Measure a stream's memory as the worker's VmRSS, not `docker stats`.** `docker stats`
+  counts the page cache the stream reads through (516 → 965 MiB while VmRSS stayed at 255 MB).
+- **An ending stream logs a traceback.** A file that can't be streamed as planned raises
+  `ExportFileChanged` mid-response, and uvicorn logs the "Exception in ASGI application" with its
+  traceback. Expected; there's no quieter way to end a response with a declared length.
 
