@@ -429,3 +429,23 @@ def test_clock_preference_is_owner_scoped(client, db_session, make_user, session
 
     _as(client, admin_cookie).patch("/api/settings/clock", json={"clock": "12h"})
     assert _as(client, alice_cookie).get("/api/auth/me").json()["clock"] == "24h"
+
+
+def test_job_notifications_preference_is_owner_scoped(client, db_session, make_user, session_cookie):
+    """v66: the notifications switch is per user: one user turning it on changes nothing for
+    another, the admin included, and no endpoint takes an id."""
+    alice_cookie = session_cookie("alice@example.com")
+    bob_cookie = session_cookie("bob@example.com")
+    admin_cookie = session_cookie("admin@example.com", is_admin=True)
+
+    assert _as(client, alice_cookie).patch(
+        "/api/settings/notifications", json={"job_notifications": True}
+    ).json() == {"job_notifications": True}
+    for cookie in (bob_cookie, admin_cookie):
+        assert _as(client, cookie).get("/api/settings/notifications").json() == {"job_notifications": False}
+        assert _as(client, cookie).get("/api/auth/me").json()["job_notifications"] is False
+
+    # The admin turning theirs on and then off doesn't reach Alice's.
+    _as(client, admin_cookie).patch("/api/settings/notifications", json={"job_notifications": True})
+    _as(client, admin_cookie).patch("/api/settings/notifications", json={"job_notifications": False})
+    assert _as(client, alice_cookie).get("/api/auth/me").json()["job_notifications"] is True

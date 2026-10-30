@@ -47,6 +47,11 @@ class UpdateClockRequest(BaseModel):
     clock: Literal["12h", "24h"] | None
 
 
+# v66: required (no default), so an empty body is a 422, not a silent reset.
+class UpdateJobNotificationsRequest(BaseModel):
+    job_notifications: StrictBool
+
+
 class UpdateLibrarySettingsRequest(BaseModel):
     library_target_dir: str | None = None
     library_folder_template: str | None = None
@@ -372,3 +377,31 @@ def update_clock_settings(
     row = user_settings.update_clock(db, user.id, payload.clock)
     db.commit()
     return _clock_to_dict(row)
+
+
+def _job_notifications_to_dict(row: UserSettings) -> dict:
+    return {"job_notifications": row.job_notifications}
+
+
+@router.get("/notifications")
+def get_job_notifications_settings(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    """v66: per-user, open to every user, like `/clock`: whether the user's own jobs settling
+    are announced as browser notifications. Off by default; the browser's permission is the
+    page's business, not stored here. `/api/auth/me` carries it too."""
+    row = user_settings.get_user_settings(db, user.id)
+    db.commit()
+    return _job_notifications_to_dict(row)
+
+
+@router.patch("/notifications")
+def update_job_notifications_settings(
+    payload: UpdateJobNotificationsRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    row = user_settings.update_job_notifications(db, user.id, payload.job_notifications)
+    db.commit()
+    return _job_notifications_to_dict(row)

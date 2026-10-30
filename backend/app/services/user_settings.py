@@ -1,4 +1,5 @@
-"""Per-user preferences: retention (v19), keyboard shortcuts (v45), language and clock (v46) -- get-or-create singleton row per user, the same
+"""Per-user preferences: retention (v19), keyboard shortcuts (v45), language and clock (v46), job
+notifications (v66) -- get-or-create singleton row per user, the same
 pattern as app/services/app_settings.py's output-settings row, just keyed by `user_id`
 instead of a fixed `id=1`.
 """
@@ -57,4 +58,16 @@ def clock_preference(db: Session, user_id) -> str | None:
 def update_clock(db: Session, user_id, clock: str | None) -> UserSettings:
     row = get_user_settings(db, user_id)
     row.clock = clock
+    return row
+
+
+def job_notifications_enabled(db: Session, user_id) -> bool:
+    """Read-only, like `keyboard_shortcuts_enabled`: no row is the default (off)."""
+    row = db.get(UserSettings, user_id)
+    return False if row is None else row.job_notifications
+
+
+def update_job_notifications(db: Session, user_id, enabled: bool) -> UserSettings:
+    row = get_user_settings(db, user_id)
+    row.job_notifications = enabled
     return row
