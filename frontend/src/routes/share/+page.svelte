@@ -10,7 +10,7 @@ RISK: a short link needs a server round-trip before there is anything to read.
 -->
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
-	import { afterNavigate } from '$app/navigation';
+	import { afterNavigate, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import * as api from '$lib/api';
@@ -57,16 +57,28 @@ RISK: a short link needs a server round-trip before there is anything to read.
 	type Target = { type: SpotifyType; id: string; url: string };
 	type Phase = 'none' | 'resolving' | 'resolve-failed' | 'ready' | 'queueing' | 'done';
 
-	let target = $state<Target | null>(link?.kind === 'full' ? link : null);
-	let phase = $state<Phase>(link === null ? 'none' : link.kind === 'full' ? 'ready' : 'resolving');
+	// Queued already from this history entry (a Back to it): the outcome again, never a second
+	// armed "queue it" one stray Enter away from a duplicate job (review round 5).
+	const queuedBefore = page.state.shareQueued ?? null;
+	const outcomeFor = (hint: api.CreateJobHint | undefined) =>
+		hint === 'already_queued'
+			? m.dashboard_submit_already_queued
+			: hint === 'in_library'
+				? m.share_queued_in_library
+				: m.share_queued;
+
+	let target = $state<Target | null>(queuedBefore ?? (link?.kind === 'full' ? link : null));
+	let phase = $state<Phase>(
+		queuedBefore ? 'done' : link === null ? 'none' : link.kind === 'full' ? 'ready' : 'resolving'
+	);
 	let problem = $state<(() => string) | null>(null);
 	// A look-up that can pass on a second try (the host down, busy or throttling, the network);
 	// a link that leads nowhere (422) fails the same way every time, so it gets no retry.
 	let retryable = $state(false);
-	let outcome = $state<(() => string) | null>(null);
+	let outcome = $state<(() => string) | null>(queuedBefore ? outcomeFor(queuedBefore.hint) : null);
 	// Only a track already in the library is settled at once; a new or still-queued one is
 	// in flight, never mint (DESIGN.md §2).
-	let outcomeSettled = $state(false);
+	let outcomeSettled = $state(queuedBefore?.hint === 'in_library');
 
 	let queueButton: HTMLButtonElement | undefined = $state();
 	let retryButton: HTMLButtonElement | undefined = $state();
@@ -116,14 +128,10 @@ RISK: a short link needs a server round-trip before there is anything to read.
 		try {
 			// Only the canonical link, with the allowlist enforced by the server (`share`).
 			const job = await api.createJob(target.url, 'share');
-			outcome =
-				job.hint === 'already_queued'
-					? m.dashboard_submit_already_queued
-					: job.hint === 'in_library'
-						? m.share_queued_in_library
-						: m.share_queued;
+			outcome = outcomeFor(job.hint);
 			outcomeSettled = job.hint === 'in_library';
 			phase = 'done';
+			replaceState('', { ...page.state, shareQueued: { ...target, hint: job.hint ?? null } });
 		} catch (err) {
 			problem = () => errorText(err, m.share_failed);
 			phase = 'ready';
@@ -132,7 +140,7 @@ RISK: a short link needs a server round-trip before there is anything to read.
 	}
 
 	onMount(() => {
-		if (link?.kind === 'short') lookUp();
+		if (link?.kind === 'short' && !queuedBefore) lookUp();
 		else focusNext();
 	});
 
@@ -203,13 +211,19 @@ RISK: a short link needs a server round-trip before there is anything to read.
 
 				<!-- The outcome, once there is one, reads at the shared words' register, then the action
 				     row: the next step where the thumb was. The live region is there from the start. -->
-				<p class="outcome" class:settled={outcomeSettled} id="share-outcome" role="status">
-					{outcome?.() ?? ''}
+				<!-- One status region for the whole visit, its text changing (a region inserted together
+				     with its text often goes unannounced): the look-up while it runs, then the outcome. -->
+				<p
+					class="outcome"
+					class:settled={outcomeSettled}
+					class:pending={phase === 'resolving'}
+					id="share-outcome"
+					role="status"
+				>
+					{phase === 'resolving' ? m.share_resolving() : (outcome?.() ?? '')}
 				</p>
 				<div class="actions">
-					{#if phase === 'resolving'}
-						<p class="pending" role="status">{m.share_resolving()}</p>
-					{:else if phase === 'resolve-failed' && retryable}
+					{#if phase === 'resolve-failed' && retryable}
 						<button type="button" class="btn" bind:this={retryButton} onclick={lookUp}
 							>{m.share_retry()}</button
 						>
@@ -366,8 +380,10 @@ RISK: a short link needs a server round-trip before there is anything to read.
 		color: var(--text-primary);
 	}
 
-	.pending {
+	/* The look-up in progress: a quiet line, not news. */
+	.outcome.pending {
 		font-size: var(--fs-detail);
+		font-weight: var(--fw-regular);
 		color: var(--text-muted);
 	}
 

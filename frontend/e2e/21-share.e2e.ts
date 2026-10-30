@@ -80,6 +80,12 @@ test.describe('signed out', () => {
 		await expect(openQueue).toBeFocused();
 		// The viewer's own jobs, where the new one is, whatever view the dashboard was left in.
 		await expect(openQueue).toHaveAttribute('href', '/?view=mine');
+		// Back from the queue shows the outcome again, never a second armed "queue it".
+		await openQueue.click();
+		await expect(page).toHaveURL(`${baseURL}/?view=mine`);
+		await page.goBack();
+		await expect(page.locator('#share-outcome')).toHaveText(OUTCOMES());
+		await expect(page.getByRole('button', { name: t(m.share_queue), exact: true })).toHaveCount(0);
 		// The job is this user's own.
 		expect((await pageFetch(page, `/api/jobs/${job.id}`)).status).toBe(200);
 		// Archived once it settles (a duplicate, at beat's next pass), so the user's seed row stays

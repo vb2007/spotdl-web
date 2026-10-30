@@ -233,10 +233,15 @@ describe('plurals and numbers', () => {
 
 // Every code the web UI can meet from backend/app/errors.py's ApiErrors
 // (tests/test_api_error_codes.py reaches each one), plus the ones api.ts assigns itself. v53's
-// extension-only codes (api_key_invalid, url_not_spotify, cascade_*) never reach the web UI:
-// it sends no key, no X-Spotdl-Client header and no cascade.
+// extension-only codes (api_key_invalid, cascade_*) never reach the web UI: it sends no key and
+// no cascade. v65's /share does send `X-Spotdl-Client: share` and resolves short links, so
+// url_not_spotify and the short link codes do.
 const BACKEND_CODES = [
 	'invalid_credentials',
+	// v65
+	'url_not_spotify',
+	'short_link_unresolved',
+	'short_link_unavailable',
 	'not_authenticated',
 	'admin_required',
 	'job_not_found',
