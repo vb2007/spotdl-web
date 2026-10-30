@@ -78,6 +78,7 @@ _DIRECT_ID_CASES = [
     ("GET", "/api/jobs/{job_id}/export.zip"),
     ("HEAD", "/api/jobs/{job_id}/export.zip"),
     ("GET", "/api/jobs/{job_id}/playlist.m3u8"),
+    ("HEAD", "/api/jobs/{job_id}/playlist.m3u8"),
 ]
 
 
@@ -184,9 +185,12 @@ def test_job_export_404s_for_non_owner_and_200s_for_owner_and_admin(
     `?paths=library` (absolute paths, the filesystem layout) is the admin's alone: every
     non-admin, owner included, gets an unknown route's 404, never a 403."""
     from app.config import get_settings
+    from app.services import app_settings
 
-    monkeypatch.setattr(get_settings(), "download_output_dir", str(tmp_path))
-    (tmp_path / "Song.opus").write_bytes(b"audio")
+    monkeypatch.setattr(get_settings(), "download_output_dir", str(tmp_path / "downloads"))
+    monkeypatch.setattr(app_settings, "DEFAULT_LIBRARY_TARGET_DIR", str(tmp_path / "library"))
+    (tmp_path / "library").mkdir()
+    (tmp_path / "library" / "Song.opus").write_bytes(b"audio")
     owner = make_user("owner@example.com")
     owner_cookie = session_cookie("owner@example.com")
     stranger_cookie = session_cookie("stranger@example.com")
@@ -195,7 +199,7 @@ def test_job_export_404s_for_non_owner_and_200s_for_owner_and_admin(
 
     job = _make_job(db_session, owner)
     track = _make_track(db_session, job, state=TrackState.COMPLETED)
-    track.output_path = str(tmp_path / "Song.opus")
+    track.output_path = str(tmp_path / "library" / "Song.opus")
     db_session.commit()
     zip_path, m3u_path = f"/api/jobs/{job.id}/export.zip", f"/api/jobs/{job.id}/playlist.m3u8"
 
@@ -208,7 +212,7 @@ def test_job_export_404s_for_non_owner_and_200s_for_owner_and_admin(
 
     library = _as(client, admin_cookie).get(f"{m3u_path}?paths=library")
     assert library.status_code == 200
-    assert library.text == f"#EXTM3U\n#EXTINF:-1,Song\n{tmp_path / 'Song.opus'}\n"
+    assert library.text == f"#EXTM3U\n#EXTINF:-1,Song\n{tmp_path / 'library' / 'Song.opus'}\n"
     for cookie in (owner_cookie, stranger_cookie):
         refused = _as(client, cookie).get(f"{m3u_path}?paths=library")
         assert (refused.status_code, refused.json()) == (404, {"detail": "Not Found"})
