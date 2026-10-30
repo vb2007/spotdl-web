@@ -7417,15 +7417,21 @@ independently-found production bug from the same conversation)
 - **The schedule is Postgres; only the per-job mutex is Redis.** Beat's existing 30s tick picks
   due watched jobs (`next_expand_at <= now`, expanded, unarchived, playlist/artist) under a
   transaction-level advisory lock, so two overlapping ticks can't spend one hour's budget twice.
-  The next run is scheduled when a run is *claimed* (`next_expand_at = now + interval`), not when
-  it ends, so a run lost with its worker is retried on schedule and never stops the watch. "One at
+  A claim sets only a short lease (`next_expand_at = now + 15 min`, `watch.CLAIM_LEASE`, like the
+  tracks' outbox lease); the task moves it to a full interval when it *starts*
+  (`watch.schedule_next`, before the Spotify read, and only while the lease is still the claim's
+  own). So a run lost between claim and start (beat killed after its commit, a broker that lost
+  the message) is claimed again a quarter-hour later instead of skipping an interval (review
+  round 5); before the fix the claim set the whole interval. "One at
   a time per job" (409 `reexpand_running`) is `SET spotdl:reexpand:<id> NX EX 3600`, set by
   whoever hands the run to the broker and cleared by the task's `finally`; it expires by itself if
   the worker dies. The run doesn't depend on it: it inserts under the job's row lock and only ids
   the job lacks, so a second run (a redelivery, an expired marker behind a backed-up `expand`
   queue) costs a Spotify read, never a duplicate track.
 - **The hourly cap counts `last_expanded_at`.** Every re-expansion start (beat's or "check now")
-  sets it, and beat's budget is `REEXPAND_MAX_PER_HOUR` minus the jobs started in the last hour.
+  sets it, and beat's budget is `REEXPAND_MAX_PER_HOUR` minus the *jobs* started in the last hour:
+  a job checked three times in an hour counts once (one column per job; beat itself starts a job
+  at most once per interval, so only repeated "check now" undercounts).
   "Check now" counts but is never refused by the cap (it is one user action, one job, and 409s
   while running); scheduled runs yield to it.
 - **`now()` can't tell the new tracks apart in a test.** "N new since" counts a job's tracks
