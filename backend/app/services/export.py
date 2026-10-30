@@ -370,17 +370,26 @@ class ExportFileChanged(Exception):
     promised. The response is already under way, so the stream ends there."""
 
 
+_IDS_PER_QUERY = 10_000
+
+
 def _current_paths(spotify_track_ids: list[str]) -> dict[str, str]:
     """Where the ledger says these files are now. One short read on a session of its own,
     ended at once: the request or stream around it may run for hours, and it must not hold a
     transaction meanwhile (v31)."""
     session = SessionLocal()
+    rows = []
     try:
-        rows = session.execute(
-            select(DownloadedTrack.spotify_track_id, DownloadedTrack.file_path).where(
-                DownloadedTrack.spotify_track_id.in_(spotify_track_ids)
+        # In chunks: Postgres takes at most 65,535 bound parameters in one statement.
+        for start in range(0, len(spotify_track_ids), _IDS_PER_QUERY):
+            chunk = spotify_track_ids[start : start + _IDS_PER_QUERY]
+            rows.extend(
+                session.execute(
+                    select(DownloadedTrack.spotify_track_id, DownloadedTrack.file_path).where(
+                        DownloadedTrack.spotify_track_id.in_(chunk)
+                    )
+                ).all()
             )
-        ).all()
         session.rollback()
     finally:
         session.close()
@@ -400,48 +409,53 @@ def _current_path(spotify_track_id: str) -> Path | None:
 
 
 def _open_regular(path: Path, identity: tuple[int, int] | None = None):
-    """`path` opened for reading only if it is a regular file, and (with `identity`) the very
-    file the plan stat'ed. Non-blocking, so a FIFO swapped in can't hang a threadpool thread
-    (an uncancellable read: 40 of them stalled the whole API in a live review), and without
-    following a symlink in the last component; the identity check covers a folder swapped for
-    a link out of the roots (both files exist at once, so their inodes differ). It can't tell a
-    same-size file written over a freed inode in place, but that one is inside a root anyway."""
-    fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW | os.O_CLOEXEC)
+    """`path` opened for reading only if it is a regular file inside an allowed root, and (with
+    `identity`) the very file the plan stat'ed.
+
+    Non-blocking, so a FIFO swapped in can't hang a threadpool thread (an uncancellable read:
+    40 of them stalled the whole API in a live review), and without following a symlink in the
+    last component. A folder swapped for a link out of the roots is caught by the opened file's
+    own path (`/proc/self/fd`), checked against the roots after the open: a check made before
+    it (the plan's, or the ledger re-read's) can race the swap, the opened file can't. The
+    identity check can't tell a same-size file written over a freed inode in place, but that
+    one is inside a root anyway."""
+    fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW | os.O_NOCTTY | os.O_CLOEXEC)
     try:
         stat = os.fstat(fd)
         if not stat_module.S_ISREG(stat.st_mode):
             raise ExportFileChanged(f"{path}: not a regular file any more")
         if identity is not None and (stat.st_dev, stat.st_ino) != identity:
             raise ExportFileChanged(f"{path}: replaced by another file since the plan")
+        opened = Path(os.readlink(f"/proc/self/fd/{fd}"))
+        if allowed_file_location(opened, follow_symlinks=False) is None:
+            raise ExportFileChanged(f"{path}: opened outside the download and library folders")
         os.set_blocking(fd, True)
-        return os.fdopen(fd, "rb")
     except BaseException:
         os.close(fd)
         raise
+    # Outside the try: fdopen closes the fd itself if it fails, and a second close could hit a
+    # number another thread has been given meanwhile.
+    return os.fdopen(fd, "rb")
 
 
 def _open(entry: ExportFile):
     """The entry's file, opened as the stream reaches it, and only if it is still the file the
-    plan counted (_open_regular). A library sweep may have moved it since the plan (owner's
-    decision, 2026-10-30): the sweep commits the ledger's new path before it removes the source
-    (tasks/library.py), so a miss is re-resolved once through the ledger, inside an allowed
-    root, and must be a regular file of the planned size. Anything else ends the stream the
+    plan counted (_open_regular). Anything else at the planned path (gone, swapped, a library
+    sweep's move: the sweep commits the ledger's new path before it removes the source,
+    tasks/library.py) is re-resolved once through the ledger (owner's decision, 2026-10-30),
+    inside an allowed root, a regular file of the planned size. Otherwise the stream ends the
     documented way (ExportFileChanged)."""
     try:
         return _open_regular(entry.path, entry.identity)
-    except FileNotFoundError:
-        pass
-    except ExportFileChanged:
-        raise
-    except OSError as exc:
-        # Unreadable now, replaced by a symlink (ELOOP), an I/O error.
-        raise ExportFileChanged(f"{entry.arcname}: can't be read ({exc.strerror or exc})") from None
+    except (OSError, ExportFileChanged) as exc:
+        first = exc
     try:
         moved = _current_path(entry.spotify_track_id)
     except Exception as exc:
-        raise ExportFileChanged(f"{entry.arcname}: gone, and the ledger couldn't be read ({exc})") from None
+        raise ExportFileChanged(f"{entry.arcname}: unreadable, and the ledger couldn't be read ({exc})") from None
     if moved is None or moved == entry.path:
-        raise ExportFileChanged(f"{entry.arcname}: gone from {entry.path}")
+        reason = first.strerror if isinstance(first, OSError) and first.strerror else str(first)
+        raise ExportFileChanged(f"{entry.arcname}: can't be read as planned ({reason})")
     try:
         handle = _open_regular(moved)
     except ExportFileChanged:

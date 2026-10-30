@@ -7551,8 +7551,18 @@ independently-found production bug from the same conversation)
   compares `(st_dev, st_ino)` with the plan's stat, which catches a folder swapped for a link
   out. It can't catch a same-size file written over a freed inode in place (tmpfs hands the
   number straight back), but that file is inside a root anyway.
+  *(Live review round 8: not enough. A folder swapped between the plan's resolve and its stat
+  put the outside file's identity into the plan, and the ledger re-read had no identity at all;
+  85 of 638 exports under a `renameat2` swap loop streamed the container's `/etc/hostname`.
+  The opened file's own path, `/proc/self/fd/N`, is now checked against the roots after every
+  open: 0 of the same loop's 5.7 million swaps leaked. Any other state at the planned path also
+  consults the ledger once before ending the stream.)*
 - **Every value the export reads from `song_json` or the title is coerced.** A non-string
   `list_name` (the job title), a non-object `song_json` and a `duration` too big for a float
   (`math.isfinite(10**400)` raises `OverflowError`) each made the whole job's export answer 500.
+  *(Live review round 8: a non-object `song_json` on the job's **first** track still fails it,
+  in `rollup.derive_job_title`, which `GET /api/jobs/{id}` shares: pre-existing, outside v64.)*
+  The ledger re-read is chunked (10,000 ids per query): Postgres takes at most 65,535 bound
+  parameters in one statement.
   Bidi controls (U+202E) are stripped from entry names.
 

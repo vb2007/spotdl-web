@@ -756,6 +756,32 @@ def test_a_title_or_song_json_of_another_type_doesnt_fail_the_export(authenticat
     assert "#EXTINF:-1,Artist A, Artist B - Song 1" in playlist.text
 
 
+def test_a_file_opened_through_a_folder_link_out_of_the_roots_is_refused(roots, tmp_path):
+    """The end state of a folder swapped for a link between a check and the open: O_NOFOLLOW
+    covers only the last component, so the opened file's own path decides (live review r8)."""
+    downloads, _library = roots
+    outside = _file(tmp_path / "elsewhere", "hostname")
+    (downloads / "x").symlink_to(outside.parent)
+
+    with pytest.raises(export.ExportFileChanged, match="outside the download and library folders"):
+        export._open_regular(downloads / "x" / "hostname")
+    inside = _file(downloads / "y", "ok.opus")
+    with export._open_regular(inside) as handle:
+        assert handle.read() == inside.read_bytes()
+
+
+def test_the_ledger_re_read_is_chunked_under_postgres_parameter_limit(db_session, make_user, roots, monkeypatch):
+    downloads, library = roots
+    monkeypatch.setattr(export, "_IDS_PER_QUERY", 2)
+    job = _job(db_session, make_user("owner@example.com"))
+    for number in range(1, 6):
+        _track(db_session, job, number, path=downloads / f"{number}.opus", ledger=_file(library, f"{number}.opus"))
+
+    paths = export._current_paths([f"{job.id}-{n}" for n in range(1, 6)] + ["nope"])
+
+    assert sorted(paths) == sorted(f"{job.id}-{n}" for n in range(1, 6))
+
+
 def test_a_zip_over_4_gib_has_the_length_it_declares(db_session, make_user, roots):
     """Past 4 GiB zipstream-ng writes zip64 records: the length counted up front must still
     be the bytes streamed (sparse files, so the test writes nothing real)."""
