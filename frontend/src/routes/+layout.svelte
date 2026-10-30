@@ -82,7 +82,7 @@
 						'go-settings': go('/settings', true),
 						'go-library': go('/library', true),
 						'go-account': go('/account'),
-						'go-stats': go('/stats', true)
+						'go-stats': go('/stats')
 					}
 				: {})
 		});

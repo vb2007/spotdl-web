@@ -1062,5 +1062,94 @@
 	],
 	"error_queue_unavailable": "The queue can't take new links right now. Try again in a moment.",
 	"error_api_key_label_characters": "A key's name can't hold invisible or control characters (often pasted along with text). Type it instead.",
-	"error_submit_too_long": "That's too long for a link: at most {max} characters."
+	"error_submit_too_long": "That's too long for a link: at most {max} characters.",
+	"stats_mine_heading": "Your downloads",
+	"stats_scope_label": "Whose downloads",
+	"stats_scope_global": "everyone's",
+	"stats_scope_mine": "mine",
+	"stats_mine_library_heading": "Your library",
+	"stats_mine_library_files": "files",
+	"stats_mine_library_size": "size",
+	"stats_mine_library_note": "All time: the files your own jobs downloaded. A track someone else already had counts as theirs.",
+	"stats_mine_library_unreadable": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{n} file couldn't be read just now, so the size leaves it out.",
+				"countPlural=*": "{n} files couldn't be read just now, so the size leaves them out."
+			}
+		}
+	],
+	"stats_mine_tracks_heading": "Tracks",
+	"stats_mine_no_attempts": "None of your tracks were tried in this window.",
+	"stats_mine_completed_none": "No track of yours finished in this window.",
+	"stats_mine_scale_hour": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "The tallest column is {n} track in one hour.",
+				"countPlural=*": "The tallest column is {n} tracks in one hour."
+			}
+		}
+	],
+	"stats_mine_scale_day": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "The tallest column is {n} track in one day.",
+				"countPlural=*": "The tallest column is {n} tracks in one day."
+			}
+		}
+	],
+	"stats_mine_completed_summary_hour": "Your completed tracks per hour: {total} in all, most in one hour {most} ({when}).",
+	"stats_mine_completed_summary_day": "Your completed tracks per day: {total} in all, most in one day {most} ({when}).",
+	"stats_mine_completed_table": "Completed tracks as a table",
+	"stats_mine_completed_caption_hour": "Your completed tracks per hour",
+	"stats_mine_completed_caption_day": "Your completed tracks per day",
+	"stats_mine_time_heading": "Time to complete",
+	"stats_mine_median": "median",
+	"stats_mine_median_note": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "From queued to file, over the {n} track that finished in this window.",
+				"countPlural=*": "From queued to file, over the {n} tracks that finished in this window."
+			}
+		}
+	],
+	"stats_mine_no_completed": "No track of yours finished in this window, so there's nothing to time.",
+	"stats_mine_jobs_heading": "Jobs you queued",
+	"stats_mine_no_jobs": "You didn't queue anything in this window.",
+	"stats_mine_jobs_note": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{n} job queued in this window, by where it stands now.",
+				"countPlural=*": "{n} jobs queued in this window, by where they stand now."
+			}
+		}
+	],
+	"stats_failures_by_type_heading": "Failures by type",
+	"stats_mine_summary_hour": "Your failures by type, per hour. {parts}.",
+	"stats_mine_summary_day": "Your failures by type, per day. {parts}.",
+	"stats_mine_table_caption_hour": "Your failures by type per hour",
+	"stats_mine_table_caption_day": "Your failures by type per day",
+	"account_notify_heading": "Notifications",
+	"account_notify_hint": "A browser notification when one of your jobs is done, while this app is open on the queue in a tab. Only your own jobs, never anyone else's.",
+	"account_notify_label": "When a job is done",
+	"account_notify_on": "on",
+	"account_notify_off": "off",
+	"account_notify_denied": "This browser blocks notifications from this site, so none can show here. Allow them in the site's settings (the icon left of the address), then switch this on again.",
+	"account_notify_dismissed": "The browser's question was closed without an answer, so nothing changed. Switch this on to be asked again.",
+	"account_notify_unsupported": "This browser can't show notifications.",
+	"account_notify_blocked_here": "On for your account, but this browser blocks them: allow notifications for this site in its settings.",
+	"account_notify_ask_here": "On for your account; this browser hasn't been asked yet.",
+	"account_notify_allow": "allow in this browser",
+	"account_notify_shown_here": "This browser shows them.",
+	"notify_job_done": "Done — {done} of {total}"
 }

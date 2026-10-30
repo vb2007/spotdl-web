@@ -96,8 +96,7 @@ export const BINDINGS: Binding[] = [
 		prefix: 'g',
 		keys: [{ key: 't' }],
 		label: m.kbd_go_stats,
-		group: 'go',
-		adminOnly: true
+		group: 'go'
 	},
 
 	// Lists: jobs, tracks, and the tracks of an open job

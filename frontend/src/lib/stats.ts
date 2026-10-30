@@ -3,7 +3,7 @@
 // instant sits on the window's time axis.
 // v46: every label is a function and every number and date goes through `Intl` with the
 // active locale, so the page re-renders in place on a language switch.
-import type { AdminStats, BreakerEvent, PathStats } from '$lib/api';
+import type { BreakerEvent, PathStats, RecordedWindow, StatsWindow } from '$lib/api';
 import { formatDateTime, formatNumber } from '$lib/i18n/format';
 import * as m from '$lib/paraglide/messages';
 
@@ -40,6 +40,24 @@ export function errorTypeCondition(errorType: string): 'fail' | 'waiting' | 'idl
 
 const percent = (fraction: number) => formatNumber(fraction, { style: 'percent' });
 
+const BYTE_UNITS = ['byte', 'kilobyte', 'megabyte', 'gigabyte', 'terabyte'] as const;
+
+/** v66: a size in decimal units ("3.1 GB", "3,1 GB"), as file managers read them. */
+export function formatBytes(bytes: number): string {
+	let value = Math.max(0, bytes);
+	let unit = 0;
+	while (value >= 1000 && unit < BYTE_UNITS.length - 1) {
+		value /= 1000;
+		unit += 1;
+	}
+	return formatNumber(value, {
+		style: 'unit',
+		unit: BYTE_UNITS[unit],
+		unitDisplay: 'short',
+		maximumFractionDigits: unit === 0 || value >= 100 ? 0 : 1
+	});
+}
+
 export function formatRate(rate: number | null): string {
 	if (rate === null) return '—';
 	const value = rate * 100;
@@ -63,13 +81,13 @@ export function formatSpan(seconds: number): string {
 	return m.stats_span_days({ n: n(Math.floor(hours / 24)) });
 }
 
-export function windowEnd(stats: AdminStats): number {
+export function windowEnd(stats: RecordedWindow): number {
 	const buckets = stats.failures.buckets;
 	return Date.parse(buckets[buckets.length - 1]) + stats.bucket_seconds * 1000;
 }
 
 /** An instant's position on the window's axis, 0..1 (clamped). */
-export function axisPosition(stats: AdminStats, iso: string): number {
+export function axisPosition(stats: RecordedWindow, iso: string): number {
 	const start = Date.parse(stats.window_start);
 	const end = windowEnd(stats);
 	return Math.min(1, Math.max(0, (Date.parse(iso) - start) / (end - start)));
@@ -93,8 +111,9 @@ export interface HoldSpan {
 
 /** Each trip's pause as a span: from the trip to whichever comes first, its own end or
  * the release that cut it short. Events arrive oldest first. */
-export function holdSpans(stats: AdminStats): HoldSpan[] {
-	const events = stats.breaker.events;
+export function holdSpans(stats: RecordedWindow): HoldSpan[] {
+	// v66: a user's own stats carry no breaker (it's everyone's): no holds to draw.
+	const events = stats.breaker?.events ?? [];
 	const generated = Date.parse(stats.generated_at);
 	const spans: HoldSpan[] = [];
 	events.forEach((event: BreakerEvent, index: number) => {
@@ -142,7 +161,7 @@ export function holdGeometry(span: HoldSpan, n: number): { left: number; width: 
 }
 
 /** Whether the breaker held at any moment of bucket `index`. */
-export function bucketHeld(stats: AdminStats, spans: HoldSpan[], index: number): boolean {
+export function bucketHeld(stats: RecordedWindow, spans: HoldSpan[], index: number): boolean {
 	const n = stats.failures.buckets.length;
 	const from = index / n;
 	const to = (index + 1) / n;
@@ -150,7 +169,7 @@ export function bucketHeld(stats: AdminStats, spans: HoldSpan[], index: number):
 }
 
 /** An instant (a hold's start or end) as date and time, on the same clock as the buckets. */
-export function instantLabel(stats: AdminStats, iso: string): string {
+export function instantLabel(stats: RecordedWindow, iso: string): string {
 	return formatDateTime(new Date(Date.parse(iso) + stats.utc_offset_minutes * 60_000), {
 		timeZone: 'UTC',
 		month: 'short',
@@ -164,7 +183,7 @@ export function instantLabel(stats: AdminStats, iso: string): string {
  * not the browser's own zone: across a DST change that zone's offset differs for the older
  * buckets, and a day bucket would be labelled with the day before (review round 1). The
  * axis shows only every `axisTickEvery`th label; the tooltip and the table show each one. */
-export function bucketLabel(stats: AdminStats, iso: string, long = false): string {
+export function bucketLabel(stats: RecordedWindow, iso: string, long = false): string {
 	const shift = stats.utc_offset_minutes * 60_000;
 	const date = new Date(Date.parse(iso) + shift);
 	const utc = { timeZone: 'UTC' } as const;
@@ -186,7 +205,7 @@ export function bucketLabel(stats: AdminStats, iso: string, long = false): strin
 	);
 }
 
-export function axisTickEvery(stats: AdminStats): number {
+export function axisTickEvery(stats: RecordedWindow): number {
 	const n = stats.failures.buckets.length;
 	if (n <= 7) return 1;
 	if (n <= 24) return 6;
@@ -194,21 +213,21 @@ export function axisTickEvery(stats: AdminStats): number {
 }
 
 /** The tallest column across every failure row: one shared y-scale, so rows compare. */
-export function failurePeak(stats: AdminStats): number {
+export function failurePeak(stats: RecordedWindow): number {
 	let peak = 0;
 	for (const series of stats.failures.series)
 		for (const count of series.counts) peak = Math.max(peak, count);
 	return peak;
 }
 
-export function windowHeading(window: AdminStats['window']): string {
+export function windowHeading(window: StatsWindow): string {
 	if (window === '7d') return m.stats_window_heading_7d();
 	if (window === '30d') return m.stats_window_heading_30d();
 	return m.stats_window_heading_24h();
 }
 
 /** The window switch's own button text ("24h", "7d", "30d"). */
-export function windowName(window: AdminStats['window']): string {
+export function windowName(window: StatsWindow): string {
 	if (window === '7d') return m.stats_window_7d();
 	if (window === '30d') return m.stats_window_30d();
 	return m.stats_window_24h();
