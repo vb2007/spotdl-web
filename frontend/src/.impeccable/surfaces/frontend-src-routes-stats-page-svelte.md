@@ -7,8 +7,9 @@ related_targets: ["route:/stats"]
 
 ## Scope and mode
 
-Route `/stats` (v44). Mode: **Operate**. Admin-only; a non-admin who types the path gets
-`AdminOnlyNotice` and the page makes no stats request.
+Route `/stats` (v44). Mode: **Operate**. Since v66 every user's: a non-admin sees their own
+downloads ("Your downloads", `GET /api/stats/me`) and never makes an admin request; the admin lands
+on everyone's and switches to their own in the title row (`?scope=mine`).
 
 ## Audience and job
 
@@ -35,6 +36,13 @@ time axis, with the breaker's holds as the bottom channel, read by one crosshair
 
 Colour by meaning only: settled = completed, waiting = retried failure and breaker holds,
 fail = a not-found verdict or a pause. Never amber.
+
+## v66: their own (owner-approved, 2026-10-30)
+
+The same "library | window" split for a user's own: an all-time **Your library** plate (files,
+size) beside the window plate: Tracks (outcome bar, rate, completed per bucket), Time to complete
+(median), Jobs you queued (by status now), Failures by type (the recorder, no breaker channel).
+One request per load, window change and scope switch. Never amber.
 
 ## Unresolved
 
