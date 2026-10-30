@@ -79,30 +79,92 @@ test.describe('admin', () => {
 	});
 });
 
+test.describe('admin, own downloads', () => {
+	test.use({ storageState: ADMIN_STATE });
+
+	// v66: the admin lands on everyone's (owner's choice) and switches to their own in the title
+	// row; the address keeps the choice across a reload. One request per switch.
+	test('the scope switch reads the admin’s own with one request and survives a reload', async ({
+		page
+	}) => {
+		const mine = recordStatsCalls(page, '/api/stats/me');
+		const global = recordStatsCalls(page);
+		await page.goto('/stats');
+		await expect(page.getByRole('heading', { name: 'Download stats', level: 1 })).toBeVisible();
+		const scope = page.getByRole('group', { name: 'Whose downloads' });
+		await expect(scope.getByRole('button', { name: "everyone's" })).toHaveAttribute(
+			'aria-pressed',
+			'true'
+		);
+		await expect.poll(() => global.length).toBe(1);
+
+		const read = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/stats/me');
+		await scope.getByRole('button', { name: 'mine', exact: true }).click();
+		expect((await read).status()).toBe(200);
+		await expect(page).toHaveURL('/stats?scope=mine');
+		await expect(page.getByRole('heading', { name: 'Your downloads', level: 1 })).toBeVisible();
+		await expect(page.getByRole('region', { name: 'Your library' })).toBeVisible();
+		await expect(page.getByRole('region', { name: 'Right now' })).toHaveCount(0);
+		await expect(page.getByRole('region', { name: 'Alerts sent to Matrix' })).toHaveCount(0);
+		expect(mine).toHaveLength(1);
+		expect(global).toHaveLength(1);
+
+		await page.reload();
+		await expect(page.getByRole('heading', { name: 'Your downloads', level: 1 })).toBeVisible();
+		await expect(
+			page.getByRole('group', { name: 'Whose downloads' }).getByRole('button', { name: 'mine' })
+		).toHaveAttribute('aria-pressed', 'true');
+
+		await page.getByRole('button', { name: "everyone's" }).click();
+		await expect(page).toHaveURL('/stats');
+		await expect(page.getByRole('region', { name: 'Right now' })).toBeVisible();
+	});
+});
+
 test.describe('non-admin', () => {
 	test.use({ storageState: USER_STATE });
 
-	// Spec 13, non-admin half: no link anywhere, the notice on a typed path with no stats
-	// request, and the endpoint answers exactly like a route that doesn't exist.
-	test('/stats is hidden from a non-admin', async ({ page }) => {
+	// Spec 13, non-admin half (v66): /stats is the user's own. Linked like any page, one request
+	// per load and per window change, never an admin request, and the admin endpoints still
+	// answer exactly like a route that doesn't exist.
+	test('/stats shows a non-admin their own downloads, and nothing of the admin’s', async ({
+		page
+	}) => {
 		const calls = recordStatsCalls(page);
 		const alertCalls = recordStatsCalls(page, '/api/admin/alerts');
-
-		await page.goto('/');
-		await expect(page.getByLabel('Spotify URL to submit')).toBeVisible();
-		await expect(page.getByRole('link', { name: 'stats' })).toHaveCount(0);
+		const mine = recordStatsCalls(page, '/api/stats/me');
 
 		await page.goto('/account');
 		await expect(page.getByRole('heading', { name: 'Account', level: 1 })).toBeVisible();
-		await expect(page.getByRole('link', { name: 'stats' })).toHaveCount(0);
-
-		await page.goto('/stats');
-		await expect(
-			page.getByRole('heading', { name: 'Only the admin can use this page' })
-		).toBeVisible();
+		await page.goto('/');
+		await expect(page.getByLabel('Spotify URL to submit')).toBeVisible();
+		const loaded = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/stats/me');
+		await page.getByRole('link', { name: 'stats', exact: true }).click();
+		expect((await loaded).status()).toBe(200);
+		await expect(page.getByRole('heading', { name: 'Your downloads', level: 1 })).toBeVisible();
+		await expect(page.getByRole('region', { name: 'Your library' })).toBeVisible();
+		const panel = page.getByRole('region', { name: 'Last 24 hours' });
+		await expect(panel.getByRole('region', { name: 'Tracks' })).toBeVisible();
+		await expect(panel.getByRole('region', { name: 'Failures by type' })).toBeVisible();
+		// Nothing of everyone's: no switch, no "Right now", no alerts, no breaker.
+		await expect(page.getByRole('group', { name: 'Whose downloads' })).toHaveCount(0);
 		await expect(page.getByRole('region', { name: 'Right now' })).toHaveCount(0);
-		await expect(page.getByRole('button', { name: 'refresh' })).toHaveCount(0);
 		await expect(page.getByRole('region', { name: 'Alerts sent to Matrix' })).toHaveCount(0);
+		await expect(page.getByText('breaker', { exact: true })).toHaveCount(0);
+
+		const switched = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/stats/me');
+		await page.getByRole('button', { name: '30d', exact: true }).click();
+		expect((await switched).status()).toBe(200);
+		await expect(page.getByRole('heading', { name: 'Last 30 days' })).toBeVisible();
+		expect(mine.map((q) => q.get('window'))).toEqual(['24h', '30d']);
+
+		// A hard navigation is served too.
+		await page.reload();
+		await expect(page.getByRole('heading', { name: 'Your downloads', level: 1 })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'stats', exact: true })).toHaveAttribute(
+			'aria-current',
+			'page'
+		);
 		expect(calls).toEqual([]);
 		expect(alertCalls).toEqual([]);
 
