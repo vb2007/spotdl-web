@@ -294,19 +294,25 @@ export interface BreakerEvent {
 	manual: boolean;
 }
 
-export interface AdminStats {
+/** v66: what the failure recorder reads, shared by the admin's global stats and a user's own
+ * (whose recorder has no breaker channel: the breaker is everyone's, not theirs). */
+export interface RecordedWindow {
 	window: StatsWindow;
 	generated_at: string;
 	window_start: string;
 	utc_offset_minutes: number;
 	bucket_seconds: number;
-	network_paths: PathStats[];
-	proxies: ProxyStats[];
 	failures: {
 		/** Each bucket's start; the last one is the current, partial bucket. */
 		buckets: string[];
 		series: { error_type: string; counts: number[]; total: number }[];
 	};
+	breaker?: AdminStats['breaker'];
+}
+
+export interface AdminStats extends RecordedWindow {
+	network_paths: PathStats[];
+	proxies: ProxyStats[];
 	breaker: {
 		current: { paused: boolean; holding_until: string | null; trip_count: number };
 		events: BreakerEvent[];
@@ -317,6 +323,21 @@ export interface AdminStats {
 		oldest_waiting_since: string | null;
 		oldest_waiting_age_seconds: number | null;
 	};
+}
+
+/** v66: GET /api/stats/me -- the session user's own downloads over a window, and their library
+ * contribution all time. No breaker, no queue, no proxies: those are everyone's. */
+export interface MyStats extends RecordedWindow {
+	attempts: OutcomeCounts;
+	completed: { buckets: string[]; counts: number[]; total: number };
+	/** Queued (the track row's creation) to its file landing, over the window's completed tracks. */
+	time_to_complete: { median_seconds: number | null; tracks: number };
+	/** Jobs submitted in the window, by their rollup status now (`statusKey()` tokens). */
+	jobs: { total: number; by_status: Record<string, number> };
+	/** All time: the files the user's own jobs downloaded (a duplicate is someone else's). A
+	 * file the server couldn't read is counted in `files` but not in `bytes`. `null` when asked
+	 * without it (a window switch: it's the same in every window). */
+	library: { files: number; bytes: number; unreadable: number } | null;
 }
 
 export type ProxySource = 'file' | 'manual';
@@ -433,6 +454,8 @@ export interface SessionInfo {
 	language?: Language | null;
 	/** v46: the pinned time format, `null` for automatic (the browser's region decides). */
 	clock?: Clock | null;
+	/** v66: announce the user's own jobs settling as browser notifications. Only `me()`. */
+	job_notifications?: boolean;
 }
 
 /** v46: the interface languages there are message files for. */
@@ -926,6 +949,14 @@ export function getAdminStats(window: StatsWindow): Promise<AdminStats> {
 	return request<AdminStats>(`/api/admin/stats?window=${window}&utc_offset_minutes=${offset}`);
 }
 
+/** v66: the session user's own stats. Owner-scoped by construction: nothing here names a user. */
+export function getMyStats(window: StatsWindow, library = true): Promise<MyStats> {
+	const offset = -new Date().getTimezoneOffset();
+	return request<MyStats>(
+		`/api/stats/me?window=${window}&utc_offset_minutes=${offset}${library ? '' : '&library=false'}`
+	);
+}
+
 export type AlertCategory = 'breaker' | 'spike' | 'beat_stale' | 'worker_down' | 'library' | 'test';
 export type AlertState = 'pending' | 'sent' | 'failed' | 'suppressed';
 
@@ -1100,5 +1131,23 @@ export function updateClockSettings(clock: Clock | null): Promise<ClockSettings>
 	return request('/api/settings/clock', {
 		method: 'PATCH',
 		body: JSON.stringify({ clock })
+	});
+}
+
+export interface JobNotificationSettings {
+	job_notifications: boolean;
+}
+
+/** v66: the saved switch, read afresh (a tab that saved it can't trust a `/me` read before). */
+export function getJobNotificationSettings(): Promise<JobNotificationSettings> {
+	return request('/api/settings/notifications');
+}
+
+/** v66: the per-user notifications switch, server-side like the other preferences. Whether this
+ * browser may show them is its own permission, asked for by the page, never stored here. */
+export function updateJobNotificationSettings(enabled: boolean): Promise<JobNotificationSettings> {
+	return request('/api/settings/notifications', {
+		method: 'PATCH',
+		body: JSON.stringify({ job_notifications: enabled })
 	});
 }

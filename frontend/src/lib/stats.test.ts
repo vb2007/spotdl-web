@@ -8,6 +8,7 @@ import {
 	errorTypeCondition,
 	errorTypeLabel,
 	failurePeak,
+	formatBytes,
 	formatRate,
 	formatSpan,
 	holdGeometry,
@@ -299,5 +300,34 @@ describe('slotted', () => {
 			'A legrégebben várakozó szám 45 mp óta vár (14:03).'
 		);
 		expect(hu.filter((slot) => slot.key !== null).map((slot) => slot.key)).toEqual(['age', 'when']);
+	});
+});
+
+describe('v66: a user’s own stats', () => {
+	const speak = (locale: Locale) => overwriteGetLocale(() => locale);
+	afterEach(() => speak(baseLocale));
+
+	it('draws no breaker holds without a breaker', () => {
+		const { breaker: _, ...mine } = stats([trip(2, 1)]);
+		expect(holdSpans(mine)).toEqual([]);
+	});
+
+	it('formats sizes in decimal units, a whole number from 100 up', () => {
+		speak('en');
+		expect(formatBytes(0)).toBe('0 bytes');
+		expect(formatBytes(999)).toBe('999 bytes');
+		expect(formatBytes(1)).toBe('1 byte');
+		expect(formatBytes(1500)).toBe('1.5 kB');
+		expect(formatBytes(409_400_000)).toBe('409 MB');
+		expect(formatBytes(3_140_000_000)).toBe('3.1 GB');
+		vi.stubGlobal('navigator', { languages: ['hu-HU'], language: 'hu-HU' });
+		speak('hu');
+		expect(formatBytes(3_140_000_000)).toBe('3,1 GB');
+		expect(formatBytes(0)).toBe('0 bájt');
+		vi.unstubAllGlobals();
+		// A Hungarian UI in an en-US browser: the word is still Hungarian (live review round 2).
+		vi.stubGlobal('navigator', { languages: ['en-US'], language: 'en-US' });
+		expect(formatBytes(0)).toBe('0 bájt');
+		vi.unstubAllGlobals();
 	});
 });

@@ -70,6 +70,11 @@ services:
     # run beside the owner's; unset, it's today's 8000 (dev and production alike).
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
+    # v66: read-only, for "my stats"' library contribution: file sizes aren't recorded
+    # anywhere, so the api reads them off the disk (services/stats.py). It never writes here.
+    volumes:
+      - downloads:/downloads:ro
+      - library:/mnt/raid1/media/music:ro
     healthcheck:
       # python:3.12-slim has neither curl nor wget; urllib is stdlib. urlopen raises
       # HTTPError on a non-2xx response (the 503 branch health.py returns when a

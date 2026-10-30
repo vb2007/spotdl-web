@@ -1,10 +1,13 @@
-"""The admin stats page's aggregates (v44): how downloads are actually going, from v24's
-track_attempts (v29/v35's network_path and error_type), v44's breaker_events and the live
-tracks table.
+"""The stats page's aggregates: how downloads are actually going, from v24's track_attempts
+(v29/v35's network_path and error_type), v44's breaker_events and the live tracks table.
 
-Global by design: every user's rows are counted together, which is why only the admin
-may read it. Nothing here returns an identity, a job or track title, or a proxy URL --
-only counts, timestamps, error-type names and `host:port` proxy labels.
+`admin_stats` (v44) is global by design: every user's rows are counted together, which is why
+only the admin may read it. Nothing it returns names an identity, a job or track title, or a
+proxy URL -- only counts, timestamps, error-type names and `host:port` proxy labels.
+
+`my_stats` (v66) is one user's own: the same windows and builders, every statement narrowed
+to that user's jobs by `_owned_attempts`/`Job.user_id`. Its caller passes the session user;
+nothing here takes a user from a request.
 
 Every metric is one SQL aggregate over its window (GROUP BY, never a per-proxy, per-path
 or per-bucket query loop, per CLAUDE.md's bulk invariant). Buckets are hourly for 24h and
@@ -14,9 +17,11 @@ bucket. One offset covers the whole window, so across a DST change the older buc
 hour off; accepted, rather than a per-bucket time zone lookup.
 """
 
+import logging
+import os
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import BigInteger, case, func, select
+from sqlalchemy import BigInteger, case, distinct, func, select
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import FunctionElement
@@ -24,6 +29,8 @@ from sqlalchemy.sql.expression import FunctionElement
 from app.models import (
     BreakerEvent,
     BreakerEventKind,
+    DownloadedTrack,
+    Job,
     NetworkPath,
     Proxy,
     Track,
@@ -33,8 +40,11 @@ from app.models import (
     TrackState,
     WorkerState,
 )
+from app.services import rollup
 from app.services.retry import BREAKER_TRIP_DELAYS
 from app.services.serializers import _proxy_label
+
+logger = logging.getLogger(__name__)
 
 # window -> (bucket length, bucket count)
 WINDOWS: dict[str, tuple[timedelta, int]] = {
@@ -147,16 +157,58 @@ def _counts_dict(attempts: int, completed: int | None, not_found: int | None) ->
     }
 
 
-def admin_stats(
-    db: Session, window: str, now: datetime | None = None, utc_offset_minutes: int = 0
-) -> dict:
-    now = now or datetime.now(timezone.utc)
-    offset = utc_offset_minutes * 60
+def _window(window: str, now: datetime, offset: int) -> tuple[datetime, datetime, int, int, int]:
+    """(start, end, bucket seconds, first bucket index, bucket count) of a window."""
     start, bucket_seconds, first_bucket = window_bounds(window, now, offset)
     bucket_count = WINDOWS[window][1]
     # Bounded on both sides by the same buckets the chart draws: a row stamped past the
     # current bucket (a worker clock running ahead) is in no count rather than in some.
     end = start + timedelta(seconds=bucket_seconds * bucket_count)
+    return start, end, bucket_seconds, first_bucket, bucket_count
+
+
+def _bucket_starts(offset: int, bucket_seconds: int, first_bucket: int, bucket_count: int) -> list[str]:
+    return [
+        _bucket_start(first_bucket + i, bucket_seconds, offset).isoformat() for i in range(bucket_count)
+    ]
+
+
+def _failure_series(
+    db: Session, in_period, offset: int, bucket_seconds: int, first_bucket: int, bucket_count: int
+) -> dict:
+    """Failed attempts per bucket, one series per error_type that occurred, in one grouped
+    statement. `in_period` is the window's predicate, plus an owner's for `my_stats`."""
+    bucket = epoch_bucket(TrackAttempt.finished_at, bucket_seconds, offset).label("bucket")
+    error_type = TrackAttempt.error_type
+    failure_rows = db.execute(
+        select(bucket, error_type, func.count().label("failures"))
+        .where(in_period, TrackAttempt.outcome == TrackAttemptOutcome.FAILED)
+        .group_by(bucket, error_type)
+    ).all()
+    series: dict[str, list[int]] = {}
+    for row in failure_rows:
+        index = row.bucket - first_bucket
+        if not 0 <= index < bucket_count:
+            continue  # a clock-skewed row stamped after `now`
+        key = row.error_type.value if row.error_type is not None else UNKNOWN
+        series.setdefault(key, [0] * bucket_count)[index] += row.failures
+    order = [t.value for t in TrackErrorType] + [UNKNOWN]
+    return {
+        "buckets": _bucket_starts(offset, bucket_seconds, first_bucket, bucket_count),
+        "series": [
+            {"error_type": key, "counts": series[key], "total": sum(series[key])}
+            for key in order
+            if key in series
+        ],
+    }
+
+
+def admin_stats(
+    db: Session, window: str, now: datetime | None = None, utc_offset_minutes: int = 0
+) -> dict:
+    now = now or datetime.now(timezone.utc)
+    offset = utc_offset_minutes * 60
+    start, end, bucket_seconds, first_bucket, bucket_count = _window(window, now, offset)
     in_period = (TrackAttempt.finished_at >= start) & (TrackAttempt.finished_at < end)
     in_window = in_period & TrackAttempt.outcome.in_(_NETWORK_OUTCOMES)
 
@@ -223,32 +275,7 @@ def admin_stats(
         )
 
     # --- failures by error_type over time --------------------------------------------
-    bucket = epoch_bucket(TrackAttempt.finished_at, bucket_seconds, offset).label("bucket")
-    error_type = TrackAttempt.error_type
-    failure_rows = db.execute(
-        select(bucket, error_type, func.count().label("failures"))
-        .where(in_period, TrackAttempt.outcome == TrackAttemptOutcome.FAILED)
-        .group_by(bucket, error_type)
-    ).all()
-    series: dict[str, list[int]] = {}
-    for row in failure_rows:
-        index = row.bucket - first_bucket
-        if not 0 <= index < bucket_count:
-            continue  # a clock-skewed row stamped after `now`
-        key = row.error_type.value if row.error_type is not None else UNKNOWN
-        series.setdefault(key, [0] * bucket_count)[index] += row.failures
-    order = [t.value for t in TrackErrorType] + [UNKNOWN]
-    failures = {
-        "buckets": [
-            _bucket_start(first_bucket + i, bucket_seconds, offset).isoformat()
-            for i in range(bucket_count)
-        ],
-        "series": [
-            {"error_type": key, "counts": series[key], "total": sum(series[key])}
-            for key in order
-            if key in series
-        ],
-    }
+    failures = _failure_series(db, in_period, offset, bucket_seconds, first_bucket, bucket_count)
 
     # --- breaker history -------------------------------------------------------------
     # The window's events, plus a trip from before it whose pause reaches into it (so a
@@ -325,4 +352,142 @@ def admin_stats(
                 max(0, int((now - oldest_waiting).total_seconds())) if oldest_waiting else None
             ),
         },
+    }
+
+
+def _owned_attempts(user_id):
+    """`TrackAttempt` rows of the user's own tracks: the one predicate that narrows the shared
+    builders to `my_stats`. Ownership is on `jobs` only; a track inherits it via `job_id`."""
+    return TrackAttempt.track_id.in_(
+        select(Track.id).join(Job, Job.id == Track.job_id).where(Job.user_id == user_id)
+    )
+
+
+def contributed_files(db: Session, user_id) -> list[str]:
+    """The files the user's own jobs downloaded, all time: the ledger rows behind their
+    `completed` tracks (a `skipped_duplicate` was someone else's download), one per file. A file
+    downloaded again for a second user after it was lost counts for both (rare, accepted)."""
+    return list(
+        db.execute(
+            select(distinct(DownloadedTrack.file_path))
+            .join(Track, Track.spotify_track_id == DownloadedTrack.spotify_track_id)
+            .join(Job, Job.id == Track.job_id)
+            .where(Job.user_id == user_id, Track.state == TrackState.COMPLETED)
+        ).scalars().all()
+    )
+
+
+def measure_files(paths: list[str]) -> dict:
+    """The contribution's count and size. The size isn't recorded anywhere, so it's read off the
+    disk (the api mounts both roots read-only for this, v66): call it after the request's
+    snapshot is over, one stat per file. A file the disk doesn't show (moved mid-read, or a root
+    not mounted) is counted as `unreadable` rather than as zero bytes."""
+    size = 0
+    unreadable = 0
+    for path in paths:
+        try:
+            size += os.stat(path).st_size
+        except OSError:
+            unreadable += 1
+    if unreadable:
+        logger.info("stats.my_stats: %d of %d contributed file(s) unreadable", unreadable, len(paths))
+    return {"files": len(paths), "bytes": size, "unreadable": unreadable}
+
+
+def my_stats(
+    db: Session,
+    user_id,
+    window: str,
+    now: datetime | None = None,
+    utc_offset_minutes: int = 0,
+    measure_library: bool = True,
+    include_library: bool = True,
+) -> dict:
+    """v66: one user's own downloads over a window (the admin page's windows and buckets), plus
+    their library contribution all time. Every statement is narrowed to `user_id`'s jobs. With
+    `measure_library` off, `library` is the contributed paths (`contributed_files`) for the caller
+    to `measure_files` once its transaction is over (the router's snapshot); with
+    `include_library` off it's `None` (a window switch: the figure is the same in every window)."""
+    now = now or datetime.now(timezone.utc)
+    offset = utc_offset_minutes * 60
+    start, end, bucket_seconds, first_bucket, bucket_count = _window(window, now, offset)
+    owned = _owned_attempts(user_id)
+    in_period = (TrackAttempt.finished_at >= start) & (TrackAttempt.finished_at < end) & owned
+
+    # --- attempts: completed / failed / not found, the admin page's definitions --------
+    attempts, completed, not_found = _outcome_counts()
+    totals = db.execute(
+        select(attempts, completed, not_found).where(in_period, TrackAttempt.outcome.in_(_NETWORK_OUTCOMES))
+    ).one()
+
+    # --- completed tracks per bucket -------------------------------------------------
+    bucket = epoch_bucket(TrackAttempt.finished_at, bucket_seconds, offset).label("bucket")
+    completed_counts = [0] * bucket_count
+    for row in db.execute(
+        select(bucket, func.count().label("n"))
+        .where(in_period, TrackAttempt.outcome == TrackAttemptOutcome.COMPLETED)
+        .group_by(bucket)
+    ).all():
+        index = row.bucket - first_bucket
+        if 0 <= index < bucket_count:
+            completed_counts[index] += row.n
+
+    # --- failures by error_type over time (the admin page's builder) --------------------
+    failures = _failure_series(db, in_period, offset, bucket_seconds, first_bucket, bucket_count)
+
+    # --- time to complete: queued (the track row's creation) to its file, median -------
+    waited = func.extract("epoch", TrackAttempt.finished_at - Track.created_at)
+    median_row = db.execute(
+        select(
+            func.percentile_cont(0.5).within_group(waited).label("median"),
+            func.count().label("tracks"),
+        )
+        .join(Track, Track.id == TrackAttempt.track_id)
+        .where(in_period, TrackAttempt.outcome == TrackAttemptOutcome.COMPLETED)
+    ).one()
+
+    # --- jobs submitted in the window, by their rollup status now ---------------------
+    # Archived ones included: retention hides a job from the list, not from what happened.
+    jobs_subq = (
+        select(Job.id, Job.state)
+        .where(Job.user_id == user_id, Job.created_at >= start, Job.created_at < end)
+        .subquery()
+    )
+    agg = rollup.aggregate_jobs(jobs_subq)
+    lifecycle = rollup.lifecycle_case(agg.c.state, agg.c.active_n, agg.c.waiting_n)
+    outcome = rollup.outcome_case_for_display(agg.c.state, agg.c.active_n, agg.c.waiting_n, agg.c.partial_n)
+    by_status = {
+        rollup.status_key(row.lifecycle, row.outcome): row.n
+        for row in db.execute(
+            select(lifecycle.label("lifecycle"), outcome.label("outcome"), func.count().label("n"))
+            .select_from(agg)
+            .group_by(lifecycle, outcome)
+        ).all()
+    }
+
+    return {
+        "window": window,
+        "generated_at": now.isoformat(),
+        "window_start": start.isoformat(),
+        "utc_offset_minutes": utc_offset_minutes,
+        "bucket_seconds": bucket_seconds,
+        "attempts": _counts_dict(totals.attempts, totals.completed, totals.not_found),
+        "completed": {
+            "buckets": _bucket_starts(offset, bucket_seconds, first_bucket, bucket_count),
+            "counts": completed_counts,
+            "total": sum(completed_counts),
+        },
+        "failures": failures,
+        "time_to_complete": {
+            "median_seconds": float(median_row.median) if median_row.median is not None else None,
+            "tracks": median_row.tracks,
+        },
+        "jobs": {"total": sum(by_status.values()), "by_status": by_status},
+        "library": (
+            None
+            if not include_library
+            else measure_files(contributed_files(db, user_id))
+            if measure_library
+            else contributed_files(db, user_id)
+        ),
     }

@@ -1005,5 +1005,98 @@
 	],
 	"error_queue_unavailable": "A sor most nem fogad új linket. Próbáld újra kicsit később.",
 	"error_api_key_label_characters": "A kulcs neve nem tartalmazhat láthatatlan vagy vezérlőkaraktert (ezek gyakran a beillesztett szöveggel jönnek). Inkább gépeld be.",
-	"error_submit_too_long": "Ez túl hosszú egy linknek: legfeljebb {max} karakter lehet."
+	"error_submit_too_long": "Ez túl hosszú egy linknek: legfeljebb {max} karakter lehet.",
+	"stats_mine_heading": "Letöltéseid",
+	"stats_scope_label": "Kinek a letöltései",
+	"stats_scope_global": "mindenkié",
+	"stats_scope_mine": "enyém",
+	"stats_mine_library_heading": "A könyvtárad",
+	"stats_mine_library_files": "fájl",
+	"stats_mine_library_size": "méret",
+	"stats_mine_library_note": "Mindenkori: a saját feladataid által letöltött fájlok. Ha egy szám valaki másnak már megvolt, az az övé.",
+	"stats_mine_library_unreadable": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "{n} fájlt most nem sikerült beolvasni, ezért a méret nem számolja."
+			}
+		}
+	],
+	"stats_mine_tracks_heading": "Számok",
+	"stats_mine_no_attempts": "Ebben az időablakban egyik számodat sem próbáltuk letölteni.",
+	"stats_mine_completed_none": "Ebben az időablakban egy számod sem készült el.",
+	"stats_mine_scale_hour": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "A legmagasabb oszlop {n} szám egy órában."
+			}
+		}
+	],
+	"stats_mine_scale_day": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "A legmagasabb oszlop {n} szám egy napon."
+			}
+		}
+	],
+	"stats_mine_completed_summary_hour": "Elkészült számaid óránként: összesen {total}, egy órában legfeljebb {most} ({when}).",
+	"stats_mine_completed_summary_day": "Elkészült számaid naponként: összesen {total}, egy napon legfeljebb {most} ({when}).",
+	"stats_mine_completed_table": "Elkészült számok táblázatként",
+	"stats_mine_completed_caption_hour": "Elkészült számaid óránként",
+	"stats_mine_completed_caption_day": "Elkészült számaid naponként",
+	"stats_mine_time_heading": "Elkészülési idő",
+	"stats_mine_median": "medián",
+	"stats_mine_median_note": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "A sorba állítástól a fájlig, az ebben az időablakban elkészült {n} számra."
+			}
+		}
+	],
+	"stats_mine_no_completed": "Ebben az időablakban egy számod sem készült el, így nincs mit mérni.",
+	"stats_mine_jobs_heading": "Beküldött feladataid",
+	"stats_mine_no_jobs": "Ebben az időablakban nem küldtél be semmit.",
+	"stats_mine_jobs_note": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "Ebben az időablakban {n} feladatot küldtél be, aszerint, hol tartanak most."
+			}
+		}
+	],
+	"stats_failures_by_type_heading": "Hibák típusonként",
+	"stats_mine_summary_hour": "Hibáid típusonként, óránként. {parts}.",
+	"stats_mine_summary_day": "Hibáid típusonként, naponként. {parts}.",
+	"stats_mine_table_caption_hour": "Hibáid típusonként óránként",
+	"stats_mine_table_caption_day": "Hibáid típusonként naponként",
+	"account_notify_heading": "Értesítések",
+	"account_notify_hint": "Böngészőértesítés, amikor egy feladatod elkészül, amíg az alkalmazás sora nyitva van egy lapon. Csak a saját feladataidról, soha másokéról.",
+	"account_notify_label": "Ha egy feladat elkészül",
+	"account_notify_on": "be",
+	"account_notify_off": "ki",
+	"account_notify_denied": "Ez a böngésző letiltja az oldal értesítéseit, így itt egy sem jelenhet meg. Engedélyezd őket az oldal beállításaiban (a címsor bal oldali ikonja), aztán kapcsold be újra.",
+	"account_notify_dismissed": "A böngésző kérdését válasz nélkül zártad be, így nem változott semmi. Kapcsold be, és újra megkérdez.",
+	"account_notify_unsupported": "Ez a böngésző nem tud értesítést megjeleníteni.",
+	"account_notify_blocked_here": "A fiókodban be van kapcsolva, de ez a böngésző letiltja őket: engedélyezd az oldal értesítéseit a beállításaiban.",
+	"account_notify_ask_here": "A fiókodban be van kapcsolva; ez a böngésző még nem kapott engedélyt.",
+	"account_notify_allow": "engedélyezés ebben a böngészőben",
+	"account_notify_shown_here": "Ez a böngésző megjeleníti őket.",
+	"notify_job_done": "Kész — {done} / {total}",
+	"stats_bytes": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "{n} bájt"
+			}
+		}
+	]
 }

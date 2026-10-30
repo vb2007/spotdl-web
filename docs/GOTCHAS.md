@@ -86,6 +86,8 @@ needed" claim — rather than silently deleted.
 **Docker Compose & deployment**
 - Override files **merge** list keys (`ports`, `volumes`) and **replace** mapping keys
   (`command`, `healthcheck`, `build`); use `!override` when a list must replace → *v01, v05, v12*
+- `api` mounts `/downloads` and the library **read-only** since v66 (my stats reads file sizes,
+  which nothing records); a fixture or seed that writes files runs in `worker-meta` → *v66*
 - Never hardcode `172.17.0.1`; use `host.docker.internal` via `extra_hosts` → *v01*
 - `localhost` resolves to IPv6 first in these images and nothing binds it — healthchecks must use
   `127.0.0.1` → *v12*
@@ -662,6 +664,9 @@ needed" claim — rather than silently deleted.
   drives asyncio's own clock → *v62*
 - A downloading run is identified by its claim's `updated_at` (`clock_timestamp()`, not `now()`,
   which is fixed for a whole transaction and so for a whole rollback-isolated test) → *v62*
+- An admin's dashboard in `all`/`others` carries every user's events, and no event names its
+  owner: anything that must be the viewer's own (v66's notifications) listens to a `mine` stream,
+  opening one of its own when the dashboard's isn't → *v66*
 - Vite's dev `/api` proxy never closes the browser's SSE response when `api` dies, so in the
   normal `docker compose up` loop an `api` restart never triggers a reconnect at all (production
   nginx does close it). Test reconnect behavior through the real `web` image → *v34* (fixed
@@ -738,6 +743,9 @@ needed" claim — rather than silently deleted.
   others → *v28*
 
 **Frontend (SvelteKit)**
+- `Notification.requestPermission()` must be the first `await` in the click handler (a browser
+  asks only from the user's gesture); a refused or dismissed ask leaves the switch off and says
+  why, so it never reads "on" where nothing can show → *v66*
 - SvelteKit's `replaceState` leaves `page.url` at the last navigation and records that stale URL
   in the history entry, so a later Back navigates to it: read a query-string state from `location`
   → *v54*
@@ -921,6 +929,9 @@ needed" claim — rather than silently deleted.
   content → *v61.1*
 
 **Testing & verification technique**
+- Real OS notifications are counted with `dbus-monitor` on `org.freedesktop.Notifications.Notify`;
+  puppeteer-core drives the system Firefox (WebDriver BiDi) and Chromium. Seeded attempt rows must
+  end in the past, or the e2e teardown counts them as network downloads → *v66*
 - A `docker exec … python /tmp/x.py` imports the image's site-packages `app`, not the mounted
   `/app/app`: set `PYTHONPATH=/app` → *v56*
 - `download_track.delay` is one object for expand and beat: a monkeypatch of one patches both → *v56*
@@ -7404,3 +7415,46 @@ independently-found production bug from the same conversation)
   another tab's sign-out or sign-in) set `leavingSession()`, which the unsaved-edits guard lets
   through without asking.
 
+### v66 personal-notifications gotchas (learned building notifications and "my stats")
+
+- **The plan's "the user's own SSE stream is always `mine`" held only for a non-admin.** An admin's
+  dashboard stream follows the view, and in `all`/`others` it pattern-subscribes to every channel;
+  the payloads carry no owner (v17), so the page can't tell whose job settled. Notifications read
+  only a `mine` stream: the dashboard's own when it is `mine`, otherwise one `lib/notifications.ts`
+  opens for itself (so an admin in `all` holds two `/api/stream` connections while notifications
+  are on: over HTTP/1.1, the local dev path, three such tabs use up the browser's six connections
+  per origin and stall every other request; production's HTTP/2 doesn't). That stream checks
+  `/me` at every open, follows the heartbeat and is restarted by the dashboard's watchdog, like
+  the dashboard's own (v42, v62). Only dashboard tabs announce (owner's choice).
+- **One tab announces.** Every tab gets the same `job.status` payload (the same `ts`), so the event
+  key is `job|status|ts`. Each tab offers it on a `BroadcastChannel` and, after a 400 ms window,
+  the lowest tab id among the offers shows it and says so; a late offer for a decided key is
+  ignored. A background tab's throttled timer only makes it wait longer. The notification's `tag`
+  is the job's, so two tabs without the channel replace each other rather than stack.
+- **The switch reaches an open tab from another device only on its next `/me`** (an in-app
+  navigation): a dashboard left open keeps announcing (or not) by the value it had. Its other tabs
+  follow at once (the channel). Accepted, as for every preference; a pushed preference event
+  would close it.
+- **A settle published while no stream is connected is never announced** (an api restart, a
+  deploy: Redis pub/sub keeps nothing for a missing subscriber, and a reconnect only re-reads the
+  state). Best effort, like a settle during a stream's identity check.
+- **A settle is `settled:*` from a known non-settled `prev_status`.** No `prev_status` at all means
+  the server doesn't know what the job left (an expired or flushed key), and an archived job is
+  old news: neither announces. `null` (a job new and done at once) does.
+- **Library size isn't stored anywhere** (`downloaded_tracks` has no size), and `api` mounted
+  neither file root. The owner chose read-only mounts on `api` over a size column: the count is
+  SQL, the size `os.stat` on the user's distinct ledger paths in the same request, and a file the
+  disk doesn't show is `unreadable`, never zero bytes. A user's contribution is the ledger rows
+  behind their `completed` tracks; a `skipped_duplicate` was someone else's download.
+- **Real OS notifications are countable.** On the Hyprland dev desktop (swaync) `dbus-monitor
+  "interface='org.freedesktop.Notifications',member='Notify'"` logs every notification a browser
+  sends, which proves "exactly one across two tabs" independently of the page. puppeteer-core
+  drives the system Firefox over WebDriver BiDi (`browser: 'firefox'`,
+  `extraPrefsFirefox: {'permissions.default.desktop-notification': 1}`) and the system Chromium
+  (`overridePermissions(origin, ['notifications'])`); Playwright's own builds aren't installed.
+  The windows open on the owner's desktop: with the session locked, `grim` captures the lock
+  screen (name, location) and never the notification, so the dbus log is the evidence, and a
+  locked-screen capture is deleted, never attached.
+- **Seeded attempt rows must end in the past.** The e2e teardown counts network attempts by
+  `finished_at` since the run started, so a hand-seeded `track_attempts` row stamped in the future
+  reads as "the run made N network download attempts" hours later. Clamp seeds to `now()`.

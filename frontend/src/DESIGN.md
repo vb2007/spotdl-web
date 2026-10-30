@@ -966,11 +966,12 @@ reads "The server had a problem (502). Try again in a moment." in both languages
 ### Secondary pages (v43)
 
 `/settings`, `/library`, `/account` and `/stats` share `SubpageHeader.svelte`: the mono wordmark and
-the page links (queue, then library, settings and stats for the admin only, then account; the
+the page links (queue, then library and settings for the admin only, then stats and account; the
 current one is `aria-current="page"`, primary text, no underline; Sans since v47). `main` opens with
 the page's one `h1` (`.page-title`) in Sans at `--fs-title`. There is no eyebrow above the `h1`: the
 wordmark is the masthead, not a kicker. A non-admin is never linked to an admin page; typing the path
-gets `AdminOnlyNotice.svelte`, which makes no admin request (F17).
+gets `AdminOnlyNotice.svelte`, which makes no admin request (F17). Since v66 `/stats` is everyone's
+(their own downloads), linked and on `g t` for every user.
 
 The form vocabulary lives in `app.css` so the routes can't drift:
 
@@ -1020,7 +1021,11 @@ whatever the unit's length); their legends are group headings, not one more `.la
 
 `/account` holds "Signed in" (name, email, the admin's role, **disconnect**) and "Preferences":
 log retention, the keyboard-shortcut switch (v45), language and time format (v46), as groups that
-read apart (v47).
+read apart (v47), and job notifications (v66). The notifications group is an on/off `.choice-group`
+saved on choice like the rest; pressing "on" first asks the browser (from that click), and a refusal
+leaves it off with a `.hint` line saying why and how to undo it. With it on, the same line says what
+this browser does with it (shows them, blocks them, or hasn't been asked, with an "allow in this
+browser" button), so the switch never reads "on" for a browser that can't show one.
 
 ### Admin stats page (`routes/stats/+page.svelte`, v44)
 
@@ -1058,7 +1063,22 @@ checks are for categorical palettes and don't apply to status colours.
   "show as a table" `<details>`. Phones hide every other axis tick. Under `forced-colors` the marks
   are `CanvasText`.
 - On a phone each table row becomes a stacked reading (route + rate, then the bar, units spelled out).
-- A non-admin gets `AdminOnlyNotice` with its `reason` prop and the page makes no request.
+- ~~A non-admin gets `AdminOnlyNotice` with its `reason` prop and the page makes no request.~~
+  Since v66 a non-admin gets their own downloads (below) and never an admin request.
+
+**Your downloads (v66).** Every user's own, the same split and vocabulary: a narrow all-time **Your
+library** plate (files and size, decimal units, as a ruled readout; a file the server couldn't read
+is said, not counted as zero) beside the window plate (owner's choice of layout). The window plate
+holds, in order: **Tracks** (the `OutcomeBar` across the plate with its counts and the success rate,
+the rate's definition line, then `CompletedColumns`: completed tracks per bucket, one series in
+`--settled`, on the recorder's grid, axis and crosshair so a bucket sits where it does in the
+failures below, with its own "show as a table"); **Time to complete** (the median, queued → file, as
+a reading, with how many tracks it covers); **Jobs you queued** (the window's jobs by their rollup
+status now, readings side by side in the state filter's order); **Failures by type** (the recorder
+without its breaker channel, line or table column: the breaker is everyone's). The `h1` reads "Your
+downloads". The admin lands on everyone's (owner's choice) and switches with a `.choice-group`
+("everyone's | mine") in the title row; `?scope=mine` keeps it across a reload. A scope switch is one
+request, and each scope shows only its own reading.
 
 ### Login "tuning in" instrument (`routes/login/+page.svelte`)
 

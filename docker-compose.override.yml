@@ -43,9 +43,13 @@ x-dev-reload-mount: &dev-reload-mount ./scripts/dev:/opt/dev:ro
 services:
   api:
     environment: *dev-env
-    volumes:
+    # v66: `!override`, so the base file's named volumes don't sit beside the real dev
+    # directories at the same targets (the v01 gotcha, as on worker-dl below).
+    volumes: !override
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic
+      - ./downloads:/downloads:ro
+      - ./test-library:/mnt/raid1/media/music:ro
     # `command:` fully replaces rather than merges (same as `build:`, unlike list keys
     # such as `volumes:`/`ports:` — see CLAUDE.md's v01 gotcha) — the base file's
     # `--log-config logging.json` (v12) must be repeated here too, or dev silently loses

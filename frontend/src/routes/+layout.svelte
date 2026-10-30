@@ -20,6 +20,7 @@
 	import HelpOverlay from '$lib/components/HelpOverlay.svelte';
 	import ChordIndicator from '$lib/components/ChordIndicator.svelte';
 	import { queue } from '$lib/stores/queue';
+	import * as notifications from '$lib/notifications';
 	import * as api from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { link as streamLink } from '$lib/stores/link';
@@ -82,7 +83,7 @@
 						'go-settings': go('/settings', true),
 						'go-library': go('/library', true),
 						'go-account': go('/account'),
-						'go-stats': go('/stats', true)
+						'go-stats': go('/stats')
 					}
 				: {})
 		});
@@ -124,6 +125,7 @@
 					setLeavingSession(false);
 				}
 				queue.reset();
+				notifications.reset();
 			} finally {
 				ending = false;
 			}
@@ -147,6 +149,7 @@
 					setLeavingSession(false);
 				}
 				queue.reset();
+				notifications.reset();
 				return;
 			}
 			if (message.email === mine) return;
@@ -154,6 +157,7 @@
 			// them, as v42 does for an identity change found on a stream reconnect.
 			setLeavingSession(true);
 			queue.reset();
+			notifications.reset();
 			window.location.reload();
 		})
 	);
