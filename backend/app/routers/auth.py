@@ -224,7 +224,7 @@ def me(principal: Principal = Depends(require_session_or_api_key), db: Session =
         return {"email": user.email, "username": user.username, "is_admin": user.is_admin}
     # v45: the keyboard-shortcut preference rides along, so the app shell knows it on every
     # route load without a second request. v46: so do the language and the clock (`null`:
-    # none saved, the browser decides).
+    # none saved, the browser decides). v66: and the job-notifications switch.
     return {
         "email": user.email,
         "username": user.username,
@@ -232,4 +232,5 @@ def me(principal: Principal = Depends(require_session_or_api_key), db: Session =
         "keyboard_shortcuts": user_settings.keyboard_shortcuts_enabled(db, user.id),
         "language": user_settings.language_preference(db, user.id),
         "clock": user_settings.clock_preference(db, user.id),
+        "job_notifications": user_settings.job_notifications_enabled(db, user.id),
     }
