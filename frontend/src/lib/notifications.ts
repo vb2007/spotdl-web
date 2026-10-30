@@ -195,9 +195,13 @@ async function show(jobId: string) {
 	const counts = job.track_counts;
 	const done = (counts.completed ?? 0) + (counts.skipped_duplicate ?? 0);
 	const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
-	const options: NotificationOptions = {
+	// `renotify` is in the spec and Chromium, not in TypeScript's DOM types.
+	const options: NotificationOptions & { renotify?: boolean } = {
 		body: m.notify_job_done({ done: formatNumber(done), total: formatNumber(total) }),
 		tag: `spotdl-web-job-${job.id}`,
+		// A watched job (v63) settling again replaces its notification: say so, don't swap it in
+		// silently (review round 4).
+		renotify: true,
 		lang: document.documentElement.lang || undefined
 	};
 	try {

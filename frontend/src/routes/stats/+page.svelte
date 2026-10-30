@@ -19,8 +19,7 @@
   (owner's choice) and switches in the title row (`?scope=mine` keeps it across a reload).
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { replaceState } from '$app/navigation';
+	import { afterNavigate, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
 	import { relativeTime } from '$lib/attempts';
@@ -128,10 +127,16 @@
 		void load(true);
 	}
 
-	onMount(() => {
-		// A non-admin reads their own and makes no admin request at all (F17). The admin starts
-		// on everyone's unless the address asks for theirs (`initialScope`).
-		scope = initialScope();
+	// A non-admin reads their own and makes no admin request at all (F17). The admin starts on
+	// everyone's unless the address asks for theirs (`initialScope`). On the first load and on
+	// every navigation to /stats while it's shown (`g t`, the masthead's link: SvelteKit keeps
+	// the page), so the scope always follows the address (review round 4).
+	let started = false;
+	afterNavigate(() => {
+		const next = initialScope();
+		if (started && next === scope) return;
+		started = true;
+		scope = next;
 		refresh();
 	});
 
