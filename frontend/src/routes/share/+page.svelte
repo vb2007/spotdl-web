@@ -1,11 +1,11 @@
 <!--
 THESIS: a share lands as one incoming reading to confirm, not a form: what arrived, what it
 tunes to (type and id), one transmit control already under the thumb.
-OWN-WORLD: the instrument panel as shipped (DESIGN.md): .panel faceplate, mono readings in
-recessed wells, Sans sentences, the five conditions; no amber (nothing is receiving here).
-STRUCTURE: masthead; h1; one panel holding the shared words, the readings, then the action
-row; the outcome replaces the action row in place, so nothing moves under the finger.
-SIGNATURE: the readings block: label over a mono well, like the dial's own readout.
+OWN-WORLD: the instrument panel as shipped (DESIGN.md): .panel faceplate, mono readouts printed
+on it (never in a .well), Sans sentences, the five conditions; no amber (nothing receives here).
+STRUCTURE: masthead; h1; one panel holding the shared words, the readouts, then the action
+row; the outcome reads above the row, which then holds the next step where the thumb was.
+SIGNATURE: the readouts: label over a mono value, like the dial's own readout.
 RISK: a short link needs a server round-trip before there is anything to read.
 -->
 <script lang="ts">
@@ -21,6 +21,9 @@ RISK: a short link needs a server round-trip before there is anything to read.
 
 	let { data } = $props();
 	const isAdmin = $derived(data.session?.is_admin ?? false);
+	// No page shows one job, so "open the queue" opens the viewer's own jobs, where the new one
+	// is: an admin's dashboard may have been left in another view (all, others).
+	const ownQueue = resolve('/') + '?view=mine';
 
 	// v65: read once, as it arrived. The share target is a GET, so the share is the query.
 	const params = page.url.searchParams;
@@ -160,12 +163,14 @@ RISK: a short link needs a server round-trip before there is anything to read.
 					</div>
 				{/if}
 				<div class="actions">
+					<!-- eslint-disable svelte/no-navigation-without-resolve -- resolve('/') plus ?view=mine, which resolve() can't type (as v54's ?view= writes) -->
 					<a
 						class="btn"
-						href={resolve('/')}
+						href={ownQueue}
 						aria-describedby="share-none share-none-hint"
 						bind:this={queueLink}>{m.share_open_queue()}</a
 					>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
 				</div>
 			{:else}
 				{#if context}
@@ -214,12 +219,11 @@ RISK: a short link needs a server round-trip before there is anything to read.
 						>
 						<a class="quiet-link" href={resolve('/')}>{m.share_not_now()}</a>
 					{:else if phase === 'done'}
-						<a
-							class="btn"
-							href={resolve('/')}
-							aria-describedby="share-outcome"
-							bind:this={queueLink}>{m.share_open_queue()}</a
+						<!-- eslint-disable svelte/no-navigation-without-resolve -- resolve('/') plus ?view=mine, as above -->
+						<a class="btn" href={ownQueue} aria-describedby="share-outcome" bind:this={queueLink}
+							>{m.share_open_queue()}</a
 						>
+						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					{/if}
 				</div>
 				<p class="form-error" role="alert">{problem?.() ?? ''}</p>

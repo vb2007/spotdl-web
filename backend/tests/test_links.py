@@ -96,6 +96,15 @@ def test_resolve_follows_one_hop_to_the_link_services_own_host(short_host):
     assert asked == ["https://spotify.link/6tpneu0iVIb", hop]
 
 
+def test_a_hop_is_asked_as_validated(short_host):
+    # The host asked is rebuilt from the checked parts, not the raw Location (review round 1).
+    answers, asked = short_host
+    answers["https://spotify.link/a"] = _redirect("https://SPOTIFY.app.link/b/?_p=1")
+    answers["https://spotify.app.link/b?_p=1"] = _redirect(REAL_LOCATION)
+    assert spotify_urls.resolve_short_link("https://spotify.link/a") == SpotifyRef("playlist", ID)
+    assert asked == ["https://spotify.link/a", "https://spotify.app.link/b?_p=1"]
+
+
 @pytest.mark.parametrize(
     "location",
     [
@@ -131,7 +140,16 @@ def test_an_expired_codes_landing_page_is_unresolved(short_host):
 
 
 @pytest.mark.parametrize(
-    "answer", [httpx.ConnectTimeout("slow"), httpx.ConnectError("down"), httpx.Response(502)]
+    "answer",
+    [
+        httpx.ConnectTimeout("slow"),
+        httpx.ConnectError("down"),
+        httpx.Response(502),
+        # Refused or throttled: retryable, not "this link is dead" (review round 1).
+        httpx.Response(429),
+        httpx.Response(403),
+        httpx.Response(408),
+    ],
 )
 def test_an_unreachable_host_is_unavailable(short_host, answer):
     answers, _ = short_host

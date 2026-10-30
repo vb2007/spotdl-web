@@ -277,7 +277,8 @@ def resolve_short_link(text: str) -> SpotifyRef:
                     logger.warning("short link: %s unreachable: %s", url, type(exc).__name__)
                     raise ShortLinkUnavailable from exc
                 if not response.is_redirect:
-                    if response.status_code >= 500:
+                    # The host refusing or throttling us says nothing about the link: retryable.
+                    if response.status_code >= 500 or response.status_code in (403, 408, 429):
                         raise ShortLinkUnavailable
                     raise ShortLinkUnresolved
                 location = response.headers.get("location")
@@ -287,10 +288,13 @@ def resolve_short_link(text: str) -> SpotifyRef:
                 ref = parse(target)
                 if ref is not None:
                     return ref
-                if _short_link(target) is None:
+                hop = _short_link(target)
+                if hop is None:
                     raise ShortLinkUnresolved
-                # The hop as given (its query included): the code alone answers differently.
-                url = target
+                # Rebuilt from what was checked, its query kept (the code alone answers
+                # differently), so the host asked is the one validated.
+                query = urlsplit(target).query
+                url = f"{hop}?{query}" if query else hop
     finally:
         _short_link_slots.release()
     raise ShortLinkUnresolved
