@@ -4,6 +4,24 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
+		<!-- v65: the installable app (manifest, share target) and its window colour (--bg-0). -->
+		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+		<meta name="theme-color" content="#0a0c0e" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/icons/apple-touch-icon.png" />
+		<script>
+			// v65: the browser offers to install the app once, early, often before /account (which
+			// shows the install entry) is open: kept here for it. Its own banner is held back, so
+			// the entry on /account is the only prompt (the browser menu still installs).
+			addEventListener('beforeinstallprompt', function (event) {
+				event.preventDefault();
+				window.__spotdlInstallPrompt = event;
+				dispatchEvent(new Event('spotdl:installprompt'));
+			});
+			addEventListener('appinstalled', function () {
+				window.__spotdlInstallPrompt = null;
+				dispatchEvent(new Event('spotdl:installprompt'));
+			});
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">
