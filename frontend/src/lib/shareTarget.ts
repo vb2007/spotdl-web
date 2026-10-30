@@ -14,8 +14,7 @@
 export type SpotifyType = 'track' | 'album' | 'artist' | 'playlist';
 
 export type SharedLink =
-	| { kind: 'full'; type: SpotifyType; id: string; url: string }
-	| { kind: 'short'; url: string };
+	{ kind: 'full'; type: SpotifyType; id: string; url: string } | { kind: 'short'; url: string };
 
 export interface ShareParams {
 	title?: string | null;

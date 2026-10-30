@@ -20,7 +20,11 @@ describe('v65 share target: Spotify share formats', () => {
 	// Windows, the Web Share API) can fill `url`. The rows marked "reported" follow Spotify
 	// Community reports and haven't been captured from a real share yet (the PR says so).
 	const table: [string, ShareParams, object | null][] = [
-		['Android, Copy link form: the bare link with ?si= in text', { text: `${TRACK}?si=a1B2c3D4e5F6g7H8` }, full('track')],
+		[
+			'Android, Copy link form: the bare link with ?si= in text',
+			{ text: `${TRACK}?si=a1B2c3D4e5F6g7H8` },
+			full('track')
+		],
 		['Android, short link form in text (reported default)', { text: SHORT }, short()],
 		[
 			'Android, song and artist as title, the link in text',
@@ -43,24 +47,44 @@ describe('v65 share target: Spotify share formats', () => {
 			{ text: `https://open.spotify.com/intl-hu/album/${ID}?si=x` },
 			full('album')
 		],
-		['a playlist', { text: `https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=1` }, full('playlist', '37i9dQZF1DXcBWIGoYBM5M')],
-		['an artist', { text: `https://open.spotify.com/artist/0gxyHStUsqpMadRV0Di1Qt` }, full('artist', '0gxyHStUsqpMadRV0Di1Qt')],
-		['the link only in title', { title: `${TRACK}?si=x`, text: 'shared from Spotify' }, full('track')],
-		['url beats text', { url: `https://open.spotify.com/album/${ID}`, text: `${TRACK}` }, full('album')],
-		['text beats title', { title: `https://open.spotify.com/album/${ID}`, text: TRACK }, full('track')],
 		[
-			'a link glued into a sentence',
-			{ text: `Hallgasd meg (${TRACK}?si=x)!` },
+			'a playlist',
+			{ text: `https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=1` },
+			full('playlist', '37i9dQZF1DXcBWIGoYBM5M')
+		],
+		[
+			'an artist',
+			{ text: `https://open.spotify.com/artist/0gxyHStUsqpMadRV0Di1Qt` },
+			full('artist', '0gxyHStUsqpMadRV0Di1Qt')
+		],
+		[
+			'the link only in title',
+			{ title: `${TRACK}?si=x`, text: 'shared from Spotify' },
 			full('track')
 		],
-		['a non-Spotify link first, then Spotify', { text: `https://example.com/x ${TRACK}` }, full('track')],
+		[
+			'url beats text',
+			{ url: `https://open.spotify.com/album/${ID}`, text: `${TRACK}` },
+			full('album')
+		],
+		[
+			'text beats title',
+			{ title: `https://open.spotify.com/album/${ID}`, text: TRACK },
+			full('track')
+		],
+		['a link glued into a sentence', { text: `Hallgasd meg (${TRACK}?si=x)!` }, full('track')],
+		[
+			'a non-Spotify link first, then Spotify',
+			{ text: `https://example.com/x ${TRACK}` },
+			full('track')
+		],
 		['no link at all', { title: 'Never Gonna Give You Up', text: 'Rick Astley' }, null],
 		['nothing shared', {}, null],
 		['a podcast episode', { text: `https://open.spotify.com/episode/${ID}` }, null],
 		['a spotify: URI', { text: `spotify:track:${ID}` }, null],
 		['a look-alike host', { text: `https://open.spotify.com.evil.example/track/${ID}` }, null],
 		[
-			'a Spotify link inside another link\'s query',
+			"a Spotify link inside another link's query",
 			{ text: `https://evil.example/?u=https://open.spotify.com/track/${ID}` },
 			null
 		],
