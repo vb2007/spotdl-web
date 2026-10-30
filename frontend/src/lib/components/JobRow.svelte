@@ -299,7 +299,14 @@
 		const session = queue.getResetCount();
 		exportProbing = kind;
 		try {
-			await api.checkJobExport(url);
+			const counts = await api.checkJobExport(url);
+			// The probe's answer is the newest count there is: the strip follows it, so a file
+			// gone from disk since the job opened stops being counted.
+			if (counts !== null && queue.getResetCount() === session) {
+				exportRead++;
+				exportCounts = counts;
+				if (counts.files === 0) return;
+			}
 		} catch (err) {
 			if (queue.getResetCount() === session)
 				showNotice(errorText(err, m.job_notice_export_failed), true);

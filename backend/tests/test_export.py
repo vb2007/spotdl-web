@@ -605,6 +605,26 @@ def test_a_song_listed_twice_and_moved_before_its_stat_is_found_both_times(db_se
     assert plan.missing == []
 
 
+def test_an_unreadable_file_is_listed_as_missing_not_streamed(authenticated_client, db_session, owner, roots):
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "1.opus"))
+    locked = _file(downloads, "2.opus")
+    _track(db_session, job, 2, path=locked, name="Locked")
+    locked.chmod(0)
+    try:
+        if os.access(locked, os.R_OK):
+            pytest.skip("running as a user that reads anything (root)")
+        response = authenticated_client.get(f"/api/jobs/{job.id}/export.zip")
+    finally:
+        locked.chmod(0o644)
+
+    assert response.headers["x-export-files"] == "1"
+    archive = _zip(response)
+    assert "2.opus" not in archive.namelist()
+    assert "Locked -- file can't be read (permissions)" in archive.read("MISSING.txt").decode()
+
+
 def test_a_zip_over_4_gib_has_the_length_it_declares(db_session, make_user, roots):
     """Past 4 GiB zipstream-ng writes zip64 records: the length counted up front must still
     be the bytes streamed (sparse files, so the test writes nothing real)."""

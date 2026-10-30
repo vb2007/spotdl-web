@@ -889,9 +889,11 @@ export function jobPlaylistUrl(jobId: string): string {
 /** v64: v35 (e)'s probe, for an export URL above: a HEAD (the zip's with its limits), so a
  * 404 or an over-the-limit 413 shows in the row's notice instead of the page navigating to
  * JSON. HEAD has no body, so the status picks the code, as checkTrackFile's does. */
-export async function checkJobExport(url: string): Promise<void> {
+export async function checkJobExport(
+	url: string
+): Promise<{ files: number; tracks: number } | null> {
 	const response = await fetch(url, { method: 'HEAD', credentials: 'include' });
-	if (response.ok) return;
+	if (response.ok) return exportCountsOf(response);
 	if (response.status === 401 && !signingOut) unauthorizedHandler?.();
 	const code =
 		response.status === 413
@@ -921,7 +923,12 @@ export async function getJobExportCounts(
 	if (response.status === 401 && !signingOut) unauthorizedHandler?.();
 	// 413 (over the limit) still carries the counts: the playlist stays offered.
 	if (!response.ok && response.status !== 413) return null;
-	// A header that didn't arrive (a proxy that drops it) is "unknown", never a count of 0.
+	return exportCountsOf(response);
+}
+
+/** The export's counts from a response's headers (v64): `null` when they didn't arrive (a
+ * proxy that drops them), never a count of 0. The playlist's HEAD has none. */
+function exportCountsOf(response: Response): { files: number; tracks: number } | null {
 	const files = response.headers.get('X-Export-Files');
 	const tracks = response.headers.get('X-Export-Tracks');
 	if (files === null || tracks === null) return null;
