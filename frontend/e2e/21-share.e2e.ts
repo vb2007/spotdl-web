@@ -16,7 +16,7 @@ const SHARE =
 
 const OUTCOMES = () =>
 	new RegExp(
-		[m.share_queued, m.share_queued_in_library, m.dashboard_submit_already_queued]
+		[m.share_queued, m.share_queued_in_library, m.share_already_queued]
 			.map((message) => t(message).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
 			.join('|')
 	);

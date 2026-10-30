@@ -62,7 +62,7 @@ RISK: a short link needs a server round-trip before there is anything to read.
 	const queuedBefore = page.state.shareQueued ?? null;
 	const outcomeFor = (hint: api.CreateJobHint | undefined) =>
 		hint === 'already_queued'
-			? m.dashboard_submit_already_queued
+			? m.share_already_queued
 			: hint === 'in_library'
 				? m.share_queued_in_library
 				: m.share_queued;
@@ -243,7 +243,7 @@ RISK: a short link needs a server round-trip before there is anything to read.
 							type="button"
 							class="btn primary"
 							autofocus
-							disabled={phase === 'queueing'}
+							aria-disabled={phase === 'queueing' ? 'true' : undefined}
 							bind:this={queueButton}
 							aria-describedby={context ? 'share-context share-reading' : 'share-reading'}
 							onclick={queueIt}
@@ -366,7 +366,10 @@ RISK: a short link needs a server round-trip before there is anything to read.
 		text-decoration: none;
 	}
 
-	.primary:disabled {
+	/* aria-disabled, not disabled, while queueing: a disabled button drops its focus to <body>,
+	   and a slow create left a keyboard user starting over from the top (live review, round 2).
+	   queueIt's phase guard makes a second press a no-op. */
+	.primary[aria-disabled='true'] {
 		cursor: progress;
 	}
 

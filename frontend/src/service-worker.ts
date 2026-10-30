@@ -60,7 +60,7 @@ sw.addEventListener('fetch', (event) => {
 		const shell = async (answer?: Response) => {
 			const cache = await caches.open(CACHE);
 			// Every prerendered page is the same client-rendered shell; the root one stands in
-			// for a path that has none (it renders the app's own not-found page).
+			// for a path that has none (the client router finds no route for it).
 			const page =
 				(await cache.match(url.pathname, { ignoreSearch: true })) ?? (await cache.match('/'));
 			return page ?? answer ?? Response.error();
