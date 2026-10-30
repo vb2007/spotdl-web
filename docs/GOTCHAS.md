@@ -7483,6 +7483,19 @@ independently-found production bug from the same conversation)
   it was reading, stayed open until the cyclic garbage collector ran (30 aborts, 30 open files
   after 50 s). The response now wraps it in an async generator whose `finally` closes it, and
   `iter_chunks` closes the archive's own generator. Proven: 0 files open 3 s after 10 aborts.
+  *(Review round 3: under ASGI spec ≥ 2.4 a disconnect surfaces as an `OSError` from `send()`
+  (Starlette re-raises it as `ClientDisconnect`) and Starlette never calls `aclose()` on the
+  body, so that `finally` still waited for the async generator's finalizer. The response
+  (`_ClosingStreamingResponse`) now closes its body itself; a plain `StreamingResponse` in the
+  same disconnect leaves the file open, which the test now checks.)*
+- **zipstream-ng 1.9.3 counts a 65,535-entry archive's length without the zip64 end records**
+  it then writes (`__len__` tests `>` the limit, the footer `>=`), so its Content-Length would be
+  76 bytes short. The files limit is capped at 65,000 (env and settings). Above 4 GiB the count
+  holds: a sparse 4.5 GiB test streams exactly the declared length.
+- **A file can move between the plan's read and its stat too.** The rows are read, the
+  transaction ends, then each file is stat'ed: a sweep in between left a moved file in
+  `MISSING.txt`. The misses get one batched ledger re-read after the stats (one query, its own
+  short session), as the stream does for a file that moves later.
   What's left is the allocator: the worker's VmRSS rises with many *concurrent* aborted streams
   (242 → 466 MB over 110, about 0.5 MB each and slowing), while tracemalloc shows 0 KiB net
   Python allocation over 100 aborted streams of our own code, and a single stream stays flat.
