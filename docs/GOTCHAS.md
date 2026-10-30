@@ -384,8 +384,9 @@ needed" claim — rather than silently deleted.
 - `expand_job`'s tracks carry an outbox marker (`pending` + `scheduled_at`) under a lease, so a
   broker error mid-enqueue is beat's next tick, never a stranded track → *v56*
 - A watched job's schedule is `jobs.next_expand_at` alone (beat's tick, never an ETA); "one
-  re-expansion at a time per job" is a Redis marker (`spotdl:reexpand:<id>`, 1h expiry), not a
-  lock the work relies on: the re-expansion itself is safe to run twice → *v63*
+  re-expansion at a time per job" is a Redis marker (`spotdl:reexpand:<id>`, a token per claim,
+  the claim lease's 15 min until the run starts, 2h while it runs), not a lock the work relies on:
+  the re-expansion itself is safe to run twice → *v63*
 - A re-expanded track is told from a first expansion's by `created_at` (`clock_timestamp()` on
   the re-expansion, the transaction's `now()` on the first) → *v63*
 - `tasks/beat.py` can't `from app.tasks.expand import expand_job` (celery_app imports beat while
@@ -7426,13 +7427,17 @@ independently-found production bug from the same conversation)
   a time per job" (409 `reexpand_running`) is `SET spotdl:reexpand:<id> <token> NX EX 900`, set
   by whoever hands the run to the broker and cleared by the task's `finally` only while it still
   holds that run's token; it expires with the claim lease if the worker dies, so a lost run is
-  claimed again then (review round 6: an hour-long marker had kept the lease from mattering). The run doesn't depend on it: it inserts under the job's row lock and only ids
+  claimed again then (review round 6: an hour-long marker had kept the lease from mattering).
+  A run that starts takes its marker back for 2h (`watch.start_run`), so "one at a time" holds for
+  a long read too; a message that waited past its lease while beat claimed the job again finds
+  another token and skips its read (review round 7): one Spotify read per due check, however
+  backed up the `expand` queue is. Each re-claim still takes a slot of that tick's budget. The run doesn't depend on it: it inserts under the job's row lock and only ids
   the job lacks, so a second run (a redelivery, an expired marker behind a backed-up `expand`
   queue) costs a Spotify read, never a duplicate track.
 - **The hourly cap counts `last_expanded_at`.** Every re-expansion start (beat's or "check now")
   sets it, and beat's budget is `REEXPAND_MAX_PER_HOUR` minus the *jobs* started in the last hour:
-  a job checked three times in an hour counts once (one column per job; beat itself starts a job
-  at most once per interval, so only repeated "check now" undercounts).
+  a job checked three times in an hour counts once (one column per job): repeated "check now", or
+  beat re-claiming a job whose message sat in a backed-up queue past its lease, undercounts.
   "Check now" counts but is never refused by the cap (it is one user action, one job, and 409s
   while running); scheduled runs yield to it.
 - **`now()` can't tell the new tracks apart in a test.** "N new since" counts a job's tracks
