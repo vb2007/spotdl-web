@@ -7452,6 +7452,13 @@ independently-found production bug from the same conversation)
   element carries `autofocus`, which it focuses instead. Under `vite dev` the mount came later
   (about 330 ms), after the reset, so every dev check and spec 21 passed. The live review caught
   it on the nginx build; the action now carries `autofocus` (a reasoned `svelte-ignore`).
+- **History around a share.** A signed-out share's first load is *replaced* by `/login?next=`, so
+  the login must replace that entry with the share too (`goto(next, { replaceState: true })`):
+  pushed, a Back reached `/login`, whose layout load redirected a signed-in visitor straight to
+  the share again, with fresh state and a live confirm (a popstate redirect writes no history).
+  A queued share marks its entry (`replaceState('', { shareQueued })`) for a Back, and
+  sessionStorage under the entry's `sveltekit:history` index for a reload or a discarded tab:
+  SvelteKit's first load starts an entry's `page.state` empty.
 - **`beforeinstallprompt` fires once, early, often before `/account` is open.** `app.html`'s inline
   script keeps it on `window` (and holds the browser's own banner back), and the install entry
   reads it there.

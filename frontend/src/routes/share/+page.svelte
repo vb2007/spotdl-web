@@ -57,9 +57,22 @@ RISK: a short link needs a server round-trip before there is anything to read.
 	type Target = { type: SpotifyType; id: string; url: string };
 	type Phase = 'none' | 'resolving' | 'resolve-failed' | 'ready' | 'queueing' | 'done';
 
-	// Queued already from this history entry (a Back to it): the outcome again, never a second
-	// armed "queue it" one stray Enter away from a duplicate job (review round 5).
-	const queuedBefore = page.state.shareQueued ?? null;
+	// Queued already from this history entry: the outcome again, never a second armed "queue it"
+	// one stray Enter away from a duplicate job (review round 5). In the entry's state for a Back,
+	// and in sessionStorage under the entry's index for a reload or a tab the phone discarded
+	// (SvelteKit's first load starts the entry's state empty; review round 6).
+	const entryIndex = (history.state as Record<string, unknown> | null)?.['sveltekit:history'];
+	// i18n-ignore: a storage key
+	const storageKey = `spotdl:share-queued:${String(entryIndex)}:${window.location.search}`;
+	function storedQueued(): App.PageState['shareQueued'] | null {
+		try {
+			const raw = sessionStorage.getItem(storageKey);
+			return raw ? JSON.parse(raw) : null;
+		} catch {
+			return null;
+		}
+	}
+	const queuedBefore = page.state.shareQueued ?? storedQueued();
 	const outcomeFor = (hint: api.CreateJobHint | undefined) =>
 		hint === 'already_queued'
 			? m.share_already_queued
@@ -131,17 +144,37 @@ RISK: a short link needs a server round-trip before there is anything to read.
 			outcome = outcomeFor(job.hint);
 			outcomeSettled = job.hint === 'in_library';
 			phase = 'done';
-			replaceState('', { ...page.state, shareQueued: { ...target, hint: job.hint ?? null } });
+			queued = { ...target, hint: job.hint ?? null };
 		} catch (err) {
 			problem = () => errorText(err, m.share_failed);
 			phase = 'ready';
 		}
+		// Recorded only while this page is still the one shown (a slow create answered after
+		// "not now" must not mark the dashboard's entry), and outside the try: a history write
+		// failing says nothing about the job, which exists.
+		if (queued && !left) remember(queued);
 		await focusNext();
+	}
+
+	let queued: App.PageState['shareQueued'] | null = null;
+	let left = false;
+	function remember(entry: NonNullable<App.PageState['shareQueued']>): void {
+		try {
+			sessionStorage.setItem(storageKey, JSON.stringify(entry));
+		} catch {
+			// Storage full or off: the history state below still covers a Back.
+		}
+		try {
+			replaceState('', { ...page.state, shareQueued: entry });
+		} catch {
+			// The browser refused a history write (rate limit): the outcome is on screen anyway.
+		}
 	}
 
 	onMount(() => {
 		if (link?.kind === 'short' && !queuedBefore) lookUp();
 		else focusNext();
+		return () => (left = true);
 	});
 
 	// Arriving from the login round-trip is a navigation, and the layout then puts focus on the
