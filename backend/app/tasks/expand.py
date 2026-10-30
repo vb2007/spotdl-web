@@ -6,7 +6,7 @@ from sqlalchemy import case, select, update
 
 from app.db import SessionLocal
 from app.models import Job, JobState, Track, TrackState
-from app.services import events, expansion, job_status
+from app.services import events, expansion, job_status, watch
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
@@ -139,10 +139,71 @@ def _enqueue_pending_tracks(db, job: Job, why: str) -> None:
     _dispatch_due(db, job, pending)
 
 
+def _reexpand(db, job_id: str) -> None:
+    """v63's re-expand mode: reads the job's link again and adds only the tracks whose Spotify
+    id the job doesn't have yet. A track gone from the playlist stays in the job. A new track
+    already in the ledger is added all the same, and download_track resolves it as
+    `skipped_duplicate` at once. Its new tracks go through the same outbox marker as a first
+    expansion's, and wait out the breaker like any other.
+
+    An error reading the link leaves the job as it was: the next scheduled run tries again."""
+    job = db.get(Job, uuid.UUID(job_id))
+    if job is None or job.state != JobState.EXPANDED or job.archived_at is not None:
+        logger.info("expand_job: job %s isn't an expanded, unarchived job; not re-expanding", job_id)
+        return
+    source_url, user_id = job.source_url, job.user_id
+    # The Spotify round trips can take minutes: never with a transaction open across them.
+    db.commit()
+    try:
+        songs = expansion.expand(source_url)
+    except Exception as exc:
+        logger.warning("expand_job: job %s couldn't be re-expanded: %s", job_id, exc)
+        return
+
+    # The job's row lock, as a first expansion's commit and cancel_job take it: a cancel
+    # either lands first (and nothing is added) or cancels these tracks too.
+    _lock_job(db, job)
+    db.refresh(job)
+    if job.state != JobState.EXPANDED or job.archived_at is not None:
+        db.rollback()
+        logger.info("expand_job: job %s is %s meanwhile; not re-expanding", job_id, job.state.value)
+        return
+    known = set(db.execute(select(Track.spotify_track_id).where(Track.job_id == job.id)).scalars())
+    tracks = []
+    for song in songs:
+        if not song.song_id or song.song_id in known:
+            continue
+        known.add(song.song_id)
+        track = Track(job_id=job.id, spotify_track_id=song.song_id, song_json=song.json)
+        db.add(track)
+        tracks.append(track)
+    _mark_due(tracks, datetime.now(timezone.utc))
+    db.commit()
+    logger.info(
+        "expand_job: job %s re-expanded: %d new of %d tracks read", job_id, len(tracks), len(songs)
+    )
+    if not tracks:
+        return
+    # The row re-reads its counts (and an open job its tracks) on `expanded`, the event a
+    # first expansion sends; its rollup moves back to `active` (v62's job.status).
+    events.publish_job_event(user_id, job.id, job.state.value)
+    job_status.publish_change(db, job.id)
+    _dispatch_due(db, job, [track.id for track in tracks])
+
+
 # v53: nothing reads its result, and storing one made every enqueue wait on the result
 # backend: with Redis down, its 20 reconnect retries held a job create about 19s.
 @celery_app.task(name="app.tasks.expand.expand_job", ignore_result=True)
-def expand_job(job_id: str) -> None:
+def expand_job(job_id: str, reexpand: bool = False) -> None:
+    """`reexpand` (v63): a watched job's scheduled run or "check now" (see _reexpand)."""
+    if reexpand:
+        db = SessionLocal()
+        try:
+            _reexpand(db, job_id)
+        finally:
+            db.close()
+            watch.release_run(job_id)
+        return
     db = SessionLocal()
     try:
         job = db.get(Job, uuid.UUID(job_id))
