@@ -251,3 +251,5 @@ yt-dlp-ejs==0.8.0
     # via yt-dlp
 ytmusicapi==1.12.1
     # via spotdl
+zipstream-ng==1.9.3
+    # via spotdl-web-backend (pyproject.toml)
