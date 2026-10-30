@@ -713,6 +713,8 @@
 	}
 
 	.reading dd {
+		/* A reading with its unit ("409 MB") never breaks across lines (live review round 2). */
+		white-space: nowrap;
 		font-size: var(--fs-lead);
 		font-weight: var(--fw-medium);
 		color: var(--text-primary);

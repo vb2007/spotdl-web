@@ -4,7 +4,7 @@
 // v46: every label is a function and every number and date goes through `Intl` with the
 // active locale, so the page re-renders in place on a language switch.
 import type { BreakerEvent, PathStats, RecordedWindow, StatsWindow } from '$lib/api';
-import { formatDateTime, formatNumber } from '$lib/i18n/format';
+import { counted, formatDateTime, formatNumber } from '$lib/i18n/format';
 import * as m from '$lib/paraglide/messages';
 
 export function pathLabel(path: PathStats['path']): string {
@@ -50,12 +50,14 @@ export function formatBytes(bytes: number): string {
 		value /= 1000;
 		unit += 1;
 	}
+	// Plain bytes in words, from the message files: Intl's word follows the browser's region when
+	// the UI language and the region make no locale it knows (a Hungarian UI in an en-US browser
+	// read "0 bytes"; live review round 2). The multiples are symbols, the same everywhere.
+	if (unit === 0) return m.stats_bytes(counted(Math.round(value)));
 	return formatNumber(value, {
 		style: 'unit',
 		unit: BYTE_UNITS[unit],
-		// Plain bytes in words ("0 bytes", "0 bájt": the short form is a bare "byte"); the
-		// multiples as their symbols (live review round 1).
-		unitDisplay: unit === 0 ? 'long' : 'short',
+		unitDisplay: 'short',
 		maximumFractionDigits: unit === 0 || value >= 100 ? 0 : 1
 	});
 }

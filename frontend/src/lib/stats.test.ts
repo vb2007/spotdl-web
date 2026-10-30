@@ -323,6 +323,11 @@ describe('v66: a user’s own stats', () => {
 		vi.stubGlobal('navigator', { languages: ['hu-HU'], language: 'hu-HU' });
 		speak('hu');
 		expect(formatBytes(3_140_000_000)).toBe('3,1 GB');
+		expect(formatBytes(0)).toBe('0 bájt');
+		vi.unstubAllGlobals();
+		// A Hungarian UI in an en-US browser: the word is still Hungarian (live review round 2).
+		vi.stubGlobal('navigator', { languages: ['en-US'], language: 'en-US' });
+		expect(formatBytes(0)).toBe('0 bájt');
 		vi.unstubAllGlobals();
 	});
 });
