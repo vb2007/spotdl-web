@@ -17,6 +17,8 @@ declare global {
 				type: 'track' | 'album' | 'artist' | 'playlist';
 				id: string;
 				hint: 'already_queued' | 'in_library' | null;
+				/** Whose it is: another identity signing in on this tab never takes it as theirs. */
+				viewer: string;
 			};
 		}
 		// interface Platform {}
