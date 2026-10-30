@@ -99,9 +99,9 @@
 	// share opened signed out does (`+layout.ts`). Its query from `location` (v54).
 	async function toLoginAfterEnd(): Promise<void> {
 		if (page.url.pathname === resolve('/share')) {
-			// eslint-disable-next-line svelte/no-navigation-without-resolve -- /login plus a next that safeNext checks on arrival
 			// Replacing, as the signed-out redirect does: the share comes back in this same entry,
 			// so nothing behind it is a second, still-armed copy of it (review round 7).
+			// eslint-disable-next-line svelte/no-navigation-without-resolve -- /login plus a next that safeNext checks on arrival
 			await goto(loginFor('/share' + window.location.search), {
 				replaceState: true,
 				state: { sessionEnded: true }
