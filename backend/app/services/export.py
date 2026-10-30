@@ -46,7 +46,10 @@ _CHUNK_BYTES = 1024 * 1024
 # the ones Windows refuses, and control characters.
 # C1 controls and the Unicode line/paragraph separators too: Python's splitlines() (and
 # some players) treat U+0085, U+2028 and U+2029 as line breaks.
-_UNSAFE_NAME = re.compile(r'[\\/:*?"<>|\x00-\x1f\x7f-\x9f\u2028\u2029]')
+# And the bidi controls, which make `exe.OPUS` display for `SUPO.exe`.
+_UNSAFE_NAME = re.compile(
+    r'[\\/:*?"<>|\x00-\x1f\x7f-\x9f\u2028\u2029\u200e\u200f\u202a-\u202e\u2066-\u2069]'
+)
 # In UTF-8 bytes, under the common 255-byte filename limit with room left for a ` (N)`
 # duplicate suffix: a Hungarian name's accented letters take two bytes each.
 _MAX_NAME_BYTES = 200
@@ -62,6 +65,8 @@ class ExportFile:
     size: int
     # The ledger key, to find the file again if a library sweep moves it mid-stream.
     spotify_track_id: str
+    # The file the plan stat'ed (st_dev, st_ino): the stream opens that file or none.
+    identity: tuple[int, int]
     duration: int | None
     label: str
     # Under the library mount (not still on the downloads volume): `?paths=library` lists only these.
@@ -154,7 +159,9 @@ def _duration(song_json: dict) -> int | None:
     value = song_json.get("duration")
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    if math.isfinite(value) and 0 < value <= _MAX_DURATION:
+    # Compared before anything else: exact for a huge int (math.isfinite would overflow on
+    # one), and false for NaN and infinity.
+    if 0 < value <= _MAX_DURATION:
         return int(round(value))
     return None
 
@@ -164,7 +171,7 @@ def _order_key(row) -> tuple:
     `created_at` ties (it only orders separate expansions); within one, a playlist's
     `list_position` decides, and otherwise (an album, or an artist's whole discography, where
     spotdl sets no list position) album by album, oldest first, then disc and track number."""
-    song = row.song_json or {}
+    song = row.song_json if isinstance(row.song_json, dict) else {}
 
     def number(key: str) -> float:
         value = song.get(key)
@@ -227,8 +234,8 @@ _NOT_FOUND = "file not found at its recorded path"
 _UNREADABLE = "file can't be read (permissions)"
 
 
-def _locate(raw_path: str) -> tuple[Path, str, int] | str:
-    """The file at `raw_path`: its resolved path, its root's nginx prefix and its size, or
+def _locate(raw_path: str) -> tuple[Path, str, os.stat_result] | str:
+    """The file at `raw_path`: its resolved path, its root's nginx prefix and its stat, or
     the reason it isn't in the export."""
     try:
         location = allowed_file_location(Path(raw_path))
@@ -245,13 +252,14 @@ def _locate(raw_path: str) -> tuple[Path, str, int] | str:
         return _UNREADABLE
     except OSError:
         return _NOT_FOUND
-    if not resolved.is_file():
+    # The type from the same stat (a second look could raise, or see another file).
+    if not stat_module.S_ISREG(stat.st_mode):
         return _NOT_FOUND
     # Checked here, not met mid-stream: an unreadable file would break every download of the
     # zip partway, where the probe had said it was fine.
     if not os.access(resolved, os.R_OK):
         return _UNREADABLE
-    return resolved, prefix, stat.st_size
+    return resolved, prefix, stat
 
 
 def plan_from_rows(rows: list, title: str) -> ExportPlan:
@@ -287,18 +295,19 @@ def plan_from_rows(rows: list, title: str) -> ExportPlan:
     files: list[ExportFile] = []
     missing: list[tuple[str, str]] = []
     for index, row in enumerate(rows):
-        song = row.song_json or {}
+        song = row.song_json if isinstance(row.song_json, dict) else {}
         label = _track_label(song)
         result = found[index]
         if isinstance(result, str):
             missing.append((label, result))
             continue
-        resolved, prefix, size = result
+        resolved, prefix, stat = result
         files.append(
             ExportFile(
                 arcname=_dedupe(safe_name(resolved.name, "track", keep_extension=True), taken),
                 path=resolved,
-                size=size,
+                size=stat.st_size,
+                identity=(stat.st_dev, stat.st_ino),
                 spotify_track_id=row.spotify_track_id,
                 duration=_duration(song),
                 label=label,
@@ -390,30 +399,55 @@ def _current_path(spotify_track_id: str) -> Path | None:
     return location[0] if location is not None else None
 
 
-def _open(entry: ExportFile):
-    """The entry's file, opened as the stream reaches it. A library sweep may have moved it
-    since the plan (owner's decision, 2026-10-30): the sweep commits the ledger's new path
-    before it removes the source (tasks/library.py), so a miss is re-resolved once through the
-    ledger. The file found there must be a regular file of the size the plan counted, or the
-    archive's sizes (and the Content-Length) would be wrong: then the stream ends instead, as
-    it does for any other file that can't be read as planned (ExportFileChanged)."""
+def _open_regular(path: Path, identity: tuple[int, int] | None = None):
+    """`path` opened for reading only if it is a regular file, and (with `identity`) the very
+    file the plan stat'ed. Non-blocking, so a FIFO swapped in can't hang a threadpool thread
+    (an uncancellable read: 40 of them stalled the whole API in a live review), and without
+    following a symlink in the last component; the identity check covers a folder swapped for
+    a link out of the roots (both files exist at once, so their inodes differ). It can't tell a
+    same-size file written over a freed inode in place, but that one is inside a root anyway."""
+    fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW | os.O_CLOEXEC)
     try:
-        return open(entry.path, "rb")
+        stat = os.fstat(fd)
+        if not stat_module.S_ISREG(stat.st_mode):
+            raise ExportFileChanged(f"{path}: not a regular file any more")
+        if identity is not None and (stat.st_dev, stat.st_ino) != identity:
+            raise ExportFileChanged(f"{path}: replaced by another file since the plan")
+        os.set_blocking(fd, True)
+        return os.fdopen(fd, "rb")
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _open(entry: ExportFile):
+    """The entry's file, opened as the stream reaches it, and only if it is still the file the
+    plan counted (_open_regular). A library sweep may have moved it since the plan (owner's
+    decision, 2026-10-30): the sweep commits the ledger's new path before it removes the source
+    (tasks/library.py), so a miss is re-resolved once through the ledger, inside an allowed
+    root, and must be a regular file of the planned size. Anything else ends the stream the
+    documented way (ExportFileChanged)."""
+    try:
+        return _open_regular(entry.path, entry.identity)
     except FileNotFoundError:
         pass
+    except ExportFileChanged:
+        raise
     except OSError as exc:
-        # Unreadable now, replaced by a folder, a loop, an I/O error.
+        # Unreadable now, replaced by a symlink (ELOOP), an I/O error.
         raise ExportFileChanged(f"{entry.arcname}: can't be read ({exc.strerror or exc})") from None
-    moved = _current_path(entry.spotify_track_id)
+    try:
+        moved = _current_path(entry.spotify_track_id)
+    except Exception as exc:
+        raise ExportFileChanged(f"{entry.arcname}: gone, and the ledger couldn't be read ({exc})") from None
     if moved is None or moved == entry.path:
         raise ExportFileChanged(f"{entry.arcname}: gone from {entry.path}")
-    # A regular file only, as the plan requires (a FIFO would block the read forever).
-    if not moved.is_file():
-        raise ExportFileChanged(f"{entry.arcname}: moved to {moved}, not a file")
     try:
-        handle = open(moved, "rb")
-    except OSError:
-        raise ExportFileChanged(f"{entry.arcname}: can't be read at {moved} either") from None
+        handle = _open_regular(moved)
+    except ExportFileChanged:
+        raise
+    except OSError as exc:
+        raise ExportFileChanged(f"{entry.arcname}: can't be read at {moved} ({exc.strerror or exc})") from None
     if os.fstat(handle.fileno()).st_size != entry.size:
         handle.close()
         raise ExportFileChanged(f"{entry.arcname}: moved to {moved} with another size")

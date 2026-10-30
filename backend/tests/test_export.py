@@ -696,6 +696,66 @@ def test_odd_song_json_types_read_sanely(authenticated_client, db_session, owner
     assert "#EXTINF:-1,Real - Song 2" in playlist
 
 
+@pytest.mark.parametrize("swap", ["fifo", "symlink out of the roots", "folder swapped for a link out"])
+def test_a_file_swapped_after_the_plan_ends_the_stream_without_hanging(swap, db_session, make_user, roots, tmp_path):
+    """A FIFO swapped in used to block an uncancellable threadpool read forever (40 of them
+    stalled the API); a symlink swapped in streamed a file from outside the roots."""
+    import threading
+
+    downloads, _library = roots
+    job = _job(db_session, make_user("owner@example.com"))
+    target = _file(downloads / "sub", "01 - a.opus")
+    _track(db_session, job, 1, path=target)
+    plan = export.plan_export(db_session, job.id, "The Album")
+    # Outside the roots, the same name and size: only the file's identity tells them apart.
+    outside = _file(tmp_path / "elsewhere", "01 - a.opus", size=target.stat().st_size)
+
+    def change():
+        if swap == "folder swapped for a link out":
+            (downloads / "sub").rename(downloads / "sub.bak")
+            (downloads / "sub").symlink_to(outside.parent)
+            return
+        target.unlink()
+        if swap == "fifo":
+            os.mkfifo(target)
+        else:
+            target.symlink_to(outside)
+
+    outcome = []
+
+    def run():
+        try:
+            _stream_after(plan, change)
+            outcome.append("streamed")
+        except export.ExportFileChanged:
+            outcome.append("ended")
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    thread.join(timeout=10)
+    if thread.is_alive():
+        os.open(target, os.O_WRONLY | os.O_NONBLOCK)  # release it before failing
+        pytest.fail("the stream blocked on the swapped file")
+    assert outcome == ["ended"]
+
+
+def test_a_title_or_song_json_of_another_type_doesnt_fail_the_export(authenticated_client, db_session, owner, roots):
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "1.opus"), list_name=123, duration=10**400)
+    odd = _track(db_session, job, 2, path=_file(downloads, "2.opus"))
+    odd.song_json = [1, 2]
+    db_session.commit()
+
+    head = authenticated_client.head(f"/api/jobs/{job.id}/export.zip")
+    zipped = authenticated_client.get(f"/api/jobs/{job.id}/export.zip")
+    playlist = authenticated_client.get(f"/api/jobs/{job.id}/playlist.m3u8")
+
+    assert (head.status_code, zipped.status_code, playlist.status_code) == (200, 200, 200)
+    assert "123.m3u8" in _zip(zipped).namelist()
+    assert "#EXTINF:-1,Artist A, Artist B - Song 1" in playlist.text
+
+
 def test_a_zip_over_4_gib_has_the_length_it_declares(db_session, make_user, roots):
     """Past 4 GiB zipstream-ng writes zip64 records: the length counted up front must still
     be the bytes streamed (sparse files, so the test writes nothing real)."""
@@ -755,6 +815,7 @@ def test_the_response_closes_its_stream_when_the_client_is_gone(db_session, make
     [
         ("Björk", "Björk"),
         ("line\u2028sep\x85", "line_sep_"),
+        ("rtl\u202eSUPO.exe", "rtl_SUPO.exe"),
         ("AC/DC: Live", "AC_DC_ Live"),
         ("..\\..\\evil", "_.._evil"),
         ("...", "export"),
