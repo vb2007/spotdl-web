@@ -11,7 +11,9 @@ end the transaction before a byte is streamed (v31's idle-in-transaction lesson)
 here touches the session once the plan exists.
 """
 
+import logging
 import math
+import os
 import re
 import uuid
 from dataclasses import dataclass
@@ -22,8 +24,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from zipstream import ZIP_STORED, ZipStream
 
+from app.db import SessionLocal
 from app.models import DownloadedTrack, Track, TrackState
 from app.routers.tracks import _INTERNAL_LIBRARY_PREFIX, allowed_file_location
+
+logger = logging.getLogger(__name__)
 
 MISSING_NAME = "MISSING.txt"
 
@@ -51,6 +56,8 @@ class ExportFile:
     arcname: str
     path: Path
     size: int
+    # The ledger key, to find the file again if a library sweep moves it mid-stream.
+    spotify_track_id: str
     duration: int | None
     label: str
     # Under the library mount (not still on the downloads volume): `?paths=library` lists only these.
@@ -165,6 +172,7 @@ def load_rows(db: Session, job_id: uuid.UUID) -> list:
     return db.execute(
         select(
             Track.id,
+            Track.spotify_track_id,
             Track.state,
             Track.song_json,
             Track.output_path,
@@ -214,6 +222,7 @@ def plan_from_rows(rows: list, title: str) -> ExportPlan:
                 arcname=_dedupe(safe_name(resolved.name, "track", keep_extension=True), taken),
                 path=resolved,
                 size=stat.st_size,
+                spotify_track_id=row.spotify_track_id,
                 duration=_duration(song),
                 label=label,
                 in_library=prefix == _INTERNAL_LIBRARY_PREFIX,
@@ -256,14 +265,74 @@ def missing_text(plan: ExportPlan) -> str:
     return "\n".join(lines) + "\n"
 
 
+class ExportFileChanged(Exception):
+    """A file can't be streamed as planned: gone, or no longer the size the Content-Length
+    promised. The response is already under way, so the stream ends there."""
+
+
+def _current_path(spotify_track_id: str) -> Path | None:
+    """Where the ledger says the file is now, inside an allowed root. One short read on a
+    session of its own, ended at once: the stream around it may run for hours, and it must
+    not hold a transaction meanwhile (v31)."""
+    session = SessionLocal()
+    try:
+        file_path = session.execute(
+            select(DownloadedTrack.file_path).where(DownloadedTrack.spotify_track_id == spotify_track_id)
+        ).scalar_one_or_none()
+        session.rollback()
+    finally:
+        session.close()
+    if file_path is None:
+        return None
+    location = allowed_file_location(Path(file_path))
+    return location[0] if location is not None else None
+
+
+def _open(entry: ExportFile):
+    """The entry's file, opened as the stream reaches it. A library sweep may have moved it
+    since the plan (owner's decision, 2026-10-30): the sweep commits the ledger's new path
+    before it removes the source (tasks/library.py), so a miss is re-resolved once through the
+    ledger. The file found there must be the size the plan counted, or the archive's sizes
+    (and the Content-Length) would be wrong: then the stream ends instead."""
+    try:
+        return open(entry.path, "rb")
+    except FileNotFoundError:
+        moved = _current_path(entry.spotify_track_id)
+        if moved is None or moved == entry.path:
+            raise ExportFileChanged(f"{entry.arcname}: gone from {entry.path}") from None
+        handle = open(moved, "rb")
+        if os.fstat(handle.fileno()).st_size != entry.size:
+            handle.close()
+            raise ExportFileChanged(f"{entry.arcname}: moved to {moved} with another size") from None
+        logger.info("export: %s moved during the stream, reading it from %s", entry.arcname, moved)
+        return handle
+
+
+def _file_bytes(entry: ExportFile):
+    """The entry's bytes, in chunks, opened only when the stream reaches it (so an export of
+    thousands of files never holds more than one open). Exactly `entry.size` of them, or the
+    stream ends: a sized archive's entries can't change length."""
+    with _open(entry) as handle:
+        sent = 0
+        while chunk := handle.read(_CHUNK_BYTES):
+            sent += len(chunk)
+            if sent > entry.size:
+                raise ExportFileChanged(f"{entry.arcname}: grew during the stream")
+            yield chunk
+        if sent != entry.size:
+            raise ExportFileChanged(f"{entry.arcname}: shrank during the stream")
+
+
 def build_zip(plan: ExportPlan) -> ZipStream:
     """A STORED (uncompressed) archive with its size known before the first byte: audio
     doesn't compress, and a known size is what lets the response carry a Content-Length
     (and the browser show real progress). Nothing is written to disk or held in memory:
-    each file is read in chunks while the response streams."""
+    each file is read in chunks while the response streams. An entry is added as sized
+    bytes rather than a path, so a file moved mid-stream can be found again (_open); the
+    cost is that its timestamp in the archive is the export's, not the file's."""
     archive = ZipStream(compress_type=ZIP_STORED, sized=True)
     for entry in plan.files:
-        archive.add_path(str(entry.path), entry.arcname)
+        archive.add(_file_bytes(entry), entry.arcname, size=entry.size)
     archive.add(m3u_text(plan).encode("utf-8"), plan.playlist_name)
     if plan.missing:
         archive.add(missing_text(plan).encode("utf-8"), MISSING_NAME)
