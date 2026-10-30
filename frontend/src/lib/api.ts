@@ -693,10 +693,7 @@ export async function logout(): Promise<{ status: string }> {
  * same link (nothing new was created), `in_library` a track the ledger already has. */
 export type CreateJobHint = 'already_queued' | 'in_library' | null;
 
-export function createJob(
-	url: string,
-	client?: string
-): Promise<Job & { hint?: CreateJobHint }> {
+export function createJob(url: string, client?: string): Promise<Job & { hint?: CreateJobHint }> {
 	return request('/api/jobs', {
 		method: 'POST',
 		body: JSON.stringify({ url }),
