@@ -55,6 +55,8 @@ test.describe('signed out', () => {
 		await signIn(page);
 		await expect(page).toHaveURL(`${baseURL}${SHARE}`);
 		await expect(page.getByRole('heading', { level: 1 })).toHaveText(t(m.share_heading));
+		// The entries this tab has here; the login replaced its own, so nothing is behind the share.
+		const entries = await page.evaluate(() => history.length);
 		await expect(page.getByText('Contact · Daft Punk', { exact: true })).toBeVisible();
 		await expect(page.getByText(t(m.share_type_track), { exact: true })).toBeVisible();
 		await expect(page.getByText(TRACK_ID, { exact: true })).toBeVisible();
@@ -93,9 +95,10 @@ test.describe('signed out', () => {
 		await page.reload();
 		await expect(page.locator('#share-outcome')).toHaveText(OUTCOMES());
 		await expect(page.getByRole('button', { name: t(m.share_queue), exact: true })).toHaveCount(0);
-		// And nothing behind it (no /login that would bring the confirm back): the share is the
-		// first entry of this tab, as an installed app's share opens it.
-		expect(await page.goBack()).toBeNull();
+		// And nothing new behind it (no /login that would bring the confirm back): only the
+		// dashboard ahead of it.
+		expect(await page.evaluate(() => history.length)).toBe(entries + 1);
+		await page.goBack();
 		await expect(page).toHaveURL(`${baseURL}${SHARE}`);
 		await expect(page.getByRole('button', { name: t(m.share_queue), exact: true })).toHaveCount(0);
 		// The job is this user's own.
@@ -124,6 +127,7 @@ test.describe('signed out', () => {
 		await signIn(page);
 		await expect(page).toHaveURL(`${baseURL}${SHARE}`);
 		await expect(page.getByRole('button', { name: t(m.share_queue), exact: true })).toBeFocused();
+		const entries = await page.evaluate(() => history.length);
 		// The session ends under the page (expired, revoked): this tab's own cookie, so the
 		// saved sessions other specs use are untouched.
 		expect((await pageFetch(page, '/api/auth/logout', { method: 'POST' })).status).toBe(200);
@@ -133,6 +137,8 @@ test.describe('signed out', () => {
 		await signIn(page);
 		await expect(page).toHaveURL(`${baseURL}${SHARE}`);
 		await expect(page.getByRole('button', { name: t(m.share_queue), exact: true })).toBeFocused();
+		// The hop to /login and back replaced the share's entry each way: nothing behind it.
+		expect(await page.evaluate(() => history.length)).toBe(entries);
 	});
 
 	test('an off-site next is refused after the login', async ({ page, baseURL }) => {

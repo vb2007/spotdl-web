@@ -64,7 +64,8 @@ RISK: a short link needs a server round-trip before there is anything to read.
 	const entryIndex = (history.state as Record<string, unknown> | null)?.['sveltekit:history'];
 	// i18n-ignore: a storage key
 	// Per identity too: another person signing in on this tab never sees someone else's outcome.
-	const storageKey = `spotdl:share-queued:${untrack(() => data.session?.email ?? '')}:${String(entryIndex)}:${window.location.search}`;
+	const viewer = untrack(() => data.session?.email ?? '');
+	const storageKey = `spotdl:share-queued:${viewer}:${String(entryIndex)}:${window.location.search}`;
 	function storedQueued(): App.PageState['shareQueued'] | null {
 		try {
 			const raw = sessionStorage.getItem(storageKey);
@@ -73,7 +74,9 @@ RISK: a short link needs a server round-trip before there is anything to read.
 			return null;
 		}
 	}
-	const queuedBefore = page.state.shareQueued ?? storedQueued();
+	// The entry's state carries no key of its own, so it names its viewer (review round 8).
+	const fromState = page.state.shareQueued?.viewer === viewer ? page.state.shareQueued : null;
+	const queuedBefore = fromState ?? storedQueued();
 	const outcomeFor = (hint: api.CreateJobHint | undefined) =>
 		hint === 'already_queued'
 			? m.share_already_queued
@@ -145,7 +148,7 @@ RISK: a short link needs a server round-trip before there is anything to read.
 			outcome = outcomeFor(job.hint);
 			outcomeSettled = job.hint === 'in_library';
 			phase = 'done';
-			queued = { ...target, hint: job.hint ?? null };
+			queued = { ...target, hint: job.hint ?? null, viewer };
 		} catch (err) {
 			problem = () => errorText(err, m.share_failed);
 			phase = 'ready';
