@@ -121,8 +121,9 @@ function prune() {
 }
 
 /** The session's identity and saved switch, from a `/me` read. A new identity starts with
- * nothing remembered; the same one takes the value unless this tab knows a newer one. Opens the
- * channel, so this tab hears the other tabs' offers and saves from now on. */
+ * nothing remembered. The same one takes the value, or, once this tab has saved or heard a save,
+ * asks the server afresh (the `/me` may predate that save), a save made meanwhile winning. Opens
+ * the channel, so this tab hears the other tabs' offers and saves from now on. */
 export function adopt(email: string, enabled: boolean) {
 	shared();
 	if (adoptedFor !== email) {
