@@ -82,6 +82,11 @@ services:
           # itself.
           memory: 768M
           cpus: "1.0"
+    # v66: the same real host directories as web's, read-only: "my stats" reads its library
+    # contribution's file sizes (the base file's comment). `!override`, as below.
+    volumes: !override
+      - ${DOWNLOADS_DIR:?set DOWNLOADS_DIR in .env to a real host path before deploying}:/downloads:ro
+      - ${LIBRARY_DIR:?set LIBRARY_DIR in .env to a real host path before deploying}:/mnt/raid1/media/music:ro
 
   worker-dl:
     logging: *journald
