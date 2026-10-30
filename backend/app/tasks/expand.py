@@ -139,7 +139,7 @@ def _enqueue_pending_tracks(db, job: Job, why: str) -> None:
     _dispatch_due(db, job, pending)
 
 
-def _reexpand(db, job_id: str) -> None:
+def _reexpand(db, job_id: str, marker: str | None = None) -> None:
     """v63's re-expand mode: reads the job's link again and adds only the tracks whose Spotify
     id the job doesn't have yet. A track gone from the playlist stays in the job. A new track
     already in the ledger is added all the same, and download_track resolves it as
@@ -155,6 +155,11 @@ def _reexpand(db, job_id: str) -> None:
         logger.info("expand_job: job %s isn't an expanded, unarchived job; not re-expanding", job_id)
         return
     source_url, user_id = job.source_url, job.user_id
+    if not watch.start_run(job.id, marker):
+        # Superseded: this message waited past its claim's lease, and a newer claim (with its own
+        # message) owns the job now. One Spotify read, not one per lease.
+        logger.info("expand_job: job %s re-expansion superseded by a newer claim; skipping", job_id)
+        return
     # Started: the claim's lease becomes the next interval (watch.schedule_next).
     watch.schedule_next(db, job.id)
     # The Spotify round trips can take minutes: never with a transaction open across them.
@@ -212,7 +217,7 @@ def expand_job(job_id: str, reexpand: bool = False, marker: str | None = None) -
     if reexpand:
         db = SessionLocal()
         try:
-            _reexpand(db, job_id)
+            _reexpand(db, job_id, marker)
         finally:
             db.close()
             watch.release_run(job_id, marker)

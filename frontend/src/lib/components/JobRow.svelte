@@ -277,8 +277,14 @@
 	let nextCheckDue = $derived(
 		job.next_expand_at !== null && Date.parse(api.serverToLocal(job.next_expand_at)) <= clockNow
 	);
+	// A server timestamp, placed on the browser's clock as `nextCheckDue` reads it (v56, A7).
 	const shortDate = (value: string) =>
-		formatDateTime(value, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+		formatDateTime(api.serverToLocal(value), {
+			month: 'short',
+			day: 'numeric',
+			hour: 'numeric',
+			minute: '2-digit'
+		});
 
 	// One save at a time, and the last choice wins (DESIGN.md's save model, v62): arrowing
 	// through the closed menu fires a change per step, and only the one it stops on is saved.

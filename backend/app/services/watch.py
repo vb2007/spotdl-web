@@ -50,6 +50,10 @@ KEY_PREFIX = "spotdl:reexpand:"
 # backed-up expand queue (a library sweep shares it) past it may get a second claim; that
 # costs a redundant Spotify read, never a duplicate track.
 RUN_MARKER_TTL_SECONDS = int(CLAIM_LEASE.total_seconds())
+# Once its task starts, a run holds its marker this long (start_run): a discography's read can
+# approach an hour (celery_app.py's visibility timeout note), and "one at a time per job" must
+# hold for all of it. A worker killed mid-run leaves it to expire.
+RUNNING_MARKER_TTL_SECONDS = 2 * 3600
 
 _client: redis.Redis | None = None
 
@@ -81,6 +85,30 @@ def claim_run(job_id: uuid.UUID) -> str | None:
     except redis.RedisError as exc:
         raise MarkerUnavailable(str(exc)) from exc
     return token if claimed else None
+
+
+def start_run(job_id: uuid.UUID | str, token: str | None) -> bool:
+    """The run claimed with `token` has started: it keeps its marker for the whole run
+    (RUNNING_MARKER_TTL_SECONDS), taking it back if it expired while the message waited in a
+    backed-up queue. False when another claim holds it: this run was superseded (beat claimed
+    the job again once the lease ran out), and the newer message does the work, so this one
+    skips its Spotify read. `None` (a message sent without a token) always runs. Best effort on
+    a Redis error: the run goes ahead, as it would have before markers."""
+    if token is None:
+        return True
+    key = f"{KEY_PREFIX}{job_id}"
+    try:
+        client = _redis()
+        held = client.get(key)
+        if held is None:
+            return bool(client.set(key, token, nx=True, ex=RUNNING_MARKER_TTL_SECONDS))
+        if (held.decode() if isinstance(held, bytes) else held) != token:
+            return False
+        client.expire(key, RUNNING_MARKER_TTL_SECONDS)
+        return True
+    except redis.RedisError as exc:
+        logger.warning("watch: couldn't read the re-expansion marker of job %s: %s", job_id, exc)
+        return True
 
 
 def release_run(job_id: uuid.UUID | str, token: str | None) -> None:

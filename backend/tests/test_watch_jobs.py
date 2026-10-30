@@ -41,6 +41,12 @@ class _FakeMarkers:
         held = self.values.get(key)
         return None if held is None or held[1] <= time.monotonic() else held[0].encode()
 
+    def expire(self, key, seconds):
+        if key not in self.values:
+            return False
+        self.values[key] = (self.values[key][0], time.monotonic() + seconds)
+        return True
+
     def delete(self, key):
         return int(self.values.pop(key, None) is not None)
 
@@ -1012,3 +1018,40 @@ def test_a_held_marker_takes_no_slot_of_the_budget(db_session, monkeypatch, sent
     markers.set(f"{watch.KEY_PREFIX}{busy.id}", "someone-else")
     _tick(db_session, monkeypatch)
     assert sent_expansions == [(str(other.id), True)]
+
+
+# --- review round 7 ----------------------------------------------------------------------
+
+
+def test_a_started_run_holds_its_marker_for_the_whole_run(markers):
+    job_id = "00000000-0000-4000-8000-000000000071"
+    token = watch.claim_run(job_id)
+    assert watch.start_run(job_id, token) is True
+    key = f"{watch.KEY_PREFIX}{job_id}"
+    assert markers.values[key][1] - time.monotonic() > watch.RUN_MARKER_TTL_SECONDS
+
+
+def test_a_run_whose_marker_expired_takes_it_back(markers):
+    job_id = "00000000-0000-4000-8000-000000000072"
+    token = watch.claim_run(job_id)
+    markers.values.clear()
+    assert watch.start_run(job_id, token) is True
+    assert watch.claim_run(job_id) is None
+
+
+def test_a_superseded_run_skips_its_read(db_session, monkeypatch, markers):
+    job = _job(db_session, _user(db_session), track_ids=("a",), last_expanded_at=datetime.now(timezone.utc))
+    old = watch.claim_run(job.id)
+    markers.values.clear()
+    newer = watch.claim_run(job.id)
+    reads = []
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(expansion, "expand", lambda url: reads.append(url) or [_FakeSong("n")])
+
+    expand_task.expand_job(str(job.id), reexpand=True, marker=old)
+    assert reads == []
+    assert _job_track_ids(db_session, job) == ["a"]
+    # The newer claim's marker is untouched, and its run goes ahead.
+    assert watch.claim_run(job.id) is None
+    expand_task.expand_job(str(job.id), reexpand=True, marker=newer)
+    assert len(reads) == 1

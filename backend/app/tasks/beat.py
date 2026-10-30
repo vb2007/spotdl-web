@@ -179,6 +179,8 @@ def _dispatch_due_watched_jobs(db) -> None:
                 Job.source_type.in_(watch.WATCHABLE_SOURCE_TYPES),
             )
             .order_by(Job.next_expand_at.asc())
+            # Room for jobs whose marker is held (skipped below) without locking every due row.
+            .limit(budget + 20)
             .with_for_update(skip_locked=True)
         )
         .scalars()
