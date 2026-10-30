@@ -907,6 +907,9 @@ needed" claim — rather than silently deleted.
   `prerendered` empty): the worker must be harmless in the dev loop, and never answer `/api/` → *v65*
 - The layout's `afterNavigate` focuses the page's `h1` after one tick; a page that focuses its own
   action on arrival from another route (the login round-trip) waits two → *v65*
+- On a first (full) page load SvelteKit's `reset_focus` runs after `onMount` and focuses an
+  `[autofocus]` element, else `<body>`: a page focusing its action in `onMount` loses it on the
+  production build, though `vite dev` (slower to mount) hides it. Mark the action `autofocus` → *v65*
 
 **Browser extension (`extension/`)**
 - Spotify's DOM: rows `tracklist-row`, headers `action-bar-row` inside `album-page`/`artist-page`/
@@ -7443,6 +7446,12 @@ independently-found production bug from the same conversation)
   `clients.claim`), which `/account` shows through `controllerchange`. Offline, the cached shell
   renders the layout's own "Can't reach the server" screen: `/me` fails at the network, never from
   a cache.
+- **Focus on a direct load only failed on the production build.** The share target opens `/share`
+  as a full page load. The page focused "queue it" in `onMount` (about 75 ms on the nginx build),
+  and SvelteKit's first-load `reset_focus` then focused `<body>` in the same turn, unless an
+  element carries `autofocus`, which it focuses instead. Under `vite dev` the mount came later
+  (about 330 ms), after the reset, so every dev check and spec 21 passed. The live review caught
+  it on the nginx build; the action now carries `autofocus` (a reasoned `svelte-ignore`).
 - **`beforeinstallprompt` fires once, early, often before `/account` is open.** `app.html`'s inline
   script keeps it on `window` (and holds the browser's own banner back), and the install entry
   reads it there.
