@@ -389,6 +389,79 @@ def test_library_paths_list_only_library_files_and_name_the_rest(admin_client, d
     )
 
 
+class _NonClosingSession:
+    """db_session for the stream's own short read: its close() would detach the test's rows."""
+
+    def __init__(self, session):
+        self._session = session
+
+    def __getattr__(self, name):
+        return getattr(self._session, name)
+
+    def close(self):
+        pass
+
+
+def _stream_after(plan, before_stream):
+    """The zip's bytes, with `before_stream` run once the plan exists (and the
+    Content-Length is fixed) but before any file is read."""
+    archive = export.build_zip(plan)
+    length = len(archive)
+    before_stream()
+    return length, b"".join(export.iter_chunks(archive))
+
+
+def test_a_file_a_sweep_moves_mid_stream_is_read_from_its_new_path(db_session, make_user, roots, monkeypatch):
+    """Owner's decision (2026-10-30): the sweep commits the ledger's new path before it removes
+    the source, so the stream finds the file there, at the size the plan counted."""
+    downloads, library = roots
+    monkeypatch.setattr(export, "SessionLocal", lambda: _NonClosingSession(db_session))
+    job = _job(db_session, make_user("owner@example.com"))
+    source = _file(downloads, "01 - a.opus")
+    track = _track(db_session, job, 1, path=source, ledger=source)
+    data = source.read_bytes()
+    plan = export.plan_export(db_session, job.id, "The Album")
+
+    def sweep():
+        dest = library / "Artist" / "01 - a.opus"
+        dest.parent.mkdir(parents=True)
+        dest.write_bytes(data)
+        db_session.get(DownloadedTrack, track.spotify_track_id).file_path = str(dest)
+        db_session.commit()
+        source.unlink()
+
+    length, body = _stream_after(plan, sweep)
+
+    assert len(body) == length
+    archive = zipfile.ZipFile(io.BytesIO(body))
+    assert archive.testzip() is None
+    assert _sha(archive.read("01 - a.opus")) == _sha(data)
+
+
+@pytest.mark.parametrize("case", ["gone", "other size", "grew"])
+def test_a_file_that_cant_be_streamed_as_planned_ends_the_stream(case, db_session, make_user, roots, monkeypatch):
+    downloads, library = roots
+    monkeypatch.setattr(export, "SessionLocal", lambda: _NonClosingSession(db_session))
+    job = _job(db_session, make_user("owner@example.com"))
+    source = _file(downloads, "01 - a.opus")
+    track = _track(db_session, job, 1, path=source, ledger=source)
+    plan = export.plan_export(db_session, job.id, "The Album")
+
+    def change():
+        if case == "grew":
+            with source.open("ab") as handle:
+                handle.write(b"more")
+            return
+        if case == "other size":
+            dest = _file(library, "01 - a.opus", size=100)
+            db_session.get(DownloadedTrack, track.spotify_track_id).file_path = str(dest)
+            db_session.commit()
+        source.unlink()
+
+    with pytest.raises(export.ExportFileChanged):
+        _stream_after(plan, change)
+
+
 @pytest.mark.parametrize(
     "name, expected",
     [
