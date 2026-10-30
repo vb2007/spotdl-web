@@ -22,6 +22,7 @@
 	import LanguageSwitch from '$lib/components/LanguageSwitch.svelte';
 	import RichText from '$lib/components/RichText.svelte';
 	import ApiKeys from '$lib/components/ApiKeys.svelte';
+	import InstallApp from '$lib/components/InstallApp.svelte';
 	import { guardUnsavedEdits } from '$lib/unsavedGuard';
 	import { leavingSession, setLeavingSession } from '$lib/session';
 
@@ -572,6 +573,9 @@
 
 		<!-- v53: keys for the browser extension (create, list, revoke). -->
 		<ApiKeys onnametyped={(typed) => (keyNameTyped = typed)} />
+
+		<!-- v65: install the app (Chromium's offer, or how on Firefox Android and iOS). -->
+		<InstallApp />
 	</main>
 </div>
 
