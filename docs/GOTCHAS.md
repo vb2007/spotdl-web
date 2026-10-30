@@ -370,6 +370,9 @@ needed" claim — rather than silently deleted.
 - A forced `player_client` list can silently lose every audio-only stream (SABR), and
   `bestaudio/best` then picks format 18, a 360p video with ~96k AAC. It shows only in the files: 44.1
   kHz and nothing above ~16 kHz, where Opus is 48 kHz → *v54.2*
+- `spotify.link` short links answer by user agent: httpx's own gets a 307 straight to
+  `open.spotify.com`; a custom or browser-like one gets a hop to `spotify.app.link` and then an
+  HTML page that redirects by script; an expired code answers 200 → *v65*
 
 **Celery, tasks & durability**
 - A fire-and-forget Celery send loses an alert five ways (a >300s `meta` backlog expires it, a
@@ -754,6 +757,9 @@ needed" claim — rather than silently deleted.
 - An endpoint that streams for hours ends its transaction with `db.commit()` before returning the
   response (the connection goes back to the pool); `db.close()` on the request's session detaches
   every object the test's shared `db_session` holds → *v64*
+- nginx 1.27's `mime.types` has no `.webmanifest` (it went out as `application/octet-stream`); the
+  manifest has its own `location` with the type. Chrome's manifest check flags a `share_target`
+  without `enctype`, GET included → *v65*
 
 **Frontend (SvelteKit)**
 - SvelteKit's `replaceState` leaves `page.url` at the last navigation and records that stale URL
@@ -915,6 +921,10 @@ needed" claim — rather than silently deleted.
 - Disabling a focused control drops its focus only on the browser's next frame, so a focus
   check right after an await can still see it focused: move focus before disabling (the
   library sweep's start) → *v52*
+- SvelteKit registers `src/service-worker.ts` under `vite dev` too (as a module, `build` and
+  `prerendered` empty): the worker must be harmless in the dev loop, and never answer `/api/` → *v65*
+- The layout's `afterNavigate` focuses the page's `h1` after one tick; a page that focuses its own
+  action on arrival from another route (the login round-trip) waits two → *v65*
 
 **Browser extension (`extension/`)**
 - Spotify's DOM: rows `tracklist-row`, headers `action-bar-row` inside `album-page`/`artist-page`/
@@ -1225,6 +1235,10 @@ needed" claim — rather than silently deleted.
   `Network.emulateNetworkConditions` doesn't throttle downloads: put a rate-limited TCP relay in
   front of the server instead. Playwright saves a download under a GUID, so `chrome://downloads`
   shows that name; the real one is `download.suggestedFilename()` → *v64*
+- Headless Chromium (Playwright's shell) never fires `beforeinstallprompt`; the system
+  `/usr/bin/chromium` headed under `xvfb-run` does, and serves the DevTools frontend at
+  `/devtools/inspector.html` given `--remote-allow-origins` (a real Application → Manifest
+  screenshot without touching the desktop) → *v65*
 
 **CI**
 - The `pytest` job's Postgres is a service container the runner pulls with the shared
@@ -7666,3 +7680,31 @@ independently-found production bug from the same conversation)
 - **The strip stays hidden after a probe finds no file**, until the row is reopened or its
   counts move, even if the files come back meanwhile. Accepted.
 
+### v65 pwa-share-target gotchas (learned building the installable app and its share target)
+
+- **Spotify's share sheet hands out short links.** On a phone the shared text is often
+  `https://spotify.link/<code>`, which no `open.spotify.com` rule matches, so a client that only
+  extracts would answer "no Spotify link" to a real share. The owner chose server-side resolution
+  (`POST /api/links/resolve`, plan Amendments). The host's answer depends on the user agent:
+  httpx's default gets `307 Location: https://open.spotify.com/<type>/<id>?si=…`, a custom UA
+  (`spotdl-web`) or a browser one gets `spotify.app.link/<code>?_p=…` and then a 200 page that
+  redirects by script. `resolve_short_link` keeps httpx's UA, reads `Location` itself (no
+  `follow_redirects`), follows only a hop to another short link host, at most two, and accepts
+  only a target v53's `parse` accepts. An expired code answers 200 with a landing page:
+  `short_link_unresolved`, not a 5xx.
+- **The login round-trip lives in the root layout, not in `/share`.** The layout's `load` is what
+  sends a signed-out visitor to `/login`, before any page loads, so `next` is added there (only
+  for `/share`), and the "already signed in on `/login`" redirect honours it too. `safeNext`
+  resolves against a fixed fake origin and refuses anything that lands elsewhere (`//host`,
+  `/\host`, schemes, control characters) or on `/login` itself. The login page reads `next` from
+  `location`, not `page.url` (v54's stale-URL gotcha).
+- **The worker's update cycle.** The cache is named after kit's `version` (a build timestamp), so
+  every build is a new worker; nginx serves `service-worker.js` `no-cache`. Pages are network
+  first, so one reload after a deploy already serves the new build's HTML; the new worker
+  installs (it precaches about 90 files) and takes control about 2 s later (`skipWaiting` +
+  `clients.claim`), which `/account` shows through `controllerchange`. Offline, the cached shell
+  renders the layout's own "Can't reach the server" screen: `/me` fails at the network, never from
+  a cache.
+- **`beforeinstallprompt` fires once, early, often before `/account` is open.** `app.html`'s inline
+  script keeps it on `window` (and holds the browser's own banner back), and the install entry
+  reads it there.
