@@ -15,6 +15,8 @@ import logging
 import math
 import os
 import re
+import stat as stat_module
+import unicodedata
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -85,6 +87,12 @@ class ExportPlan:
         return f"{safe_name(self.title)}.zip"
 
 
+# Names Windows refuses as a file whatever their extension (`NUL.opus` included).
+_WINDOWS_DEVICES = frozenset(
+    {"CON", "PRN", "AUX", "NUL"} | {f"COM{n}" for n in range(1, 10)} | {f"LPT{n}" for n in range(1, 10)}
+)
+
+
 def _split_extension(name: str) -> tuple[str, str]:
     match = _EXTENSION.search(name)
     if match is None or match.start() == 0:
@@ -98,17 +106,23 @@ def safe_name(name: str, fallback: str = "export", *, keep_extension: bool = Fal
     cut to _MAX_NAME_BYTES; with `keep_extension` (a file's name) the cut is taken from the
     stem, so `....opus` never becomes `....op`, and a name that is only an extension
     (`.opus`, a hidden file once extracted) gets the fallback stem."""
-    cleaned = _UNSAFE_NAME.sub("_", name).strip().rstrip(".").strip()
+    # NFC: macOS hands out decomposed names (NFD), and two spellings of one name would land on
+    # one file once extracted there. Leading dots go too, or the file extracts hidden.
+    cleaned = unicodedata.normalize("NFC", name)
+    cleaned = _UNSAFE_NAME.sub("_", cleaned).strip().rstrip(".").strip()
     stem, ext = cleaned, ""
     if keep_extension:
         match = _EXTENSION.search(cleaned)
         if match is not None:
             stem, ext = cleaned[: match.start()], match.group()
+    stem = stem.lstrip(".").lstrip()
     if len((stem + ext).encode("utf-8")) > _MAX_NAME_BYTES:
         budget = _MAX_NAME_BYTES - len(ext.encode("utf-8"))
         stem = stem.encode("utf-8")[:budget].decode("utf-8", "ignore").rstrip().rstrip(".").rstrip()
     if not stem.strip("."):
         return f"{fallback}{ext}"
+    if stem.split(".")[0].upper() in _WINDOWS_DEVICES:
+        stem = f"_{stem}"
     return f"{stem}{ext}"
 
 
@@ -128,19 +142,26 @@ def _duration(song_json: dict) -> int | None:
 
 
 def _order_key(row) -> tuple:
-    """The job's own order: insertion first (what the track list shows), then the source's
-    position. One expansion inserts every track in one transaction, so their `created_at`
-    ties, and the album or playlist position keeps the M3U in play order."""
+    """Play order. One expansion inserts every track in one transaction, so their
+    `created_at` ties (it only orders separate expansions); within one, a playlist's
+    `list_position` decides, and otherwise (an album, or an artist's whole discography, where
+    spotdl sets no list position) album by album, oldest first, then disc and track number."""
     song = row.song_json or {}
 
     def number(key: str) -> float:
         value = song.get(key)
         return value if isinstance(value, (int, float)) else math.inf
 
+    def text(key: str) -> str:
+        value = song.get(key)
+        return value if isinstance(value, str) else ""
+
     created_at: datetime = row.created_at
     return (
         created_at,
         number("list_position"),
+        text("date"),
+        text("album_id") or text("album_name"),
         number("disc_number"),
         number("track_number"),
         str(row.id),
@@ -250,7 +271,11 @@ def m3u_text(plan: ExportPlan, *, absolute: bool = False) -> str:
         duration = entry.duration if entry.duration is not None else -1
         lines.append(f"#EXTINF:{duration},{_m3u_label(entry.label)}")
         if absolute:
-            lines.append(str(entry.path))
+            # A line break in a path would end the entry early and start another one.
+            path = str(entry.path)
+            if any(c in path for c in "\r\n"):
+                path = f"# unlistable path: {_m3u_label(entry.label)}"
+            lines.append(path)
         else:
             lines.append(f"./{entry.arcname}" if entry.arcname.startswith("#") else entry.arcname)
     return "\n".join(lines) + "\n"
@@ -323,6 +348,19 @@ def _file_bytes(entry: ExportFile):
             raise ExportFileChanged(f"{entry.arcname}: shrank during the stream")
 
 
+class _ExportZip(ZipStream):
+    """zipstream-ng (pinned 1.9.3) gives an entry added from bytes or an iterable the mode
+    `0600`, which Info-ZIP's unzip restores as is: a media server reading the extracted folder
+    as another user couldn't open a file. Every file entry is `0644` in the central directory,
+    written last, so it's set just before."""
+
+    def _gen_archive_footer(self):
+        for zinfo in self._filelist:
+            if not zinfo.is_dir():
+                zinfo.external_attr = (stat_module.S_IFREG | 0o644) << 16
+        yield from super()._gen_archive_footer()
+
+
 def build_zip(plan: ExportPlan) -> ZipStream:
     """A STORED (uncompressed) archive with its size known before the first byte: audio
     doesn't compress, and a known size is what lets the response carry a Content-Length
@@ -330,7 +368,7 @@ def build_zip(plan: ExportPlan) -> ZipStream:
     each file is read in chunks while the response streams. An entry is added as sized
     bytes rather than a path, so a file moved mid-stream can be found again (_open); the
     cost is that its timestamp in the archive is the export's, not the file's."""
-    archive = ZipStream(compress_type=ZIP_STORED, sized=True)
+    archive = _ExportZip(compress_type=ZIP_STORED, sized=True)
     for entry in plan.files:
         archive.add(_file_bytes(entry), entry.arcname, size=entry.size)
     archive.add(m3u_text(plan).encode("utf-8"), plan.playlist_name)

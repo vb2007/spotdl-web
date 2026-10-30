@@ -427,7 +427,9 @@
 				<button
 					type="button"
 					class="action"
-					aria-label={m.job_export_zip_label({ title: job.title })}
+					aria-label={exportProbing === 'zip'
+						? m.job_export_preparing()
+						: m.job_export_zip_label({ title: job.title })}
 					aria-busy={exportProbing === 'zip'}
 					onclick={() => handleExport('zip')}
 					>{exportProbing === 'zip' ? m.job_export_preparing() : m.job_export_zip()}</button
@@ -435,7 +437,9 @@
 				<button
 					type="button"
 					class="action"
-					aria-label={m.job_export_playlist_label({ title: job.title })}
+					aria-label={exportProbing === 'playlist'
+						? m.job_export_preparing()
+						: m.job_export_playlist_label({ title: job.title })}
 					aria-busy={exportProbing === 'playlist'}
 					onclick={() => handleExport('playlist')}
 					>{exportProbing === 'playlist'

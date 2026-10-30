@@ -154,7 +154,8 @@ def export_limits(db: Session) -> tuple[int, int]:
     env = get_settings()
     max_files = row.export_max_files if row.export_max_files is not None else env.export_max_files
     max_gb = row.export_max_gb if row.export_max_gb is not None else env.export_max_gb
-    return max_files, max_gb * 1024**3
+    # GB as the settings page and the env say it: 10^9 bytes.
+    return max_files, max_gb * 1000**3
 
 
 def update_export_settings(db: Session, **fields: int | None) -> AppSettings:
