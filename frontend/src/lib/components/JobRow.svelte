@@ -94,8 +94,11 @@
 		destroyed = true;
 	});
 	let showInFlight = $derived(IN_FLIGHT_LIFECYCLES.has(job.status.lifecycle));
+	// v63: a watched job is never archived (owner's decision): stop watching it first.
 	let showArchive = $derived(
-		job.archived_at === null && ARCHIVABLE_LIFECYCLES.has(job.status.lifecycle)
+		job.archived_at === null &&
+			job.watch_interval_hours === null &&
+			ARCHIVABLE_LIFECYCLES.has(job.status.lifecycle)
 	);
 
 	interface Segment {
@@ -261,9 +264,16 @@
 		const current = job.watch_interval_hours;
 		return current !== null && !offered.includes(current) ? [...offered, current] : offered;
 	});
-	// On the browser's clock (v56, A7): the server's may be ahead or behind.
+	// On the browser's clock (v56, A7): the server's may be ahead or behind. Re-read every
+	// half minute while watched, so "next <time>" turns into "checking soon" once it's passed.
+	let clockNow = $state(Date.now());
+	$effect(() => {
+		if (!watched) return;
+		const timer = setInterval(() => (clockNow = Date.now()), 30_000);
+		return () => clearInterval(timer);
+	});
 	let nextCheckDue = $derived(
-		job.next_expand_at !== null && Date.parse(api.serverToLocal(job.next_expand_at)) <= Date.now()
+		job.next_expand_at !== null && Date.parse(api.serverToLocal(job.next_expand_at)) <= clockNow
 	);
 	const shortDate = (value: string) =>
 		formatDateTime(value, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -322,10 +332,15 @@
 		}
 	}
 
-	let retryBusy = false;
-	async function handleRetryFailed(includeNotFound = false) {
-		if (retryBusy) return;
-		retryBusy = true;
+	// One request at a time, in order: a confirmed "retry not found" pressed while "retry
+	// waiting" is answering runs after it, never dropped.
+	let retryQueue: Promise<void> = Promise.resolve();
+	function handleRetryFailed(includeNotFound = false): Promise<void> {
+		retryQueue = retryQueue.then(() => retryFailedOnce(includeNotFound));
+		return retryQueue;
+	}
+
+	async function retryFailedOnce(includeNotFound: boolean) {
 		const session = queue.getResetCount();
 		try {
 			const result = await queue.retryFailedTracks(job.id, includeNotFound);
@@ -345,8 +360,6 @@
 		} catch (err) {
 			if (queue.getResetCount() === session)
 				showNotice(errorText(err, m.job_notice_retry_failed), true);
-		} finally {
-			retryBusy = false;
 		}
 	}
 

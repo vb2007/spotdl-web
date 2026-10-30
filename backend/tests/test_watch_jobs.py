@@ -773,3 +773,72 @@ def test_a_failed_commit_releases_the_check_now_marker(
         authenticated_client.post(f"/api/jobs/{job.id}/reexpand")
     assert markers.values == {}
     assert sent_expansions == []
+
+
+# --- review round 2 ----------------------------------------------------------------------
+
+
+def test_a_watched_job_is_never_archived(authenticated_client, db_session, owner):
+    """Owner's decision (2026-10-30): clear log, retention and the library sweep all go
+    through archive_jobs, which leaves a watched job alone."""
+    from app.services import archive
+
+    watched = _job(db_session, owner, track_ids=("a",), watch_interval_hours=24)
+    plain = _job(db_session, owner, track_ids=("b",))
+
+    response = authenticated_client.post("/api/jobs/archive", json={"all_settled": True})
+    assert response.json()["archived_ids"] == [str(plain.id)]
+    assert archive.archive_jobs(db_session, owner.id, older_than=timedelta(0)) == []
+    db_session.refresh(watched)
+    assert watched.archived_at is None
+
+    # Stopping the watch makes it archivable again.
+    authenticated_client.put(f"/api/jobs/{watched.id}/watch", json={"interval_hours": None})
+    assert authenticated_client.post("/api/jobs/archive", json={"all_settled": True}).json()[
+        "archived_ids"
+    ] == [str(watched.id)]
+
+
+def test_archive_rechecks_under_the_lock(db_session, monkeypatch):
+    """A job that got pending tracks (a re-expansion) between the eligibility read and the
+    write isn't archived."""
+    from app.services import archive
+
+    user = _user(db_session)
+    job = _job(db_session, user, track_ids=("a",))
+    real = archive._eligible_job_ids
+    calls = []
+
+    def eligible_then_reexpanded(db, user_id, job_ids, older_than):
+        result = real(db, user_id, job_ids, older_than)
+        if not calls:
+            db.add(Track(job_id=job.id, spotify_track_id="new", song_json={"name": "n"}, state=TrackState.PENDING))
+            db.flush()
+        calls.append(result)
+        return real(db, user_id, job_ids, older_than) if len(calls) > 1 else result
+
+    monkeypatch.setattr(archive, "_eligible_job_ids", eligible_then_reexpanded)
+    assert archive.archive_jobs(db_session, user.id) == []
+    db_session.refresh(job)
+    assert job.archived_at is None
+
+
+def test_retry_failed_cooldown_counts_only_tracks_held_by_the_step_rule(authenticated_client, db_session, owner):
+    job = _failed_job(db_session, owner)
+    tracks = _tracks(db_session, job, TrackState.WAITING)
+    tracks[0].retry_now_step = tracks[0].attempt_count
+    # One left `waiting` but no longer for this request: beat queued it meanwhile.
+    tracks[1].state = TrackState.QUEUED
+    db_session.commit()
+    body = authenticated_client.post(f"/api/jobs/{job.id}/retry-failed").json()
+    assert (body["retried"], body["cooldown"]) == (1, 1)
+
+
+def test_watch_and_check_now_announce_the_job_to_its_owner(admin_client, db_session, monkeypatch, sent_expansions):
+    published = []
+    monkeypatch.setattr(events, "publish_job_event", lambda *args, **kwargs: published.append(args))
+    other = _user(db_session, "someone@example.com")
+    job = _job(db_session, other)
+    admin_client.put(f"/api/jobs/{job.id}/watch", json={"interval_hours": 24})
+    admin_client.post(f"/api/jobs/{job.id}/reexpand")
+    assert published == [(other.id, job.id, "expanded"), (other.id, job.id, "expanded")]

@@ -550,7 +550,7 @@ def set_job_watch(
     user: User = Depends(require_session),
 ) -> dict:
     """Watches a playlist or artist job (`interval_hours`, at least a day), or stops watching
-    it (`null`). Its owner's, or an admin's on any job; anyone else's is a 404. A watched job
+    it (`null`). A watched job is never archived (services/archive.py). Its owner's, or an admin's on any job; anyone else's is a 404. A watched job
     is re-expanded every interval from now on (services/watch.py); the first check is one
     interval away, and an unchanged interval keeps the check already scheduled."""
     job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
@@ -589,6 +589,8 @@ def set_job_watch(
         job.watch_interval_hours = interval
         job.next_expand_at = datetime.now(timezone.utc) + timedelta(hours=interval)
     db.commit()
+    # The owner's other tabs (and the owner, when an admin set it) re-read the row.
+    events.publish_job_event(job.user_id, job.id, job.state.value)
     return _job_answer(db, job, owner_email, owner_username)
 
 
@@ -638,6 +640,7 @@ def reexpand_job(
         watch.release_run(job.id)
         logger.warning("reexpand_job: %s not enqueued: %s", job.id, type(exc).__name__)
         raise ApiError(503, "queue_unavailable", "The queue is unavailable; try again shortly") from None
+    events.publish_job_event(job.user_id, job.id, job.state.value)
     return _job_answer(db, job, owner_email, owner_username)
 
 
@@ -675,7 +678,6 @@ def retry_failed_tracks(
 
     now = datetime.now(timezone.utc)
     waiting = (Track.job_id == job.id, Track.state == TrackState.WAITING)
-    waiting_n = db.query(func.count(Track.id)).filter(*waiting).scalar()
     retry_now = update(Track).where(*waiting)
     if user.is_admin:
         retry_now = retry_now.values(scheduled_at=now)
@@ -688,6 +690,15 @@ def retry_failed_tracks(
             synchronize_session=False
         )
     ).all()
+    # The ones the per-step rule left to their slot, counted as such (a track beat queued
+    # meanwhile is neither).
+    cooldown = 0
+    if not user.is_admin:
+        cooldown = db.query(func.count(Track.id)).filter(
+            *waiting,
+            Track.retry_now_step == Track.attempt_count,
+            Track.id.not_in([track_id for track_id, _song, _n in retried]),
+        ).scalar()
     overridden = []
     if include_not_found:
         overridden = db.execute(
@@ -742,7 +753,7 @@ def retry_failed_tracks(
     return {
         "job": _job_answer(db, job, owner_email, owner_username),
         "retried": len(retried),
-        "cooldown": waiting_n - len(retried),
+        "cooldown": cooldown,
         "overridden": len(overridden),
         "breaker_held": retry.breaker_active(worker_state, now),
     }
