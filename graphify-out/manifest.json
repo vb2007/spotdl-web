@@ -90,8 +90,8 @@
     "semantic_hash": "8e20d302985b1ae15bcb1de36146a430"
   },
   "frontend/src/app.d.ts": {
-    "mtime": 1793379317.9244921,
-    "ast_hash": "22484c7bea437733baecd757bd2d15fa",
+    "mtime": 1793388327.6480968,
+    "ast_hash": "cbc4cfda31679a5a8448a190a85a2434",
     "semantic_hash": ""
   },
   "frontend/src/lib/index.ts": {
@@ -100,8 +100,8 @@
     "semantic_hash": "ffcb0e97b69eb555d5739e9efe961ca0"
   },
   "frontend/src/routes/+layout.svelte": {
-    "mtime": 1793379317.9262724,
-    "ast_hash": "60a6bcd148885a91071b1041df984a01",
+    "mtime": 1793383994.9157255,
+    "ast_hash": "897d7778d89996e444ef3c49630a4669",
     "semantic_hash": ""
   },
   "frontend/src/routes/+layout.ts": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1793382579.9482799,
-    "ast_hash": "582ac1bc3078a8099fb563be9e8e34b4",
+    "mtime": 1793387709.2583184,
+    "ast_hash": "3d02e7b06f96dbb6eaf7ea8c8e5a1875",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -1505,13 +1505,13 @@
     "semantic_hash": ""
   },
   "frontend/messages/en.json": {
-    "mtime": 1793381910.230721,
-    "ast_hash": "10ee6ab0d52bc27783e51834c5c3e37d",
+    "mtime": 1793389069.1356325,
+    "ast_hash": "69e44d372338c6b71fdaebbf41e582d9",
     "semantic_hash": ""
   },
   "frontend/messages/hu.json": {
-    "mtime": 1793381910.2311807,
-    "ast_hash": "37f94e5bcc3e5bc6fc7b06ade09f92b9",
+    "mtime": 1793389069.1363564,
+    "ast_hash": "8187c9859c257d6f47b81aac96254508",
     "semantic_hash": ""
   },
   "frontend/project.inlang/settings.json": {
@@ -1550,8 +1550,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/i18n/i18n.test.ts": {
-    "mtime": 1793379317.9256253,
-    "ast_hash": "c7e29e4a9b1b6ff0232d033b74f2e5f6",
+    "mtime": 1793388339.0951853,
+    "ast_hash": "764a0ec45a96daf508540134b03e4043",
     "semantic_hash": ""
   },
   "frontend/src/lib/i18n/labels.ts": {
@@ -1620,8 +1620,8 @@
     "semantic_hash": ""
   },
   "plan/master-v5/00-master-plan.md": {
-    "mtime": 1793382590.4006596,
-    "ast_hash": "0d17a18430cbcbe933d3f3b8678b0d28",
+    "mtime": 1793388387.7921243,
+    "ast_hash": "f9f5752580021ede2e16dc6a8b9b563a",
     "semantic_hash": ""
   },
   "plan/master-v5/IMPLEMENTATION_PROMPT.md": {
@@ -1790,8 +1790,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/spotify_urls.py": {
-    "mtime": 1793380542.6496556,
-    "ast_hash": "7175dd327f258226aebaf5a26ab49e94",
+    "mtime": 1793384017.0111272,
+    "ast_hash": "b5ec2264e2ca88a7f0d15e17ceba7ee1",
     "semantic_hash": ""
   },
   "backend/tests/extension_support.py": {
@@ -2120,8 +2120,8 @@
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/ddfcc3e2c6047561.json": {
-    "mtime": 1793381912.0041833,
-    "ast_hash": "3f3858b8d387adb403fd98ea718f9662",
+    "mtime": 1793389070.9268677,
+    "ast_hash": "2c643e0e64ffa9e08bdfb3f713da2336",
     "semantic_hash": ""
   },
   "frontend/src/lib/nginxRoutes.test.ts": {
@@ -2160,23 +2160,23 @@
     "semantic_hash": ""
   },
   "backend/app/routers/links.py": {
-    "mtime": 1793380462.3092654,
-    "ast_hash": "6030cb83a2563531fc693239e8ff1552",
+    "mtime": 1793385602.4132478,
+    "ast_hash": "216467bebacaa6a57854a23906369a30",
     "semantic_hash": ""
   },
   "backend/tests/test_links.py": {
-    "mtime": 1793380542.6497443,
-    "ast_hash": "a227ecf9f9a71ed9d357439d056ab097",
+    "mtime": 1793385602.4133148,
+    "ast_hash": "fce8e15631066a7f78d0103c5a7210db",
     "semantic_hash": ""
   },
   "frontend/e2e/21-share.e2e.ts": {
-    "mtime": 1793382372.7011201,
-    "ast_hash": "f9081243293ffa00419e633bc89b4e78",
+    "mtime": 1793389069.1369104,
+    "ast_hash": "f7a0ef3a37b1d7c11cd3865372f32af1",
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/f5aeb67bdcf6d731.json": {
-    "mtime": 1793381731.4834676,
-    "ast_hash": "dc882790d6251785947b886dea1991cc",
+    "mtime": 1793389096.4235952,
+    "ast_hash": "b7061da724f0f54003d0cb982915d3e3",
     "semantic_hash": ""
   },
   "frontend/scripts/render-icons.sh": {
@@ -2185,8 +2185,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/InstallApp.svelte": {
-    "mtime": 1793381900.7621577,
-    "ast_hash": "8defb02603ffc23602f6f2ab039893a4",
+    "mtime": 1793387587.38768,
+    "ast_hash": "d8d35376c5a79b1127b85f1a4878c9a4",
     "semantic_hash": ""
   },
   "frontend/src/lib/install.test.ts": {
@@ -2195,33 +2195,33 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/install.ts": {
-    "mtime": 1793380757.8200657,
-    "ast_hash": "dc70a8c6c47dcaf0b67d889fd6115280",
+    "mtime": 1793384017.010933,
+    "ast_hash": "48ec71c9848d14bc9ade6a1e77e841eb",
     "semantic_hash": ""
   },
   "frontend/src/lib/nextPath.test.ts": {
-    "mtime": 1793380667.7125094,
-    "ast_hash": "1f32f519c09f2fdabcd855cc3565b4a8",
+    "mtime": 1793383250.4219935,
+    "ast_hash": "89984bb47d35120f2229b42bcf07a015",
     "semantic_hash": ""
   },
   "frontend/src/lib/nextPath.ts": {
-    "mtime": 1793380659.948186,
-    "ast_hash": "55c1d87c42014ef858eaacb26b39c1ec",
+    "mtime": 1793383270.059892,
+    "ast_hash": "94991e8b5d77d09440f303a26f2f9fb0",
     "semantic_hash": ""
   },
   "frontend/src/lib/shareTarget.test.ts": {
-    "mtime": 1793381545.8392024,
-    "ast_hash": "9eb58e378972f0201e9511c3cc62fc0c",
+    "mtime": 1793387588.8199441,
+    "ast_hash": "7b50a15037fc47ab1d01370cff3582fb",
     "semantic_hash": ""
   },
   "frontend/src/lib/shareTarget.ts": {
-    "mtime": 1793381545.8812044,
-    "ast_hash": "ab31ae9365927360855d95b5dab5ce20",
+    "mtime": 1793387587.3875947,
+    "ast_hash": "302d3a65326dff66a7792cadc07f2408",
     "semantic_hash": ""
   },
   "frontend/src/routes/share/+page.svelte": {
-    "mtime": 1793381996.0285366,
-    "ast_hash": "2d10b7d0834619573faadbfe9b4ca266",
+    "mtime": 1793389069.135198,
+    "ast_hash": "b1a91737a65217346e877f62fcef2da4",
     "semantic_hash": ""
   },
   "frontend/src/routes/share/+page.ts": {
@@ -2230,8 +2230,8 @@
     "semantic_hash": ""
   },
   "frontend/src/service-worker.ts": {
-    "mtime": 1793380757.8090389,
-    "ast_hash": "965563c11dc4419a82abe8404734397e",
+    "mtime": 1793389073.0368235,
+    "ast_hash": "0127991a15acbcd39b225535b84ea620",
     "semantic_hash": ""
   },
   "frontend/static/icons/apple-touch-icon.png": {
