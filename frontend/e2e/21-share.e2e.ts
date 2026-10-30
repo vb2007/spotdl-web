@@ -66,6 +66,24 @@ test.describe('signed out', () => {
 		expect((await page.request.get(`/api/jobs/${job.id}`)).status()).toBe(200);
 	});
 
+	test('a share whose session ends before the confirm comes back after the next sign-in', async ({
+		page,
+		baseURL
+	}) => {
+		await page.goto(SHARE);
+		await signIn(page);
+		await expect(page).toHaveURL(`${baseURL}${SHARE}`);
+		// The session ends under the page (expired, revoked): this tab's own cookie, so the
+		// saved sessions other specs use are untouched.
+		expect((await page.request.post('/api/auth/logout')).ok()).toBe(true);
+		await page.keyboard.press('Enter');
+		await expect(page).toHaveURL(/\/login\?next=/);
+		expect(new URL(page.url()).searchParams.get('next')).toBe(SHARE);
+		await signIn(page);
+		await expect(page).toHaveURL(`${baseURL}${SHARE}`);
+		await expect(page.getByRole('button', { name: t(m.share_queue), exact: true })).toBeFocused();
+	});
+
 	test('an off-site next is refused after the login', async ({ page, baseURL }) => {
 		await page.goto(`/login?next=${encodeURIComponent('//evil.example/share')}`);
 		await signIn(page);
@@ -91,6 +109,39 @@ test.describe('signed in', () => {
 			page.getByRole('link', { name: t(m.share_open_queue), exact: true })
 		).toBeFocused();
 		expect(posts).toEqual([]);
+	});
+
+	test('a spotify.link short link is looked up, and a failed look-up can be retried', async ({
+		page
+	}) => {
+		// A real short link (Spotify's link host answered it with this playlist on 2026-10-30).
+		// Shown, not queued: a playlist would expand into tracks for worker-dl.
+		const short = 'https://spotify.link/6tpneu0iVIb';
+		let fail = true;
+		await page.route('**/api/links/resolve', (route) =>
+			fail
+				? route.fulfill({
+						status: 503,
+						contentType: 'application/json',
+						body: JSON.stringify({
+							detail: 'x',
+							code: 'short_link_unavailable',
+							params: { reason: 'failed' }
+						})
+					})
+				: route.continue()
+		);
+		await page.goto(`/share?text=${encodeURIComponent(`Listen on Spotify ${short}`)}`);
+		await expect(page.getByText(short, { exact: true })).toBeVisible();
+		await expect(page.getByRole('alert')).toHaveText(t(m.error_short_link_unavailable));
+		const retry = page.getByRole('button', { name: t(m.share_retry), exact: true });
+		await expect(retry).toBeFocused();
+
+		fail = false;
+		await page.keyboard.press('Enter');
+		await expect(page.getByText(t(m.share_type_playlist), { exact: true })).toBeVisible();
+		await expect(page.getByText('432nsnOM9L55tkiOFnHbI2', { exact: true })).toBeVisible();
+		await expect(page.getByRole('button', { name: t(m.share_queue), exact: true })).toBeFocused();
 	});
 
 	for (const next of [
