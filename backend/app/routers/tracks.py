@@ -64,6 +64,34 @@ def _resolve_track_file_path(db: Session, track: Track) -> Path | None:
     return Path(raw_path)
 
 
+def allowed_file_location(raw_path: Path) -> tuple[Path, Path, str] | None:
+    """v27's path-traversal guard, shared with v64's job export (app/services/export.py):
+    the resolved path, the allowed root it falls under and that root's nginx internal prefix,
+    or None when it's under neither root (or is a root itself).
+
+    `output_path`/the ledger's `file_path` are app-generated today, but a download turns them
+    into an authorization boundary -- the resolved path is confirmed to be inside one of the
+    two allowed roots rather than trusted as already-safe input (v27's plan). `.resolve()` on
+    an absolute, possibly-nonexistent path needs no filesystem access, so this needs no
+    volume mount; it does follow a symlink that exists, so one pointing out of a root is
+    refused too."""
+    downloads_root = Path(get_settings().download_output_dir).resolve()
+    # v57 (L6): the whole library mount, not only the current library_target_dir, so a track
+    # left under an earlier root stays downloadable (the owner's mount rule keeps every library
+    # root inside it). nginx's /internal-library/ aliases exactly that directory, so the path
+    # nginx gets is relative to it.
+    library_alias = Path(app_settings.DEFAULT_LIBRARY_TARGET_DIR).resolve()
+
+    resolved = raw_path if raw_path.is_absolute() else (downloads_root / raw_path)
+    resolved = resolved.resolve()
+
+    if resolved.is_relative_to(downloads_root) and resolved != downloads_root:
+        return resolved, downloads_root, _INTERNAL_DOWNLOADS_PREFIX
+    if resolved.is_relative_to(library_alias) and resolved != library_alias:
+        return resolved, library_alias, _INTERNAL_LIBRARY_PREFIX
+    return None
+
+
 def _content_disposition(filename: str) -> str:
     """RFC 5987 `filename*` alongside a plain ASCII-sanitized `filename` fallback -- this
     library is full of non-ASCII artist/title names (v27's plan), and older clients that
@@ -339,29 +367,13 @@ def download_track_file(
     if raw_path is None:
         raise ApiError(404, "file_not_found", "File not found")
 
-    # `output_path`/the ledger's `file_path` are app-generated today, but this endpoint
-    # turns them into an authorization boundary -- confirm the resolved path is actually
-    # inside one of the two allowed roots before ever handing it to nginx, rather than
-    # trusting it as already-safe input (v27's plan, path-traversal guard). `.resolve()`
-    # on an absolute, possibly-nonexistent path is purely lexical (no filesystem access
-    # required), so this needs no volume mount into this container.
-    downloads_root = Path(get_settings().download_output_dir).resolve()
-    # v57 (L6): the whole library mount, not only the current library_target_dir, so a track
-    # left under an earlier root stays downloadable (the owner's mount rule keeps every library
-    # root inside it). nginx's /internal-library/ aliases exactly that directory, so the path
-    # nginx gets is relative to it.
-    library_alias = Path(app_settings.DEFAULT_LIBRARY_TARGET_DIR).resolve()
     db.commit()
 
-    resolved = raw_path if raw_path.is_absolute() else (downloads_root / raw_path)
-    resolved = resolved.resolve()
-
-    if resolved.is_relative_to(downloads_root) and resolved != downloads_root:
-        root, prefix = downloads_root, _INTERNAL_DOWNLOADS_PREFIX
-    elif resolved.is_relative_to(library_alias) and resolved != library_alias:
-        root, prefix = library_alias, _INTERNAL_LIBRARY_PREFIX
-    else:
+    # Confirmed inside one of the two allowed roots before it's ever handed to nginx.
+    location = allowed_file_location(raw_path)
+    if location is None:
         raise ApiError(404, "file_not_found", "File not found")
+    resolved, root, prefix = location
 
     accel_uri = prefix + "/".join(
         quote(part, safe="") for part in resolved.relative_to(root).parts
