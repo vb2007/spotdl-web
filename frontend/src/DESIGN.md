@@ -874,6 +874,14 @@ sits on the row grid (§4), and the open job's tracks hang off a 1px rail in its
 indented by `--row-nest`, on the panel's own surface rather than v20's darker `--bg-0` well (v41,
 2026-10-14, F02).
 
+An open job with at least one file starts with its **export strip** (v64, 2026-10-30): a mono
+reading ("12 of 14 files", from the row's own counts) and two plain row actions, "download all
+(zip)" and "playlist (.m3u8)", indented like the row's notice. Like a track's download, each
+probes first (`HEAD`) and then hands the URL to a real browser download, so a 404 or the zip's
+413 ("too large for one zip", pointing to the playlist) reads in the row's notice. While a probe
+runs, its button reads "preparing…". `d` on the job row is the zip. On a phone the reading takes
+its own line, so the two actions stay together.
+
 ### Page breakpoints (v42, F15/F37; em since v47)
 
 Width breakpoints are in **em** (v47, WCAG 1.4.4), equal to the old px at the default 16px, so a
