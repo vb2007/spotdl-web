@@ -90,8 +90,8 @@
     "semantic_hash": "8e20d302985b1ae15bcb1de36146a430"
   },
   "frontend/src/app.d.ts": {
-    "mtime": 1793388327.6480968,
-    "ast_hash": "cbc4cfda31679a5a8448a190a85a2434",
+    "mtime": 1793390357.5155737,
+    "ast_hash": "119ff9084e27d061e44d89d977d62b59",
     "semantic_hash": ""
   },
   "frontend/src/lib/index.ts": {
@@ -100,8 +100,8 @@
     "semantic_hash": "ffcb0e97b69eb555d5739e9efe961ca0"
   },
   "frontend/src/routes/+layout.svelte": {
-    "mtime": 1793383994.9157255,
-    "ast_hash": "897d7778d89996e444ef3c49630a4669",
+    "mtime": 1793390032.7905157,
+    "ast_hash": "4ee3f080ae5a5d00bfb840d028fb6f71",
     "semantic_hash": ""
   },
   "frontend/src/routes/+layout.ts": {
@@ -365,8 +365,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
-    "mtime": 1793380680.784901,
-    "ast_hash": "3f4011fbb5aaf150737a493db384913d",
+    "mtime": 1793389560.2179525,
+    "ast_hash": "334294584350a9225292ae2026534471",
     "semantic_hash": ""
   },
   "PRODUCT.md": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1793387709.2583184,
-    "ast_hash": "3d02e7b06f96dbb6eaf7ea8c8e5a1875",
+    "mtime": 1793389617.0122538,
+    "ast_hash": "393dcbf6bfb05bfd7d3b5fdcb2992d23",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -2170,8 +2170,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/21-share.e2e.ts": {
-    "mtime": 1793389069.1369104,
-    "ast_hash": "f7a0ef3a37b1d7c11cd3865372f32af1",
+    "mtime": 1793390357.51589,
+    "ast_hash": "d0c3b87c3a6383a9bd9704e8e9e3162a",
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/f5aeb67bdcf6d731.json": {
@@ -2220,8 +2220,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/share/+page.svelte": {
-    "mtime": 1793389069.135198,
-    "ast_hash": "b1a91737a65217346e877f62fcef2da4",
+    "mtime": 1793390357.5157447,
+    "ast_hash": "1cc54070573ee3e5b28dd72122c226e3",
     "semantic_hash": ""
   },
   "frontend/src/routes/share/+page.ts": {
