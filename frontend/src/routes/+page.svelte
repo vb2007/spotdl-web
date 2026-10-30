@@ -600,6 +600,8 @@
 		// nor `online`; the poll (whose overdue timer runs at once on wake) checks too (live
 		// review).
 		if (get(link) === 'live' && streamSilent()) restartStream();
+		// v66: and the notifications' own stream, when there is one (review round 3).
+		notifications.checkOwnStream();
 		let settled = false;
 		const overdue = setTimeout(() => {
 			if (settled || unmounted) return;
@@ -663,11 +665,13 @@
 	function onOnline() {
 		unreachedPolls = 0;
 		if (get(link) !== 'live' || streamSilent()) restartStream();
+		notifications.checkOwnStream();
 	}
 
 	function onVisible() {
 		if (document.visibilityState !== 'visible') return;
 		if (get(link) === 'reconnecting' || (get(link) === 'live' && streamSilent())) restartStream();
+		notifications.checkOwnStream();
 	}
 
 	onMount(() => {
@@ -714,10 +718,9 @@
 	});
 	const notifyOn = notifications.jobNotifications;
 	$effect(() => {
-		// Not without the browser's permission: nothing could be shown (review round 1).
-		notifications.setOwnStream(
-			isAdmin && view !== 'mine' && $notifyOn && notifications.permission() === 'granted'
-		);
+		// Opened only once the browser allows notifications (round 1); the poll's checkOwnStream
+		// opens it when that changes later, from another tab even (round 3).
+		notifications.setOwnStream(isAdmin && view !== 'mine' && $notifyOn);
 	});
 
 	/** A notification's click: the job's row, if this page lists it. */

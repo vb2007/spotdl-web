@@ -149,3 +149,98 @@ describe('v66: one tab announces', () => {
 		expect(shown).toEqual([]);
 	});
 });
+
+// The admin's own `mine` stream (review rounds 2 and 3): one at a time, checked against the
+// session at every open, restarted when silent or after a failed check.
+describe('v66: the own stream', () => {
+	let streams: FakeSource[];
+	let meAnswers: (() => Promise<{ email: string }>)[];
+
+	class FakeSource {
+		static CLOSED = 2;
+		readyState = 0;
+		closed = false;
+		onopen: (() => void) | null = null;
+		onmessage: ((e: { data: string }) => void) | null = null;
+		onerror: (() => void) | null = null;
+		listeners: Record<string, () => void> = {};
+		constructor() {
+			streams.push(this);
+		}
+		addEventListener(type: string, listener: () => void) {
+			this.listeners[type] = listener;
+		}
+		close() {
+			this.closed = true;
+			this.readyState = 2;
+		}
+	}
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.resetModules();
+		streams = [];
+		meAnswers = [];
+		vi.stubGlobal('EventSource', FakeSource);
+		vi.stubGlobal('window', { Notification: { permission: 'granted' } });
+		vi.stubGlobal('Notification', { permission: 'granted' });
+		vi.doMock('$lib/api', () => ({
+			createEventSource: () => new FakeSource(),
+			me: () => (meAnswers.shift() ?? (async () => ({ email: 'admin@example.com' })))()
+		}));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+		vi.doUnmock('$lib/api');
+	});
+
+	async function open() {
+		const module = await import('$lib/notifications');
+		module.adopt('admin@example.com', true);
+		module.setOwnStream(true);
+		return module;
+	}
+
+	it('is opened once, however often it is wanted', async () => {
+		const n = await open();
+		n.setOwnStream(true);
+		n.checkOwnStream();
+		expect(streams).toHaveLength(1);
+	});
+
+	it('starts over when silent past the heartbeat, and not while it hears one', async () => {
+		const n = await open();
+		await vi.advanceTimersByTimeAsync(10_000);
+		streams[0].listeners.heartbeat();
+		await vi.advanceTimersByTimeAsync(10_000);
+		n.checkOwnStream();
+		expect(streams).toHaveLength(1);
+		await vi.advanceTimersByTimeAsync(20_000);
+		n.checkOwnStream();
+		expect(streams).toHaveLength(2);
+		expect(streams[0].closed).toBe(true);
+	});
+
+	it('retries after a failed identity check instead of staying deaf', async () => {
+		await open();
+		meAnswers.push(async () => {
+			throw new Error('502');
+		});
+		await streams[0].onopen?.();
+		expect(streams[0].closed).toBe(true);
+		await vi.advanceTimersByTimeAsync(1500);
+		expect(streams).toHaveLength(2);
+	});
+
+	it('stops for good on someone else’s session', async () => {
+		const n = await open();
+		meAnswers.push(async () => ({ email: 'someone@example.com' }));
+		await streams[0].onopen?.();
+		expect(streams[0].closed).toBe(true);
+		await vi.advanceTimersByTimeAsync(60_000);
+		n.checkOwnStream();
+		expect(streams).toHaveLength(1);
+	});
+});
