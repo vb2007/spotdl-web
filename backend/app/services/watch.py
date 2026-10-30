@@ -14,16 +14,17 @@ lock, and only ids the job doesn't have yet).
 
 import logging
 import uuid
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 
 import redis
 from redis.backoff import NoBackoff
 from redis.retry import Retry
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import Job, JobSourceType
+from app.models import Job, JobSourceType, Track
 
 logger = logging.getLogger(__name__)
 
@@ -102,3 +103,29 @@ def mark_started(job: Job, now: datetime) -> None:
     job.last_expanded_at = now
     if job.watch_interval_hours is not None:
         job.next_expand_at = now + timedelta(hours=job.watch_interval_hours)
+
+
+def new_track_counts(db: Session, job_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, int]:
+    """Per job, the tracks re-expansions added: every track inserted after the first
+    expansion's. That expansion inserts all its tracks in one transaction, so they share one
+    `created_at` (Postgres's `now()` is the transaction's start), and a re-expansion's are
+    later. One grouped query for the whole page, like serializers.track_counts_by_job; a job
+    with none is absent."""
+    if not job_ids:
+        return {}
+    first = (
+        select(Track.job_id, func.min(Track.created_at).label("first_at"))
+        .where(Track.job_id.in_(job_ids))
+        .group_by(Track.job_id)
+        .subquery()
+    )
+    rows = db.execute(
+        select(Track.job_id, func.count())
+        .join(first, and_(first.c.job_id == Track.job_id, Track.created_at > first.c.first_at))
+        .group_by(Track.job_id)
+    ).all()
+    return {job_id: count for job_id, count in rows}
+
+
+def new_tracks(db: Session, job_id: uuid.UUID) -> int:
+    return new_track_counts(db, [job_id]).get(job_id, 0)
