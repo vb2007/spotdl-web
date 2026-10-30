@@ -873,6 +873,65 @@ export async function checkTrackFile(trackId: string): Promise<void> {
 	}
 }
 
+// --- v64: job export ---------------------------------------------------------------
+
+/** v64: a job's present files as one zip, streamed (STORED, with a Content-Length, so the
+ * browser shows real progress). Handed to a real browser download, as trackFileUrl is. */
+export function jobExportUrl(jobId: string): string {
+	return `${API_BASE}/api/jobs/${jobId}/export.zip`;
+}
+
+/** v64: the same tracks as an extended M3U, relative to the zip's layout. */
+export function jobPlaylistUrl(jobId: string): string {
+	return `${API_BASE}/api/jobs/${jobId}/playlist.m3u8`;
+}
+
+/** v64: v35 (e)'s probe, for an export URL above: a HEAD (the zip's with its limits), so a
+ * 404 or an over-the-limit 413 shows in the row's notice instead of the page navigating to
+ * JSON. HEAD has no body, so the status picks the code, as checkTrackFile's does. */
+export async function checkJobExport(url: string): Promise<void> {
+	const response = await fetch(url, { method: 'HEAD', credentials: 'include' });
+	if (response.ok) return;
+	if (response.status === 401 && !signingOut) unauthorizedHandler?.();
+	const code =
+		response.status === 413
+			? 'export_too_large'
+			: response.status === 404
+				? 'job_not_found'
+				: response.status === 401
+					? 'not_authenticated'
+					: 'download_failed';
+	throw new ApiError(
+		response.status,
+		// i18n-ignore: the English `detail` behind the code, as the backend's would be.
+		response.statusText || 'Export failed',
+		code,
+		{ status: String(response.status) }
+	);
+}
+
+/** v64: the export's limits; each `null` is "the env default" (`default_*`). Admin only. */
+export interface ExportSettings {
+	export_max_files: number | null;
+	export_max_gb: number | null;
+	default_max_files: number;
+	default_max_gb: number;
+}
+
+export type EditableExportSettings = Pick<ExportSettings, 'export_max_files' | 'export_max_gb'>;
+
+export function getExportSettings(): Promise<ExportSettings> {
+	return request('/api/settings/export');
+}
+
+export function updateExportSettings(
+	patch: Partial<EditableExportSettings>
+): Promise<ExportSettings> {
+	return request('/api/settings/export', { method: 'PATCH', body: JSON.stringify(patch) });
+}
+
+// --- end v64 ------------------------------------------------------------------------
+
 // v56 (A7): every worker answer gets `breaker_clears_at` on arrival (see WorkerStatus). One
 // trip keeps one deadline while each answer agrees with it to within 2s: recomputed from every
 // 5s poll, network jitter could move it across a minute and make the pill's live region (which
