@@ -172,25 +172,27 @@ def test_reexpand_keeps_a_track_gone_from_the_playlist(db_session, monkeypatch, 
 def test_reexpand_with_nothing_changed_adds_nothing(db_session, monkeypatch, sent_downloads):
     job = _job(db_session, _user(db_session), source_type=JobSourceType.ARTIST, track_ids=("a", "b"))
     published = []
-    monkeypatch.setattr(events, "publish_job_event", lambda *args, **kwargs: published.append(args))
+    monkeypatch.setattr(events, "publish_job_event", lambda *args, **kwargs: published.append((args, kwargs)))
 
     _reexpand(db_session, monkeypatch, job, ["b", "a"])
 
     assert _job_track_ids(db_session, job) == ["a", "b"]
     assert sent_downloads == []
-    # The row still re-reads its watch (its next check moved when the run was claimed).
-    assert published == [(job.user_id, job.id, "expanded")]
+    # The row still re-reads its watch (its next check moved when the run was claimed), and
+    # only the row: the event says it's the watch, so an open job keeps its loaded tracks.
+    assert published == [((job.user_id, job.id, "expanded"), {"watch": True})]
 
 
 def test_reexpand_announces_new_tracks_as_the_first_expansion_does(db_session, monkeypatch, sent_downloads):
     job = _job(db_session, _user(db_session), track_ids=("a",))
     published, changes = [], []
-    monkeypatch.setattr(events, "publish_job_event", lambda *args, **kwargs: published.append(args))
+    monkeypatch.setattr(events, "publish_job_event", lambda *args, **kwargs: published.append((args, kwargs)))
     monkeypatch.setattr(job_status, "publish_change", lambda db, job_id, **kw: changes.append(job_id))
 
     _reexpand(db_session, monkeypatch, job, ["a", "n"])
 
-    assert published == [(job.user_id, job.id, "expanded")]
+    # New tracks: a full `expanded`, so an open job re-reads its track list too.
+    assert published == [((job.user_id, job.id, "expanded"), {"watch": False})]
     assert changes == [job.id]
 
 
@@ -479,6 +481,15 @@ def test_the_listing_carries_the_watch_and_the_new_count(authenticated_client, d
 # --- POST /api/jobs/{id}/reexpand ---------------------------------------------------------
 
 
+def test_check_now_refuses_a_search_job(authenticated_client, db_session, owner, sent_expansions):
+    job = _job(db_session, owner, source_type=JobSourceType.SEARCH, track_ids=("a",))
+    response = authenticated_client.post(f"/api/jobs/{job.id}/reexpand")
+    assert response.status_code == 409
+    assert response.json()["code"] == "job_not_reexpandable"
+    assert response.json()["params"]["reason"] == "source_type"
+    assert sent_expansions == []
+
+
 def test_owner_checks_now(authenticated_client, db_session, owner, sent_expansions, markers):
     job = _job(db_session, owner, source_type=JobSourceType.ALBUM, track_ids=("a",))
     response = authenticated_client.post(f"/api/jobs/{job.id}/reexpand")
@@ -724,7 +735,7 @@ def test_a_job_whose_first_read_was_empty_counts_its_first_batch_as_first(
 def test_a_failed_read_still_announces_the_job(db_session, monkeypatch):
     job = _job(db_session, _user(db_session), track_ids=("a",))
     published = []
-    monkeypatch.setattr(events, "publish_job_event", lambda *args, **kwargs: published.append(args))
+    monkeypatch.setattr(events, "publish_job_event", lambda *args, **kwargs: published.append((args, kwargs)))
     monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
 
     def boom(url):
@@ -732,7 +743,7 @@ def test_a_failed_read_still_announces_the_job(db_session, monkeypatch):
 
     monkeypatch.setattr(expansion, "expand", boom)
     expand_task.expand_job(str(job.id), reexpand=True)
-    assert published == [(job.user_id, job.id, "expanded")]
+    assert published == [((job.user_id, job.id, "expanded"), {"watch": True})]
 
 
 def test_watch_needs_the_interval_key(authenticated_client, db_session, owner):
@@ -839,12 +850,12 @@ def test_retry_failed_cooldown_counts_only_tracks_held_by_the_step_rule(authenti
 
 def test_watch_and_check_now_announce_the_job_to_its_owner(admin_client, db_session, monkeypatch, sent_expansions):
     published = []
-    monkeypatch.setattr(events, "publish_job_event", lambda *args, **kwargs: published.append(args))
+    monkeypatch.setattr(events, "publish_job_event", lambda *args, **kwargs: published.append((args, kwargs)))
     other = _user(db_session, "someone@example.com")
     job = _job(db_session, other)
     admin_client.put(f"/api/jobs/{job.id}/watch", json={"interval_hours": 24})
     admin_client.post(f"/api/jobs/{job.id}/reexpand")
-    assert published == [(other.id, job.id, "expanded"), (other.id, job.id, "expanded")]
+    assert published == [((other.id, job.id, "expanded"), {"watch": True})] * 2
 
 
 # --- review round 3 ----------------------------------------------------------------------
@@ -888,3 +899,28 @@ def test_new_tracks_counts_nothing_for_a_job_never_re_expanded(db_session):
     )
     db_session.commit()
     assert watch.new_tracks(db_session, job.id) == 0
+
+
+# --- review round 4 ----------------------------------------------------------------------
+
+
+def test_beats_refused_send_keeps_an_interval_changed_meanwhile(db_session, monkeypatch, markers):
+    now = datetime.now(timezone.utc)
+    due_at = now - timedelta(minutes=1)
+    job = _watched(db_session, _user(db_session), due_at=due_at)
+    weekly = now + timedelta(hours=168)
+
+    def refuse_after_a_change(job_id, reexpand=False):
+        # The owner switched to weekly while the broker stalled.
+        db_session.query(Job).filter(Job.id == job.id).update(
+            {Job.watch_interval_hours: 168, Job.next_expand_at: weekly}
+        )
+        db_session.commit()
+        raise ConnectionError("broker down")
+
+    monkeypatch.setattr(expand_task.expand_job, "delay", refuse_after_a_change)
+    _tick(db_session, monkeypatch)
+
+    db_session.refresh(job)
+    assert job.last_expanded_at is None
+    assert job.next_expand_at == weekly

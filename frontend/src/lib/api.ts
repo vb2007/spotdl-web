@@ -210,6 +210,8 @@ export interface JobStateEvent {
 	/** v19: present (true/false) only on an archive/unarchive-triggered publish; absent
 	 * for every other job.state event. */
 	archived?: boolean;
+	/** v63: only the job's watch changed: re-read the row, never an open job's track list. */
+	watch?: boolean;
 	ts: string;
 }
 

@@ -241,6 +241,8 @@
 	// are v63's; v64's export control keeps to its own). Offered while the row is open, as its
 	// keyboard reach is (lists.ts), on a job whose link has been read and that isn't archived.
 	let actionable = $derived(job.state === 'expanded' && job.archived_at === null);
+	// Owner's decision: a search re-run would add a different song as "new"; links only.
+	let checkable = $derived(actionable && job.source_type !== 'search');
 	let watchable = $derived(api.WATCHABLE_SOURCE_TYPES.has(job.source_type));
 	let watched = $derived(job.watch_interval_hours !== null);
 	// Stopping a watch stays possible on a job that can no longer start one (archived since).
@@ -581,7 +583,7 @@
 						onclick={handleRetryNotFound}>{m.job_retry_not_found(counted(notFoundCount))}</button
 					>
 				{/if}
-				{#if actionable}
+				{#if checkable}
 					<button
 						type="button"
 						class="action"

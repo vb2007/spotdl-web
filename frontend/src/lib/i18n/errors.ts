@@ -68,7 +68,10 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	job_archived: () => m.error_job_archived(),
 	// v63: watched jobs and "check now".
 	reexpand_running: () => m.error_reexpand_running(),
-	job_not_reexpandable: () => m.error_job_not_reexpandable(),
+	job_not_reexpandable: (p) =>
+		p.reason === 'source_type'
+			? m.error_job_not_reexpandable_search()
+			: m.error_job_not_reexpandable(),
 	job_not_watchable: (p) =>
 		p.reason === 'source_type' ? m.error_job_not_watchable_type() : m.error_job_not_watchable(),
 	watch_interval_invalid: (p) =>

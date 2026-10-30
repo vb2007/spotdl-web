@@ -1894,7 +1894,8 @@ function createQueueStore() {
 			});
 		}
 		patchPageJob(job, { allowInsert: wasIncoming });
-		if (isExpanded(event.job_id) && event.state === 'expanded') {
+		// v63: a watch-only event (`watch`) leaves an open job's loaded pages as they are.
+		if (isExpanded(event.job_id) && event.state === 'expanded' && !event.watch) {
 			await loadExpandedTracks(event.job_id);
 		}
 	}

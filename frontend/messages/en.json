@@ -49,6 +49,7 @@
 	"error_job_archived": "Job is archived; unarchive it first",
 	"error_reexpand_running": "This job is already being checked for new tracks.",
 	"error_job_not_reexpandable": "Only a job whose link has been read can be checked for new tracks.",
+	"error_job_not_reexpandable_search": "A search can’t be checked for new tracks: only a job submitted as a link can.",
 	"error_job_not_watchable_type": "Only a playlist or an artist can be watched.",
 	"error_job_not_watchable": "Only a job whose link has been read, and that isn’t archived, can be watched.",
 	"error_watch_interval_invalid": "Checks can be {min} to {max} hours apart.",

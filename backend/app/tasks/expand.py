@@ -161,7 +161,7 @@ def _reexpand(db, job_id: str) -> None:
         songs = expansion.expand(source_url)
     except Exception as exc:
         logger.warning("expand_job: job %s couldn't be re-expanded: %s", job_id, exc)
-        events.publish_job_event(user_id, job.id, JobState.EXPANDED.value)
+        events.publish_job_event(user_id, job.id, JobState.EXPANDED.value, watch=True)
         return
 
     # The job's row lock, as a first expansion's commit and cancel_job take it: a cancel
@@ -193,7 +193,8 @@ def _reexpand(db, job_id: str) -> None:
     )
     # The row re-reads its counts (and an open job its tracks) on `expanded`, the event a
     # first expansion sends; with new tracks its rollup moves back to `active` (v62's job.status).
-    events.publish_job_event(user_id, job.id, job.state.value)
+    # With none, only the row re-reads (`watch`): an open job's list keeps its loaded pages.
+    events.publish_job_event(user_id, job.id, job.state.value, watch=not tracks)
     if not tracks:
         return
     job_status.publish_change(db, job.id)

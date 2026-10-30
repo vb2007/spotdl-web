@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import and_, or_, select, update
+from sqlalchemy import and_, case, or_, select, update
 
 from app.config import get_settings
 from app.db import SessionLocal
@@ -193,25 +193,34 @@ def _dispatch_due_watched_jobs(db) -> None:
         except watch.MarkerUnavailable as exc:
             logger.warning("dispatch_due_tracks: no watched job started, Redis unavailable: %s", exc)
             break
-        started.append((job.id, job.last_expanded_at, job.next_expand_at))
+        previous_last, previous_next = job.last_expanded_at, job.next_expand_at
         watch.mark_started(job, now)
+        started.append((job.id, previous_last, previous_next, job.next_expand_at))
     try:
         db.commit()
     except Exception:
         # Nothing was queued: the markers mustn't hold these jobs "running" for an hour.
-        for job_id, _last, _next in started:
+        for job_id, *_times in started:
             watch.release_run(job_id)
         raise
-    for job_id, last_expanded_at, next_expand_at in started:
+    for job_id, last_expanded_at, next_expand_at, ours_next in started:
         try:
             expand_tasks.expand_job.delay(str(job_id), reexpand=True)
         except Exception as exc:
-            # The broker refused it: due again on the next tick, and not counted.
+            # The broker refused it: due again on the next tick, and not counted. Only what
+            # this tick wrote is put back: an interval changed (or a watch stopped) meanwhile
+            # keeps its own next check.
             logger.warning("dispatch_due_tracks: watched job %s not started: %s", job_id, exc)
             db.execute(
                 update(Job)
                 .where(Job.id == job_id, Job.last_expanded_at == now)
-                .values(last_expanded_at=last_expanded_at, next_expand_at=next_expand_at)
+                .values(
+                    last_expanded_at=last_expanded_at,
+                    next_expand_at=case(
+                        (Job.next_expand_at.is_not_distinct_from(ours_next), next_expand_at),
+                        else_=Job.next_expand_at,
+                    ),
+                )
             )
             db.commit()
             watch.release_run(job_id)

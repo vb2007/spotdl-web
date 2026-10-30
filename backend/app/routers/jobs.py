@@ -590,7 +590,7 @@ def set_job_watch(
         job.next_expand_at = datetime.now(timezone.utc) + timedelta(hours=interval)
     db.commit()
     # The owner's other tabs (and the owner, when an admin set it) re-read the row.
-    events.publish_job_event(job.user_id, job.id, job.state.value)
+    events.publish_job_event(job.user_id, job.id, job.state.value, watch=True)
     return _job_answer(db, job, owner_email, owner_username)
 
 
@@ -600,8 +600,8 @@ def reexpand_job(
     db: Session = Depends(get_db),
     user: User = Depends(require_session),
 ) -> dict:
-    """"Check now": re-expands the job at once, adding only the tracks new to it (any source
-    type; the job must be expanded and unarchived). Its owner's, or an admin's on any job;
+    """"Check now": re-expands the job at once, adding only the tracks new to it (any link's
+    source type, never a search: owner's decision; the job must be expanded and unarchived). Its owner's, or an admin's on any job;
     anyone else's is a 404. One at a time per job: 409 `reexpand_running` while one is queued
     or running, a scheduled one included. Counts toward the hourly cap, never held by it (the
     cap paces beat's scheduled runs). A watched job's next scheduled run moves to an interval
@@ -615,7 +615,16 @@ def reexpand_job(
             409,
             "job_not_reexpandable",
             f"Job is {job.state.value}, not expanded",
-            {"state": job.state.value},
+            {"reason": "state", "state": job.state.value},
+        )
+    if job.source_type == JobSourceType.SEARCH:
+        # Owner's decision (2026-10-30): a search re-run would add whatever the text matches
+        # now, a different song, as "new". Only a link is checked again.
+        raise ApiError(
+            409,
+            "job_not_reexpandable",
+            "Only a job submitted as a link can be checked for new tracks",
+            {"reason": "source_type", "source_type": job.source_type.value},
         )
     try:
         claimed = watch.claim_run(job.id)
@@ -653,7 +662,7 @@ def reexpand_job(
         watch.release_run(job.id)
         logger.warning("reexpand_job: %s not enqueued: %s", job.id, type(exc).__name__)
         raise ApiError(503, "queue_unavailable", "The queue is unavailable; try again shortly") from None
-    events.publish_job_event(job.user_id, job.id, job.state.value)
+    events.publish_job_event(job.user_id, job.id, job.state.value, watch=True)
     return _job_answer(db, job, owner_email, owner_username)
 
 
