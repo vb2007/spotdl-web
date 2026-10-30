@@ -25,6 +25,9 @@ export interface RowActions {
 	priorityUp?: () => unknown;
 	priorityDown?: () => unknown;
 	repeats?: () => unknown;
+	/** v63: a job's watch toggle and "retry failed". */
+	watch?: () => unknown;
+	retryFailed?: () => unknown;
 }
 
 const rowActions = new WeakMap<Element, RowActions>();
@@ -551,6 +554,8 @@ export function listHandlers(opts: {
 		bump: action('bump'),
 		'priority-up': action('priorityUp'),
 		'priority-down': action('priorityDown'),
-		repeats: action('repeats')
+		repeats: action('repeats'),
+		watch: action('watch'),
+		'retry-failed': action('retryFailed')
 	};
 }
