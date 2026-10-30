@@ -786,6 +786,25 @@ def test_download_track_file_serves_anything_inside_the_library_mount(authentica
     assert authenticated_client.get(f"/api/tracks/{outside.id}/file").status_code == 404
 
 
+def test_download_track_file_leaves_symlinks_to_nginx(authenticated_client, db_session, owner, tmp_path, monkeypatch):
+    """v64 mounted the volumes into api, where `.resolve()` would now follow a real symlink:
+    the single-track check stays lexical, as before, and nginx serves what the link points to."""
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "download_output_dir", str(tmp_path / "downloads"))
+    (tmp_path / "downloads").mkdir()
+    (tmp_path / "elsewhere.mp3").write_bytes(b"audio")
+    (tmp_path / "downloads" / "link.mp3").symlink_to(tmp_path / "elsewhere.mp3")
+    track = _make_track(
+        db_session, owner, state=TrackState.COMPLETED, output_path=str(tmp_path / "downloads" / "link.mp3")
+    )
+
+    response = authenticated_client.get(f"/api/tracks/{track.id}/file")
+
+    assert response.status_code == 200
+    assert response.headers["x-accel-redirect"] == "/internal-downloads/link.mp3"
+
+
 def test_download_unknown_track_file_returns_404(authenticated_client, db_session):
     assert authenticated_client.get(f"/api/tracks/{uuid.uuid4()}/file").status_code == 404
 

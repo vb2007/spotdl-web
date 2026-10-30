@@ -109,6 +109,51 @@ def test_every_present_file_is_in_the_zip_byte_for_byte_with_an_m3u8(authenticat
     )
 
 
+def test_extracted_entries_are_readable_by_other_users(authenticated_client, db_session, owner, roots):
+    """0644, not zipstream-ng's 0600 for an added iterable: Info-ZIP restores the mode as is."""
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "01 - a.opus"))
+    _track(db_session, job, 2, state=TrackState.WAITING)
+
+    archive = _zip(authenticated_client.get(f"/api/jobs/{job.id}/export.zip"))
+
+    for info in archive.infolist():
+        assert info.external_attr >> 16 == 0o100644, info.filename
+
+
+def test_an_artist_job_plays_album_by_album_oldest_first(authenticated_client, db_session, owner, roots):
+    """spotdl sets no list position on an artist's album tracks, and one expansion's tracks
+    share a created_at: without an album key the M3U interleaved the albums."""
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    for album, date in (("B", "2010-01-01"), ("A", "2005-01-01")):
+        for number in (2, 1):
+            _track(
+                db_session,
+                job,
+                number + (10 if album == "B" else 0),
+                path=_file(downloads, f"{album}{number}.opus"),
+                list_name=None,
+                track_number=number,
+                album_name=album,
+                album_id=f"id-{album}",
+                date=date,
+            )
+    # One expansion: the same created_at for every track.
+    db_session.query(Track).filter(Track.job_id == job.id).update({Track.created_at: datetime(2026, 1, 1, tzinfo=timezone.utc)})
+    db_session.commit()
+
+    playlist = authenticated_client.get(f"/api/jobs/{job.id}/playlist.m3u8").text
+
+    assert [line for line in playlist.splitlines() if not line.startswith("#")] == [
+        "A1.opus",
+        "A2.opus",
+        "B1.opus",
+        "B2.opus",
+    ]
+
+
 def test_the_ledger_path_wins_over_output_path(authenticated_client, db_session, owner, roots):
     """A library move repoints the ledger's file_path (master-v3 invariant), not the track."""
     downloads, library = roots
@@ -283,13 +328,14 @@ def test_over_the_size_limit_is_a_413(authenticated_client, db_session, owner, r
 def test_the_limits_are_the_env_defaults_until_an_admin_overrides_them(db_session, monkeypatch):
     monkeypatch.setattr(get_settings(), "export_max_files", 2000)
     monkeypatch.setattr(get_settings(), "export_max_gb", 20)
-    assert app_settings.export_limits(db_session) == (2000, 20 * 1024**3)
+    # GB as the page and the env say it: 10^9 bytes.
+    assert app_settings.export_limits(db_session) == (2000, 20 * 10**9)
 
     app_settings.update_export_settings(db_session, export_max_files=10, export_max_gb=1)
-    assert app_settings.export_limits(db_session) == (10, 1024**3)
+    assert app_settings.export_limits(db_session) == (10, 10**9)
 
     app_settings.update_export_settings(db_session, export_max_files=None)
-    assert app_settings.export_limits(db_session) == (2000, 1024**3)
+    assert app_settings.export_limits(db_session) == (2000, 10**9)
 
 
 def test_admin_reads_and_overrides_the_export_settings(admin_client, monkeypatch):
@@ -467,7 +513,7 @@ def test_a_file_that_cant_be_streamed_as_planned_ends_the_stream(case, db_sessio
     [
         ("Björk", "Björk"),
         ("AC/DC: Live", "AC_DC_ Live"),
-        ("..\\..\\evil", ".._.._evil"),
+        ("..\\..\\evil", "_.._evil"),
         ("...", "export"),
         ("  ", "export"),
         ("line\nbreak", "line_break"),
@@ -486,6 +532,11 @@ def test_safe_name(name, expected):
         ("x" * 300 + ".opus", "x" * 195 + ".opus"),
         ("Concerto No. 3", "Concerto No. 3"),
         (".opus", "track.opus"),
+        (".hidden.opus", "hidden.opus"),
+        ("NUL.opus", "_NUL.opus"),
+        ("com1.opus", "_com1.opus"),
+        ("Console.opus", "Console.opus"),
+        ("Bjo\u0308rk.opus", "Bj\u00f6rk.opus"),
     ],
 )
 def test_safe_name_keeps_a_file_extension(name, expected):
