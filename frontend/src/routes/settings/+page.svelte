@@ -264,8 +264,9 @@
 		outputSaving = true;
 		outputError = '';
 		try {
-			// v64: each half is saved only when it changed, and on its own: one half's refusal
-			// neither stops the other's save nor hides that it was saved.
+			// v64: each half is saved only when it changed, and on its own: the server refusing
+			// one half doesn't stop the other's save. (The page's own checks above still stop the
+			// whole form, as on any panel with one save button.)
 			const [outputResult, exportResult] = await Promise.allSettled([
 				outputFieldsDirty ? api.updateOutputSettings(outputForm) : Promise.resolve(null),
 				exportDirty

@@ -223,6 +223,10 @@ def _locate(raw_path: str) -> tuple[Path, str, int] | str:
         return _NOT_FOUND
     if not resolved.is_file():
         return _NOT_FOUND
+    # Checked here, not met mid-stream: an unreadable file would break every download of the
+    # zip partway, where the probe had said it was fine.
+    if not os.access(resolved, os.R_OK):
+        return "file can't be read (permissions)"
     return resolved, prefix, stat.st_size
 
 
@@ -357,6 +361,8 @@ def _open(entry: ExportFile):
     (and the Content-Length) would be wrong: then the stream ends instead."""
     try:
         return open(entry.path, "rb")
+    except PermissionError:
+        raise ExportFileChanged(f"{entry.arcname}: no longer readable") from None
     except FileNotFoundError:
         moved = _current_path(entry.spotify_track_id)
         if moved is None or moved == entry.path:
