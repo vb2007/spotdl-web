@@ -23,7 +23,13 @@ const OUTCOMES = () =>
 
 // From the page itself: Playwright's own request contexts drop the `Secure` session cookie on
 // http://127.0.0.1 (global-setup.ts), the browser's fetch doesn't.
-function pageFetch(page: Page, path: string, init?: RequestInit) {
+interface FetchInit {
+	method?: string;
+	headers?: Record<string, string>;
+	body?: string;
+}
+
+function pageFetch(page: Page, path: string, init?: FetchInit) {
 	return page.evaluate(
 		async ({ path, init }) => {
 			const response = await fetch(path, init);
