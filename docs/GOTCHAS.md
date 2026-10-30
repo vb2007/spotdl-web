@@ -1213,6 +1213,9 @@ needed" claim — rather than silently deleted.
   `/usr/bin/chromium` headed under `xvfb-run` does, and serves the DevTools frontend at
   `/devtools/inspector.html` given `--remote-allow-origins` (a real Application → Manifest
   screenshot without touching the desktop) → *v65*
+- Spec 07 counts every job the user ever owned, archived included, as the user's own text: a
+  manual check that queues the *admin's* seed track (Get Lucky) as the user breaks it for good
+  on that database. Spot-check with the user's own ledger tracks → *v65*
 
 **CI**
 - The `pytest` job's Postgres is a service container the runner pulls with the shared

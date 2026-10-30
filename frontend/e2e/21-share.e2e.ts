@@ -96,9 +96,12 @@ test.describe('signed out', () => {
 		await expect(page.locator('#share-outcome')).toHaveText(OUTCOMES());
 		await expect(page.getByRole('button', { name: t(m.share_queue), exact: true })).toHaveCount(0);
 		// And nothing new behind it (no /login that would bring the confirm back): only the
-		// dashboard ahead of it.
+		// dashboard ahead of it, and Back leaves for the tab's first page. A /login entry would
+		// stop there instead (a popped redirect writes no history, so the URL stays /login).
 		expect(await page.evaluate(() => history.length)).toBe(entries + 1);
 		await page.goBack();
+		await expect(page).toHaveURL('about:blank');
+		await page.goForward();
 		await expect(page).toHaveURL(`${baseURL}${SHARE}`);
 		await expect(page.getByRole('button', { name: t(m.share_queue), exact: true })).toHaveCount(0);
 		// The job is this user's own.
