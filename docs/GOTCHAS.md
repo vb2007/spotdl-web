@@ -7475,8 +7475,8 @@ independently-found production bug from the same conversation)
 - **A rollback after a refused broker send puts back only what its own claim wrote** (beat's and
   "check now"'s): the row lock is gone by then, and a watch set or changed meanwhile keeps its own
   `next_expand_at` (`next_expand_at IS NOT DISTINCT FROM` the claimed value).
-- **A failed Spotify read waits out the interval.** The next check is set when the run is
-  claimed, and a read error only logs; a monthly watch hit by one transient error is next
+- **A failed Spotify read waits out the interval.** The next check is set when the run starts
+  (`watch.schedule_next`, before the read), and a read error only logs; a monthly watch hit by one transient error is next
   checked a month later. A sooner retry would need a backoff that a dead link can't turn into
   hourly Spotify traffic; not built.
 

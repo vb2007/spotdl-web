@@ -1055,3 +1055,16 @@ def test_a_superseded_run_skips_its_read(db_session, monkeypatch, markers):
     assert watch.claim_run(job.id) is None
     expand_task.expand_job(str(job.id), reexpand=True, marker=newer)
     assert len(reads) == 1
+
+
+# --- review round 8 ----------------------------------------------------------------------
+
+
+def test_a_run_with_nothing_new_still_announces_the_status(db_session, monkeypatch, sent_downloads):
+    """A redelivered run (its first delivery died after the insert commit) adds nothing, but the
+    job's rollup move must still be announced."""
+    job = _job(db_session, _user(db_session), track_ids=("a",))
+    changes = []
+    monkeypatch.setattr(job_status, "publish_change", lambda db, job_id, **kw: changes.append(job_id))
+    _reexpand(db_session, monkeypatch, job, ["a"])
+    assert changes == [job.id]

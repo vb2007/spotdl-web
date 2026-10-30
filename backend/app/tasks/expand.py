@@ -202,9 +202,12 @@ def _reexpand(db, job_id: str, marker: str | None = None) -> None:
     # first expansion sends; with new tracks its rollup moves back to `active` (v62's job.status).
     # With none, only the row re-reads (`watch`): an open job's list keeps its loaded pages.
     events.publish_job_event(user_id, job.id, job.state.value, watch=not tracks)
+    # Even with nothing new: a redelivery of a run that died between its insert commit and this
+    # announcement finds every id known, and the settled -> active move must still be announced
+    # (review round 8; expand_job's first-expansion redelivery does the same).
+    job_status.publish_change(db, job.id)
     if not tracks:
         return
-    job_status.publish_change(db, job.id)
     _dispatch_due(db, job, [track.id for track in tracks])
 
 
