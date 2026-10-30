@@ -93,9 +93,11 @@ test.describe('signed out', () => {
 		await page.reload();
 		await expect(page.locator('#share-outcome')).toHaveText(OUTCOMES());
 		await expect(page.getByRole('button', { name: t(m.share_queue), exact: true })).toHaveCount(0);
-		// And nothing behind it is a login that would bring the confirm back.
-		await page.goBack();
-		await expect(page).not.toHaveURL(/\/login/);
+		// And nothing behind it (no /login that would bring the confirm back): the share is the
+		// first entry of this tab, as an installed app's share opens it.
+		expect(await page.goBack()).toBeNull();
+		await expect(page).toHaveURL(`${baseURL}${SHARE}`);
+		await expect(page.getByRole('button', { name: t(m.share_queue), exact: true })).toHaveCount(0);
 		// The job is this user's own.
 		expect((await pageFetch(page, `/api/jobs/${job.id}`)).status).toBe(200);
 		// Archived once it settles (a duplicate, at beat's next pass), so the user's seed row stays
