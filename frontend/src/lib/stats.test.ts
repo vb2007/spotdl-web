@@ -314,8 +314,9 @@ describe('v66: a user’s own stats', () => {
 
 	it('formats sizes in decimal units, a whole number from 100 up', () => {
 		speak('en');
-		expect(formatBytes(0)).toBe('0 byte');
-		expect(formatBytes(999)).toBe('999 byte');
+		expect(formatBytes(0)).toBe('0 bytes');
+		expect(formatBytes(999)).toBe('999 bytes');
+		expect(formatBytes(1)).toBe('1 byte');
 		expect(formatBytes(1500)).toBe('1.5 kB');
 		expect(formatBytes(409_400_000)).toBe('409 MB');
 		expect(formatBytes(3_140_000_000)).toBe('3.1 GB');

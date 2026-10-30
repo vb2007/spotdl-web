@@ -53,7 +53,9 @@ export function formatBytes(bytes: number): string {
 	return formatNumber(value, {
 		style: 'unit',
 		unit: BYTE_UNITS[unit],
-		unitDisplay: 'short',
+		// Plain bytes in words ("0 bytes", "0 bájt": the short form is a bare "byte"); the
+		// multiples as their symbols (live review round 1).
+		unitDisplay: unit === 0 ? 'long' : 'short',
 		maximumFractionDigits: unit === 0 || value >= 100 ? 0 : 1
 	});
 }
