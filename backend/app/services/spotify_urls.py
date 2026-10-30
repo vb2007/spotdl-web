@@ -11,6 +11,11 @@ Spotify's own metadata (never from the page the extension saw). It runs in the r
 metadata call bounded by CASCADE_TIMEOUT_SECONDS, because an ambiguous artist must come back to
 the client as a 409 with the candidates to choose from; a cascade resolved later, during
 expansion, would have no one to ask.
+
+`is_short_link`/`resolve_short_link` (v65) turn the `spotify.link/<code>` link Spotify's
+mobile share sheet often hands out into the link it stands for, by asking Spotify's own short
+link host (never following a redirect to anywhere else), and accept the answer only if `parse`
+does.
 """
 
 import concurrent.futures
@@ -18,7 +23,9 @@ import logging
 import re
 import threading
 from dataclasses import dataclass
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
+
+import httpx
 
 from app.models import JobSourceType
 
@@ -196,3 +203,94 @@ def resolve_cascade(ref: SpotifyRef, cascade: str) -> SpotifyRef:
             [{"name": name, "url": SpotifyRef("artist", artist_id).url} for artist_id, name in artists.items()]
         )
     return SpotifyRef("artist", next(iter(artists)))
+
+
+# v65: Spotify's short links. `spotify.link` is what the share sheet hands out; it can answer
+# with a hop to `spotify.app.link` (its link service's own host) before the real link.
+SHORT_LINK_HOSTS = {"spotify.link", "spotify.app.link"}
+_SHORT_CODE_RE = re.compile(r"^[0-9A-Za-z_-]{1,64}$")
+SHORT_LINK_TIMEOUT_SECONDS = 5
+SHORT_LINK_MAX_HOPS = 2
+# Bounds the resolves at once, as `_slots` does the cascades: a request that would only queue
+# behind busy ones is refused at once.
+_short_link_slots = threading.BoundedSemaphore(4)
+
+
+class ShortLinkUnresolved(Exception):
+    """Spotify's short link host didn't point at a track/album/artist/playlist link: an expired or
+    made-up code, or a link to something else (a podcast)."""
+
+
+class ShortLinkUnavailable(Exception):
+    """The short link host couldn't be reached or ran out of time (`reason` "failed"), or every
+    resolve slot is busy (`reason` "busy")."""
+
+    def __init__(self, reason: str = "failed") -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+def _short_link(text: str) -> str | None:
+    """`text` as a short link on one of SHORT_LINK_HOSTS (https, a bare code path), or None."""
+    text = text.strip()
+    if any(c.isspace() for c in text):
+        return None
+    try:
+        parts = urlsplit(text)
+        port = parts.port
+    except ValueError:
+        return None
+    if parts.scheme.lower() != "https" or (parts.hostname or "").lower() not in SHORT_LINK_HOSTS:
+        return None
+    if parts.username is not None or parts.password is not None or port is not None:
+        return None
+    segments = [s for s in parts.path.split("/") if s]
+    if len(segments) != 1 or not _SHORT_CODE_RE.match(segments[0]):
+        return None
+    return f"https://{parts.hostname.lower()}/{segments[0]}"
+
+
+def is_short_link(text: str) -> bool:
+    return _short_link(text) is not None
+
+
+def resolve_short_link(text: str) -> SpotifyRef:
+    """The link a `spotify.link` short link stands for. Raises ShortLinkUnresolved or
+    ShortLinkUnavailable (ValueError for text that isn't a short link at all).
+
+    The host answers a plain HTTP client with a redirect to the real link and a browser with a
+    page that redirects by script, so this asks as httpx (its own user agent) and reads the
+    `Location` itself: only a hop to another short link host is followed, and the end of the
+    chain must be a link `parse` accepts. An expired code answers 200 with a landing page."""
+    url = _short_link(text)
+    if url is None:
+        raise ValueError("not a Spotify short link")
+    if not _short_link_slots.acquire(blocking=False):
+        logger.warning("short link: every resolve slot is busy; refusing")
+        raise ShortLinkUnavailable("busy")
+    try:
+        with httpx.Client(follow_redirects=False, timeout=SHORT_LINK_TIMEOUT_SECONDS) as client:
+            for _ in range(SHORT_LINK_MAX_HOPS):
+                try:
+                    response = client.get(url)
+                except httpx.HTTPError as exc:
+                    logger.warning("short link: %s unreachable: %s", url, type(exc).__name__)
+                    raise ShortLinkUnavailable from exc
+                if not response.is_redirect:
+                    if response.status_code >= 500:
+                        raise ShortLinkUnavailable
+                    raise ShortLinkUnresolved
+                location = response.headers.get("location")
+                if not location:
+                    raise ShortLinkUnresolved
+                target = urljoin(url, location)
+                ref = parse(target)
+                if ref is not None:
+                    return ref
+                if _short_link(target) is None:
+                    raise ShortLinkUnresolved
+                # The hop as given (its query included): the code alone answers differently.
+                url = target
+    finally:
+        _short_link_slots.release()
+    raise ShortLinkUnresolved

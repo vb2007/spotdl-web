@@ -1,5 +1,5 @@
 """Redis-backed fixed-window rate limits (v53): failed logins per email and client address,
-and job creates per user and per API key.
+job creates per user and per API key, and (v65) short link resolves per user.
 
 A window starts at a bucket's first counted event and lasts its `window` seconds (INCR, then
 EXPIRE NX), so `Retry-After` is the bucket's remaining TTL. Limits are best effort: a Redis
@@ -176,3 +176,22 @@ def hit_job_create(user_id: uuid.UUID, api_key_id: uuid.UUID | None) -> None:
         return
     if retry_after is not None:
         raise _rate_limited(retry_after)
+
+
+def hit_link_resolve(user_id: uuid.UUID) -> None:
+    """v65: counts one short link resolve (`/api/links/resolve`) against the user, by the job
+    create limit and window but in a bucket of its own, so a share's resolve and its create
+    don't share one count. Raises 429 `rate_limited` over it."""
+    settings = get_settings()
+    limit = settings.job_create_rate_limit
+    if limit <= 0:
+        return
+    bucket = f"{KEY_PREFIX}resolve:user:{user_id}"
+    try:
+        if _count(bucket, settings.job_create_rate_limit_window_seconds) <= limit:
+            return
+        ttl = _redis().ttl(bucket)
+    except redis.RedisError:
+        logger.warning("rate_limit: link resolve not counted, Redis unavailable")
+        return
+    raise _rate_limited(ttl if ttl > 0 else 1)
