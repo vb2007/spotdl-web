@@ -841,6 +841,10 @@
 			grid-column: 2;
 			grid-row: auto;
 		}
+		/* v64: the count on a line of its own, so the two actions stay side by side. */
+		.export-count {
+			flex-basis: 100%;
+		}
 	}
 	/* v47: in a forced-colors theme (Windows High Contrast) a bar's fills were dropped to empty
 	   outlines; a reading keeps its own colours, as /stats' charts already do. */
