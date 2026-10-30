@@ -398,7 +398,6 @@
   "396": "lockfile-stamp.mjs",
   "397": "__init__.py",
   "398": "test_a_refused_body_is_422_request_invalid_and_never_echoed",
-  "399": "test_an_ipv6_host_shares_one_login_bucket_across_its_64",
   "400": "Job",
   "401": "Session",
   "402": "test_pacing_delay_is_zero_when_unconfigured",
