@@ -750,6 +750,79 @@ test.describe('as the admin', () => {
 		await page.keyboard.press('Shift+A');
 	});
 
+	// v66: "my stats" without a mouse, as a non-admin: `g t` reaches it, the window switch and the
+	// charts' tables are Tab stops, and the admin's scope switch is one too.
+	test('my stats by keyboard: g t, the window switch, the table views', async ({ browser }) => {
+		desktopOnly();
+		const context = await browser.newContext({ storageState: USER_STATE });
+		const page = await context.newPage();
+		try {
+			await openDashboard(page);
+			await page.keyboard.press('g');
+			await page.keyboard.press('t');
+			await expect(page).toHaveURL('/stats');
+			const h1 = page.locator('h1');
+			await expect(h1).toHaveText(t(m.stats_mine_heading));
+			await expect(h1).toBeFocused();
+			const window30 = page.getByRole('button', { name: t(m.stats_window_30d), exact: true });
+			await expect(
+				page.getByRole('region', { name: t(m.stats_mine_library_heading) })
+			).toBeVisible();
+			// Tab from the heading reaches the 30d switch, Enter presses it.
+			for (
+				let i = 0;
+				i < 12 && !(await window30.evaluate((b) => b === document.activeElement));
+				i++
+			)
+				await page.keyboard.press('Tab');
+			await expect(window30).toBeFocused();
+			const read = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/stats/me');
+			await page.keyboard.press('Enter');
+			expect((await read).url()).toContain('window=30d');
+			await expect(window30).toHaveAttribute('aria-pressed', 'true');
+			// Every "show as a table" opens from the keyboard: the charts' text alternative.
+			const tables = page.getByText(t(m.stats_show_as_table), { exact: true });
+			const count = await tables.count();
+			expect(count).toBeGreaterThan(0);
+			for (let n = 0; n < count; n++) {
+				const summary = tables.nth(n);
+				for (
+					let i = 0;
+					i < 20 && !(await summary.evaluate((el) => el === document.activeElement));
+					i++
+				)
+					await page.keyboard.press('Tab');
+				await expect(summary).toBeFocused();
+				await page.keyboard.press('Enter');
+				await expect(summary.locator('xpath=..')).toHaveAttribute('open', '');
+			}
+			await expectNoHiddenFocusables(page);
+		} finally {
+			await context.close();
+		}
+
+		const adminContext = await browser.newContext({ storageState: ADMIN_STATE });
+		const admin = await adminContext.newPage();
+		try {
+			await admin.goto('/stats');
+			await expect(admin.locator('h1')).toHaveText(t(m.stats_heading));
+			const mineButton = admin.getByRole('button', { name: t(m.stats_scope_mine), exact: true });
+			await admin.locator('h1').focus();
+			for (
+				let i = 0;
+				i < 6 && !(await mineButton.evaluate((b) => b === document.activeElement));
+				i++
+			)
+				await admin.keyboard.press('Tab');
+			await expect(mineButton).toBeFocused();
+			await admin.keyboard.press('Enter');
+			await expect(admin).toHaveURL('/stats?scope=mine');
+			await expect(admin.locator('h1')).toHaveText(t(m.stats_mine_heading));
+		} finally {
+			await adminContext.close();
+		}
+	});
+
 	test('every route through g chords; focus lands on each page’s h1', async ({ page }) => {
 		desktopOnly();
 		await openDashboard(page);
@@ -1042,11 +1115,12 @@ test.describe('the help overlay', () => {
 				for (const [path, routeId] of [
 					['/', '/'],
 					['/account', '/account'],
+					// v66: /stats is everyone's (their own downloads).
+					['/stats', '/stats'],
 					...(isAdmin
 						? ([
 								['/settings', '/settings'],
-								['/library', '/library'],
-								['/stats', '/stats']
+								['/library', '/library']
 							] as const)
 						: [])
 				] as const) {
@@ -1150,7 +1224,10 @@ test.describe('the shortcut switch', () => {
 		).toBe(true);
 		try {
 			await page.goto('/account');
-			const off = page.getByRole('button', { name: t(m.account_keyboard_off), exact: true });
+			// v66: scoped to its group: the notifications switch has an "off" too.
+			const off = page
+				.getByRole('group', { name: t(m.account_keyboard_mode) })
+				.getByRole('button', { name: t(m.account_keyboard_off), exact: true });
 			await tabTo(page, off);
 			const saved = page.waitForResponse(sent('PATCH', '/api/settings/keyboard'));
 			await page.keyboard.press('Enter');
@@ -1220,12 +1297,16 @@ test.describe('the shortcut switch', () => {
 				const other = await second2.newPage();
 				await other.goto('/account');
 				await expect(
-					other.getByRole('button', { name: t(m.account_keyboard_off), exact: true })
+					other
+						.getByRole('group', { name: t(m.account_keyboard_mode) })
+						.getByRole('button', { name: t(m.account_keyboard_off), exact: true })
 				).toHaveAttribute('aria-pressed', 'true');
 				await other.keyboard.press('h');
 				await expect(other.locator('dialog[open]')).toHaveCount(0);
 				// Back on from here: the first browser picks it up on its next reload.
-				const on = other.getByRole('button', { name: t(m.account_keyboard_on), exact: true });
+				const on = other
+					.getByRole('group', { name: t(m.account_keyboard_mode) })
+					.getByRole('button', { name: t(m.account_keyboard_on), exact: true });
 				await tabTo(other, on);
 				await other.keyboard.press('Enter');
 				await expect(on).toHaveAttribute('aria-pressed', 'true');
