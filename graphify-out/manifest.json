@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1793398344.2534232,
-    "ast_hash": "b2785e0798c7f7cba17311b98c33af13",
+    "mtime": 1793399644.95291,
+    "ast_hash": "d78c3e49e889779be4b5883374dd737c",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -2165,18 +2165,18 @@
     "semantic_hash": ""
   },
   "backend/app/routers/export.py": {
-    "mtime": 1793398213.2877164,
-    "ast_hash": "d8a2c986eb9237c78043c3c1e5aa81a3",
+    "mtime": 1793399496.898352,
+    "ast_hash": "6216cfa1ffd1d350382b91a72753df65",
     "semantic_hash": ""
   },
   "backend/app/services/export.py": {
-    "mtime": 1793398286.2048037,
-    "ast_hash": "58429ca86ee686d499850105679a683c",
+    "mtime": 1793399565.8039773,
+    "ast_hash": "85c678a1d5542084bff7fd6d46f3010a",
     "semantic_hash": ""
   },
   "backend/tests/test_export.py": {
-    "mtime": 1793398286.2050722,
-    "ast_hash": "13b479659dacea80ef5c0b2dbb584310",
+    "mtime": 1793399565.8038628,
+    "ast_hash": "33e81f15ac00933db2cbaee2931b1d6c",
     "semantic_hash": ""
   },
   "frontend/e2e/21-export.e2e.ts": {
