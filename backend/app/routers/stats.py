@@ -16,6 +16,9 @@ def my_stats(
     window: Literal["24h", "7d", "30d"] = "24h",
     # The viewer's clock, as /api/admin/stats takes it.
     utc_offset_minutes: int = Query(0, ge=-720, le=840),
+    # The library contribution is all time, the same in every window: a window switch asks
+    # without it (`null`) rather than measure every file again (review round 2).
+    library: bool = True,
     db: Session = Depends(get_db),
     user: User = Depends(require_session),
 ) -> dict:
@@ -26,8 +29,14 @@ def my_stats(
     # measured on disk after it ends, so a big library's stats never hold it open.
     begin_snapshot(db)
     result = stats.my_stats(
-        db, user.id, window, utc_offset_minutes=utc_offset_minutes, measure_library=False
+        db,
+        user.id,
+        window,
+        utc_offset_minutes=utc_offset_minutes,
+        measure_library=False,
+        include_library=library,
     )
     db.commit()
-    result["library"] = stats.measure_files(result["library"])
+    if library:
+        result["library"] = stats.measure_files(result["library"])
     return result

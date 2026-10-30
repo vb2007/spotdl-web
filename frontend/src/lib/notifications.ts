@@ -50,7 +50,7 @@ let adoptedFor: string | null = null;
 let knownLocally = false;
 let channel: BroadcastChannel | null | undefined;
 /** Offers seen per event key, own included. */
-const offers = new Map<string, Set<string>>();
+const offers = new Map<string, { tabs: Set<string>; at: number }>();
 /** Event keys some tab has decided (shown, or this tab's own decision), with when. */
 const decided = new Map<string, number>();
 let onActivate: ((jobId: string) => void) | null = null;
@@ -88,9 +88,7 @@ function shared(): BroadcastChannel | null {
 function receive(message: Message) {
 	prune();
 	if (message.type === 'offer') {
-		const seen = offers.get(message.key) ?? new Set<string>();
-		seen.add(message.tab);
-		offers.set(message.key, seen);
+		noteOffer(message.key, message.tab);
 	} else if (message.type === 'shown') {
 		decided.set(message.key, Date.now());
 	} else if (message.type === 'pref' && message.email === adoptedFor) {
@@ -99,14 +97,18 @@ function receive(message: Message) {
 	}
 }
 
+function noteOffer(key: string, tab: string) {
+	const seen = offers.get(key) ?? { tabs: new Set<string>(), at: Date.now() };
+	seen.tabs.add(tab);
+	offers.set(key, seen);
+}
+
+/** Forgets decisions and offers past `REMEMBER_MS`, an offer never decided here included (its
+ * announcing tab closed meanwhile, say): nothing grows for the tab's lifetime. */
 function prune() {
 	const cutoff = Date.now() - REMEMBER_MS;
-	for (const [key, at] of decided) {
-		if (at < cutoff) {
-			decided.delete(key);
-			offers.delete(key);
-		}
-	}
+	for (const [key, at] of decided) if (at < cutoff) decided.delete(key);
+	for (const [key, offer] of offers) if (offer.at < cutoff && !decided.has(key)) offers.delete(key);
 }
 
 /** The session's identity and saved switch, from a `/me` read. A new identity starts with
@@ -165,14 +167,12 @@ export function observe(event: api.StreamEvent) {
 async function offer(key: string, jobId: string) {
 	prune();
 	if (decided.has(key)) return;
-	const seen = offers.get(key) ?? new Set<string>();
-	seen.add(tabId);
-	offers.set(key, seen);
+	noteOffer(key, tabId);
 	shared()?.postMessage({ type: 'offer', key, tab: tabId });
 	await new Promise((resolve) => setTimeout(resolve, CLAIM_WINDOW_MS));
 	if (decided.has(key)) return;
 	decided.set(key, Date.now());
-	const lowest = [...(offers.get(key) ?? [])].sort()[0];
+	const lowest = [...(offers.get(key)?.tabs ?? [])].sort()[0];
 	if (lowest !== tabId) return;
 	shared()?.postMessage({ type: 'shown', key });
 	await show(jobId);
@@ -181,7 +181,7 @@ async function offer(key: string, jobId: string) {
 async function show(jobId: string) {
 	let job: api.Job;
 	try {
-		// Owner-scoped like every direct-id read: someone else's job is a 404.
+		// Only ever an id from one of this user's own `mine` streams (an admin could read anyone's).
 		job = await api.getJob(jobId);
 	} catch {
 		return;
@@ -222,18 +222,40 @@ export function setOwnStream(wanted: boolean) {
 		ownStreamDelay = 1000;
 		return;
 	}
+	// A retry already armed is replaced by this connection, never added to it (review round 2).
+	clearTimeout(ownStreamTimer);
 	if (ownStream === null) connectOwnStream();
 }
 
 function connectOwnStream() {
-	if (!ownStreamWanted) return;
+	if (!ownStreamWanted || ownStream !== null) return;
 	const stream = api.createEventSource('mine');
 	ownStream = stream;
-	stream.onopen = () => {
-		ownStreamDelay = 1000;
+	// v42's rule for a stream: it belongs to the session it was opened under. Every (re)open
+	// checks whose session the cookie is now, and events pass only once that's the adopted
+	// identity (another tab's sign-in would otherwise reconnect it onto someone else's channel).
+	const identity = adoptedFor;
+	let verified = false;
+	const stop = () => {
+		stream.close();
+		if (ownStream === stream) ownStream = null;
+	};
+	stream.onopen = async () => {
+		verified = false;
+		try {
+			const now = await api.me();
+			if (ownStream !== stream) return stream.close();
+			if (identity === null || now.email !== identity || adoptedFor !== identity) return stop();
+			verified = true;
+			ownStreamDelay = 1000;
+		} catch {
+			// Can't tell (a blip, or the session ended): the dashboard's own stream and the layout
+			// handle the session; this one stays unverified and passes nothing on.
+		}
 	};
 	stream.onmessage = (event) => {
-		if (ownStream !== stream) return;
+		if (ownStream !== stream) return stream.close();
+		if (!verified || adoptedFor !== identity) return;
 		try {
 			observe(JSON.parse(event.data) as api.StreamEvent);
 		} catch {
@@ -241,9 +263,11 @@ function connectOwnStream() {
 		}
 	};
 	stream.onerror = () => {
-		if (ownStream !== stream || stream.readyState !== EventSource.CLOSED) return;
+		if (ownStream !== stream) return stream.close();
+		if (stream.readyState !== EventSource.CLOSED) return;
 		// A 401 or 502 closes an EventSource for good: open a new one later.
 		ownStream = null;
+		clearTimeout(ownStreamTimer);
 		ownStreamTimer = setTimeout(connectOwnStream, ownStreamDelay);
 		ownStreamDelay = Math.min(ownStreamDelay * 2, OWN_STREAM_RETRY_MAX_MS);
 	};

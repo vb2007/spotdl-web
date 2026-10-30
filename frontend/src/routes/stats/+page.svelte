@@ -83,7 +83,9 @@
 	// The reading on screen: the scope's own, so a scope switch never shows the other's numbers.
 	const current = $derived(scope === 'mine' ? mine : stats);
 
-	async function load() {
+	// `windowOnly`: a window switch, which keeps the all-time library figure already read rather
+	// than have the server measure every file again (review round 2).
+	async function load(windowOnly = false) {
 		const turn = ++sequence;
 		const reading = scope;
 		loading = true;
@@ -91,9 +93,10 @@
 		try {
 			// One request per load, window change and scope change.
 			if (reading === 'mine') {
-				const fresh = await api.getMyStats(selected);
+				const known = windowOnly ? mine?.library : null;
+				const fresh = await api.getMyStats(selected, !known);
 				if (turn !== sequence) return;
-				mine = fresh;
+				mine = known ? { ...fresh, library: known } : fresh;
 			} else {
 				const fresh = await api.getAdminStats(selected);
 				if (turn !== sequence) return;
@@ -122,7 +125,7 @@
 	function choose(next: api.StatsWindow) {
 		if (next === selected) return;
 		selected = next;
-		void load();
+		void load(true);
 	}
 
 	onMount(() => {
@@ -251,7 +254,7 @@
 			<div class="layout" class:stale={loading && mine !== null}>
 				<section class="panel now" aria-labelledby="library-heading">
 					<h2 id="library-heading" class="label">{m.stats_mine_library_heading()}</h2>
-					{#if mine === null}
+					{#if mine === null || mine.library === null}
 						<p class="quiet">{loading ? m.stats_reading_status() : m.stats_nothing_read()}</p>
 					{:else}
 						<dl class="readout">
@@ -321,10 +324,11 @@
 									</p>
 								</div>
 								<p class="quiet">{m.stats_rate_definition()}</p>
+								<!-- With no attempts it would only repeat the line below (review round 2). -->
+								<CompletedColumns stats={mine} />
 							{:else}
 								<p class="quiet">{m.stats_mine_no_attempts()}</p>
 							{/if}
-							<CompletedColumns stats={mine} />
 						</section>
 
 						<section class="block" aria-labelledby="time-heading">

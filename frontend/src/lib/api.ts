@@ -335,8 +335,9 @@ export interface MyStats extends RecordedWindow {
 	/** Jobs submitted in the window, by their rollup status now (`statusKey()` tokens). */
 	jobs: { total: number; by_status: Record<string, number> };
 	/** All time: the files the user's own jobs downloaded (a duplicate is someone else's). A
-	 * file the server couldn't read is counted in `files` but not in `bytes`. */
-	library: { files: number; bytes: number; unreadable: number };
+	 * file the server couldn't read is counted in `files` but not in `bytes`. `null` when asked
+	 * without it (a window switch: it's the same in every window). */
+	library: { files: number; bytes: number; unreadable: number } | null;
 }
 
 export type ProxySource = 'file' | 'manual';
@@ -949,9 +950,11 @@ export function getAdminStats(window: StatsWindow): Promise<AdminStats> {
 }
 
 /** v66: the session user's own stats. Owner-scoped by construction: nothing here names a user. */
-export function getMyStats(window: StatsWindow): Promise<MyStats> {
+export function getMyStats(window: StatsWindow, library = true): Promise<MyStats> {
 	const offset = -new Date().getTimezoneOffset();
-	return request<MyStats>(`/api/stats/me?window=${window}&utc_offset_minutes=${offset}`);
+	return request<MyStats>(
+		`/api/stats/me?window=${window}&utc_offset_minutes=${offset}${library ? '' : '&library=false'}`
+	);
 }
 
 export type AlertCategory = 'breaker' | 'spike' | 'beat_stale' | 'worker_down' | 'library' | 'test';
