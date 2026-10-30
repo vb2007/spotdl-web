@@ -24,6 +24,7 @@
 	let hint = $state<'ios' | 'firefox' | null>(null);
 	let version = $state<string | null>(null);
 	let prompting = $state(false);
+	let heading: HTMLElement | undefined = $state();
 
 	async function readVersion(): Promise<void> {
 		version = await serviceWorkerVersion();
@@ -45,17 +46,25 @@
 
 	async function install(): Promise<void> {
 		prompting = true;
+		// The offer is used up either way, so the button goes: focus waits on the heading.
+		heading?.focus();
 		try {
 			justInstalled = (await promptInstall()) === 'accepted';
+		} catch {
+			// An offer the browser no longer honours: nothing to install from here.
+			justInstalled = false;
 		} finally {
 			prompting = false;
 		}
 	}
 </script>
 
-{#if installed || offered || justInstalled || hint !== null}
+<!-- Kept while the browser's dialog is open, so focus has somewhere to stay. -->
+{#if installed || offered || prompting || justInstalled || hint !== null}
 	<section class="panel section" aria-labelledby="install-heading">
-		<h2 id="install-heading" class="label">{m.install_heading()}</h2>
+		<h2 id="install-heading" class="label" tabindex="-1" bind:this={heading}>
+			{m.install_heading()}
+		</h2>
 		{#if installed}
 			<p class="hint">{m.install_running()}</p>
 		{:else}

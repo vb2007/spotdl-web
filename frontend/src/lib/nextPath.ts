@@ -1,6 +1,7 @@
 // v65: where `/login?next=…` goes once signed in. A share opened signed out comes back to its
-// own `/share?…` after the login, and nothing else: `next` is any same-origin path, never a
-// link off the site (`//host`, `/\host`, `https://…`, `javascript:`), never `/login` itself.
+// own `/share?…` after the login, and nothing else: `/share` is the one page that sends anyone
+// here with a `next`, so it's the one path accepted (with its query). Never a link off the site
+// (`//host`, `/\host`, `https://…`, `javascript:`, or dot segments that normalize to `//host`).
 
 // Any fixed origin: a path that resolves onto another one isn't a path of this site.
 const BASE = 'https://app.invalid';
@@ -16,8 +17,13 @@ export function safeNext(raw: string | null | undefined): string | null {
 	} catch {
 		return null;
 	}
-	if (parsed.origin !== BASE || parsed.pathname === '/login') return null;
-	return parsed.pathname + parsed.search + parsed.hash;
+	if (parsed.origin !== BASE || parsed.pathname !== '/share') return null;
+	const path = parsed.pathname + parsed.search + parsed.hash;
+	// What's returned is checked too, not only what came in: the parser collapses `/..//host`
+	// into `//host`, a protocol-relative link off the site (review round 1).
+	if (path.startsWith('//') || path.includes('\\') || new URL(path, BASE).origin !== BASE)
+		return null;
+	return path;
 }
 
 /** The `/login` address that comes back to `path` (with its query) after signing in. */

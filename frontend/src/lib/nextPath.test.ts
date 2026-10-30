@@ -5,10 +5,8 @@ describe('v65 login next', () => {
 	it("keeps a share's own path and query", () => {
 		const share = '/share?text=Listen%20https%3A%2F%2Fopen.spotify.com%2Ftrack%2Fx&title=a';
 		expect(safeNext(share)).toBe(share);
-		expect(safeNext('/')).toBe('/');
-		expect(safeNext('/account#install')).toBe('/account#install');
-		// An escape stays escaped: a same-origin path, not a redirect.
-		expect(safeNext('/%0a/evil')).toBe('/%0a/evil');
+		expect(safeNext('/share')).toBe('/share');
+		expect(safeNext('/share#x')).toBe('/share#x');
 	});
 
 	it('round-trips through the login address', () => {
@@ -32,7 +30,18 @@ describe('v65 login next', () => {
 		'javascript:alert(1)',
 		'share',
 		'/login',
-		'/login?next=/share'
+		'/login?next=/share',
+		// Only /share: nothing else sends anyone to /login with a next.
+		'/',
+		'/account',
+		'/api/tracks/x/file',
+		// Dot segments the parser collapses into `//host` (review round 1).
+		'/..//evil.example',
+		'/.//evil.example',
+		'/%2e%2e//evil.example',
+		'/x/..//evil.example',
+		'/./%2e//evil.example/share?y',
+		'/share/..//evil.example'
 	])('refuses %s', (raw) => {
 		expect(safeNext(raw)).toBeNull();
 	});
