@@ -208,17 +208,25 @@ def load_rows(db: Session, job_id: uuid.UUID) -> list:
 
 
 _NOT_FOUND = "file not found at its recorded path"
+_UNREADABLE = "file can't be read (permissions)"
 
 
 def _locate(raw_path: str) -> tuple[Path, str, int] | str:
     """The file at `raw_path`: its resolved path, its root's nginx prefix and its size, or
     the reason it isn't in the export."""
-    location = allowed_file_location(Path(raw_path))
+    try:
+        location = allowed_file_location(Path(raw_path))
+    except (OSError, RuntimeError):
+        # Python 3.12's resolve() raises RuntimeError on a symlink loop, even non-strict: one
+        # bad row must not fail the whole job's export.
+        return "recorded path can't be resolved (a symlink loop?)"
     if location is None:
         return "recorded path is outside the download and library folders"
     resolved, _root, prefix = location
     try:
         stat = resolved.stat()
+    except PermissionError:
+        return _UNREADABLE
     except OSError:
         return _NOT_FOUND
     if not resolved.is_file():
@@ -226,7 +234,7 @@ def _locate(raw_path: str) -> tuple[Path, str, int] | str:
     # Checked here, not met mid-stream: an unreadable file would break every download of the
     # zip partway, where the probe had said it was fine.
     if not os.access(resolved, os.R_OK):
-        return "file can't be read (permissions)"
+        return _UNREADABLE
     return resolved, prefix, stat.st_size
 
 
@@ -350,7 +358,10 @@ def _current_path(spotify_track_id: str) -> Path | None:
     file_path = _current_paths([spotify_track_id]).get(spotify_track_id)
     if file_path is None:
         return None
-    location = allowed_file_location(Path(file_path))
+    try:
+        location = allowed_file_location(Path(file_path))
+    except (OSError, RuntimeError):
+        return None
     return location[0] if location is not None else None
 
 

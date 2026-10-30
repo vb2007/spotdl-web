@@ -7506,6 +7506,10 @@ independently-found production bug from the same conversation)
   What's left is the allocator: the worker's VmRSS rises with many *concurrent* aborted streams
   (242 → 466 MB over 110, about 0.5 MB each and slowing), while tracemalloc shows 0 KiB net
   Python allocation over 100 aborted streams of our own code, and a single stream stays flat.
+  *(Live review round 5, 25 at a time: 278 → 576 MB for the first 25, then 589, 662, 680 MB,
+  never given back. Several MB per concurrent aborted stream, far more than one at a time; the
+  production limit is 768M. Not reproduced as a Python-level leak; `MALLOC_ARENA_MAX` would be
+  the env/compose dial.)*
 - **nginx's `send_timeout` (60 s) cut off a paused download.** `location /api/` only raised
   `proxy_read_timeout`/`proxy_send_timeout`, which time the upstream side. It's 3600 s now; a
   reader paused 75 s gets the whole 1.2 GB. There's no `Range` support, so a download can't
@@ -7527,4 +7531,9 @@ independently-found production bug from the same conversation)
   row's object on every SSE event, so the strip re-read on each one (2 HEADs per event); a
   `$derived(job.id)` re-runs only when the id changes. And a read queued behind one in flight
   must run even if the row was closed and opened in between, or the reopened row stays empty.
+- **`Path.resolve()` raises `RuntimeError` on a symlink loop** in Python 3.12, `strict=False`
+  included (live review round 5): one track whose recorded path looped made the whole job's
+  export, HEAD and playlist answer 500. The export's two resolve sites catch it, and the track
+  is listed ("recorded path can't be resolved"). A file in an unreadable folder fails `stat()`
+  with `PermissionError` and is listed with the permissions reason.
 
