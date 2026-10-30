@@ -449,3 +449,40 @@ def test_job_notifications_preference_is_owner_scoped(client, db_session, make_u
     _as(client, admin_cookie).patch("/api/settings/notifications", json={"job_notifications": True})
     _as(client, admin_cookie).patch("/api/settings/notifications", json={"job_notifications": False})
     assert _as(client, alice_cookie).get("/api/auth/me").json()["job_notifications"] is True
+
+
+def test_my_stats_never_count_another_users_rows(client, db_session, make_user, session_cookie):
+    """v66: /api/stats/me is the session user's own, whoever asks and whatever they pass: a
+    stranger reads zero of the victim's job, an admin (in any view) reads their own, and only
+    the victim reads theirs. No endpoint takes another user's id."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.models import TrackAttempt, TrackAttemptOutcome
+
+    victim = make_user("victim@example.com")
+    track = _make_track(db_session, _make_job(db_session, victim), state=TrackState.COMPLETED)
+    finished = datetime.now(timezone.utc) - timedelta(minutes=1)
+    db_session.add(
+        TrackAttempt(
+            track_id=track.id,
+            attempt_number=1,
+            started_at=finished - timedelta(seconds=30),
+            finished_at=finished,
+            outcome=TrackAttemptOutcome.COMPLETED,
+        )
+    )
+    db_session.commit()
+    victim_cookie = session_cookie("victim@example.com")
+    stranger_cookie = session_cookie("stranger@example.com")
+    admin_cookie = session_cookie("admin@example.com", is_admin=True)
+
+    for window in ("24h", "7d", "30d"):
+        own = _as(client, victim_cookie).get(f"/api/stats/me?window={window}").json()
+        assert (own["attempts"]["completed"], own["jobs"]["total"]) == (1, 1)
+        for cookie in (stranger_cookie, admin_cookie):
+            for query in ("", "&view=all", "&view=others", "&all_users=true", f"&user_id={victim.id}"):
+                other = _as(client, cookie).get(f"/api/stats/me?window={window}{query}")
+                assert other.status_code == 200
+                body = other.json()
+                assert (body["attempts"]["attempts"], body["completed"]["total"], body["jobs"]["total"]) == (0, 0, 0)
+                assert body["time_to_complete"]["tracks"] == 0

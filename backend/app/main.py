@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.errors import ApiError, api_error_handler, validation_error_handler
-from app.routers import admin, auth, health, jobs, library, proxies, settings, stream, tracks, worker
+from app.routers import admin, auth, health, jobs, library, proxies, settings, stats, stream, tracks, worker
 from app.routers import account_keys
 
 app = FastAPI(title="spotdl-web")
@@ -35,6 +35,7 @@ app.include_router(jobs.router)
 app.include_router(library.router)
 app.include_router(proxies.router)
 app.include_router(settings.router)
+app.include_router(stats.router)
 app.include_router(stream.router)
 app.include_router(tracks.router)
 app.include_router(worker.router)
