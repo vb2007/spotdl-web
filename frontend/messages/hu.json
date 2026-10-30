@@ -244,6 +244,7 @@
 	"job_export_playlist_label": "{title}: lejátszási lista (.m3u8)",
 	"job_export_preparing": "előkészítés…",
 	"job_notice_export_failed": "Nem sikerült letölteni ennek a feladatnak a fájljait.",
+	"job_notice_export_nothing": "Ennek a feladatnak már egyetlen fájlja sincs meg.",
 	"job_tracks_loading": "Számok betöltése…",
 	"job_tracks_empty": "Nincs szám.",
 	"job_tracks_failed": "Nem sikerült betölteni a feladat számait.",

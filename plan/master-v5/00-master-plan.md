@@ -731,6 +731,10 @@ here.
   - **`routers/tracks.py`:** v27's path guard moved into `allowed_file_location`, shared with
     the export (the plan's "v27's guard reused"). The single-track download keeps its lexical
     check, so the new mounts don't change what it serves.
+  - **Small companions outside the files:** `main.py` (the router, and CORS exposing the two
+    count headers), `i18n/errors.ts` (`export_too_large`, the limit fields), e2e spec 14 (the
+    strip's two Tab stops) and `support/stack.ts` (a comment), and `test_job_listing.py` (a
+    fixture whose job title hung on a `created_at` tie the new tests exposed).
   - **Placement and key (owner, impeccable shape):** the export strip sits at the top of an
     opened job, and `d` on a job row downloads the zip (the existing `download` binding, one
     level up).

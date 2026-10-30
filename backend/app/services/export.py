@@ -305,7 +305,8 @@ def m3u_text(plan: ExportPlan, *, absolute: bool = False) -> str:
         if absolute:
             # A line break in a path would end the entry early and start another one.
             path = str(entry.path)
-            if any(c in path for c in "\r\n"):
+            # Any line break a player might split on (`splitlines()`'s set, U+2028 included).
+            if len(path.splitlines()) != 1:
                 path = f"# unlistable path: {_m3u_label(entry.label)}"
             lines.append(path)
         else:
@@ -367,7 +368,10 @@ def _open(entry: ExportFile):
         moved = _current_path(entry.spotify_track_id)
         if moved is None or moved == entry.path:
             raise ExportFileChanged(f"{entry.arcname}: gone from {entry.path}") from None
-        handle = open(moved, "rb")
+        try:
+            handle = open(moved, "rb")
+        except OSError:
+            raise ExportFileChanged(f"{entry.arcname}: can't be read at {moved} either") from None
         if os.fstat(handle.fileno()).st_size != entry.size:
             handle.close()
             raise ExportFileChanged(f"{entry.arcname}: moved to {moved} with another size") from None

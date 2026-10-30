@@ -297,15 +297,24 @@
 		if (exportProbing !== null) return;
 		const url = kind === 'zip' ? api.jobExportUrl(job.id) : api.jobPlaylistUrl(job.id);
 		const session = queue.getResetCount();
+		const generation = exportRead;
 		exportProbing = kind;
 		try {
 			const counts = await api.checkJobExport(url);
-			// The probe's answer is the newest count there is: the strip follows it, so a file
-			// gone from disk since the job opened stops being counted.
 			if (counts !== null && queue.getResetCount() === session) {
-				exportRead++;
-				exportCounts = counts;
-				if (counts.files === 0) return;
+				// The strip follows the probe, so a file gone from disk since the job opened stops
+				// being counted, unless a read that started after it has answered meanwhile.
+				if (exportRead === generation) {
+					exportRead++;
+					exportCounts = counts;
+				}
+				if (counts.files === 0) {
+					// Nothing left to zip: the strip (and the button that had focus) goes, so the
+					// row says why and keeps focus.
+					showNotice(m.job_notice_export_nothing(), true);
+					toggleButton?.focus();
+					return;
+				}
 			}
 		} catch (err) {
 			if (queue.getResetCount() === session)
