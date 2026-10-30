@@ -78,8 +78,14 @@
 			// v65: back to what sent here (a share opened signed out), if it's a path of this
 			// site; read from `location`, since `replaceState` can leave `page.url` stale (v54).
 			const next = safeNext(new URLSearchParams(window.location.search).get('next'));
-			// eslint-disable-next-line svelte/no-navigation-without-resolve -- `next` is a same-origin path safeNext checked, query included, which resolve() can't type
-			await goto(next ?? resolve('/'));
+			// The share replaces this /login entry (the redirect that brought here replaced the
+			// share's own): a Back then leaves, never re-running the login to a live confirm.
+			if (next) {
+				// eslint-disable-next-line svelte/no-navigation-without-resolve -- `next` is a same-origin path safeNext checked, query included, which resolve() can't type
+				await goto(next, { replaceState: true });
+			} else {
+				await goto(resolve('/'));
+			}
 		} catch (err) {
 			// The 401 copy is deliberately generic — it matches
 			// the backend's non-disclosure between an unknown/wrong-password upstream
