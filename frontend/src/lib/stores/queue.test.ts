@@ -41,7 +41,11 @@ function job(id: string, state: Job['state'], lifecycle: Job['status']['lifecycl
 		owner_email: 'a@example.com',
 		owner_username: null,
 		title: id,
-		status: { lifecycle, outcome: null }
+		status: { lifecycle, outcome: null },
+		watch_interval_hours: null,
+		next_expand_at: null,
+		last_expanded_at: null,
+		new_tracks: 0
 	};
 }
 

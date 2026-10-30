@@ -1428,6 +1428,26 @@ function createQueueStore() {
 		patchPageJob(await api.setJobPriority(jobId, priority));
 	}
 
+	// v63: the row is patched from each action's own answer, as bump's is.
+	async function setJobWatch(jobId: string, intervalHours: number | null): Promise<api.Job> {
+		const job = await api.setJobWatch(jobId, intervalHours);
+		patchPageJob(job);
+		return job;
+	}
+
+	async function reexpandJob(jobId: string): Promise<void> {
+		patchPageJob(await api.reexpandJob(jobId));
+	}
+
+	async function retryFailedTracks(
+		jobId: string,
+		includeNotFound = false
+	): Promise<api.RetryFailedResult> {
+		const result = await api.retryFailedTracks(jobId, includeNotFound);
+		patchPageJob(result.job);
+		return result;
+	}
+
 	/** "Clear log" (`allSettled`) or a single job's archive button -- *this session's own*
 	 * action, straight from its direct HTTP response. On success, a job that no longer
 	 * matches the active `includeArchived` filter is dropped from view; one that still
@@ -1940,6 +1960,9 @@ function createQueueStore() {
 		retryTrack,
 		bumpJob,
 		setJobPriority,
+		setJobWatch,
+		reexpandJob,
+		retryFailedTracks,
 		archiveJobs,
 		unarchiveJobs
 	};

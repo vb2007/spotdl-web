@@ -75,6 +75,14 @@ export interface Job {
 	 * title column. */
 	title: string;
 	status: JobStatus;
+	/** v63: a watched job is re-expanded every this many hours; null = not watched. */
+	watch_interval_hours: number | null;
+	/** v63: when beat checks a watched job next (null when not watched). */
+	next_expand_at: string | null;
+	/** v63: when the latest re-expansion ("check now" or a scheduled one) started. */
+	last_expanded_at: string | null;
+	/** v63: tracks re-expansions added after the job's first expansion. */
+	new_tracks: number;
 }
 
 /** v16 removed `TrackState.FAILED` (a migration, not just a rename) -- the backend has
@@ -120,7 +128,9 @@ export type TrackAttemptOutcome =
 	| 'cancelled'
 	| 'skipped_duplicate'
 	/** v35: rescheduled behind the circuit breaker/pause without touching the network. */
-	| 'held';
+	| 'held'
+	/** v63: an admin put a not-found track back in the queue ("retry failed" with not-found). */
+	| 'manual_override';
 
 export type NetworkPath = 'direct-ipv4' | 'direct-ipv6' | 'proxy';
 
@@ -784,6 +794,47 @@ export function setJobPriority(jobId: string, priority: number): Promise<Job> {
 
 export function bumpJob(jobId: string): Promise<Job> {
 	return request(`/api/jobs/${jobId}/bump`, { method: 'POST' });
+}
+
+// v63: watched jobs, "check now" and "retry failed".
+
+/** Playlists and artists only (backend `watch.WATCHABLE_SOURCE_TYPES`). */
+export const WATCHABLE_SOURCE_TYPES: ReadonlySet<JobSourceType> = new Set(['playlist', 'artist']);
+
+/** The intervals the UI offers, in hours (the API takes any from a day to a year). */
+export const WATCH_INTERVALS = { daily: 24, weekly: 168, monthly: 720 } as const;
+
+/** `null` stops watching. */
+export function setJobWatch(jobId: string, intervalHours: number | null): Promise<Job> {
+	return request(`/api/jobs/${jobId}/watch`, {
+		method: 'PUT',
+		body: JSON.stringify({ interval_hours: intervalHours })
+	});
+}
+
+/** "Check now": 409 `reexpand_running` while a check of this job is queued or running. */
+export function reexpandJob(jobId: string): Promise<Job> {
+	return request(`/api/jobs/${jobId}/reexpand`, { method: 'POST' });
+}
+
+export interface RetryFailedResult {
+	job: Job;
+	/** Waiting tracks made due now. */
+	retried: number;
+	/** Waiting tracks left to their slot: retried once in this step already (non-admin). */
+	cooldown: number;
+	/** Not-found tracks an admin queued again (`includeNotFound`). */
+	overridden: number;
+	breaker_held: boolean;
+}
+
+/** `includeNotFound` is the admin's override of not-found's terminal rule (403 otherwise). */
+export function retryFailedTracks(
+	jobId: string,
+	includeNotFound = false
+): Promise<RetryFailedResult> {
+	const query = includeNotFound ? '?include_not_found=true' : '';
+	return request(`/api/jobs/${jobId}/retry-failed${query}`, { method: 'POST' });
 }
 
 /** "Clear log": archives every eligible settled/failed/cancelled job for the caller with
