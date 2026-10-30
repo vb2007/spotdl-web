@@ -338,8 +338,11 @@
 			await queue.reexpandJob(job.id);
 			if (queue.getResetCount() === session) showNotice(m.job_notice_checking());
 		} catch (err) {
-			if (queue.getResetCount() === session)
-				showNotice(errorText(err, m.job_notice_check_failed), true);
+			if (queue.getResetCount() !== session) return;
+			// A check already queued or running is the outcome asked for, not a failure.
+			if (err instanceof api.ApiError && err.code === 'reexpand_running')
+				showNotice(m.job_notice_checking());
+			else showNotice(errorText(err, m.job_notice_check_failed), true);
 		} finally {
 			checking = false;
 		}
@@ -509,11 +512,9 @@
 				<!-- v63: the watch and its next check, on a line of its own (in the title's tags it was
 				     cut to "watched…"). -->
 				<span class="breakdown mono"
-					>{!actionable
-						? m.job_watched_paused()
-						: nextCheckDue || job.next_expand_at === null
-							? m.job_watched_soon()
-							: m.job_watched_next({ time: keepReadings(shortDate(job.next_expand_at)) })}</span
+					>{nextCheckDue || job.next_expand_at === null
+						? m.job_watched_soon()
+						: m.job_watched_next({ time: keepReadings(shortDate(job.next_expand_at)) })}</span
 				>
 			{/if}
 			{#if job.new_tracks > 0}

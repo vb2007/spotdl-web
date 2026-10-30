@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 import redis
 from redis.backoff import NoBackoff
 from redis.retry import Retry
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -35,6 +35,11 @@ MIN_WATCH_INTERVAL_HOURS = 24
 MAX_WATCH_INTERVAL_HOURS = 24 * 365
 
 CAP_WINDOW = timedelta(hours=1)
+# A claimed run's next check is this close until its task starts (schedule_next), like the
+# tracks' outbox lease (tasks/expand.py's DISPATCH_LEASE): a run lost between its claim and its
+# start (beat killed after its commit, a broker that took the message and lost it) is claimed
+# again a quarter-hour later, never an interval later.
+CLAIM_LEASE = timedelta(minutes=15)
 # Beat's selection and the cap's count run under this transaction-level advisory lock, so two
 # overlapping ticks can't both spend the same hour's budget.
 _CAP_LOCK_KEY = 0x7370_6463_7665_6170  # "spdcveap"
@@ -97,12 +102,29 @@ def started_this_hour(db: Session, now: datetime) -> int:
 
 
 def mark_started(job: Job, now: datetime) -> None:
-    """A re-expansion of `job` starts now. A watched job's next one is due an interval later,
-    set here rather than when the run ends, so a run lost with its worker is retried on
-    schedule and never stops the watch."""
+    """A re-expansion of `job` is claimed now (the hourly cap counts it). A watched job's next
+    check is the claim's lease until the task starts and schedules the next one
+    (schedule_next)."""
     job.last_expanded_at = now
     if job.watch_interval_hours is not None:
-        job.next_expand_at = now + timedelta(hours=job.watch_interval_hours)
+        job.next_expand_at = now + CLAIM_LEASE
+
+
+def schedule_next(db: Session, job_id: uuid.UUID) -> None:
+    """The run has started: a watched job's next check is an interval after its claim, set
+    before the Spotify read, so a failed read waits for it like a run that found nothing. Only
+    while the next check is still this claim's lease: a watch set or changed since keeps its
+    own (the caller commits)."""
+    db.execute(
+        update(Job)
+        .where(
+            Job.id == job_id,
+            Job.watch_interval_hours.is_not(None),
+            Job.next_expand_at == Job.last_expanded_at + CLAIM_LEASE,
+        )
+        .values(next_expand_at=Job.last_expanded_at + func.make_interval(0, 0, 0, 0, Job.watch_interval_hours))
+        .execution_options(synchronize_session=False)
+    )
 
 
 def new_track_counts(db: Session, job_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, int]:

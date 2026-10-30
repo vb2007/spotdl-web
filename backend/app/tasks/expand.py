@@ -155,6 +155,8 @@ def _reexpand(db, job_id: str) -> None:
         logger.info("expand_job: job %s isn't an expanded, unarchived job; not re-expanding", job_id)
         return
     source_url, user_id = job.source_url, job.user_id
+    # Started: the claim's lease becomes the next interval (watch.schedule_next).
+    watch.schedule_next(db, job.id)
     # The Spotify round trips can take minutes: never with a transaction open across them.
     db.commit()
     try:

@@ -252,7 +252,6 @@
 	"job_watch_hours": "every {hours} h",
 	"job_watched_next": "watched · next {time}",
 	"job_watched_soon": "watched · checking soon",
-	"job_watched_paused": "watched · paused while archived",
 	"job_new_since": [
 		{
 			"declarations": ["input count", "local countPlural = count: plural", "input n"],
@@ -328,7 +327,7 @@
 	],
 	"job_retry_not_found_confirm": "retry not found",
 	"job_retry_not_found_keep": "leave as not found",
-	"job_notice_watching": "watching {interval}; first check {time}",
+	"job_notice_watching": "watching {interval}; next check {time}",
 	"job_notice_unwatched": "no longer watched",
 	"job_notice_watch_failed": "Could not change watching.",
 	"job_notice_checking": "checking for new tracks…",

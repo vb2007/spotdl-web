@@ -283,7 +283,8 @@ def test_beat_starts_a_due_watched_job_and_schedules_its_next_check(db_session, 
     db_session.refresh(due)
     db_session.refresh(later)
     assert due.last_expanded_at >= now
-    assert due.next_expand_at == due.last_expanded_at + timedelta(hours=24)
+    # The claim's lease until the task starts; the start schedules the interval.
+    assert due.next_expand_at == due.last_expanded_at + watch.CLAIM_LEASE
     assert later.last_expanded_at is None
     assert f"{watch.KEY_PREFIX}{due.id}" in markers.values
 
@@ -508,7 +509,7 @@ def test_check_now_moves_a_watched_jobs_next_check(authenticated_client, db_sess
     )
     body = authenticated_client.post(f"/api/jobs/{job.id}/reexpand").json()
     last = datetime.fromisoformat(body["last_expanded_at"])
-    assert datetime.fromisoformat(body["next_expand_at"]) == last + timedelta(hours=24)
+    assert datetime.fromisoformat(body["next_expand_at"]) == last + watch.CLAIM_LEASE
 
 
 def test_a_second_check_while_one_runs_is_a_409(authenticated_client, db_session, owner, sent_expansions):
@@ -923,4 +924,57 @@ def test_beats_refused_send_keeps_an_interval_changed_meanwhile(db_session, monk
 
     db_session.refresh(job)
     assert job.last_expanded_at is None
+    assert job.next_expand_at == weekly
+
+
+# --- review round 5 ----------------------------------------------------------------------
+
+
+def test_a_started_run_schedules_the_interval_before_its_read(db_session, monkeypatch, sent_expansions):
+    now = datetime.now(timezone.utc)
+    job = _watched(db_session, _user(db_session), due_at=now - timedelta(minutes=1))
+    _tick(db_session, monkeypatch)
+    db_session.refresh(job)
+    claimed = job.last_expanded_at
+    assert job.next_expand_at == claimed + watch.CLAIM_LEASE
+
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+
+    def boom(url):
+        raise RuntimeError("Spotify said no")
+
+    monkeypatch.setattr(expansion, "expand", boom)
+    expand_task.expand_job(str(job.id), reexpand=True)
+    db_session.refresh(job)
+    assert job.next_expand_at == claimed + timedelta(hours=24)
+
+
+def test_a_run_lost_after_its_claim_is_claimed_again_after_the_lease(db_session, monkeypatch, sent_expansions, markers):
+    now = datetime.now(timezone.utc)
+    job = _watched(db_session, _user(db_session), due_at=now - timedelta(minutes=1))
+    _tick(db_session, monkeypatch)
+    assert len(sent_expansions) == 1
+    # The message was lost (no task ever started); its marker expired.
+    markers.values.clear()
+    db_session.refresh(job)
+    job.last_expanded_at -= watch.CLAIM_LEASE + timedelta(seconds=1)
+    job.next_expand_at -= watch.CLAIM_LEASE + timedelta(seconds=1)
+    db_session.commit()
+    _tick(db_session, monkeypatch)
+    assert len(sent_expansions) == 2
+
+
+def test_a_started_run_keeps_a_watch_changed_after_its_claim(db_session, monkeypatch, sent_expansions):
+    now = datetime.now(timezone.utc)
+    job = _watched(db_session, _user(db_session), due_at=now - timedelta(minutes=1))
+    _tick(db_session, monkeypatch)
+    weekly = now + timedelta(hours=168)
+    db_session.refresh(job)
+    job.watch_interval_hours, job.next_expand_at = 168, weekly
+    db_session.commit()
+    _reexpand_without_claim = lambda: expand_task.expand_job(str(job.id), reexpand=True)  # noqa: E731
+    monkeypatch.setattr(expand_task, "SessionLocal", lambda: _NonClosingSession(db_session))
+    monkeypatch.setattr(expansion, "expand", lambda url: [_FakeSong("a")])
+    _reexpand_without_claim()
+    db_session.refresh(job)
     assert job.next_expand_at == weekly
