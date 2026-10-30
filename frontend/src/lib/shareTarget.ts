@@ -30,6 +30,10 @@ const INTL_RE = /^intl-[a-z]{2,3}(?:-[a-z0-9]{2,8})?$/i;
 const SHORT_HOSTS = ['spotify.link', 'spotify.app.link'];
 const SHORT_CODE_RE = /^[0-9A-Za-z_-]{1,64}$/;
 const START_RE = /https?:\/\//gi;
+// A Spotify link ends at its id plus an optional query (submitLink.ts's rule, v47): Hungarian
+// writes a case ending onto a link with a hyphen ("…/track/<id>-t").
+const SPOTIFY_LINK_RE =
+	/^https?:\/\/open\.spotify\.com\/(?:[A-Za-z0-9._-]+\/)+[A-Za-z0-9]+(?:\?[A-Za-z0-9=&%_-]*)?/i;
 // What a sentence glues onto a link's end: punctuation, an emoji, a closing bracket.
 const GLUED_RE = /[^\p{L}\p{N}/=_\-&%#~+]+$/u;
 // A character a link can't start after: one that would make it part of another link (its
@@ -83,7 +87,8 @@ function linkInField(text: string): SharedLink | null {
 			.slice(match.index)
 			.split(/[\s<>"']/, 1)[0]
 			.replace(GLUED_RE, '');
-		const link = parseSpotifyLink(token) ?? parseShortLink(token);
+		const link =
+			parseSpotifyLink(SPOTIFY_LINK_RE.exec(token)?.[0] ?? token) ?? parseShortLink(token);
 		if (link) return link;
 	}
 	return null;

@@ -20,7 +20,9 @@ const CACHE = `shell-${version}`;
 // asked for afresh. The legacy `.woff` fonts are left out: every browser this serves uses woff2.
 const IMMUTABLE = build.filter((path) => !path.endsWith('.woff'));
 const FRESH = [...files, ...prerendered];
-const ASSETS = new Set([...IMMUTABLE, ...files]);
+// Under `vite dev` there is no build (`build` is empty) and `version` is fixed for the dev
+// server's life: static files are left to the network there, so an edited one shows at once.
+const ASSETS = new Set(build.length > 0 ? [...IMMUTABLE, ...files] : []);
 
 sw.addEventListener('install', (event) => {
 	event.waitUntil(
@@ -55,15 +57,21 @@ sw.addEventListener('fetch', (event) => {
 	if (url.origin !== sw.location.origin || url.pathname.startsWith('/api/')) return;
 
 	if (request.mode === 'navigate') {
+		const shell = async (answer?: Response) => {
+			const cache = await caches.open(CACHE);
+			// Every prerendered page is the same client-rendered shell; the root one stands in
+			// for a path that has none (it renders the app's own not-found page).
+			const page =
+				(await cache.match(url.pathname, { ignoreSearch: true })) ?? (await cache.match('/'));
+			return page ?? answer ?? Response.error();
+		};
 		event.respondWith(
-			fetch(request).catch(async () => {
-				const cache = await caches.open(CACHE);
-				// Every prerendered page is the same client-rendered shell; the root one stands in
-				// for a path that has none (it renders the app's own not-found page).
-				const page =
-					(await cache.match(url.pathname, { ignoreSearch: true })) ?? (await cache.match('/'));
-				return page ?? Response.error();
-			})
+			// A 5xx for a page is the front door saying the app is down (Cloudflare's 502 during
+			// a deploy): the shell then shows the app's own "can't reach the server" screen.
+			fetch(request).then(
+				(answer) => (answer.status >= 500 ? shell(answer) : answer),
+				() => shell()
+			)
 		);
 		return;
 	}

@@ -16,6 +16,7 @@ from app.db import get_db
 from app.errors import ApiError
 from app.models import User
 from app.routers.auth import require_session
+from app.routers.jobs import MAX_SUBMIT_LENGTH
 from app.services import rate_limit, spotify_urls
 
 router = APIRouter(prefix="/api/links", tags=["links"])
@@ -40,6 +41,14 @@ def resolve_link(
     db.commit()
     rate_limit.hit_link_resolve(user_id)
     url = payload.url
+    if len(url) > MAX_SUBMIT_LENGTH:
+        # Job create's bound, so a huge body isn't walked before its 422.
+        raise ApiError(
+            422,
+            "submit_too_long",
+            f"A link or search is at most {MAX_SUBMIT_LENGTH} characters",
+            {"max": MAX_SUBMIT_LENGTH},
+        )
     ref = spotify_urls.parse(url) if spotify_urls.storable(url) else None
     if ref is None:
         if not (spotify_urls.storable(url) and spotify_urls.is_short_link(url)):

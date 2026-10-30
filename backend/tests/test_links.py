@@ -208,6 +208,12 @@ def test_resolve_endpoint_refuses_anything_else(authenticated_client, short_host
     assert short_host[1] == []
 
 
+def test_resolve_endpoint_bounds_the_link_length(authenticated_client, short_host):
+    response = authenticated_client.post("/api/links/resolve", json={"url": "https://spotify.link/" + "a" * 3000})
+    assert (response.status_code, response.json()["code"]) == (422, "submit_too_long")
+    assert short_host[1] == []
+
+
 def test_resolve_endpoint_refuses_a_lone_surrogate(authenticated_client, short_host):
     response = authenticated_client.post(
         "/api/links/resolve", content='{"url": "https://spotify.link/\\ud800"}', headers={"Content-Type": "application/json"}
