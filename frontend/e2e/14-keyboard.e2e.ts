@@ -769,13 +769,7 @@ test.describe('as the admin', () => {
 				page.getByRole('region', { name: t(m.stats_mine_library_heading) })
 			).toBeVisible();
 			// Tab from the heading reaches the 30d switch, Enter presses it.
-			for (
-				let i = 0;
-				i < 12 && !(await window30.evaluate((b) => b === document.activeElement));
-				i++
-			)
-				await page.keyboard.press('Tab');
-			await expect(window30).toBeFocused();
+			await tabTo(page, window30);
 			const read = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/stats/me');
 			await page.keyboard.press('Enter');
 			expect((await read).url()).toContain('window=30d');
@@ -786,13 +780,7 @@ test.describe('as the admin', () => {
 			expect(count).toBeGreaterThan(0);
 			for (let n = 0; n < count; n++) {
 				const summary = tables.nth(n);
-				for (
-					let i = 0;
-					i < 20 && !(await summary.evaluate((el) => el === document.activeElement));
-					i++
-				)
-					await page.keyboard.press('Tab');
-				await expect(summary).toBeFocused();
+				await tabTo(page, summary);
 				await page.keyboard.press('Enter');
 				await expect(summary.locator('xpath=..')).toHaveAttribute('open', '');
 			}
@@ -807,14 +795,7 @@ test.describe('as the admin', () => {
 			await admin.goto('/stats');
 			await expect(admin.locator('h1')).toHaveText(t(m.stats_heading));
 			const mineButton = admin.getByRole('button', { name: t(m.stats_scope_mine), exact: true });
-			await admin.locator('h1').focus();
-			for (
-				let i = 0;
-				i < 6 && !(await mineButton.evaluate((b) => b === document.activeElement));
-				i++
-			)
-				await admin.keyboard.press('Tab');
-			await expect(mineButton).toBeFocused();
+			await tabTo(admin, mineButton);
 			await admin.keyboard.press('Enter');
 			await expect(admin).toHaveURL('/stats?scope=mine');
 			await expect(admin.locator('h1')).toHaveText(t(m.stats_mine_heading));
