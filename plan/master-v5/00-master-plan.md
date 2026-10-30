@@ -730,3 +730,6 @@ here.
   - **Placement and key (owner, impeccable shape):** the export strip sits at the top of an
     opened job, and `d` on a job row downloads the zip (the existing `download` binding, one
     level up).
+  - **A library sweep during an export (owner, review round 1):** a file the sweep moves while
+    the zip streams is found again through the ledger (re-resolve on miss), not left as a failed
+    download.
