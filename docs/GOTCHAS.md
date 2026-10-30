@@ -7543,4 +7543,16 @@ independently-found production bug from the same conversation)
   Postgres `text` can't store such a path, so it only ever arrives through a link or a folder.
 - **A `?paths=` value other than `library` answered 422 naming `library`,** which told a non-admin
   the admin-only variant exists; any other value is now the same bare 404.
+- **Open the streamed file non-blocking, without following, and check it's the planned one**
+  (live review round 7). A FIFO swapped in for a planned file blocked `open()` in an
+  uncancellable threadpool read, and 40 such downloads stalled every sync endpoint; a symlink
+  swapped in streamed a file from outside the roots (the guard ran only at plan time).
+  `_open_regular` opens with `O_NONBLOCK | O_NOFOLLOW`, requires `S_ISREG` on `fstat`, and
+  compares `(st_dev, st_ino)` with the plan's stat, which catches a folder swapped for a link
+  out. It can't catch a same-size file written over a freed inode in place (tmpfs hands the
+  number straight back), but that file is inside a root anyway.
+- **Every value the export reads from `song_json` or the title is coerced.** A non-string
+  `list_name` (the job title), a non-object `song_json` and a `duration` too big for a float
+  (`math.isfinite(10**400)` raises `OverflowError`) each made the whole job's export answer 500.
+  Bidi controls (U+202E) are stripped from entry names.
 

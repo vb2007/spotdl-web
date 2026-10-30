@@ -28,7 +28,8 @@ def _plan(db: Session, job_id: uuid.UUID, user: User, *, limited: bool) -> expor
     (a few bytes per track, and over the zip's limit it's what the UI points to instead)."""
     job, _owner_email, _owner_username = _get_job_or_404(db, job_id, user)
     rows = export.load_rows(db, job.id)
-    title = rollup.job_title(db, job)
+    # A title is the first track's list or song name as stored: not always a string.
+    title = str(rollup.job_title(db, job))
     max_files, max_bytes = app_settings.export_limits(db)
     # Ends the transaction before the filesystem checks and before anything streams: the
     # response below may run for hours, and a connection idle in transaction all that time is
