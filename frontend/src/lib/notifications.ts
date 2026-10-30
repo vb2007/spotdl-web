@@ -13,9 +13,10 @@
 // The notification's `tag` is the job's, so even two tabs without the channel replace each
 // other's notification rather than stacking.
 //
-// The preference is server-side (`job_notifications`, `/account`). Within a session the tab's
-// own value is the truth once it has one (set on save, and passed between tabs on the channel),
-// as the layout does for the language: a `/me` read before a save mustn't undo it.
+// The preference is server-side (`job_notifications`, `/account`). Every `/me` the pages read
+// carries it, and it's taken unless this tab already knows a newer value: one it saved, or one
+// another tab saved and announced on the channel (a `/me` preloaded before that save mustn't
+// undo it, as the layout does for the language).
 import { writable, get } from 'svelte/store';
 import * as api from '$lib/api';
 import * as m from '$lib/paraglide/messages';
@@ -45,6 +46,8 @@ const tabId =
 		: `${Date.now()}-${Math.random()}`;
 
 let adoptedFor: string | null = null;
+/** This tab saved the switch, or heard another tab save it, since it adopted the identity. */
+let knownLocally = false;
 let channel: BroadcastChannel | null | undefined;
 /** Offers seen per event key, own included. */
 const offers = new Map<string, Set<string>>();
@@ -83,6 +86,7 @@ function shared(): BroadcastChannel | null {
 }
 
 function receive(message: Message) {
+	prune();
 	if (message.type === 'offer') {
 		const seen = offers.get(message.key) ?? new Set<string>();
 		seen.add(message.tab);
@@ -90,6 +94,7 @@ function receive(message: Message) {
 	} else if (message.type === 'shown') {
 		decided.set(message.key, Date.now());
 	} else if (message.type === 'pref' && message.email === adoptedFor) {
+		knownLocally = true;
 		jobNotifications.set(message.enabled);
 	}
 }
@@ -104,29 +109,35 @@ function prune() {
 	}
 }
 
-/** The session's identity and saved switch, from `/me`. Taken only when the identity changes:
- * within a session the tab's own value is the truth. A new identity starts with nothing
- * remembered. */
+/** The session's identity and saved switch, from a `/me` read. A new identity starts with
+ * nothing remembered; the same one takes the value unless this tab knows a newer one. Opens the
+ * channel, so this tab hears the other tabs' offers and saves from now on. */
 export function adopt(email: string, enabled: boolean) {
-	if (adoptedFor === email) return;
-	reset();
-	adoptedFor = email;
+	shared();
+	if (adoptedFor !== email) {
+		reset();
+		adoptedFor = email;
+	} else if (knownLocally) {
+		return;
+	}
 	jobNotifications.set(enabled);
 }
 
 /** After `/account` saved the switch: this tab and the user's other open tabs follow it. */
 export function setEnabled(enabled: boolean) {
+	knownLocally = true;
 	jobNotifications.set(enabled);
 	if (adoptedFor !== null) shared()?.postMessage({ type: 'pref', email: adoptedFor, enabled });
 }
 
-/** Forgets everything (sign-out, another identity): nothing of one user's reaches the next. */
+/** Forgets everything of the session (sign-out, another identity): nothing of one user's
+ * reaches the next. The click handler is the mounted page's, set and cleared by it. */
 export function reset() {
 	adoptedFor = null;
+	knownLocally = false;
 	jobNotifications.set(false);
 	offers.clear();
 	decided.clear();
-	onActivate = null;
 	setOwnStream(false);
 }
 
@@ -179,19 +190,24 @@ async function show(jobId: string) {
 	const counts = job.track_counts;
 	const done = (counts.completed ?? 0) + (counts.skipped_duplicate ?? 0);
 	const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+	const options: NotificationOptions = {
+		body: m.notify_job_done({ done: formatNumber(done), total: formatNumber(total) }),
+		tag: `spotdl-web-job-${job.id}`,
+		lang: document.documentElement.lang || undefined
+	};
 	try {
-		const notification = new Notification(job.title, {
-			body: m.notify_job_done({ done: formatNumber(done), total: formatNumber(total) }),
-			tag: `spotdl-web-job-${job.id}`,
-			lang: document.documentElement.lang || undefined
-		});
+		const notification = new Notification(job.title, options);
 		notification.onclick = () => {
 			window.focus();
 			onActivate?.(job.id);
 			notification.close();
 		};
 	} catch {
-		// Some browsers (Chrome on Android) allow notifications only from a service worker.
+		// Chrome on Android shows notifications only from a service worker (the constructor
+		// throws there): through the installed app's, if there is one. Its click opens the app
+		// rather than this tab's row.
+		const registration = await navigator.serviceWorker?.getRegistration().catch(() => undefined);
+		await registration?.showNotification(job.title, options).catch(() => {});
 	}
 }
 

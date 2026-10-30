@@ -22,8 +22,12 @@ def my_stats(
     """v66: the session user's own downloads, open to every user, aggregated in SQL in this
     one request. Owner-scoped by construction: the user is the session's, and no parameter
     names another (an admin included; the global numbers stay on /api/admin/stats)."""
-    # Several statements, one consistent snapshot (begin_snapshot's docstring).
+    # Several statements, one consistent snapshot (begin_snapshot's docstring). The files are
+    # measured on disk after it ends, so a big library's stats never hold it open.
     begin_snapshot(db)
-    result = stats.my_stats(db, user.id, window, utc_offset_minutes=utc_offset_minutes)
+    result = stats.my_stats(
+        db, user.id, window, utc_offset_minutes=utc_offset_minutes, measure_library=False
+    )
     db.commit()
+    result["library"] = stats.measure_files(result["library"])
     return result

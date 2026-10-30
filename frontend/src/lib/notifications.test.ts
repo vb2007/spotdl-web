@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { JobStatusEvent } from '$lib/api';
 import { isSettle } from '$lib/notifications';
 
@@ -27,5 +27,125 @@ describe('v66: isSettle', () => {
 		expect(isSettle(event('settled:complete'))).toBe(false);
 		// Archived: old news.
 		expect(isSettle(event('settled:complete', 'active', true))).toBe(false);
+	});
+});
+
+// The one-tab-announces protocol, with two tabs: two copies of the module on a shared in-memory
+// BroadcastChannel, a recording Notification and a stubbed job read.
+describe('v66: one tab announces', () => {
+	type Listener = (event: { data: unknown }) => void;
+	let bus: Set<{ listeners: Listener[]; name: string }>;
+	let shown: string[];
+	// A message that arrives only after both tabs' windows ended: the race the lowest-id rule is for.
+	let slow = false;
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.resetModules();
+		bus = new Set();
+		shown = [];
+		slow = false;
+		class Channel {
+			listeners: Listener[] = [];
+			constructor(public name: string) {
+				bus.add(this);
+			}
+			addEventListener(_type: string, listener: Listener) {
+				this.listeners.push(listener);
+			}
+			postMessage(data: unknown) {
+				// Never to itself, as a real channel; delivered asynchronously.
+				for (const other of bus)
+					if (other !== this && other.name === this.name) {
+						const deliver = () => other.listeners.forEach((l) => l({ data }));
+						if (slow) setTimeout(deliver, 0);
+						else queueMicrotask(deliver);
+					}
+			}
+		}
+		class Recorded {
+			static permission = 'granted';
+			onclick: (() => void) | null = null;
+			constructor(title: string) {
+				shown.push(title);
+			}
+			close() {}
+		}
+		vi.stubGlobal('BroadcastChannel', Channel);
+		vi.stubGlobal('window', { Notification: Recorded, focus() {} });
+		vi.stubGlobal('Notification', Recorded);
+		vi.stubGlobal('document', { documentElement: { lang: 'en' } });
+		vi.doMock('$lib/api', () => ({
+			getJob: async (id: string) => ({ id, title: `Album ${id}`, track_counts: { completed: 2 } })
+		}));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+		vi.doUnmock('$lib/api');
+	});
+
+	async function tab() {
+		const module = await import('$lib/notifications');
+		module.adopt('a@example.com', true);
+		return module;
+	}
+
+	const settle: JobStatusEvent = {
+		type: 'job.status',
+		job_id: 'j1',
+		status: 'settled:complete',
+		prev_status: 'active',
+		archived: false,
+		ts: '2026-10-30T18:00:00Z'
+	};
+
+	it('shows one notification for an event both tabs receive', async () => {
+		const one = await tab();
+		vi.resetModules();
+		const two = await tab();
+		one.observe(settle);
+		two.observe(settle);
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(shown).toEqual(['Album j1']);
+	});
+
+	it('shows one when both tabs decide before either hears the other', async () => {
+		const one = await tab();
+		vi.resetModules();
+		const two = await tab();
+		slow = true;
+		one.observe(settle);
+		two.observe(settle);
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(shown).toEqual(['Album j1']);
+	});
+
+	it('ignores a late offer for an event already decided', async () => {
+		const one = await tab();
+		vi.resetModules();
+		const two = await tab();
+		one.observe(settle);
+		await vi.advanceTimersByTimeAsync(1000);
+		two.observe(settle);
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(shown).toEqual(['Album j1']);
+	});
+
+	it('follows another tab turning it off', async () => {
+		const one = await tab();
+		vi.resetModules();
+		const two = await tab();
+		two.setEnabled(false);
+		await vi.advanceTimersByTimeAsync(10);
+		one.observe(settle);
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(shown).toEqual([]);
+		// A `/me` read from before that save doesn't turn it back on.
+		one.adopt('a@example.com', true);
+		one.observe({ ...settle, ts: 'later' });
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(shown).toEqual([]);
 	});
 });
