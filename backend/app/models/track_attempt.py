@@ -18,6 +18,10 @@ class TrackAttemptOutcome(str, enum.Enum):
     # pause) was active, or beat reclaimed a track stuck `queued` whose message never ran.
     # Holds used to be stored as `failed`, which counted them as attempts they never were.
     HELD = "held"
+    # v63: an admin's "retry failed" with not-found included put this `lookup_failed` track
+    # back in the queue for one more attempt: an explicit override of LookupError's terminal
+    # rule. No network, so it counts as no attempt (attempts._NETWORK_OUTCOMES).
+    MANUAL_OVERRIDE = "manual_override"
 
 
 class NetworkPath(str, enum.Enum):

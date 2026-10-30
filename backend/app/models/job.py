@@ -38,6 +38,12 @@ class Job(Base):
             text("created_at DESC"),
             postgresql_where=text("archived_at IS NULL"),
         ),
+        # v63: beat's watched-job selection (`next_expand_at <= now`) on every tick.
+        Index(
+            "ix_jobs_next_expand_at_watched",
+            "next_expand_at",
+            postgresql_where=text("watch_interval_hours IS NOT NULL"),
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -61,3 +67,9 @@ class Job(Base):
     )
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     archived_at: Mapped[datetime | None] = mapped_column(nullable=True, index=True)
+    # v63: a watched playlist/artist job is re-expanded every this many hours (null = not
+    # watched). `last_expanded_at` is when the latest re-expansion was claimed (scheduled or
+    # "check now"; the hourly cap counts these), `next_expand_at` when beat runs the next one.
+    watch_interval_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    last_expanded_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    next_expand_at: Mapped[datetime | None] = mapped_column(nullable=True)

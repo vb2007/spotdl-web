@@ -9,7 +9,8 @@ vi.mock('$lib/api', async (importOriginal) => {
 		listJobsPage: vi.fn(),
 		listTracksPage: vi.fn(),
 		getJob: vi.fn(),
-		cancelJob: vi.fn()
+		cancelJob: vi.fn(),
+		listJobTracksPage: vi.fn()
 	};
 });
 
@@ -20,6 +21,7 @@ const listJobsPage = vi.mocked(api.listJobsPage);
 const listTracksPage = vi.mocked(api.listTracksPage);
 const getJob = vi.mocked(api.getJob);
 const cancelJob = vi.mocked(api.cancelJob);
+const listJobTracksPage = vi.mocked(api.listJobTracksPage);
 
 function deferred<T>() {
 	let resolve!: (value: T) => void;
@@ -41,7 +43,11 @@ function job(id: string, state: Job['state'], lifecycle: Job['status']['lifecycl
 		owner_email: 'a@example.com',
 		owner_username: null,
 		title: id,
-		status: { lifecycle, outcome: null }
+		status: { lifecycle, outcome: null },
+		watch_interval_hours: null,
+		next_expand_at: null,
+		last_expanded_at: null,
+		new_tracks: 0
 	};
 }
 
@@ -1620,5 +1626,78 @@ describe('v62 (F3) only a 404 drops a row', () => {
 		await vi.advanceTimersByTimeAsync(1000);
 		expect(get(queue.page).items).toEqual([]);
 		expect(get(queue.page).countsByStatus).toEqual({ active: 0 });
+	});
+});
+
+describe('v63 watch-only job events', () => {
+	it("re-read the row but leave an open job's loaded tracks alone", async () => {
+		routeLists({});
+		listJobsPage.mockResolvedValue(jobsPage([job('job-w', 'expanded', 'settled')]));
+		await queue.reload();
+		listJobTracksPage.mockResolvedValue({
+			items: [],
+			next_cursor: null,
+			counts_by_state: {}
+		} as never);
+		queue.toggleExpand('job-w');
+		await vi.runAllTimersAsync();
+		listJobTracksPage.mockClear();
+		getJob.mockResolvedValue({ ...job('job-w', 'expanded', 'settled'), watch_interval_hours: 24 });
+
+		await queue.applyEvent({
+			type: 'job.state',
+			job_id: 'job-w',
+			state: 'expanded',
+			watch: true,
+			ts: '2026-10-30T12:00:00Z'
+		} as StreamEvent);
+		expect(getJob).toHaveBeenCalledWith('job-w');
+		expect(listJobTracksPage).not.toHaveBeenCalled();
+
+		// A re-expansion that added tracks (no `watch`) does re-read them.
+		await queue.applyEvent({
+			type: 'job.state',
+			job_id: 'job-w',
+			state: 'expanded',
+			ts: '2026-10-30T12:00:01Z'
+		} as StreamEvent);
+		expect(listJobTracksPage).toHaveBeenCalledWith('job-w');
+	});
+});
+
+describe('v63 a parked job event', () => {
+	it('keeps the track reload it owed when a watch-only event follows', async () => {
+		routeLists({});
+		listJobsPage.mockResolvedValue(jobsPage([job('job-p', 'expanded', 'settled')]));
+		await queue.reload();
+		listJobTracksPage.mockResolvedValue({
+			items: [],
+			next_cursor: null,
+			counts_by_state: {}
+		} as never);
+		queue.toggleExpand('job-p');
+		await vi.runAllTimersAsync();
+		listJobTracksPage.mockClear();
+
+		// New tracks were added, but the row's re-read failed (not a 404): the event is parked.
+		getJob.mockRejectedValueOnce(new api.ApiError(502, 'bad gateway'));
+		await queue.applyEvent({
+			type: 'job.state',
+			job_id: 'job-p',
+			state: 'expanded',
+			ts: '2026-10-30T12:00:00Z'
+		} as StreamEvent);
+		expect(listJobTracksPage).not.toHaveBeenCalled();
+
+		// A watch-only event next: its answer settles the parked one, reload included.
+		getJob.mockResolvedValue(job('job-p', 'expanded', 'active'));
+		await queue.applyEvent({
+			type: 'job.state',
+			job_id: 'job-p',
+			state: 'expanded',
+			watch: true,
+			ts: '2026-10-30T12:00:01Z'
+		} as StreamEvent);
+		expect(listJobTracksPage).toHaveBeenCalledWith('job-p');
 	});
 });

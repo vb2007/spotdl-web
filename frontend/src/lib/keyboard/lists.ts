@@ -25,6 +25,9 @@ export interface RowActions {
 	priorityUp?: () => unknown;
 	priorityDown?: () => unknown;
 	repeats?: () => unknown;
+	/** v63: a job's watch toggle and "retry failed". */
+	watch?: () => unknown;
+	retryFailed?: () => unknown;
 }
 
 const rowActions = new WeakMap<Element, RowActions>();
@@ -475,7 +478,13 @@ export function listHandlers(opts: {
 	loadMore: () => boolean;
 }): Record<string, (event: KeyboardEvent) => boolean> {
 	const action = (name: RowAction) => () => {
-		const fn = actionsOf(focusedRow())?.[name];
+		const row = focusedRow();
+		let fn = actionsOf(row)?.[name];
+		// v63: a job's watch and "retry failed" also answer from a track inside the open job.
+		if (!fn && (name === 'watch' || name === 'retryFailed') && row) {
+			const list = listOf(row);
+			fn = actionsOf(list ? rowAt(list.parentElement) : null)?.[name];
+		}
 		return fn ? fn() !== false : false;
 	};
 	/** "load more" for the focused row's list: an open job's own button, else the page's. */
@@ -551,6 +560,8 @@ export function listHandlers(opts: {
 		bump: action('bump'),
 		'priority-up': action('priorityUp'),
 		'priority-down': action('priorityDown'),
-		repeats: action('repeats')
+		repeats: action('repeats'),
+		watch: action('watch'),
+		'retry-failed': action('retryFailed')
 	};
 }

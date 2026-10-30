@@ -1428,6 +1428,26 @@ function createQueueStore() {
 		patchPageJob(await api.setJobPriority(jobId, priority));
 	}
 
+	// v63: the row is patched from each action's own answer, as bump's is.
+	async function setJobWatch(jobId: string, intervalHours: number | null): Promise<api.Job> {
+		const job = await api.setJobWatch(jobId, intervalHours);
+		patchPageJob(job);
+		return job;
+	}
+
+	async function reexpandJob(jobId: string): Promise<void> {
+		patchPageJob(await api.reexpandJob(jobId));
+	}
+
+	async function retryFailedTracks(
+		jobId: string,
+		includeNotFound = false
+	): Promise<api.RetryFailedResult> {
+		const result = await api.retryFailedTracks(jobId, includeNotFound);
+		patchPageJob(result.job);
+		return result;
+	}
+
 	/** "Clear log" (`allSettled`) or a single job's archive button -- *this session's own*
 	 * action, straight from its direct HTTP response. On success, a job that no longer
 	 * matches the active `includeArchived` filter is dropped from view; one that still
@@ -1837,7 +1857,12 @@ function createQueueStore() {
 			// v62 (F3): anything but a 404 says nothing about the job: keep it where it is
 			// and apply this event again on the next one (the newest event per job wins).
 			if (!isGone(err)) {
-				failedJobEvents.set(event.job_id, event);
+				// v63: the newest event wins, but a track reload a parked one owed is kept.
+				const parked = failedJobEvents.get(event.job_id);
+				failedJobEvents.set(
+					event.job_id,
+					parked && !parked.watch && event.watch ? { ...event, watch: undefined } : event
+				);
 				return;
 			}
 			// 404 (deleted, or this session lost visibility) -- drop it from view everywhere.
@@ -1859,7 +1884,10 @@ function createQueueStore() {
 		// A reset (logout) or scope switch while the fetch was in flight: this row belongs
 		// to the previous identity/scope and must not land in the new one's stores.
 		if (epoch !== storeEpoch) return;
-		// Answered: an older failed event for this job has nothing left to add (review round 2).
+		// Answered: an older failed event for this job has nothing left to add (review round 2),
+		// but a track reload it owed (v63: it wasn't watch-only).
+		const parked = failedJobEvents.get(event.job_id);
+		const reloadTracks = !event.watch || (parked !== undefined && !parked.watch);
 		failedJobEvents.delete(event.job_id);
 		const wasIncoming = event.job_id in get(incoming);
 
@@ -1874,7 +1902,8 @@ function createQueueStore() {
 			});
 		}
 		patchPageJob(job, { allowInsert: wasIncoming });
-		if (isExpanded(event.job_id) && event.state === 'expanded') {
+		// v63: a watch-only event (`watch`) leaves an open job's loaded pages as they are.
+		if (isExpanded(event.job_id) && event.state === 'expanded' && reloadTracks) {
 			await loadExpandedTracks(event.job_id);
 		}
 	}
@@ -1940,6 +1969,9 @@ function createQueueStore() {
 		retryTrack,
 		bumpJob,
 		setJobPriority,
+		setJobWatch,
+		reexpandJob,
+		retryFailedTracks,
 		archiveJobs,
 		unarchiveJobs
 	};

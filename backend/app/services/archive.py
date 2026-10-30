@@ -20,6 +20,10 @@ zero-track `failed` expansion), never `job.created_at`.
 
 Never touches `downloaded_tracks` -- that ledger is keyed on Spotify track id and is what
 stops a re-download; archiving a job must have zero effect on it.
+
+v63 (owner's decision, 2026-10-30): a watched job is never archived, by any path (clear log,
+retention, the library sweep): beat doesn't re-expand an archived job, so archiving would end
+the watch silently. Stop watching it first.
 """
 
 import uuid
@@ -41,7 +45,7 @@ def _eligible_job_ids(
     older_than: timedelta | None,
 ) -> list[uuid.UUID]:
     base = select(Job.id, Job.state, Job.updated_at).where(
-        Job.user_id == user_id, Job.archived_at.is_(None)
+        Job.user_id == user_id, Job.archived_at.is_(None), Job.watch_interval_hours.is_(None)
     )
     if job_ids is not None:
         base = base.where(Job.id.in_(job_ids))
@@ -84,6 +88,14 @@ def archive_jobs(
     same as elsewhere in this app an id's existence is never confirmed to a non-owner."""
     ids = _eligible_job_ids(db, user_id, job_ids, older_than)
     if not ids:
+        return []
+    # v63: re-derived under the jobs' row locks (in id order). A re-expansion inserts its
+    # tracks under the same lock, and a watch is set under it, so neither can land between the
+    # check and the write: a job that just got pending tracks, or a watch, isn't archived.
+    db.execute(select(Job.id).where(Job.id.in_(ids)).order_by(Job.id).with_for_update())
+    ids = _eligible_job_ids(db, user_id, ids, older_than)
+    if not ids:
+        db.commit()
         return []
     now = datetime.now(timezone.utc)
     jobs = db.query(Job).filter(Job.id.in_(ids)).all()

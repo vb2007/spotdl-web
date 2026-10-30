@@ -122,12 +122,17 @@ def publish_job_event(
     *,
     error: str | None = None,
     archived: bool | None = None,
+    watch: bool = False,
 ) -> None:
+    """`watch` (v63): only the job's watch changed (an interval, a check started or ended with
+    nothing new); the row re-reads, an open job's track list doesn't."""
     event: dict[str, Any] = {"type": "job.state", "job_id": str(job_id), "state": state}
     if error is not None:
         event["error"] = error
     if archived is not None:
         event["archived"] = archived
+    if watch:
+        event["watch"] = True
     publish(user_id, event)
 
 

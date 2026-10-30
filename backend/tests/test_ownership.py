@@ -74,6 +74,12 @@ _DIRECT_ID_CASES = [
     ("POST", "/api/tracks/{track_id}/retry"),
     ("GET", "/api/tracks/{track_id}/attempts"),
     ("GET", "/api/tracks/{track_id}/file"),
+    # v63
+    ("PUT", "/api/jobs/{job_id}/watch"),
+    ("POST", "/api/jobs/{job_id}/reexpand"),
+    ("POST", "/api/jobs/{job_id}/retry-failed"),
+    # A non-owner's admin-only flag is still a 404 (the job's existence first), never 403.
+    ("POST", "/api/jobs/{job_id}/retry-failed?include_not_found=true"),
 ]
 
 
@@ -91,6 +97,8 @@ def test_direct_id_endpoint_404s_for_non_owner(
 
     path = path_template.format(job_id=job.id, track_id=track.id)
     kwargs = {"json": {"priority": 1}} if method == "PATCH" else {}
+    if method == "PUT":
+        kwargs = {"json": {"interval_hours": 24}}
 
     response = _as(client, stranger_cookie).request(method, path, **kwargs)
 
@@ -429,3 +437,33 @@ def test_clock_preference_is_owner_scoped(client, db_session, make_user, session
 
     _as(client, admin_cookie).patch("/api/settings/clock", json={"clock": "12h"})
     assert _as(client, alice_cookie).get("/api/auth/me").json()["clock"] == "24h"
+
+
+def test_v63_job_actions_leave_a_foreign_job_untouched(client, db_session, make_user, session_cookie, monkeypatch):
+    """v63's watch, "check now" and "retry failed", by a non-admin on someone else's job:
+    a 404, and nothing changed (no watch, no run, the waiting track's slot as it was)."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.models import JobSourceType
+    from app.tasks import expand as expand_task
+
+    sent = []
+    monkeypatch.setattr(expand_task.expand_job, "delay", lambda *a, **k: sent.append(a))
+    owner = make_user("owner@example.com")
+    stranger = _as(client, session_cookie("stranger@example.com"))
+    job = _make_job(db_session, owner)
+    job.source_type = JobSourceType.PLAYLIST
+    track = _make_track(db_session, job, state=TrackState.WAITING)
+    slot = datetime.now(timezone.utc) + timedelta(hours=4)
+    track.scheduled_at = slot
+    db_session.commit()
+
+    assert stranger.put(f"/api/jobs/{job.id}/watch", json={"interval_hours": 24}).status_code == 404
+    assert stranger.post(f"/api/jobs/{job.id}/reexpand").status_code == 404
+    assert stranger.post(f"/api/jobs/{job.id}/retry-failed").status_code == 404
+
+    db_session.refresh(job)
+    db_session.refresh(track)
+    assert job.watch_interval_hours is None and job.last_expanded_at is None
+    assert track.scheduled_at == slot
+    assert sent == []
