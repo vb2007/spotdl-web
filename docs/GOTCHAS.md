@@ -736,6 +736,13 @@ needed" claim — rather than silently deleted.
   the dev-only Vite fallback middleware that impersonates it locally) needs the second root added
   too, or a moved file silently 404s in exactly one of those environments while working in the
   others → *v28*
+- Since v64 `api` mounts the downloads and library volumes **read-only** (base, dev override and
+  prod overlay): the job zip is streamed by `api` itself, not nginx. Single-track downloads still
+  go through `X-Accel-Redirect`. The zip is STORED with `Content-Length` known up front; nginx's
+  `/api/` already had `proxy_buffering off`, so no location was added → *v64*
+- An endpoint that streams for hours ends its transaction with `db.commit()` before returning the
+  response (the connection goes back to the pool); `db.close()` on the request's session detaches
+  every object the test's shared `db_session` holds → *v64*
 
 **Frontend (SvelteKit)**
 - SvelteKit's `replaceState` leaves `page.url` at the last navigation and records that stale URL
@@ -1196,6 +1203,10 @@ needed" claim — rather than silently deleted.
   loopback included → *v51*
 - Running Alembic from a test with an ini file runs `fileConfig()`, which disables every logger
   the app already made (and every `caplog` assertion with it) → *v51*
+- A browser's download progress can't be seen on localhost (1.2 GB lands in seconds) and CDP's
+  `Network.emulateNetworkConditions` doesn't throttle downloads: put a rate-limited TCP relay in
+  front of the server instead. Playwright saves a download under a GUID, so `chrome://downloads`
+  shows that name; the real one is `download.suggestedFilename()` → *v64*
 
 **CI**
 - The `pytest` job's Postgres is a service container the runner pulls with the shared
@@ -7403,4 +7414,31 @@ independently-found production bug from the same conversation)
 - **F6 and the session.** Navigations that leave because the session ended or changed (a 401,
   another tab's sign-out or sign-in) set `leavingSession()`, which the unsaved-edits guard lets
   through without asking.
+
+### v64 job-export gotchas (learned building the streamed zip and the M3U)
+
+- **`api` couldn't read a single file.** Until v64 only nginx served audio (`X-Accel-Redirect`,
+  v27), so `api` had no volume mounts; a zip built by `api` (needed for a known `Content-Length`,
+  `MISSING.txt` from a real existence check and the zip's own layout) can't exist without them.
+  The owner approved read-only mounts in all three compose files (2026-10-30). `DOWNLOADS_DIR` and
+  `LIBRARY_DIR` were already required in production, so no new variable.
+- **The plan's nginx change was already there.** `location /api/` has had `proxy_buffering off`
+  since v12 (for SSE), and the export also sends `X-Accel-Buffering: no`. Verified against the
+  nginx build (`docker build frontend`, run on the slot's network): a 1.2 GB zip streamed with
+  `Content-Length: 1258291999`, `api` at 235 → 241 MiB throughout, and `pg_stat_activity` showing
+  only `idle` pool connections (no `idle in transaction`) during the stream.
+- **One expansion's tracks share a `created_at`.** `expand_job` inserts them in one transaction,
+  and `now()` is the transaction's start, so a playlist in `created_at` order is random among ties.
+  The export orders by `created_at`, then the song's `list_position`, `disc_number` and
+  `track_number`.
+- **Membership is completed/skipped_duplicate *and* a file at its recorded path.** A track in any
+  other state goes to `MISSING.txt` with its state, so the UI's "N of M files" (from
+  `track_counts`, no request per row) and the zip agree unless a file vanished from disk, which
+  `MISSING.txt` then names ("file not found at its recorded path").
+- **Zip entry names are hostile input.** A basename can carry `\` (a separator to Windows
+  extractors, so `..\..\x` would escape the folder), `:` and the rest of Windows' refused set:
+  they become `_`. Duplicates are compared case-insensitively (an archive extracted on Windows or
+  macOS folds case), and the playlist's and `MISSING.txt`'s names are reserved before any track.
+- **`zipstream-ng`'s `add()` entries carry no file-type bits** (`zipinfo` lists the `.m3u8` as
+  `?rw-------`); every extractor tried (Info-ZIP, Python) writes a normal file. Harmless.
 

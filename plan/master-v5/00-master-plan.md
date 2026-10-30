@@ -711,3 +711,22 @@ here.
   - **F11** (owner, 2026-10-27) is done in v62 as the ledger row says.
   - **For later slices:** a new path that moves a job's rollup status (v63's re-run expansion and
     "retry all failed", say) calls `job_status.publish_change` after its commit (CLAUDE.md).
+
+- **2026-10-30, v64: `api` mounts the file volumes read-only, and the export limits are admin
+  settings (owner's decisions).**
+  - **Mounts:** `api` had no volume mounts (nginx serves single-track files, v27), so it couldn't
+    stream a zip or check which files exist. The owner approved read-only `downloads` and
+    `library` mounts for `api` in `docker-compose.yml`, the dev override and the prod overlay,
+    outside v64's "Files owned". No new variable: `DOWNLOADS_DIR`/`LIBRARY_DIR` are already
+    required in production.
+  - **Limits:** "max N files or M GB (settings)" became env defaults `EXPORT_MAX_FILES=2000`,
+    `EXPORT_MAX_GB=20` (optional), each overridable by the admin on `/settings` (the output
+    panel) as nullable `app_settings.export_max_files`/`export_max_gb` (NULL = the env default).
+    That adds a migration (additive, no data rewrite), `GET/PATCH /api/settings/export` (admin,
+    403 like the other settings) and a `/settings` block, none of them in the plan's files.
+  - **nginx:** the plan's "set `proxy_buffering off` for this location" was already true of
+    `location /api/` (v12), so `nginx.conf` is unchanged; streaming was verified against the
+    nginx build.
+  - **Placement and key (owner, impeccable shape):** the export strip sits at the top of an
+    opened job, and `d` on a job row downloads the zip (the existing `download` binding, one
+    level up).
