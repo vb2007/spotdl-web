@@ -24,6 +24,9 @@
 	let hint = $state<'ios' | 'firefox' | null>(null);
 	let version = $state<string | null>(null);
 	let prompting = $state(false);
+	// The section stays once the install was tried, so focus (on its heading) isn't dropped
+	// when a dismissed offer takes the button away.
+	let tried = $state(false);
 	let heading: HTMLElement | undefined = $state();
 
 	async function readVersion(): Promise<void> {
@@ -46,6 +49,7 @@
 
 	async function install(): Promise<void> {
 		prompting = true;
+		tried = true;
 		// The offer is used up either way, so the button goes: focus waits on the heading.
 		heading?.focus();
 		try {
@@ -60,7 +64,7 @@
 </script>
 
 <!-- Kept while the browser's dialog is open, so focus has somewhere to stay. -->
-{#if installed || offered || prompting || justInstalled || hint !== null}
+{#if installed || offered || tried || hint !== null}
 	<section class="panel section" aria-labelledby="install-heading">
 		<h2 id="install-heading" class="label" tabindex="-1" bind:this={heading}>
 			{m.install_heading()}

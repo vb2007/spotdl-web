@@ -16,15 +16,22 @@ import { build, files, prerendered, version } from '$service-worker';
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
 const CACHE = `shell-${version}`;
-const SHELL = [...build, ...files, ...prerendered];
-const ASSETS = new Set([...build, ...files]);
+// Content-hashed build files can come from the HTTP cache (they're immutable); the rest is
+// asked for afresh. The legacy `.woff` fonts are left out: every browser this serves uses woff2.
+const IMMUTABLE = build.filter((path) => !path.endsWith('.woff'));
+const FRESH = [...files, ...prerendered];
+const ASSETS = new Set([...IMMUTABLE, ...files]);
 
 sw.addEventListener('install', (event) => {
 	event.waitUntil(
 		(async () => {
 			const cache = await caches.open(CACHE);
-			// Past the HTTP cache: a page cached under the previous build must not be stored as this one's.
-			await cache.addAll(SHELL.map((path) => new Request(path, { cache: 'reload' })));
+			// Pages and static files past the HTTP cache: one cached under the previous build must
+			// not be stored as this one's.
+			await cache.addAll([
+				...IMMUTABLE,
+				...FRESH.map((path) => new Request(path, { cache: 'reload' }))
+			]);
 			await sw.skipWaiting();
 		})()
 	);

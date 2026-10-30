@@ -21,6 +21,18 @@ const OUTCOMES = () =>
 			.join('|')
 	);
 
+// From the page itself: Playwright's own request contexts drop the `Secure` session cookie on
+// http://127.0.0.1 (global-setup.ts), the browser's fetch doesn't.
+function pageFetch(page: Page, path: string, init?: RequestInit) {
+	return page.evaluate(
+		async ({ path, init }) => {
+			const response = await fetch(path, init);
+			return { status: response.status, body: await response.json().catch(() => null) };
+		},
+		{ path, init }
+	);
+}
+
 async function signIn(page: Page): Promise<void> {
 	const { email, password } = userIdentity();
 	await page.getByLabel(t(m.login_email), { exact: true }).fill(email);
@@ -63,7 +75,20 @@ test.describe('signed out', () => {
 		// The viewer's own jobs, where the new one is, whatever view the dashboard was left in.
 		await expect(openQueue).toHaveAttribute('href', '/?view=mine');
 		// The job is this user's own.
-		expect((await page.request.get(`/api/jobs/${job.id}`)).status()).toBe(200);
+		expect((await pageFetch(page, `/api/jobs/${job.id}`)).status).toBe(200);
+		// Archived once it settles (a duplicate, at beat's next pass), so the user's seed row stays
+		// the newest "Contact" for the specs that look it up by title.
+		await expect
+			.poll(async () => (await pageFetch(page, `/api/jobs/${job.id}`)).body?.status?.lifecycle, {
+				timeout: 120_000
+			})
+			.toBe('settled');
+		const archived = await pageFetch(page, '/api/jobs/archive', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ job_ids: [job.id] })
+		});
+		expect(archived.status).toBe(200);
 	});
 
 	test('a share whose session ends before the confirm comes back after the next sign-in', async ({
@@ -75,7 +100,7 @@ test.describe('signed out', () => {
 		await expect(page).toHaveURL(`${baseURL}${SHARE}`);
 		// The session ends under the page (expired, revoked): this tab's own cookie, so the
 		// saved sessions other specs use are untouched.
-		expect((await page.request.post('/api/auth/logout')).ok()).toBe(true);
+		expect((await pageFetch(page, '/api/auth/logout', { method: 'POST' })).status).toBe(200);
 		await page.keyboard.press('Enter');
 		await expect(page).toHaveURL(/\/login\?next=/);
 		expect(new URL(page.url()).searchParams.get('next')).toBe(SHARE);
@@ -114,8 +139,10 @@ test.describe('signed in', () => {
 	test('a spotify.link short link is looked up, and a failed look-up can be retried', async ({
 		page
 	}) => {
-		// A real short link (Spotify's link host answered it with this playlist on 2026-10-30).
-		// Shown, not queued: a playlist would expand into tracks for worker-dl.
+		// A real short link (Spotify's link host answered it with this playlist on 2026-10-30),
+		// resolved over the real network by the real backend: if Spotify ever repoints or
+		// expires the code, this fails for that reason. Shown, not queued: a playlist would expand
+		// into tracks for worker-dl.
 		const short = 'https://spotify.link/6tpneu0iVIb';
 		let fail = true;
 		await page.route('**/api/links/resolve', (route) =>
