@@ -59,8 +59,9 @@
 		{#if installed}
 			<p class="hint">{m.install_running()}</p>
 		{:else}
-			<p class="hint" id="install-hint">{m.install_hint()}</p>
 			{#if offered}
+				<!-- The share menu is Chromium's: promised only where the install is Chromium's. -->
+				<p class="hint" id="install-hint">{m.install_hint()}</p>
 				<div>
 					<button
 						type="button"
