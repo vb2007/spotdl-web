@@ -583,6 +583,28 @@ def test_a_file_moved_before_its_stat_is_found_through_the_ledger(db_session, ma
     assert plan.missing == []
 
 
+def test_a_song_listed_twice_and_moved_before_its_stat_is_found_both_times(db_session, make_user, roots):
+    downloads, library = roots
+    job = _job(db_session, make_user("owner@example.com"))
+    source = _file(downloads, "01 - a.opus")
+    first = _track(db_session, job, 1, path=source, ledger=source)
+    db_session.add(
+        Track(job_id=job.id, spotify_track_id=first.spotify_track_id, song_json=first.song_json, state=TrackState.COMPLETED, output_path=str(source))
+    )
+    db_session.commit()
+    rows = export.load_rows(db_session, job.id)
+    dest = library / "01 - a.opus"
+    dest.write_bytes(source.read_bytes())
+    db_session.get(DownloadedTrack, first.spotify_track_id).file_path = str(dest)
+    db_session.commit()
+    source.unlink()
+
+    plan = export.plan_from_rows(rows, "The Album")
+
+    assert [f.path for f in plan.files] == [dest, dest]
+    assert plan.missing == []
+
+
 def test_a_zip_over_4_gib_has_the_length_it_declares(db_session, make_user, roots):
     """Past 4 GiB zipstream-ng writes zip64 records: the length counted up front must still
     be the bytes streamed (sparse files, so the test writes nothing real)."""

@@ -164,7 +164,8 @@
 				outputForm.output_template !== outputSettings.output_template)
 	);
 	const outputDirty = $derived(outputFieldsDirty || exportDirty);
-	// v64: the export limits load on their own, so a failed read leaves the output panel usable.
+	// v64: the export limits load on their own, so a failed read of them leaves the output half
+	// usable (the reverse isn't so: the block sits inside the output form).
 	let exportLoadError = $state('');
 
 	function syncOutputForm(settings: api.OutputSettings) {
@@ -263,29 +264,39 @@
 		outputSaving = true;
 		outputError = '';
 		try {
-			// v64: each half is saved only when it changed, so one half's failure can't block
-			// the other's save, and an untouched half isn't sent.
-			if (outputFieldsDirty) {
-				outputSettings = await api.updateOutputSettings(outputForm);
+			// v64: each half is saved only when it changed, and on its own: one half's refusal
+			// neither stops the other's save nor hides that it was saved.
+			const [outputResult, exportResult] = await Promise.allSettled([
+				outputFieldsDirty ? api.updateOutputSettings(outputForm) : Promise.resolve(null),
+				exportDirty
+					? api.updateExportSettings({
+							export_max_files: exportValue(exportForm.export_max_files),
+							export_max_gb: exportValue(exportForm.export_max_gb)
+						})
+					: Promise.resolve(null)
+			]);
+			if (outputResult.status === 'fulfilled' && outputResult.value !== null) {
+				outputSettings = outputResult.value;
 				syncOutputForm(outputSettings);
 			}
-			if (exportDirty) {
-				exportSettings = await api.updateExportSettings({
-					export_max_files: exportValue(exportForm.export_max_files),
-					export_max_gb: exportValue(exportForm.export_max_gb)
-				});
+			if (exportResult.status === 'fulfilled' && exportResult.value !== null) {
+				exportSettings = exportResult.value;
 				syncExportForm(exportSettings);
 			}
-			outputSavedAt = new Date();
-		} catch (err) {
-			// A limit the server refuses goes under its own field, as the page's own check does.
-			const field = err instanceof api.ApiError ? err.params.field : undefined;
-			if (typeof field === 'string' && field in exportForm) {
-				exportFieldErrors = { [field]: errorText(err) };
-				outputSaving = false;
-				return focusInvalid(field);
+			const outputFailed = outputResult.status === 'rejected' ? outputResult.reason : null;
+			const exportFailed = exportResult.status === 'rejected' ? exportResult.reason : null;
+			if (outputFailed === null && exportFailed === null) outputSavedAt = new Date();
+			if (outputFailed !== null) outputError = errorText(outputFailed);
+			if (exportFailed !== null) {
+				// A limit the server refuses goes under its own field, as the page's own check does.
+				const field = exportFailed instanceof api.ApiError ? exportFailed.params.field : undefined;
+				if (typeof field === 'string' && field in exportForm) {
+					exportFieldErrors = { [field]: errorText(exportFailed) };
+					outputSaving = false;
+					return focusInvalid(field);
+				}
+				outputError = outputError || errorText(exportFailed);
 			}
-			outputError = errorText(err);
 		} finally {
 			outputSaving = false;
 		}

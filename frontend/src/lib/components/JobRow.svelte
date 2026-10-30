@@ -246,6 +246,9 @@
 	// One read at a time: a burst of settles (dedup resolving a whole album) asks for one
 	// more read after the one in flight, not one per settle. A closed row (or a new identity)
 	// drops whatever answer is still on its way.
+	// The id alone: a dependency on `job` itself would re-read on every row refresh (each SSE
+	// event replaces the row's object), not only when the settled count moves.
+	let jobId = $derived(job.id);
 	let exportRead = 0;
 	let exportInFlight = false;
 	let exportAgain = false;
@@ -258,7 +261,7 @@
 		const session = queue.getResetCount();
 		exportInFlight = true;
 		api
-			.getJobExportCounts(job.id)
+			.getJobExportCounts(jobId)
 			.then((counts) => {
 				if (read === exportRead && queue.getResetCount() === session) exportCounts = counts;
 			})
@@ -267,7 +270,9 @@
 			})
 			.finally(() => {
 				exportInFlight = false;
-				if (exportAgain && read === exportRead) {
+				// Asked for meanwhile (a settle, or the row closed and opened again): the new read
+				// takes its own generation, so this one's answer, already dropped, can't land.
+				if (exportAgain) {
 					exportAgain = false;
 					readExportCounts();
 				}
