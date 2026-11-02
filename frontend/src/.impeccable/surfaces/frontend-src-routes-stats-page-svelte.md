@@ -44,7 +44,15 @@ size) beside the window plate: Tracks (outcome bar, rate, completed per bucket),
 (median), Jobs you queued (by status now), Failures by type (the recorder, no breaker channel).
 One request per load, window change and scope switch. Never amber.
 
-## Unresolved
+## Resolved (v67, 2026-11-02)
 
-- v45 keyboard: the recorder's crosshair is pointer-only (the table view is the keyboard path).
-- ~~v46: every string here is still a literal.~~ Resolved in v46: every string is a Paraglide message (en + hu).
+- v45 keyboard: the charts' crosshair was pointer-only (the table view was the keyboard path).
+  Since v67 (U10) a focused chart steps it with ← →, Home and End (Esc clears), its reading
+  announced through a live region; the help overlay lists the keys on `/stats`.
+- v46: every string here was a literal. Resolved in v46: every string is a Paraglide message
+  (en + hu).
+- v66 (U14): failure classes were machine names for everyone and clipped without an ellipsis on
+  phones. Since v67 a non-admin reads translated classes ("YouTube refused", "a YouTube
+  elutasította"), the admin keeps the machine names (`lang="en"`), and a name too long for its
+  column ends in an ellipsis with the full name in its title, the readout and the table
+  (owner's decision).
