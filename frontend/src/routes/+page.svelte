@@ -785,6 +785,8 @@
 			{#if isAdmin}
 				<a class="nav-link" href={resolve('/library')}>{m.dashboard_nav_library()}</a>
 				<a class="nav-link" href={resolve('/settings')}>{m.dashboard_nav_settings()}</a>
+				<!-- v69: who may sign in (the login allowlist). -->
+				<a class="nav-link" href={resolve('/users')}>{m.nav_users()}</a>
 			{/if}
 			<a class="nav-link" href={resolve('/stats')}>{m.dashboard_nav_stats()}</a>
 			<a class="nav-link" href={resolve('/account')}>{m.dashboard_nav_account()}</a>

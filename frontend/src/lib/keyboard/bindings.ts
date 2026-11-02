@@ -98,6 +98,15 @@ export const BINDINGS: Binding[] = [
 		label: m.kbd_go_stats,
 		group: 'go'
 	},
+	// v69: the login allowlist (/users).
+	{
+		id: 'go-users',
+		prefix: 'g',
+		keys: [{ key: 'u' }],
+		label: m.kbd_go_users,
+		group: 'go',
+		adminOnly: true
+	},
 
 	// Lists: jobs, tracks, and the tracks of an open job
 	{
