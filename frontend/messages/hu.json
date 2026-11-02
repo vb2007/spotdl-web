@@ -743,7 +743,6 @@
 	"adminonly_heading": "Ezt az oldalt csak a rendszergazda használhatja",
 	"adminonly_body_settings": "A letöltő, a kimenet, a könyvtár, a riasztások és a proxyk beállítása a szerver minden felhasználójára érvényes, ezért csak a rendszergazda módosíthatja. A saját beállításaidat a <a>fiókoldaladon</a> találod.",
 	"adminonly_body_library": "A zenekönyvtár a szerver minden felhasználójáé, ezért csak a rendszergazda módosíthatja. A saját beállításaidat a <a>fiókoldaladon</a> találod.",
-	"adminonly_body_stats": "A letöltési statisztika minden felhasználó letöltéseit együtt számolja, ezért csak a rendszergazda láthatja. A saját beállításaidat a <a>fiókoldaladon</a> találod.",
 	"library_title": "spotdl-web — könyvtár",
 	"library_heading": "Könyvtárrendezés és áthelyezés",
 	"library_sweep_heading": "Rendezés",

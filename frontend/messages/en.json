@@ -774,7 +774,6 @@
 	"adminonly_heading": "Only the admin can use this page",
 	"adminonly_body_settings": "The worker, output, library, alert and proxy setup is shared by everyone on this server, so only the admin can change it. Your own preferences are on your <a>account page</a>.",
 	"adminonly_body_library": "The music library is shared by everyone on this server, so only the admin can change it. Your own preferences are on your <a>account page</a>.",
-	"adminonly_body_stats": "Download statistics count every user's downloads together, so only the admin can see them. Your own preferences are on your <a>account page</a>.",
 	"library_title": "spotdl-web — library",
 	"library_heading": "Library sort & move",
 	"library_sweep_heading": "Sweep",
