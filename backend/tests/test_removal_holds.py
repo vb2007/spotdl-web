@@ -535,3 +535,28 @@ def test_a_held_expansion_that_finds_nothing_isnt_held(world, monkeypatch):
     with world.db() as db:
         job = db.get(Job, job_id)
         assert (job.state, job.held_at) == (JobState.EXPANDED, None)
+
+
+def test_a_held_job_emptied_by_track_cancels_is_settled_and_not_counted_on_re_add(world):
+    """Review round 3: per-track cancels leave nothing for the hold to stop. The rollup says
+    `settled` (so no dead cancel button, and archiving may take it), and a re-add doesn't count it
+    among the jobs that resume."""
+    with world.db() as db:
+        user, jobs = _scenario(db)
+        admin_id = _admin(db)
+    with world.db() as db:
+        allowlist.remove(db, "removed@example.com")
+    with world.db() as db:
+        for track in db.query(Track).filter(Track.job_id == jobs.c.id):
+            track.state = TrackState.CANCELLED
+        db.commit()
+    with world.db() as db:
+        by_id = {item["id"]: item for item in _list(db, admin_id)["items"]}
+        assert by_id[str(jobs.c.id)]["status"] == {"lifecycle": "settled", "outcome": "partial"}
+        assert by_id[str(jobs.d.id)]["status"]["lifecycle"] == "held"
+        assert rollup.derive_rollup(JobState.EXPANDED, {"cancelled": 3}, held=True).key == "settled:partial"
+    with world.db() as db:
+        addition = allowlist.add(db, "removed@example.com", db.get(User, admin_id))
+    assert set(addition.resumed_job_ids) == {jobs.d.id, jobs.reclaimed.id}
+    with world.db() as db:
+        assert db.get(Job, jobs.c.id).held_at is None

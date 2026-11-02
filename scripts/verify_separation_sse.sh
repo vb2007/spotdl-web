@@ -101,7 +101,7 @@ login() {
   token="$(grep -i '^set-cookie: SPOTDL_SESSION=' "$headers_file" | head -n1 \
     | sed -E 's/^[Ss]et-[Cc]ookie: SPOTDL_SESSION=([^;]+).*/\1/' | tr -d '\r\n')" || true
   if [ -z "$token" ]; then
-    echo "login failed for $email -- no Set-Cookie in response (check credentials/ALLOWED_EMAILS)" >&2
+    echo "login failed for $email -- no Set-Cookie in response (check credentials, and that the address is allowed on /users)" >&2
     exit 1
   fi
   echo "$token"

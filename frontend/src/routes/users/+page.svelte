@@ -264,7 +264,10 @@
 					</ul>
 				{/if}
 				<p class="save-state" role="status">{status?.()}</p>
-				<p class="form-error" role="alert">{error?.()}</p>
+				<!-- A refresh that failed after an add or a remove: the list shown may be stale. -->
+				<p class="form-error" role="alert">
+					{error?.() ?? (rows !== null && loadError ? loadError() : '')}
+				</p>
 			</section>
 		{/if}
 	</main>

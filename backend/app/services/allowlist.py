@@ -246,14 +246,23 @@ def add(db: Session, email: str, by: User) -> Addition:
     lease = datetime.now(timezone.utc) + DISPATCH_LEASE
     if user_id is not None:
         _lock_user_jobs(db, user_id)
+        # Resumed: the jobs whose hold was still stopping something (not one cancelled or failed
+        # since, or emptied by per-track cancels); every hold is cleared all the same.
         addition.resumed_job_ids = list(
             db.execute(
-                update(Job)
-                .where(Job.user_id == user_id, Job.held_at.is_not(None))
-                .values(held_at=None)
-                .returning(Job.id)
-                .execution_options(synchronize_session=False)
+                select(Job.id).where(
+                    Job.user_id == user_id,
+                    Job.held_at.is_not(None),
+                    Job.state.not_in(_UNHOLDABLE_JOB_STATES),
+                    or_(Job.state == JobState.EXPANDING, _job_has_work()),
+                )
             ).scalars()
+        )
+        db.execute(
+            update(Job)
+            .where(Job.user_id == user_id, Job.held_at.is_not(None))
+            .values(held_at=None)
+            .execution_options(synchronize_session=False)
         )
         if addition.resumed_job_ids:
             # One bulk query for every resumed job's pending tracks, in queue order.

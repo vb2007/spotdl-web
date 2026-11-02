@@ -180,6 +180,12 @@ def _reexpand(db, job_id: str, marker: str | None = None) -> None:
         logger.info("expand_job: job %s isn't an expanded, unarchived job; not re-expanding", job_id)
         return
     source_url, user_id = job.source_url, job.user_id
+    # v69: a removed owner's run reads nothing from Spotify (checked again under the job's lock
+    # below, where it counts).
+    owner_email = db.execute(select(User.email).where(User.id == user_id)).scalar_one()
+    if not allowlist.is_allowed(db, owner_email):
+        logger.info("expand_job: job %s's owner was removed; not re-expanding", job_id)
+        return
     if not watch.start_run(job.id, marker):
         # Superseded: this message waited past its claim's lease, and a newer claim (with its own
         # message) owns the job now. One Spotify read, not one per lease.

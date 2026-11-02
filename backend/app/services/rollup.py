@@ -85,9 +85,18 @@ class Rollup:
 
 
 def derive_rollup(job_state: JobState, counts: dict[str, int], *, held: bool = False) -> Rollup:
-    """`held` (v69): the job's `held_at` is set. It wins over every lifecycle but `failed` and
-    `cancelled`, as `lifecycle_case` has it."""
-    if held and job_state not in (JobState.FAILED, JobState.CANCELLED):
+    """`held` (v69): the job's `held_at` is set and the hold still stops something (it's
+    expanding, or has a track to download). It wins over every other lifecycle but `failed` and
+    `cancelled`, as `lifecycle_case` has it; a held job whose tracks were all cancelled one by one
+    is `settled` (review round 3)."""
+    if (
+        held
+        and job_state not in (JobState.FAILED, JobState.CANCELLED)
+        and (
+            job_state == JobState.EXPANDING
+            or sum(counts.get(s.value, 0) for s in (*_ACTIVE_STATES, *_WAITING_STATES)) > 0
+        )
+    ):
         return Rollup("held", None)
     if job_state == JobState.EXPANDING:
         return Rollup("expanding", None)
@@ -156,15 +165,19 @@ def aggregate_jobs(base_jobs_subq):
     )
 
 
-def _held(job_state_col: ColumnElement, held_at: ColumnElement | None):
-    """v69: the `held` branch, first in every CASE below; nothing for a caller that passes no
-    `held_at` (archive.py, which looks only for `settled`/`failed`/`cancelled`, and a held job's
-    tracks are still to run)."""
+def _held(job_state_col: ColumnElement, held_at: ColumnElement | None, active_n, waiting_n):
+    """v69: the `held` branch, first in every CASE below (as `derive_rollup`: only while the hold
+    stops something); nothing for a caller that passes no `held_at` (archive.py, which looks only
+    for `settled`/`failed`/`cancelled`, none of which a held job with work can be)."""
     if held_at is None:
         return ()
     return (
         (
-            and_(held_at.is_not(None), job_state_col.not_in((JobState.FAILED, JobState.CANCELLED))),
+            and_(
+                held_at.is_not(None),
+                job_state_col.not_in((JobState.FAILED, JobState.CANCELLED)),
+                or_(job_state_col == JobState.EXPANDING, active_n + waiting_n > 0),
+            ),
             "held",
         ),
     )
@@ -177,7 +190,7 @@ def lifecycle_case(
     held_at: ColumnElement | None = None,
 ) -> ColumnElement:
     return case(
-        *_held(job_state_col, held_at),
+        *_held(job_state_col, held_at, active_n, waiting_n),
         (job_state_col == JobState.EXPANDING, "expanding"),
         (job_state_col == JobState.FAILED, "failed"),
         (job_state_col == JobState.CANCELLED, "cancelled"),
@@ -205,7 +218,7 @@ def outcome_case_for_display(
     return case(
         (
             case(
-                *((condition, False) for condition, _ in _held(job_state_col, held_at)),
+                *((condition, False) for condition, _ in _held(job_state_col, held_at, active_n, waiting_n)),
                 (job_state_col == JobState.EXPANDING, False),
                 (job_state_col == JobState.FAILED, False),
                 (job_state_col == JobState.CANCELLED, False),
@@ -227,7 +240,10 @@ def rank_case(
     held_at: ColumnElement | None = None,
 ) -> ColumnElement:
     return case(
-        *((condition, STATUS_RANK[("held", None)]) for condition, _ in _held(job_state_col, held_at)),
+        *(
+            (condition, STATUS_RANK[("held", None)])
+            for condition, _ in _held(job_state_col, held_at, active_n, waiting_n)
+        ),
         (job_state_col == JobState.EXPANDING, STATUS_RANK[("expanding", None)]),
         (job_state_col == JobState.FAILED, STATUS_RANK[("failed", None)]),
         (job_state_col == JobState.CANCELLED, STATUS_RANK[("cancelled", None)]),

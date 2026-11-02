@@ -8020,8 +8020,10 @@ independently-found production bug from the same conversation)
 - **The stream's safety net reads, never writes.** It re-checks every 15s on a short-lived DB
   session closed before the next wait (v31's idle-in-transaction rule) and does not touch
   `last_seen_at` (a write per open tab every 15s). It reports `revoked` when the owner's address is
-  off the allowlist even though the session row is already gone, so a lost publish still ends on
-  "Your access was removed".
+  off the allowlist even though the session row is already gone, so the raw stream still ends on
+  `session.revoked`. In the browser a lost publish usually reads "Your session ended" instead: the
+  dashboard's 5s worker poll meets the 401 before the 15s re-check, and once the session row is gone
+  no request can tell a removal from an expiry (review round 3).
 - **"Started" is about the job, not the track, and `waiting` isn't started.** Beat's stale sweep
   moves a reclaimed `queued` track to `waiting` with no attempt, so the removal's test is
   `downloading`/`completed`/`skipped_duplicate`/`lookup_failed` or `attempt_count > 0`. A track whose
