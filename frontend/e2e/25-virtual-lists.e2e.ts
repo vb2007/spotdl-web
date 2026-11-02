@@ -733,3 +733,135 @@ test('crossing the threshold keeps the view where it was', async ({ page }) => {
 	expect(Math.abs(after! - before), 'row 190 stays put').toBeLessThan(2);
 	expect(errors).toEqual([]);
 });
+
+test('crossing the threshold keeps the focused row, focused, and the view still', async ({
+	page
+}) => {
+	desktopOnly();
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await loadUntil(page, JOBS, 200);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	for (let row = 1; row <= 3; row++) await page.keyboard.press('j');
+	const focused = (await focusedRow(page))!;
+	// Far below it, focus still on row 3, the next page arrives (a pointer-type click that
+	// moves no focus): the first window must keep row 3.
+	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+	await page.waitForTimeout(300);
+	const y = await page.evaluate(() => window.scrollY);
+	await loadMoreButton(page).dispatchEvent('click', { detail: 1 });
+	await expect.poll(() => loadedRows(page, JOBS)).toBe(250);
+	await expect(page.locator('[data-kb-list="jobs"]')).toHaveAttribute('style', /padding-top/);
+	await page.waitForTimeout(500);
+	expect(await focusedRow(page), 'focus stays on row 3').toBe(focused);
+	expect(Math.abs((await page.evaluate(() => window.scrollY)) - y), 'the view stays').toBeLessThan(
+		2
+	);
+	expect(errors).toEqual([]);
+});
+
+test('the tracks scope crosses the threshold without moving the view', async ({ page }) => {
+	desktopOnly();
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await page.keyboard.press('2');
+	const tracks = page.locator('[data-kb-list="tracks"]');
+	await expect(tracks.locator('[data-kb-row]').first()).toBeVisible();
+	// Four pages (200 tracks in a handful of groups, the playlist's among them): plain.
+	for (let pages = 1; pages < 4; pages++) {
+		const answered = page.waitForResponse((r) => {
+			const url = new URL(r.url());
+			return url.pathname === '/api/tracks' && url.searchParams.has('cursor');
+		});
+		await loadMoreButton(page).click();
+		await answered;
+		await expect(loadMoreButton(page)).toHaveAttribute('aria-disabled', 'false');
+	}
+	expect(await tracks.getAttribute('style')).toBeNull();
+	// A track deep in the playlist's group at the top of the view, then the fifth page.
+	const row = tracks.locator('[data-kb-row]').nth(150);
+	const id = (await row.getAttribute('data-kb-row'))!;
+	await row.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+	await page.waitForTimeout(300);
+	const top = () =>
+		page.evaluate(
+			(rowId) =>
+				document.querySelector(`[data-kb-row="${rowId}"]`)?.getBoundingClientRect().top ?? null,
+			id
+		);
+	const before = (await top())!;
+	await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+	await loadMoreButton(page).dispatchEvent('click', { detail: 1 });
+	await expect(tracks).toHaveAttribute('style', /padding-top/);
+	await page.waitForTimeout(500);
+	const after = await top();
+	expect(after, 'the track is still rendered').not.toBeNull();
+	expect(Math.abs(after! - before), 'the track stays put').toBeLessThan(2);
+	expect(errors).toEqual([]);
+});
+
+test("an open job's tracks hold their place when a job above them is archived", async ({
+	page,
+	baseURL
+}) => {
+	desktopOnly();
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await loadUntil(page, JOBS, 300);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await jobToggle(page, fixtureTitle(BIG_AT)).click();
+	const list = `job-tracks:${fixture.bigJobId}`;
+	const more = page.locator(`[data-kb-row="${fixture.bigJobId}"] [data-kb-load-more]`);
+	await expect(page.locator(`[data-kb-list="${list}"] > li`).first()).toBeVisible();
+	while ((await more.count()) > 0) {
+		const before = await loadedRows(page, list);
+		await more.click();
+		await expect
+			.poll(async () => (await more.count()) === 0 || (await loadedRows(page, list)) > before)
+			.toBe(true);
+	}
+	// Track 200 at the middle of the view; then the newest job (above the playlist) archived
+	// from outside the page.
+	await page
+		.locator(`[data-kb-row="${fixture.bigJobId}"]`)
+		.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+	const track200 = page.locator(`[data-kb-list="${list}"] > li[aria-posinset="200"]`);
+	for (let step = 0; (await track200.count()) === 0; step++) {
+		expect(step).toBeLessThan(100);
+		await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+		await page.waitForTimeout(50);
+	}
+	await track200.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+	await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+	await page.waitForTimeout(500);
+	const id = (await track200.getAttribute('data-kb-row'))!;
+	const top = () =>
+		page.evaluate(
+			(rowId) =>
+				document.querySelector(`[data-kb-row="${rowId}"]`)?.getBoundingClientRect().top ?? null,
+			id
+		);
+	const before = (await top())!;
+	const api = await request.newContext({
+		baseURL,
+		extraHTTPHeaders: { cookie: `SPOTDL_SESSION=${fixture.token}` }
+	});
+	// The newest job, from the API's own order (the list's first child is the open playlist,
+	// kept outside the window).
+	const listed = (await (await api.get('/api/jobs?limit=1')).json()) as { items: { id: string }[] };
+	const first = listed.items[0].id;
+	expect(first).not.toBe(fixture.bigJobId);
+	expect(
+		(await api.post('/api/jobs/archive', { data: { job_ids: [first] } })).status()
+	).toBeLessThan(300);
+	await api.dispose();
+	await expect(page.locator(`[data-kb-row="${first}"]`)).toHaveCount(0);
+	await page.waitForTimeout(500);
+	const after = await top();
+	test.info().annotations.push({ type: 'nested', description: `track 200: ${before} -> ${after}` });
+	expect(Math.abs(after! - before), 'track 200 stays put').toBeLessThan(2);
+	expect(errors).toEqual([]);
+});

@@ -148,6 +148,8 @@ export class ListWindow<T> {
 	#focusKey: string | null = null;
 	/** The row holding the view, where it was, and the page's scroll then. */
 	#anchor: { el: Element; top: number; scrollY: number } | null = null;
+	/** The nested window holding the view instead (an open job's tracks filling it). */
+	#delegate: ListWindow<unknown> | null = null;
 	#annotated = false;
 	#lastSlice: Slice | null = null;
 	/** Height changes taken this frame: past a budget, the rest wait for the next frame, so no
@@ -175,14 +177,18 @@ export class ListWindow<T> {
 	}
 
 	/** Whether the list renders a window (above the threshold) rather than every row. */
-	readonly active = $derived.by(() => {
+	/** How many keyboard rows the items hold (the threshold counts these, not items). */
+	readonly #rows = $derived.by(() => {
 		let rows = 0;
-		for (const item of this.#items()) {
-			rows += this.#rowIds(item).length;
-			if (rows > this.#threshold) return true;
-		}
-		return false;
+		for (const item of this.#items()) rows += this.#rowIds(item).length;
+		return rows;
 	});
+
+	readonly active = $derived.by(() => this.#rows > this.#threshold);
+
+	/** Half way to the threshold: every row is still rendered, but heights, the anchor and the
+	 * rows to keep are already followed, so the first window starts from them. */
+	readonly #near = $derived.by(() => this.#rows * 2 >= this.#threshold);
 
 	/** Every row id in order (windowed only). */
 	readonly #allRowIds = $derived.by(() =>
@@ -193,7 +199,7 @@ export class ListWindow<T> {
 	readonly #index = $derived.by(() => {
 		const byKey = new Map<string, number>();
 		const byRow = new Map<string, number>();
-		if (!this.active) return { byKey, byRow };
+		if (!this.#near) return { byKey, byRow };
 		this.#items().forEach((item, i) => {
 			byKey.set(this.#key(item), i);
 			for (const id of this.#rowIds(item)) byRow.set(id, i);
@@ -382,30 +388,40 @@ export class ListWindow<T> {
 		if (!this.active) {
 			// Back below the threshold: every row is rendered, and none carries the window's
 			// annotations any more.
-			if (this.#annotated) {
+			// The render that turned the window off (rows removed above the view, the list back to
+			// 200) also dropped the padding, which the browser's anchoring ignores: hold the view.
+			const leaving = this.#annotated;
+			if (leaving) {
 				for (const el of children) {
 					el.removeAttribute('aria-setsize');
 					el.removeAttribute('aria-posinset');
 				}
 				this.#annotated = false;
+				this.#correct();
 			}
 			this.#resize?.disconnect();
 			this.#observed.clear();
 			// Nearing the threshold, every row is rendered: their heights are learned now, so
 			// the first window has its rows' real places (with 56px guesses, crossing 200 moved
 			// the view by thousands of pixels), and the view's anchor is kept for that render.
+			// So are the rows to keep: the first window must already keep the focused, current
+			// and open rows, or crossing 200 unmounts them (focus to <body>, a detail closed).
 			const items = this.#items();
-			if (items.length >= this.#threshold / 2 && children.length === items.length) {
+			if (this.#near && children.length === items.length) {
 				const lastKey = items.length ? this.#key(items[items.length - 1]) : null;
 				let changed = false;
 				for (let c = 0; c < children.length; c++) {
 					const key = this.#key(items[c]);
+					this.#keys.set(children[c], key);
 					if (this.#measurable(children[c], key, lastKey)) {
 						const height = children[c].getBoundingClientRect().height;
 						changed = this.#record(this.#sizeKey(items[c]), height) || changed;
 					}
 				}
 				if (changed) this.#estimatePerRow();
+				const focused = this.#childKey(document.activeElement);
+				if (focused !== null) this.#focusKey = focused;
+				this.#updatePins();
 				this.#capture();
 			} else {
 				this.#anchor = null;
@@ -536,6 +552,7 @@ export class ListWindow<T> {
 	 * top (above that, what's over the list holds the place). */
 	#capture(): void {
 		this.#anchor = null;
+		this.#delegate = null;
 		const list = this.#list;
 		// Below the threshold every child is a row in place (no kept rows around a window).
 		const slice = this.#lastSlice ?? { before: 0, after: 0 };
@@ -552,7 +569,10 @@ export class ListWindow<T> {
 			if (box.bottom > 0) {
 				// An open row holding a windowed list of its own: that list holds the view.
 				for (const [inner, nested] of windows) {
-					if (inner !== list && nested.active && el.contains(inner)) return;
+					if (inner !== list && nested.active && el.contains(inner)) {
+						this.#delegate = nested;
+						return;
+					}
 				}
 				this.#anchor = { el, top: box.top, scrollY: window.scrollY };
 				return;
@@ -561,7 +581,19 @@ export class ListWindow<T> {
 	}
 
 	/** Puts the anchor row back where it was (rows above it measured, or padding changed). */
+	/** Holds the view for an outer window whose row this list fills (it changed above it). */
+	hold(): void {
+		this.#correct();
+		this.#readView();
+	}
+
 	#correct(): void {
+		const delegate = this.#delegate;
+		if (!this.#anchor && delegate) {
+			delegate.hold();
+			this.#capture();
+			return;
+		}
 		const anchor = this.#anchor;
 		// Something scrolled the page since the anchor was taken (a focus() scrolling its row
 		// into view, before its scroll event): that scroll is the user's place now, so the
@@ -592,7 +624,7 @@ export class ListWindow<T> {
 
 	#updatePins(): void {
 		const list = this.#list;
-		if (!list || !this.active) {
+		if (!list || !this.#near) {
 			if (untrack(() => this.#pinned).length) this.#pinned = [];
 			return;
 		}

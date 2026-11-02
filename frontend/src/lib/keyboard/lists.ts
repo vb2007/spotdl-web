@@ -480,12 +480,26 @@ export function move(row: HTMLElement, to: number | 'first' | 'last'): boolean {
  * view) its own button, centered. */
 export function showRow(row: HTMLElement): void {
 	const item = itemOf(row);
-	if (item && row.getBoundingClientRect().height > window.innerHeight) {
+	const box = row.getBoundingClientRect();
+	if (item && box.height > window.innerHeight) {
 		item.scrollIntoView({ block: 'center' });
-	} else {
-		row.scrollIntoView({ block: 'nearest' });
+		return;
+	}
+	// A row not in view at all is centered (as the browser's own focus scroll does); one partly
+	// in view is brought in with room for its ring (a track row is no taller than its button).
+	if (box.bottom <= 0 || box.top >= window.innerHeight) {
+		row.scrollIntoView({ block: 'center' });
+		return;
+	}
+	const room = RING_ROOM_PX;
+	if (box.top < room) window.scrollBy({ top: box.top - room, behavior: 'instant' });
+	else if (box.bottom > window.innerHeight - room) {
+		window.scrollBy({ top: box.bottom - window.innerHeight + room, behavior: 'instant' });
 	}
 }
+
+/** The focus ring's width and offset (DESIGN §2 Focus: 3px at 2px), with a pixel to spare. */
+const RING_ROOM_PX = 6;
 
 /** The current row of the named list, focused. */
 export function focusList(name: string): boolean {
