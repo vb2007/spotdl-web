@@ -256,7 +256,7 @@
 				<span class="total" style:grid-row={breakerRow}></span>
 			{/if}
 
-			<span class="axis" style:grid-row={lastRow + 1}>
+			<span class="axis" class:every-bucket={tickEvery === 1} style:grid-row={lastRow + 1}>
 				{#each stats.failures.buckets as bucket, i (bucket)}
 					<span class="tick" class:minor={(i / tickEvery) % 2 === 1}
 						>{i % tickEvery === 0 ? bucketLabel(stats, bucket) : ''}</span
@@ -659,9 +659,9 @@
 			visibility: hidden;
 		}
 
-		/* v67: and only every fourth bucket's label at all: a day's "31., Szo" is two buckets
-		   wide on a phone, so every other one still overprinted the next. */
-		.tick:not(:nth-child(4n + 1)) {
+		/* v67: where every bucket is labelled (the 7-day window), only every fourth: a day's
+		   "31., Szo" is two buckets wide on a phone, so every other one overprinted the next. */
+		.every-bucket .tick:not(:nth-child(4n + 1)) {
 			visibility: hidden;
 		}
 	}

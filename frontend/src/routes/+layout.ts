@@ -14,6 +14,7 @@ import {
 	resolveLocale
 } from '$lib/i18n/locale.svelte';
 import { hasLocaleMessages } from 'virtual:locale-messages';
+import { locales } from '$lib/paraglide/runtime';
 import { loginFor, safeNext } from '$lib/nextPath';
 import type { LayoutLoad } from './$types';
 
@@ -109,9 +110,11 @@ export const load: LayoutLoad = async ({ url }) => {
 		// when this load applied none: a fresh apply is the newest request. With a language on
 		// screen there is nothing to wait for (an unreachable reload keeps it).
 		const wanted = resolveLocale(languagePreference.current);
-		const shown = localeReady();
-		if (wanted !== locale.current || !hasLocaleMessages(wanted)) applyLocale(wanted);
-		await shown;
+		if (wanted !== locale.current || !hasLocaleMessages(wanted))
+			// With no language at all (the page showing keys) there is nothing better to show:
+			// this navigation waits for it, so the route renders in it.
+			applyLocale(wanted, { background: locales.some((one) => hasLocaleMessages(one)) });
+		await localeReady();
 	}
 	if (session !== null && onLoginPage) {
 		// v65: signed in already (another tab), so straight on to where the login was for.

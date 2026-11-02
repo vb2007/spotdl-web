@@ -900,8 +900,8 @@ between groups: recover (retry waiting, retry not found) · source (check now, w
 the line**, as a track row sets its destructive action apart. Every action's accessible name starts
 with its visible text ("retry waiting (1): Kind of Blue", hu "várakozók újra (1): …"; WCAG 2.5.3,
 which the old verb-plus-title names failed outright in Hungarian). In the admin's all/others views,
-cancelling another user's job names whose it is ("Cancel v5s1user's job?") and says only they can
-submit the link again.
+cancelling another user's job names whose it is ("Cancel v5s1user's job?") and says they get it
+back by submitting the link again.
 
 Above its tracks, after the row's actions and notice, an open job with at least one file shows its
 **export strip** (v64, 2026-10-30): a mono reading ("files: 12 of 14", hu "14 fájlból 12": the
@@ -1334,9 +1334,9 @@ Sans, the time mono). Hungarian runs longer: v46 and v47 checked every route at 
   title is all the same field, and Spotify doesn't say which; a wrong `lang` is worse than none,
   since it switches the screen reader's voice to the wrong language); text in an attribute (a
   chart's summary label and value text can't carry a `lang`); and a sentence built as a string
-  before it's shown (`/account`'s and the key list's load errors, "clear log"'s failure, the
-  library's retry line, a Matrix send's reason), which would need restructuring to mark (a
-  code-less error is a backend bug in itself: every user-facing error has a code).
+  before it's shown ("clear log"'s failure, the masthead's disconnect failure, a Matrix send's
+  reason, a row notice joining an error to other text), which would need restructuring to mark
+  (a code-less error is a backend bug in itself: every user-facing error has a code).
 - Forced colours: progress meters, job bars and `/stats`' charts keep their own colours under
   `forced-colors: active` (v44 for `/stats`, v47 for the rest).
 - **Landmarks and outline on `/` (v42, F29):** `header` (banner) → `nav[aria-label=Account]` →

@@ -225,7 +225,7 @@
 	"job_cancel_title": "Megszakítod ezt a feladatot?",
 	"job_cancel_body": "A még le nem töltött számai megszakadnak; amelyik épp letöltés alatt áll, befejeződik, de megszakítva marad. A nem talált számok és a már letöltött fájlok megmaradnak. Ez nem vonható vissza, de a linket újra beküldheted.",
 	"job_cancel_title_other": "Megszakítod {owner} feladatát?",
-	"job_cancel_body_other": "A még le nem töltött számai megszakadnak; amelyik épp letöltés alatt áll, befejeződik, de megszakítva marad. A nem talált számok és a már letöltött fájlok megmaradnak. Ez nem vonható vissza, és a linket csak {owner} küldheti be újra.",
+	"job_cancel_body_other": "A még le nem töltött számai megszakadnak; amelyik épp letöltés alatt áll, befejeződik, de megszakítva marad. A nem talált számok és a már letöltött fájlok megmaradnak. Ez nem vonható vissza; {owner} a link újbóli beküldésével kaphatja vissza.",
 	"job_cancel_confirm": "feladat megszakítása",
 	"job_cancel_keep": "feladat megtartása",
 	"job_notice_not_cancelled": "Nincs megszakítva: már nincs benne semmi hátra.",

@@ -86,12 +86,12 @@ function load(locale: Locale, late?: () => void): Promise<boolean> {
  * the build), and the page stays in the one on screen, whose messages are here. With none on
  * screen yet (a first load offline whose language the service worker doesn't hold), the first
  * language that does load is shown instead: a page always has a language to speak. */
-export function applyLocale(next: Locale): Promise<boolean> {
+export function applyLocale(next: Locale, { background = false } = {}): Promise<boolean> {
 	const request = ++latest;
 	if (hasLocaleMessages(next)) {
 		current = next;
 		syncDocumentLang();
-		ready = Promise.resolve();
+		if (!background) ready = Promise.resolve();
 		return Promise.resolve(true);
 	}
 	const show = (locale: Locale) => {
@@ -115,7 +115,8 @@ export function applyLocale(next: Locale): Promise<boolean> {
 		}
 		return false;
 	});
-	ready = switched.then(() => undefined);
+	// A background retry (the layout's) switches when it lands; nothing waits on it.
+	if (!background) ready = switched.then(() => undefined);
 	return switched;
 }
 

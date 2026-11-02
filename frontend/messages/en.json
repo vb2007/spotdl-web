@@ -226,7 +226,7 @@
 	"job_cancel_title": "Cancel this job?",
 	"job_cancel_body": "Its tracks that haven't downloaded yet are cancelled; one downloading right now finishes but stays cancelled. Tracks not found stay as they are, and files already downloaded stay. This can't be undone, but the link can be submitted again.",
 	"job_cancel_title_other": "Cancel {owner}’s job?",
-	"job_cancel_body_other": "Its tracks that haven't downloaded yet are cancelled; one downloading right now finishes but stays cancelled. Tracks not found stay as they are, and files already downloaded stay. This can't be undone, and only {owner} can submit the link again.",
+	"job_cancel_body_other": "Its tracks that haven't downloaded yet are cancelled; one downloading right now finishes but stays cancelled. Tracks not found stay as they are, and files already downloaded stay. This can't be undone; {owner} gets it back by submitting the link again.",
 	"job_cancel_confirm": "cancel job",
 	"job_cancel_keep": "keep job",
 	"job_notice_not_cancelled": "Not cancelled: nothing in it is still to come.",
