@@ -28,7 +28,7 @@ test('archive and unarchive round trip, with show archived', async ({ page, base
 		const row = jobRow(page, admin.title);
 		await expect(row).toHaveCount(1);
 
-		await row.getByRole('button', { name: `archive ${admin.title}`, exact: true }).click();
+		await row.getByRole('button', { name: `archive: ${admin.title}`, exact: true }).click();
 		await expect(jobToggle(page, admin.title)).toHaveCount(0);
 		await expect.poll(archivedAt).not.toBeNull();
 
@@ -38,17 +38,17 @@ test('archive and unarchive round trip, with show archived', async ({ page, base
 		const newest = row.first();
 		await expect(newest).toContainText('archived');
 
-		await newest.getByRole('button', { name: `unarchive ${admin.title}`, exact: true }).click();
+		await newest.getByRole('button', { name: `unarchive: ${admin.title}`, exact: true }).click();
 		await expect.poll(archivedAt).toBeNull();
 		await expect(
-			newest.getByRole('button', { name: `archive ${admin.title}`, exact: true })
+			newest.getByRole('button', { name: `archive: ${admin.title}`, exact: true })
 		).toBeVisible();
 
 		await showArchived.click();
 		await expect(showArchived).toHaveAttribute('aria-pressed', 'false');
 		await expect(row).toHaveCount(1);
 		await expect(
-			row.getByRole('button', { name: `unarchive ${admin.title}`, exact: true })
+			row.getByRole('button', { name: `unarchive: ${admin.title}`, exact: true })
 		).toHaveCount(0);
 	} finally {
 		// Own context: a test-level timeout may already have closed the page's.

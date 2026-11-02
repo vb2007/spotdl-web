@@ -223,6 +223,8 @@
 	"job_progress_label": "A számok állása: {breakdown}",
 	"job_cancel_title": "Megszakítod ezt a feladatot?",
 	"job_cancel_body": "A még le nem töltött számai megszakadnak; amelyik épp letöltés alatt áll, befejeződik, de megszakítva marad. A nem talált számok és a már letöltött fájlok megmaradnak. Ez nem vonható vissza, de a linket újra beküldheted.",
+	"job_cancel_title_other": "Megszakítod {owner} feladatát?",
+	"job_cancel_body_other": "A még le nem töltött számai megszakadnak; amelyik épp letöltés alatt áll, befejeződik, de megszakítva marad. A nem talált számok és a már letöltött fájlok megmaradnak. Ez nem vonható vissza, és a linket csak {owner} küldheti be újra.",
 	"job_cancel_confirm": "feladat megszakítása",
 	"job_cancel_keep": "feladat megtartása",
 	"job_notice_not_cancelled": "Nincs megszakítva: már nincs benne semmi hátra.",
@@ -233,18 +235,18 @@
 	"job_notice_archive_failed": "Nem sikerült archiválni ezt a feladatot.",
 	"job_notice_unarchive_failed": "Nem sikerült visszahozni ezt a feladatot.",
 	"job_priority": "prioritás",
-	"job_priority_of": "{title} prioritása",
+	"job_priority_of": "prioritás: {title}",
 	"job_bump": "előre",
-	"job_bump_label": "{title} előresorolása",
+	"job_bump_label": "előre: {title}",
 	"job_cancel": "megszakítás",
-	"job_cancel_label": "{title} megszakítása",
+	"job_cancel_label": "megszakítás: {title}",
 	"job_archive": "archiválás",
-	"job_archive_label": "{title} archiválása",
+	"job_archive_label": "archiválás: {title}",
 	"job_archived": "archivált",
 	"job_unarchive": "visszahozás",
-	"job_unarchive_label": "{title} visszahozása",
+	"job_unarchive_label": "visszahozás: {title}",
 	"job_watch": "figyelés",
-	"job_watch_of": "{title} figyelése új számokért",
+	"job_watch_of": "figyelés: {title}",
 	"job_watch_off": "nincs figyelve",
 	"job_watch_daily": "naponta",
 	"job_watch_weekly": "hetente",
@@ -262,7 +264,7 @@
 		}
 	],
 	"job_check_now": "ellenőrzés most",
-	"job_check_now_label": "{title} ellenőrzése új számokért most",
+	"job_check_now_label": "ellenőrzés most: {title}",
 	"job_retry_failed": [
 		{
 			"declarations": ["input count", "input n"],
@@ -272,15 +274,7 @@
 			}
 		}
 	],
-	"job_retry_failed_label": [
-		{
-			"declarations": ["input count", "input n"],
-			"selectors": [],
-			"match": {
-				"*": "{title} {n} várakozó számának újrapróbálása most"
-			}
-		}
-	],
+	"job_retry_failed_label": "várakozók újra ({n}): {title}",
 	"job_retry_not_found": [
 		{
 			"declarations": ["input count", "input n"],
@@ -290,15 +284,7 @@
 			}
 		}
 	],
-	"job_retry_not_found_label": [
-		{
-			"declarations": ["input count", "input n"],
-			"selectors": [],
-			"match": {
-				"*": "{title} {n} nem talált számának újrapróbálása"
-			}
-		}
-	],
+	"job_retry_not_found_label": "nem talált számok újra ({n}): {title}",
 	"job_retry_not_found_title": "Újrapróbálod a nem talált számokat?",
 	"job_retry_not_found_body": [
 		{
@@ -366,9 +352,9 @@
 	"job_export_label": "{title} exportálása",
 	"job_export_files": "{total} fájlból {count}",
 	"job_export_zip": "összes letöltése (zip)",
-	"job_export_zip_label": "{title}: összes letöltése (zip)",
+	"job_export_zip_label": "összes letöltése (zip): {title}",
 	"job_export_playlist": "lejátszási lista (.m3u8)",
-	"job_export_playlist_label": "{title}: lejátszási lista (.m3u8)",
+	"job_export_playlist_label": "lejátszási lista (.m3u8): {title}",
 	"job_export_preparing": "előkészítés…",
 	"job_notice_export_failed": "Nem sikerült letölteni ennek a feladatnak a fájljait.",
 	"job_notice_export_nothing": "Ennek a feladatnak már egyetlen fájlja sincs meg.",

@@ -181,7 +181,7 @@ test('job cancel and cancel track ask first', async ({ page, baseURL }, testInfo
 		// Job cancel: the row's own "cancel <title>".
 		const jobGuard: Guarded = {
 			trigger: jobRow(page, cancelJob.title).getByRole('button', {
-				name: `cancel ${cancelJob.title}`,
+				name: `cancel: ${cancelJob.title}`,
 				exact: true
 			}),
 			title: 'Cancel this job?',
@@ -402,7 +402,7 @@ test('cancelling an incoming submission asks first', async ({ page, baseURL }, t
 		const cancel: Guarded = {
 			trigger: page
 				.getByRole('list', { name: 'Incoming submissions' })
-				.getByRole('button', { name: `cancel ${url}`, exact: true }),
+				.getByRole('button', { name: `cancel: ${url}`, exact: true }),
 			title: 'Cancel this submission?',
 			keep: 'keep it',
 			confirm: 'cancel submission',
