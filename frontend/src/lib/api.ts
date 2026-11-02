@@ -718,6 +718,8 @@ export async function login(email: string, password: string): Promise<SessionInf
 	});
 	signingOut = false;
 	signedOut = false;
+	// v69: a new session starts with no leftover reason for the last one's end.
+	endReason = null;
 	// v62 (F9): the other tabs follow at once (session.ts).
 	announceSession({ type: 'login', email: session.email });
 	return session;

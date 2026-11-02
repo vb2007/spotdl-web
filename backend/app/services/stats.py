@@ -449,13 +449,16 @@ def my_stats(
     # --- jobs submitted in the window, by their rollup status now ---------------------
     # Archived ones included: retention hides a job from the list, not from what happened.
     jobs_subq = (
-        select(Job.id, Job.state)
+        select(Job.id, Job.state, Job.held_at)
         .where(Job.user_id == user_id, Job.created_at >= start, Job.created_at < end)
         .subquery()
     )
     agg = rollup.aggregate_jobs(jobs_subq)
-    lifecycle = rollup.lifecycle_case(agg.c.state, agg.c.active_n, agg.c.waiting_n)
-    outcome = rollup.outcome_case_for_display(agg.c.state, agg.c.active_n, agg.c.waiting_n, agg.c.partial_n)
+    # v69: a held job counts as `held`, as the job list has it.
+    lifecycle = rollup.lifecycle_case(agg.c.state, agg.c.active_n, agg.c.waiting_n, agg.c.held_at)
+    outcome = rollup.outcome_case_for_display(
+        agg.c.state, agg.c.active_n, agg.c.waiting_n, agg.c.partial_n, agg.c.held_at
+    )
     by_status = {
         rollup.status_key(row.lifecycle, row.outcome): row.n
         for row in db.execute(

@@ -385,10 +385,14 @@ def test_race_the_track_commits_downloading_first_and_the_job_runs_on(world, mon
         job_id, track_id = _one_queued_track(db)
     gate = Gate("download_track: job row FOR SHARE held, before the downloading commit")
     real_held = download_task._job_held
+    calls = []
 
     def held_then_pause(db, job):
+        # The second read is the claim's (the first is the gate's, committed at once).
         answer = real_held(db, job)
-        gate()
+        calls.append(answer)
+        if len(calls) == 2:
+            gate()
         return answer
 
     monkeypatch.setattr(download_task, "_job_held", held_then_pause)
@@ -431,3 +435,72 @@ def test_race_the_removal_commits_first_and_the_track_never_starts(world):
         assert track.state == TrackState.PENDING
         assert db.query(TrackAttempt).filter(TrackAttempt.track_id == track_id).count() == 0
     assert world.downloaded == []
+
+
+def test_race_a_re_add_waits_for_the_gate_and_then_enqueues_the_track(world, monkeypatch):
+    """Review round 1: the gate's read and its `pending` write are one locked transaction. A
+    re-add landing between them (unlocked, it did) found the track still `queued`, claimed
+    nothing, and the write then left it `pending` with no message and no schedule, forever."""
+    with world.db() as db:
+        job_id, track_id = _one_queued_track(db)
+        admin_id = _admin(db)
+    with world.db() as db:
+        allowlist.remove(db, "removed@example.com")
+    gate = Gate("download_track: the hold gate's read, before its pending write")
+    real_held = download_task._job_held
+
+    def held_then_pause(db, job):
+        answer = real_held(db, job)
+        if answer:
+            gate()
+        return answer
+
+    monkeypatch.setattr(download_task, "_job_held", held_then_pause)
+    task = Thread(download_task.download_track, str(track_id), name="download_track")
+    gate.wait_reached()
+
+    def run_add():
+        with world.db() as db:
+            return allowlist.add(db, "removed@example.com", db.get(User, admin_id))
+
+    add = Thread(run_add, name="re-add")
+    assert blocked_or_done(add) == "blocked"  # its job lock waits on the gate's FOR SHARE
+    gate.open()
+    task.join()
+    addition = add.join()
+    assert addition.resumed_job_ids == [job_id]
+    assert world.sent == [track_id]  # enqueued once, by the re-add
+    with world.db() as db:
+        assert db.get(Track, track_id).state == TrackState.PENDING
+        assert db.get(Job, job_id).held_at is None
+
+
+def test_a_job_with_nothing_to_run_isnt_held(world):
+    """Review round 1: an empty expanded job (an empty playlist) or one whose tracks were all
+    cancelled has nothing a hold could stop; holding it offered a cancel that answers 409."""
+    with world.db() as db:
+        user = _user(db)
+        empty = _job(db, user, source_type=JobSourceType.PLAYLIST).id
+        all_cancelled = _job(db, user, tracks=[(TrackState.CANCELLED, 0)]).id
+        db.commit()
+    with world.db() as db:
+        assert allowlist.remove(db, "removed@example.com").held_job_ids == []
+
+
+def test_a_re_expansion_already_queued_adds_nothing_after_the_removal(world, monkeypatch):
+    """Review round 1: beat stops starting a removed owner's watched jobs; a run already queued
+    (a "check now", a tick just before) ends without adding a track."""
+    monkeypatch.setattr(watch, "start_run", lambda job_id, marker: True)
+    read = []
+    monkeypatch.setattr(expansion, "expand", lambda url: read.append(url) or [])
+    with world.db() as db:
+        user = _user(db)
+        job = _job(db, user, source_type=JobSourceType.PLAYLIST, tracks=[(TrackState.COMPLETED, 0)])
+        job.watch_interval_hours = 24
+        job_id = job.id
+        db.commit()
+    with world.db() as db:
+        allowlist.remove(db, "removed@example.com")
+    expand_task.expand_job(str(job_id), reexpand=True, marker="token")
+    with world.db() as db:
+        assert db.query(Track).filter(Track.job_id == job_id).count() == 1

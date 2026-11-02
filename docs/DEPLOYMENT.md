@@ -734,7 +734,10 @@ stay, and adding the address again restores the same account and resumes the hel
 `allowed_emails` table once, on the first `migrate` of that release; after that the app ignores
 it. `api` logs one warning at startup (a count, never the addresses) when the env list holds an
 address the table doesn't: "ALLOWED_EMAILS is ignored since v69, manage users in /users". Keep the
-line until the import has been checked in `/users`, then it may be deleted. A fresh database (a
+line until the import has been checked in `/users`, then it may be deleted. **Before a rollback to a
+release older than v69** (a `downgrade` past the v69 migration drops the table): the old releases
+read `ALLOWED_EMAILS` again and refuse to boot unless `ADMIN_EMAIL` is in it, and every address added
+on `/users` since is gone, so put the current list back into `.env` first. A fresh database (a
 new install) imports it the same way on its first `migrate`.
 
 The new person's `users` row is created automatically on their first successful login

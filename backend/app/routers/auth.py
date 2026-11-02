@@ -186,15 +186,22 @@ async def login(
 
     upstream_ok, username = await upstream_auth.login(payload.email, payload.password)
     # v69: the allowlist table, read now (never cached), so an address added in /users signs
-    # in on its next attempt. Its row stays locked (FOR SHARE) until this login commits its
-    # session: a removal meanwhile waits for it, then ends that session with the others.
-    allowed = allowlist.is_allowed(db, payload.email, lock=True)
+    # in on its next attempt.
+    allowed = allowlist.is_allowed(db, payload.email)
+    db.commit()
 
     # Upstream failure and allowlist rejection must be indistinguishable to the caller.
     if not upstream_ok or not allowed:
         raise _INVALID_CREDENTIALS
 
     await run_in_threadpool(rate_limit.clear_login_failures, payload.email, address)
+    # Read again, now locked (FOR SHARE) until this login commits its session, and only now: a
+    # removal meanwhile waits for it, then ends that session with the others. Not across the
+    # Redis call above (a stalled Redis would hold a removal for its retries). Off the event
+    # loop, since it may wait on a removal's row lock.
+    if not await run_in_threadpool(allowlist.is_allowed, db, payload.email, lock=True):
+        db.rollback()
+        raise _INVALID_CREDENTIALS
     user = get_or_create_user(db, payload.email, username)
     session = create_session(db, user.id)
     db.commit()

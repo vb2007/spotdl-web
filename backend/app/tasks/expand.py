@@ -5,8 +5,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import case, func, select, update
 
 from app.db import SessionLocal
-from app.models import Job, JobState, Track, TrackState
-from app.services import events, expansion, job_status, watch
+from app.models import Job, JobState, Track, TrackState, User
+from app.services import allowlist, events, expansion, job_status, watch
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
@@ -203,6 +203,14 @@ def _reexpand(db, job_id: str, marker: str | None = None) -> None:
     if job.state != JobState.EXPANDED or job.archived_at is not None:
         db.rollback()
         logger.info("expand_job: job %s is %s meanwhile; not re-expanding", job_id, job.state.value)
+        return
+    # v69: a run queued before its owner's address was removed adds nothing: new tracks are new
+    # work (beat stops starting them; this covers one already on its way).
+    owner_email = db.execute(select(User.email).where(User.id == job.user_id)).scalar_one()
+    if not allowlist.is_allowed(db, owner_email):
+        db.rollback()
+        logger.info("expand_job: job %s's owner was removed meanwhile; not re-expanding", job_id)
+        events.publish_job_event(user_id, job.id, JobState.EXPANDED.value, watch=True)
         return
     known = set(db.execute(select(Track.spotify_track_id).where(Track.job_id == job.id)).scalars())
     # One stamp for the whole batch, read off the clock rather than the transaction's `now()`:

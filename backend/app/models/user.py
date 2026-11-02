@@ -8,8 +8,8 @@ from app.db import Base
 
 
 class User(Base):
-    """Row created on first successful login (v17). The `ALLOWED_EMAILS` env allowlist
-    decides who may log in; this table decides what they own and may do -- deliberately
+    """Row created on first successful login (v17). The allowlist (v69: the `allowed_emails`
+    table, managed on /users) decides who may log in; this table decides what they own and may do -- deliberately
     separate, since one is deployment config and the other is application state."""
 
     __tablename__ = "users"

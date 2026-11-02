@@ -159,6 +159,9 @@
 				notifications.reset();
 			} finally {
 				ending = false;
+				// v69: a reason that arrived while this ran belongs to this ending, never to a
+				// later one (after a new sign-in on this tab).
+				api.takeEndReason();
 			}
 		})
 	);

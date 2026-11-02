@@ -321,7 +321,13 @@ def test_the_m_plus_first_create_is_429_with_retry_after(authenticated_client, l
     assert authenticated_client.post("/api/jobs", json={"url": "search 5"}).status_code == 201
 
 
-def test_create_limit_is_per_user(client, session_cookie, low_limits):
+def test_create_limit_is_per_user(client, session_cookie, low_limits, db_session):
+    from app.models import AllowedEmail
+
+    # v69: a job create re-checks the allowlist (a minted session alone isn't enough).
+    for email in ("a@example.com", "b@example.com"):
+        db_session.merge(AllowedEmail(email=email))
+    db_session.flush()
     a = session_cookie("a@example.com")
     b = session_cookie("b@example.com")
     for i in range(3):

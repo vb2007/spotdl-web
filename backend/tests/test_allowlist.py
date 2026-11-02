@@ -396,3 +396,19 @@ def test_no_startup_warning_when_every_env_address_is_imported(db_session, caplo
     with caplog.at_level(logging.WARNING, logger="app.services.allowlist"):
         assert allowlist.warn_if_env_ignored(db_session) == 0
     assert not [r for r in caplog.records if r.name == "app.services.allowlist"]
+
+
+def test_a_job_create_rechecks_the_allowlist(authenticated_client, db_session):
+    """Review round 1: the create's insert comes seconds after its session check (a cascade's
+    Spotify call). With the address off the list by then, it's refused, not created unheld."""
+    db_session.query(AllowedEmail).filter(AllowedEmail.email == "allowed@example.com").delete()
+    db_session.flush()
+    response = authenticated_client.post("/api/jobs", json={"url": "some search text"})
+    assert response.status_code == 401
+    assert response.json()["code"] == "not_authenticated"
+
+
+def test_removing_an_unstorable_address_is_404(admin_client):
+    response = admin_client.delete("/api/admin/allowlist/a%00b@example.com")
+    assert response.status_code == 404
+    assert response.json()["code"] == "allowed_email_not_found"

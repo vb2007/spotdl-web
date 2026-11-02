@@ -291,11 +291,15 @@ def download_track(track_id: str) -> None:
 
         # v69: the hold gate. A job whose owner's address was removed before it started is
         # held: a message already in the broker (or one beat sends after the stale sweep put a
-        # still-queued track back to `waiting`) drains here without an attempt. A plain read;
-        # the claim below re-reads it under the job's row lock.
-        if db.execute(select(Job.held_at).where(Job.id == track.job_id)).scalar_one_or_none() is not None:
+        # still-queued track back to `waiting`) drains here without an attempt. Read under the
+        # job's row lock, kept until `_back_to_pending` commits: a re-add meanwhile waits, then
+        # finds the track `pending` and enqueues it (unlocked, a re-add between the read and the
+        # write left it pending with no message and no schedule, forever). Released at once
+        # otherwise; the claim below reads it again under the same lock.
+        if _job_held(db, track.job_id):
             _back_to_pending(db, track.id, entry_state, entry_attempt, "before dispatch")
             return
+        db.commit()
 
         # Covers the race where this task was already enqueued just before the breaker
         # tripped (or the worker was paused) — dispatch_due_tracks is the primary gate and

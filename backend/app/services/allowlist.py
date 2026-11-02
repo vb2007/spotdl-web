@@ -120,6 +120,14 @@ def _job_started() -> ColumnElement:
     )
 
 
+def _job_has_work() -> ColumnElement:
+    """Correlated on `Job`: a track still to download (what a hold would stop)."""
+    return exists().where(
+        Track.job_id == Job.id,
+        Track.state.in_((TrackState.PENDING, TrackState.QUEUED, TrackState.WAITING)),
+    )
+
+
 def _lock_user_jobs(db: Session, user_id: uuid.UUID) -> None:
     """The user's job rows, locked in id order (as job_status locks them), before deciding
     anything about them: `download_track`'s `FOR SHARE` on a job waits for this transaction."""
@@ -141,6 +149,9 @@ def remove(db: Session, email: str) -> Removal:
     normalized = normalize_email(email) if isinstance(email, str) else ""
     if normalized == admin_address():
         raise ApiError(409, "cannot_remove_admin", "The admin's address can't be removed")
+    # An address Postgres can't even compare (a NUL) is on no list.
+    if not storable(normalized):
+        raise ApiError(404, "allowed_email_not_found", "That address isn't on the allowlist")
     # The row first: a login holding it `FOR SHARE` (is_allowed's lock) commits its session
     # before this goes on, so the session delete below sees it.
     deleted = db.execute(
@@ -173,6 +184,9 @@ def remove(db: Session, email: str) -> Removal:
                     Job.state.not_in(_UNHOLDABLE_JOB_STATES),
                     Job.archived_at.is_(None),
                     ~_job_started(),
+                    # Only a job with something left to run: one still expanding, or with a
+                    # track to download. An empty or fully cancelled one has nothing to hold.
+                    or_(Job.state == JobState.EXPANDING, _job_has_work()),
                 )
                 .values(held_at=func.now())
                 .returning(Job.id)
@@ -239,7 +253,7 @@ def add(db: Session, email: str, by: User) -> Addition:
         )
         if addition.resumed_job_ids:
             # One bulk query for every resumed job's pending tracks, in queue order.
-            claimed = list(
+            ordered = list(
                 db.execute(
                     select(Track.id)
                     .join(Job, Job.id == Track.job_id)
@@ -247,15 +261,20 @@ def add(db: Session, email: str, by: User) -> Addition:
                     .order_by(Job.priority.desc(), Job.created_at.asc(), Track.created_at.asc(), Track.id)
                 ).scalars()
             )
-            if claimed:
+            if ordered:
                 # The claim (expand_job's outbox lease, v56 E1): beat leaves them alone until
-                # the lease runs out, so each is sent once, here.
-                db.execute(
-                    update(Track)
-                    .where(Track.id.in_(claimed), Track.state == TrackState.PENDING)
-                    .values(scheduled_at=lease)
-                    .execution_options(synchronize_session=False)
+                # the lease runs out, so each is sent once, here. Only what the claim matched
+                # is sent: a track beat dispatched since the read above has its own message.
+                won = set(
+                    db.execute(
+                        update(Track)
+                        .where(Track.id.in_(ordered), Track.state == TrackState.PENDING)
+                        .values(scheduled_at=lease)
+                        .returning(Track.id)
+                        .execution_options(synchronize_session=False)
+                    ).scalars()
                 )
+                claimed = [track_id for track_id in ordered if track_id in won]
     db.commit()
     db.refresh(addition.row)
     logger.info(
