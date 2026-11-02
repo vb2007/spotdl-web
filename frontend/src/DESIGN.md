@@ -682,7 +682,7 @@ settled; waiting → waiting; lookup_failed → fail; cancelled → idle.
 The words are the state-filter chips' words (v41, 2026-10-14, F21, owner's call): pending, queued,
 downloading, completed, waiting, not found, duplicate, cancelled, so a state reads the same on a
 chip and on a row and no label truncates in the state column (F13). The in-world voice stays on
-idents and moments. In Hungarian (v46, 2026-10-18): sorban áll, besorolva, letöltés alatt,
+idents and moments. In Hungarian (v46, 2026-10-18): sorban áll, sorra vár, letöltés alatt,
 letöltve, várakozik, nem található, már megvan, megszakítva (v67, U6: queued was "indulásra kész",
 whose "kész" read as "done"; not "mindjárt indul" either: a queued track may wait hours behind the
 one download at a time). History: v20 renamed `lookup_failed`'s

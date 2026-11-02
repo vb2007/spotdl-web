@@ -299,7 +299,8 @@
 		/** A position inside the viewport, or null (outside it, or a browser's 0,0 for "nowhere"). */
 		function inside(x: number, y: number): { x: number; y: number } | null {
 			if (x === 0 && y === 0) return null;
-			return x >= 0 && y >= 0 && x <= innerWidth && y <= innerHeight ? { x, y } : null;
+			// The observed viewport size, never a layout read (§6: moving the glow reads no layout).
+			return x >= 0 && y >= 0 && x <= width && y <= height ? { x, y } : null;
 		}
 
 		function onPointerMove(event: PointerEvent) {
