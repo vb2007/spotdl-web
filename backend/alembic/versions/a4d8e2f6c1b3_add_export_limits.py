@@ -1,7 +1,7 @@
 """app_settings job export limits
 
 Revision ID: a4d8e2f6c1b3
-Revises: c5f1a7e3b9d2
+Revises: d4e8a2c6f0b3
 Create Date: 2026-10-30 12:00:00.000000
 
 v64: the job zip export's file-count and size limits, as admin overrides on the existing
@@ -16,7 +16,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'a4d8e2f6c1b3'
-down_revision: Union[str, Sequence[str], None] = 'c5f1a7e3b9d2'
+down_revision: Union[str, Sequence[str], None] = 'd4e8a2c6f0b3'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
