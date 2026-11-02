@@ -11,6 +11,12 @@
  * node (which drops focus in the browser) and a reload remounts the whole list, and both put
  * focus back on the same row. A row that goes away hands focus to the next row, or the
  * previous one if it was last; never to `<body>`.
+ *
+ * v68 (U4): a long list renders only a window of its rows (`$lib/listWindow.svelte`). It
+ * registers here (`registerVirtual`), so every move, restore and lookup goes by the list's whole
+ * order rather than the rows in the DOM, and a row outside the window is rendered (and scrolled
+ * to) before it takes focus. A list below the threshold renders every row and registers nothing
+ * that changes this module's behaviour.
  */
 
 /** What a row can do from the keyboard. Each key is optional: a job has no retry, a track no
@@ -116,6 +122,48 @@ export function resetLists(): void {
 	}
 }
 
+/** v68: a windowed list's rows beyond the DOM. */
+export interface VirtualRows {
+	/** Every row id of the list in order, rendered or not; null while it renders them all. */
+	ids(): string[] | null;
+	/** Renders the row with this id (scrolled into view) and returns it; null if it has none. */
+	reveal(id: string): HTMLElement | null;
+}
+
+const virtuals = new Map<HTMLElement, VirtualRows>();
+
+/** Called by a windowed list on its element; returns the unregister. */
+export function registerVirtual(list: HTMLElement, rows: VirtualRows): () => void {
+	virtuals.set(list, rows);
+	return () => {
+		if (virtuals.get(list) === rows) virtuals.delete(list);
+	};
+}
+
+/** The list's current row id (its roving tab stop), which a windowed list keeps rendered. */
+export function currentRowId(list: HTMLElement): string | null {
+	return memory.get(list.dataset.kbList ?? '')?.active ?? null;
+}
+
+/** Every row id of `list`, in order: a windowed list's whole order, else its rows in the DOM. */
+function orderOf(list: HTMLElement): string[] {
+	return virtuals.get(list)?.ids() ?? rowsOf(list).map(rowId);
+}
+
+/** `list`'s row with this id: the rendered one, else (`reveal`) the one a windowed list renders
+ * for it. Revealing renders synchronously (Svelte's `flushSync`), so it's never done inside an
+ * effect (a list's own attachment). */
+function rowIn(
+	list: HTMLElement,
+	id: string | null | undefined,
+	reveal = true
+): HTMLElement | null {
+	if (id === null || id === undefined) return null;
+	const row = rowsOf(list).find((r) => rowId(r) === id);
+	if (row || !reveal) return row ?? null;
+	return virtuals.get(list)?.reveal(id) ?? null;
+}
+
 export function listOf(row: Element): HTMLElement | null {
 	return row.parentElement?.closest<HTMLElement>('[data-kb-list]') ?? null;
 }
@@ -201,14 +249,15 @@ function focusRow(row: HTMLElement | undefined | null, opts?: FocusOptions): boo
 }
 
 /** After a change to `list`: re-apply its tab order and, when it held focus that has now
- * fallen to `<body>`, put focus back on the same row id, or the removed row's neighbour. */
-function settle(list: HTMLElement): void {
+ * fallen to `<body>`, put focus back on the same row id, or the removed row's neighbour.
+ * `reveal`: a windowed list may render that row (never from inside an effect). */
+function settle(list: HTMLElement, reveal = true): void {
 	const key = list.dataset.kbList ?? '';
 	const m = mem(key);
 	const before = m.active;
 	const order = m.order;
-	const rows = rowsOf(list);
-	const ids = rows.map(rowId);
+	// v68: the list's whole order: a windowed list's row outside the window is still there.
+	const ids = orderOf(list);
 	// No rows (yet, or for now): nothing to place, and nothing learned about the order.
 	if (ids.length === 0) return;
 	if (before !== null && !ids.includes(before)) {
@@ -244,7 +293,9 @@ function settle(list: HTMLElement): void {
 		}
 		return;
 	}
-	const activeRow = rows.find((r) => rowId(r) === m.active);
+	// v68: a windowed list renders it first (its neighbour after a removal may be outside the
+	// window).
+	const activeRow = rowIn(list, m.active, reveal);
 	// That row's own nested list (an open job's tracks) is reloading with focus inside: it
 	// takes focus back itself when it remounts, onto the same track.
 	if (activeRow) {
@@ -257,7 +308,7 @@ function settle(list: HTMLElement): void {
 	// on its own row first, and only an emptied or closed one hands it to the job.
 	const nested = activeRow ? nestedList(activeRow) : null;
 	if (nested && mem(nested.dataset.kbList ?? '').focusWithin && rowsOf(nested).length) {
-		settle(nested);
+		settle(nested, reveal);
 		if (!focusLost()) return;
 	}
 	// The same row back after a re-order stays where the user is reading, unless it moved
@@ -332,7 +383,8 @@ export function kbList(name: string, opts: { fallback?: () => HTMLElement | null
 		// microtask both try again; focus anywhere else meanwhile ends the claim.
 		if (focusLost() && performance.now() < m.restoreUntil) m.focusWithin = true;
 		m.restoreUntil = 0;
-		settle(list);
+		// Inside the attachment's effect: no reveal here (the microtask's settle may).
+		settle(list, false);
 		queueMicrotask(() => {
 			if (list.isConnected) settle(list);
 		});
@@ -394,25 +446,39 @@ function awaitFallback(m: ListMemory, fallback: () => HTMLElement | null): void 
 export function move(row: HTMLElement, to: number | 'first' | 'last'): boolean {
 	const list = listOf(row);
 	if (!list) return false;
-	const rows = rowsOf(list);
-	const at = rows.indexOf(row);
+	// v68: by id through the list's whole order; a windowed list renders the target first.
+	const ids = orderOf(list);
+	const at = ids.indexOf(rowId(row));
 	const target =
 		to === 'first'
-			? rows[0]
+			? ids[0]
 			: to === 'last'
-				? rows[rows.length - 1]
-				: rows[Math.min(Math.max(at + to, 0), rows.length - 1)];
-	if (!target || target === row) return false;
-	return focusRow(target);
+				? ids[ids.length - 1]
+				: ids[Math.min(Math.max(at + to, 0), ids.length - 1)];
+	if (target === undefined || target === rowId(row)) return false;
+	const next = rowIn(list, target);
+	if (!focusRow(next)) return false;
+	// A windowed list scrolls the whole row into view: the browser leaves a row it can partly
+	// see where it is, and one past the window's edge must not hide the focus ring.
+	if (next && virtuals.get(list)?.ids()) {
+		const box = next.getBoundingClientRect();
+		if (box.top < 0 || box.bottom > window.innerHeight) next.scrollIntoView({ block: 'nearest' });
+	}
+	return true;
 }
 
 /** The current row of the named list, focused. */
 export function focusList(name: string): boolean {
 	const list = document.querySelector<HTMLElement>(`[data-kb-list="${CSS.escape(name)}"]`);
 	if (!list) return false;
-	const rows = rowsOf(list);
-	const m = mem(name);
-	return focusRow(rows.find((r) => rowId(r) === m.active) ?? rows[0]);
+	return focusCurrent(list);
+}
+
+/** `list`'s current row, else its first, focused (v68: rendered first if windowed). */
+function focusCurrent(list: HTMLElement): boolean {
+	const ids = orderOf(list);
+	const m = mem(list.dataset.kbList ?? '');
+	return focusRow(rowIn(list, m.active !== null && ids.includes(m.active) ? m.active : ids[0]));
 }
 
 /** The first list (of `name`'s) nested in `row`, i.e. an open job's tracks. */
@@ -425,16 +491,25 @@ export function nestedList(row: Element): HTMLElement | null {
 export function focusNested(row: Element): boolean {
 	const nested = nestedList(row);
 	if (!nested) return false;
-	const rows = rowsOf(nested);
-	const m = mem(nested.dataset.kbList ?? '');
-	return focusRow(rows.find((r) => rowId(r) === m.active) ?? rows[0]);
+	return focusCurrent(nested);
 }
 
 /** The button of the row with this id, wherever it is mounted now (a remounted row is a new
  * element), or null. */
 export function rowItemById(id: string): HTMLElement | null {
-	const row = document.querySelector<HTMLElement>(`[data-kb-row="${CSS.escape(id)}"]`);
+	const row = rowById(id);
 	return row ? itemOf(row) : null;
+}
+
+/** v68: the row with this id, wherever it is mounted now; a windowed list that has it outside
+ * its window renders it (scrolled into view) first. Null if no list has it. */
+export function rowById(id: string): HTMLElement | null {
+	const row = document.querySelector<HTMLElement>(`[data-kb-row="${CSS.escape(id)}"]`);
+	if (row) return row;
+	for (const [list, rows] of virtuals) {
+		if (list.isConnected && rows.ids()?.includes(id)) return rows.reveal(id);
+	}
+	return null;
 }
 
 export function focusRowEl(row: HTMLElement | null): boolean {
