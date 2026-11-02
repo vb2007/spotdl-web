@@ -22,6 +22,7 @@
 	import { errorText } from '$lib/i18n/errors';
 	import { counted, formatNumber } from '$lib/i18n/format';
 	import { countLinks, linkIn } from '$lib/submitLink';
+	import * as notifications from '$lib/notifications';
 
 	const { filters, page, incomingJobs, activeTracks } = queue;
 	const { status: workerStatus } = worker;
@@ -378,6 +379,7 @@
 		// before leaving, so a different identity logging in on the same tab next can never
 		// render a flash of this session's rows while its own reload() is still in flight.
 		queue.reset();
+		notifications.reset();
 		source?.close();
 		await goto(resolve('/login'));
 	}
@@ -444,6 +446,9 @@
 	function connectStream() {
 		if (unmounted) return;
 		const stream = api.createEventSource(view);
+		// v66: only a `mine` stream is the user's own: notifications listen to it, never to `all`
+		// or `others` (whose events carry no owner).
+		const ownEvents = view === 'mine';
 		source = stream;
 		streamHeardAt = Date.now();
 		// `onmessage` never sees a named event: the heartbeat only says the stream is alive.
@@ -517,7 +522,9 @@
 		stream.onmessage = (event) => {
 			if (outlived() || !verified) return;
 			streamHeardAt = Date.now();
-			queue.applyEvent(JSON.parse(event.data));
+			const parsed = JSON.parse(event.data);
+			queue.applyEvent(parsed);
+			if (ownEvents) notifications.observe(parsed);
 		};
 		stream.onerror = () => {
 			if (outlived()) return;
@@ -593,6 +600,8 @@
 		// nor `online`; the poll (whose overdue timer runs at once on wake) checks too (live
 		// review).
 		if (get(link) === 'live' && streamSilent()) restartStream();
+		// v66: and the notifications' own stream, when there is one (review round 3).
+		notifications.checkOwnStream();
 		let settled = false;
 		const overdue = setTimeout(() => {
 			if (settled || unmounted) return;
@@ -656,11 +665,13 @@
 	function onOnline() {
 		unreachedPolls = 0;
 		if (get(link) !== 'live' || streamSilent()) restartStream();
+		notifications.checkOwnStream();
 	}
 
 	function onVisible() {
 		if (document.visibilityState !== 'visible') return;
 		if (get(link) === 'reconnecting' || (get(link) === 'live' && streamSilent())) restartStream();
+		notifications.checkOwnStream();
 	}
 
 	onMount(() => {
@@ -680,6 +691,7 @@
 		connectStream();
 		pollWorker();
 		const workerPoll = setInterval(pollWorker, WORKER_POLL_MS);
+		notifications.setActivate(showJob);
 		window.addEventListener('offline', onOffline);
 		window.addEventListener('online', onOnline);
 		document.addEventListener('visibilitychange', onVisible);
@@ -693,8 +705,29 @@
 			clearTimeout(streamRetryTimer);
 			clearTimeout(resyncFallbackTimer);
 			source?.close();
+			notifications.setActivate(null);
+			notifications.setOwnStream(false);
 		};
 	});
+
+	// v66: the session's notifications switch (taken once per identity), and, for an admin whose
+	// view isn't `mine`, a stream of their own events for it (this page's carries everyone's).
+	$effect(() => {
+		if (data.session)
+			notifications.adopt(data.session.email, data.session.job_notifications ?? false);
+	});
+	const notifyOn = notifications.jobNotifications;
+	$effect(() => {
+		// Opened only once the browser allows notifications (round 1); the poll's checkOwnStream
+		// opens it when that changes later, from another tab even (round 3).
+		notifications.setOwnStream(isAdmin && view !== 'mine' && $notifyOn);
+	});
+
+	/** A notification's click: the job's row, if this page lists it. */
+	function showJob(jobId: string) {
+		const row = document.querySelector<HTMLElement>(`[data-kb-row="${CSS.escape(jobId)}"]`);
+		if (row !== null && focusRowEl(row)) row.scrollIntoView({ block: 'center' });
+	}
 </script>
 
 <svelte:head>
@@ -733,8 +766,8 @@
 			{#if isAdmin}
 				<a class="nav-link" href={resolve('/library')}>{m.dashboard_nav_library()}</a>
 				<a class="nav-link" href={resolve('/settings')}>{m.dashboard_nav_settings()}</a>
-				<a class="nav-link" href={resolve('/stats')}>{m.dashboard_nav_stats()}</a>
 			{/if}
+			<a class="nav-link" href={resolve('/stats')}>{m.dashboard_nav_stats()}</a>
 			<a class="nav-link" href={resolve('/account')}>{m.dashboard_nav_account()}</a>
 			<span class="who mono" title={data.session?.email}
 				>{api.displayName(data.session?.username ?? null, data.session?.email ?? '')}</span

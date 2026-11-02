@@ -7,7 +7,7 @@ Depends on: waves 0–4 merged
 
 ## Scope
 
-Ledger items **U2, U3, U5–U13**: UI gaps v39's audit and v47's polish logged but didn't close
+Ledger items **U2, U3, U5–U14**: UI gaps v39's audit and v47's polish logged but didn't close
 (DESIGN.md §8's open entries, #69's lists). Plus an **impeccable critique and audit of every
 surface master v5 added**: `/account`'s API keys section (v53), the others view (v54), the sweep
 cancel (v57), alert history (v59), `+error` (v62), the watch, retry and export controls
@@ -48,6 +48,11 @@ the list rendering in `+page.svelte`/`JobTrackList.svelte`, or the roving-focus 
 - **U12:** resolve the `/stats` surface brief's `## Unresolved` section, so no `Unresolved` remains
   in `frontend/src/.impeccable/surfaces/`.
 - **U13:** re-verify the 320px admin view's horizontal scroll (#58). Fix if still present.
+- **U14 (added by v66):** `FailureChannels`' name column clips failure classes without an
+  ellipsis at 390px ("audio_prov", "nem találh"); since v66 non-admins see it too, on "my stats".
+  Fit or ellipsize the names (the full name stays reachable, e.g. in "show as a table"), and
+  decide with the owner whether non-admins keep the machine names (`audio_provider`,
+  `no_output`) or get translated labels.
 - **New-surface audit:** run impeccable `critique` and `audit` on each v53–v66 surface, desktop and
   mobile, en and hu. Fix findings within refinement scope. Log anything larger in the PR's
   "Found, not fixed".
@@ -69,7 +74,7 @@ behavior), `frontend/src/lib/components/{JobRow,TrackRow,QueueControls,AmbientFi
       with before and after scores.
 - [ ] **U2:** `/settings` at 390px is measured before and after (page height), and every setting
       is reachable keyboard-only (e2e).
-- [ ] **U3/U5/U13:** before and after screenshots at 320/390/768/1440.
+- [ ] **U3/U5/U13/U14:** before and after screenshots at 320/390/768/1440.
 - [ ] **U6:** the old → new string table is in the PR, both languages updated, and the key-parity
       check passes.
 - [ ] **U7:** grep shows no unused token.

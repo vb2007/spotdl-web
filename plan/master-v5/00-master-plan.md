@@ -173,6 +173,7 @@ files.
 | U11 | A drag released outside the window can strand the glow | #59 | v67 |
 | U12 | The `/stats` surface brief still has `## Unresolved` | `frontend/src/.impeccable/surfaces/frontend-src-routes-stats-page-svelte.md:39` | v67 |
 | U13 | 320px admin view 27px horizontal scroll | #58 (re-verify; may be fixed) | v67 |
+| U14 | `/stats` failure-class names clipped without an ellipsis at 390px ("audio_prov", "nem találh"), and shown as machine names (`audio_provider`, `no_output`) now that non-admins see the chart | #97 (v66) | v67 |
 
 ### Dev loop / tests → v52 unless noted
 
@@ -312,7 +313,7 @@ files.
 | **v64** | 4 | `dev-job-export` | Streamed zip of a job's present files, plus an `.m3u8` |
 | **v65** | 4 | `dev-pwa-share-target` | Installable PWA, a Web Share Target → `/share`, a login round-trip |
 | **v66** | 4 | `dev-personal-notifications` | Browser notifications when own jobs settle; a non-admin "my stats" |
-| **v67** | 5 | `dev-ui-debt` | U2, U3, U5–U13, plus an impeccable audit of every surface v53–v66 added |
+| **v67** | 5 | `dev-ui-debt` | U2, U3, U5–U14, plus an impeccable audit of every surface v53–v66 added |
 | **v68** | 5 | `dev-log-virtualization` | U4: virtualized job/track lists that keep keyboard, focus, live patching and load-more intact |
 | **v69** | 6 | `dev-v5-hardening` | The production close: the cross-user sweep over every new surface, the full e2e plus an extension pass, a production smoke, ledger re-confirmation, docs, the closing re-read |
 
@@ -792,3 +793,20 @@ here.
     `/login` with one, and every other path stays out of the redirect's reach.
   - **The real phone share** is the owner's, from production after merge (owner's choice); v65
     evidences it with the share formats emulated on the nginx build.
+
+- **2026-10-30, v66: two premises didn't match the code; the owner's choices.**
+  - **Library size isn't recorded, and the api couldn't see the files.** `downloaded_tracks` has
+    no size column, and `api` mounted neither `/downloads` nor the library. The owner chose
+    read-only mounts on `api` (base compose, the dev override's real directories, the production
+    overlay's `DOWNLOADS_DIR`/`LIBRARY_DIR`, all `:ro`) over a size column or files only: the
+    file count is SQL, the size is `os.stat` on the user's ledger paths in the same request, and
+    a file the disk doesn't show is reported as `unreadable`, never as zero bytes. (v64, built in
+    parallel, added the same mounts for its export; after the rebase onto it they're one set.)
+  - **The dashboard's stream isn't `mine` for an admin in `all`/`others`.** It carries every
+    user's events, with no owner in them. Notifications listen to a `mine` stream only: the
+    dashboard's own when it is `mine` (always, for a non-admin), else one opened just for them.
+    The owner chose dashboard tabs only (as "Files owned" says), not every app page: a tab on
+    `/stats` or `/account` doesn't announce.
+  - **`/stats` for the admin** lands on everyone's (owner's choice); "mine" is one press away in
+    the title row and `?scope=mine` keeps it across a reload. "My stats" uses the library |
+    window split (owner's choice of the two layouts offered).

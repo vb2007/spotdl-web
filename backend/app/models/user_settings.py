@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, func, true
+from sqlalchemy import Boolean, ForeignKey, Integer, String, false, func, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -26,6 +26,11 @@ class UserSettings(Base):
     language: Mapped[str | None] = mapped_column(String(8), nullable=True)
     # v46: the time format (`12h`/`24h`). NULL is "automatic": the browser's region decides.
     clock: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    # v66: a browser notification when one of the user's own jobs settles. Off by default; the
+    # browser's own permission is asked for when it's turned on.
+    job_notifications: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now(), nullable=False

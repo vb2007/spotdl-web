@@ -6,16 +6,12 @@
 	// no admin request (the page renders it instead of its sections), so nothing spins and
 	// nothing claims a state it couldn't read. The backend's require_admin stays the real gate.
 	// v46: `page` picks the whole sentence (one message per page, so a translation never glues
-	// a subject to a reason): settings and library change shared setup, stats only reads but
-	// counts every user's downloads together.
-	let { page }: { page: 'settings' | 'library' | 'stats' } = $props();
+	// a subject to a reason): settings and library change shared setup. (v66: /stats is
+	// everyone's now, so its variant is gone.)
+	let { page }: { page: 'settings' | 'library' } = $props();
 
 	const body = $derived(
-		page === 'settings'
-			? m.adminonly_body_settings()
-			: page === 'library'
-				? m.adminonly_body_library()
-				: m.adminonly_body_stats()
+		page === 'settings' ? m.adminonly_body_settings() : m.adminonly_body_library()
 	);
 
 	// The account link sits inside the sentence (`<a>…</a>` in the message), where the
