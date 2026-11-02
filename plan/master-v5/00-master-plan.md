@@ -849,3 +849,28 @@ here.
       `lib/unsavedGuard.ts` (an optional question) and `routes/login/+page.svelte`.
     - e2e: a new spec 25, plus specs 1, 5, 8, 12, 13, 14 and 18 following the new copy, names
       and phone rows.
+
+- **2026-11-02, v69: what the user-access slice did where its plan and the code differed; the
+  owner's decisions.**
+  - **No held-jobs count on `/users` (owner's decision).** Task 7's "a row with held jobs shows
+    their count" can't occur: a hold exists only while its address is off the allowlist, and
+    adding the address back clears it in the same transaction. The count is gone from the list,
+    the API and the page; held jobs show in the admin's "others" view (lifecycle `held`). Adding an
+    address back still says how many held jobs resume.
+  - **Slot 3's identities (owner's decision).** Slot 3's upstream accounts were lost in v65's
+    cleanup, and `api.vb2007.hu` now refuses to register an address whose domain can't receive mail
+    (every `example.com` one). `scripts/agent_stack.sh` gained `AGENT_ADMIN_EMAIL`, and slot 3 reuses
+    slot 5's saved accounts; the "real-time add" bullet used `v5s1user@example.com`, an existing
+    real-upstream account slot 3 never allowed, instead of a freshly registered one.
+  - **Only a job with work is held.** The plan's hold takes every unstarted, unfinished job; an empty
+    expanded job (an empty watched playlist) or one whose tracks were all cancelled has nothing a
+    hold stops, and held it offered a cancel that answers 409. The hold also needs the job to be
+    `expanding` or to have a `pending`/`queued`/`waiting` track (review round 1).
+  - **Beyond the named paths (review round 1):** a job create re-checks the allowlist under the
+    login's `FOR SHARE` (a cascade's Spotify call made a job created during a removal unheld), and a
+    re-expansion already queued when its owner is removed adds nothing (the plan names only beat's
+    selection).
+  - **Placement:** the admin nav links live in `SubpageHeader.svelte` and the dashboard header, not in
+    `+layout.svelte` (which holds the session-ended path the revocation reuses); the e2e spec is
+    `25-user-access.e2e.ts`, since Playwright here runs `*.e2e.ts` only. A held job keeps the admin's
+    cancel in `JobRow.svelte` (the plan's "the admin can still cancel it").
