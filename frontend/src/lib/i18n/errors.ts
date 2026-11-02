@@ -143,13 +143,25 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	request_failed: (p) => m.error_request_failed({ status: String(p.status ?? '') })
 };
 
+// v67 (U9): texts passed through untranslated (the server's own English), so the element that
+// shows one can say so (`lang="en"`, WCAG 3.1.2). A code-less 4xx is rare: every user-facing
+// error has a code (CLAUDE.md), so the set stays tiny.
+const untranslated = new Set<string>();
+
 export function apiErrorText(err: ApiError): string {
 	const translate = err.code ? BY_CODE[err.code] : undefined;
 	if (translate) return translate(err.params);
 	// v47: a 5xx with no code we know (an unhandled exception's JSON `detail`) is still the
 	// server's problem in the page's language, never its raw English.
 	if (err.status >= 500) return m.error_server_error({ status: String(err.status) });
+	untranslated.add(err.message);
 	return err.message;
+}
+
+/** v67 (U9): the `lang` for an element showing `text` whole: `en` when it is the server's raw
+ * English (errorText's fallback), else inherited from the page. */
+export function textLang(text: string | null | undefined): 'en' | undefined {
+	return text && untranslated.has(text) ? 'en' : undefined;
 }
 
 /** The pattern every catch block uses: an API error in words, anything else (the server

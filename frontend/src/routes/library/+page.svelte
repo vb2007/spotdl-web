@@ -6,7 +6,7 @@
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
 	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { apiErrorText, errorText } from '$lib/i18n/errors';
+	import { apiErrorText, errorText, textLang } from '$lib/i18n/errors';
 	import { counted, formatDateTime, formatNumber, formatTime } from '$lib/i18n/format';
 
 	let { data } = $props();
@@ -421,7 +421,9 @@
 					</div>
 				</header>
 				<!-- One alert line for the page: a start that failed, or a report that couldn't be read. -->
-				<p class="form-error" role="alert">{error || reportError}</p>
+				<p class="form-error" role="alert" lang={textLang(error || reportError)}>
+					{error || reportError}
+				</p>
 				<!-- v47: the first load failure is announced here, a region present from the start
 				     (the visible block below is inserted with its text, which often isn't). -->
 				<p class="sr-only" role="alert">

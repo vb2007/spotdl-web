@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '$lib/api';
 import { baseLocale, overwriteGetLocale, type Locale } from '$lib/paraglide/runtime';
-import { apiErrorText, errorText, knowsCode } from '$lib/i18n/errors';
+import { apiErrorText, errorText, knowsCode, textLang } from '$lib/i18n/errors';
 import {
 	applyClock,
 	applyLanguagePreference,
@@ -181,6 +181,18 @@ describe('apiErrorText', () => {
 			'I am a teapot'
 		);
 		expect(apiErrorText(new ApiError(404, 'Not Found'))).toBe('Not Found');
+	});
+
+	it('marks the server’s raw English as English, and nothing translated (v67, U9)', () => {
+		speak('hu');
+		const raw = apiErrorText(new ApiError(409, 'Something odd happened', 'odd_new_code'));
+		expect(textLang(raw)).toBe('en');
+		expect(textLang(apiErrorText(new ApiError(404, 'Job not found', 'job_not_found')))).toBe(
+			undefined
+		);
+		expect(textLang(errorText(new TypeError('Failed to fetch')))).toBe(undefined);
+		expect(textLang(null)).toBe(undefined);
+		expect(textLang('')).toBe(undefined);
 	});
 
 	it('uses the caller’s fallback for anything that is not an API error', () => {

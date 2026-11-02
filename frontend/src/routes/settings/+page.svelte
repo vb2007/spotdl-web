@@ -9,7 +9,7 @@
 	import { guardUnsavedEdits } from '$lib/unsavedGuard';
 	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 	import { counted, formatClock, formatDateTime, formatNumber } from '$lib/i18n/format';
 
 	let { data } = $props();
@@ -940,7 +940,11 @@
 													/>
 													<span class="unit" id="{field.key}-unit">{field.unit()}</span>
 												</div>
-												<p id="{field.key}-error" class="field-error">
+												<p
+													id="{field.key}-error"
+													class="field-error"
+													lang={textLang(exportFieldErrors[field.key])}
+												>
 													{exportFieldErrors[field.key] ?? ''}
 												</p>
 											</div>
@@ -968,7 +972,12 @@
 							</div>
 						</form>
 					{/if}
-					<p class="form-error" class:sr-only={outputSettings === null} role="alert">
+					<p
+						class="form-error"
+						class:sr-only={outputSettings === null}
+						role="alert"
+						lang={textLang(outputError)}
+					>
 						{outputSettings !== null
 							? outputError
 							: outputError
@@ -1008,7 +1017,11 @@
 										aria-invalid={libraryFieldErrors[field.key] ? 'true' : undefined}
 										aria-describedby="{field.key}-error"
 									/>
-									<p id="{field.key}-error" class="field-error">
+									<p
+										id="{field.key}-error"
+										class="field-error"
+										lang={textLang(libraryFieldErrors[field.key])}
+									>
 										{libraryFieldErrors[field.key] ?? ''}
 									</p>
 								</div>
@@ -1051,7 +1064,11 @@
 									aria-invalid={libraryFieldErrors.library_quarantine_dir ? 'true' : undefined}
 									aria-describedby="library_quarantine_dir-error"
 								/>
-								<p id="library_quarantine_dir-error" class="field-error">
+								<p
+									id="library_quarantine_dir-error"
+									class="field-error"
+									lang={textLang(libraryFieldErrors.library_quarantine_dir)}
+								>
 									{libraryFieldErrors.library_quarantine_dir ?? ''}
 								</p>
 							</div>
@@ -1070,7 +1087,12 @@
 							</div>
 						</form>
 					{/if}
-					<p class="form-error" class:sr-only={librarySettings === null} role="alert">
+					<p
+						class="form-error"
+						class:sr-only={librarySettings === null}
+						role="alert"
+						lang={textLang(libraryError)}
+					>
 						{librarySettings !== null
 							? libraryError
 							: libraryError
@@ -1158,7 +1180,11 @@
 												/>
 												<span class="unit" id="{field.key}-unit">{field.unit()}</span>
 											</div>
-											<p id="{field.key}-error" class="field-error">
+											<p
+												id="{field.key}-error"
+												class="field-error"
+												lang={textLang(alertFieldErrors[field.key])}
+											>
 												{alertFieldErrors[field.key] ?? ''}
 											</p>
 										</div>
@@ -1189,7 +1215,12 @@
 							<p class="save-state saved" role="status">{alertTestResult}</p>
 						</form>
 					{/if}
-					<p class="form-error" class:sr-only={alertSettings === null} role="alert">
+					<p
+						class="form-error"
+						class:sr-only={alertSettings === null}
+						role="alert"
+						lang={textLang(alertError)}
+					>
 						{alertSettings !== null
 							? alertError
 							: alertError
@@ -1229,7 +1260,14 @@
 							<p id="new-proxy-hint" class="field-hint">
 								{@render coded(proxyFormatHint)}
 							</p>
-							<p id="new-proxy-error" class="field-error" role="alert">{addProxyError}</p>
+							<p
+								id="new-proxy-error"
+								class="field-error"
+								role="alert"
+								lang={textLang(addProxyError)}
+							>
+								{addProxyError}
+							</p>
 						</div>
 					</form>
 
@@ -1327,7 +1365,7 @@
 							{/each}
 						</ul>
 					{/if}
-					<p class="form-error" role="alert">{proxiesError}</p>
+					<p class="form-error" role="alert" lang={textLang(proxiesError)}>{proxiesError}</p>
 					<p class="sr-only" role="status">{proxiesStatus}</p>
 					<p class="sr-only" role="alert">
 						{proxiesLoadError && proxyList.length === 0

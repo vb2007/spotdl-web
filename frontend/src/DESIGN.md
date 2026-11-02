@@ -1272,6 +1272,14 @@ Sans, the time mono). Hungarian runs longer: v46 and v47 checked every route at 
 - Text scaling (WCAG 1.4.4): sizes are rem tokens and width breakpoints are em (§6), so the layout
   follows the user's text size as well as the window (v47).
 - Language of parts (WCAG 3.1.2): raw English text on a Hungarian page carries `lang="en"` (v47).
+  v67 (U9) added the rest whose language is known: an error the server answered with no code we
+  translate (`errors.ts`' `textLang()`, on every element that shows such an error whole), and
+  the admin's machine names for failure classes on `/stats`. Not marked, deliberately: **track,
+  artist and album metadata** (a Hungarian, Japanese or English title is all the same field, and
+  Spotify doesn't say which; a wrong `lang` is worse than none, since it switches the screen
+  reader's voice to the wrong language), and a raw fragment inside a translated sentence ("Couldn't
+  read the stats: …"), which would need the message split around it (a code-less error is a
+  backend bug in itself: every user-facing error has a code).
 - Forced colours: progress meters, job bars and `/stats`' charts keep their own colours under
   `forced-colors: active` (v44 for `/stats`, v47 for the rest).
 - **Landmarks and outline on `/` (v42, F29):** `header` (banner) → `nav[aria-label=Account]` →

@@ -21,7 +21,7 @@
 		summarizeVia
 	} from '$lib/attempts';
 	import * as m from '$lib/paraglide/messages';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 	import { counted, formatDateTime, formatNumber } from '$lib/i18n/format';
 	import { trackStateLabel } from '$lib/i18n/labels';
 	import type { TrackAttempt, TrackAttemptOutcome, TrackState } from '$lib/api';
@@ -647,7 +647,12 @@
 					{/if}
 				</div>
 			{/if}
-			<p class="notice" class:failed={failedRowNotices.has(`track:${track.id}`)} role="status">
+			<p
+				class="notice"
+				class:failed={failedRowNotices.has(`track:${track.id}`)}
+				role="status"
+				lang={textLang(rowNotices.get(`track:${track.id}`))}
+			>
 				{rowNotices.get(`track:${track.id}`) ?? ''}
 			</p>
 
@@ -662,7 +667,9 @@
 					{#if attemptsLoading && attemptsLoadedFor === null}
 						<p class="history-status">{m.track_history_loading()}</p>
 					{:else if attemptsError && attemptsLoadedFor === null}
-						<p class="history-status history-error">{attemptsError}</p>
+						<p class="history-status history-error" lang={textLang(attemptsError)}>
+							{attemptsError}
+						</p>
 					{:else if attempts.length === 0}
 						<p class="history-status">{m.track_history_empty()}</p>
 					{:else}
@@ -771,6 +778,7 @@
 		class="notice collapsed"
 		class:failed={collapsedNotice !== '' && failedRowNotices.has(`track:${track.id}`)}
 		role="status"
+		lang={textLang(collapsedNotice)}
 	>
 		{collapsedNotice}
 	</p>

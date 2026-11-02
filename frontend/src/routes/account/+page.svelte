@@ -8,7 +8,7 @@
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
 	import { helpOpen, shortcutsEnabled } from '$lib/keyboard/registry';
 	import * as m from '$lib/paraglide/messages';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 	import { clockExample, formatClock, formatNumber } from '$lib/i18n/format';
 	import {
 		applyClock,
@@ -477,7 +477,7 @@
 					{loggingOut ? m.account_disconnecting() : m.account_disconnect()}
 				</button>
 			</div>
-			<p class="form-error" role="alert">{logoutError?.()}</p>
+			<p class="form-error" role="alert" lang={textLang(logoutError?.())}>{logoutError?.()}</p>
 		</section>
 
 		<!-- Preferences: one group per setting. v45 added the keyboard-shortcut switch; v46 the
@@ -553,7 +553,12 @@
 									: ''}
 					</p>
 				{/if}
-				<p class="form-error" class:sr-only={saved === null && loadError !== null} role="alert">
+				<p
+					class="form-error"
+					class:sr-only={saved === null && loadError !== null}
+					role="alert"
+					lang={textLang(error?.())}
+				>
 					{saved === null && loadError !== null ? loadError() : error?.()}
 				</p>
 			</div>
@@ -597,7 +602,9 @@
 							? m.common_saved_at({ time: formatClock(keyboardSavedAt) })
 							: ''}
 				</p>
-				<p class="form-error" role="alert">{keyboardError?.()}</p>
+				<p class="form-error" role="alert" lang={textLang(keyboardError?.())}>
+					{keyboardError?.()}
+				</p>
 			</div>
 
 			<div class="group" role="group" aria-labelledby="language-heading">
@@ -620,7 +627,9 @@
 							? m.common_saved_at({ time: formatClock(languageSavedAt) })
 							: ''}
 				</p>
-				<p class="form-error" role="alert">{languageError?.()}</p>
+				<p class="form-error" role="alert" lang={textLang(languageError?.())}>
+					{languageError?.()}
+				</p>
 			</div>
 
 			<div class="group" role="group" aria-labelledby="clock-heading">
@@ -651,7 +660,9 @@
 							? m.common_saved_at({ time: formatClock(clockSavedAt) })
 							: ''}
 				</p>
-				<p class="form-error" role="alert">{clockError?.()}</p>
+				<p class="form-error" role="alert" lang={textLang(clockError?.())}>
+					{clockError?.()}
+				</p>
 			</div>
 
 			<!-- v66: job notifications (v65's install block is its own). -->
@@ -693,7 +704,9 @@
 							? m.common_saved_at({ time: formatClock(notifySavedAt) })
 							: ''}
 				</p>
-				<p class="form-error" role="alert">{notifyError?.()}</p>
+				<p class="form-error" role="alert" lang={textLang(notifyError?.())}>
+					{notifyError?.()}
+				</p>
 			</div>
 		</section>
 

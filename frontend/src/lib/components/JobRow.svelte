@@ -9,7 +9,7 @@
 	import { kbRow, rowItemById } from '$lib/keyboard/lists';
 	import type { Job, JobLifecycle, JobSourceType } from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 	import { counted, formatDateTime, formatNumber, keepReadings } from '$lib/i18n/format';
 	import { jobStatusLabel } from '$lib/i18n/labels';
 
@@ -778,7 +778,12 @@
 		</div>
 	</div>
 
-	<p class="notice" class:failed={failedRowNotices.has(`job:${job.id}`)} role="status">
+	<p
+		class="notice"
+		class:failed={failedRowNotices.has(`job:${job.id}`)}
+		role="status"
+		lang={textLang(rowNotices.get(`job:${job.id}`))}
+	>
 		{rowNotices.get(`job:${job.id}`) ?? ''}
 	</p>
 
