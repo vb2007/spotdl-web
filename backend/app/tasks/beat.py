@@ -1,15 +1,17 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import and_, or_, select, update
+from sqlalchemy import and_, case, or_, select, update
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import Job, Track, TrackAttemptOutcome, TrackState, UserSettings
-from app.services import alerts, archive, attempts, events, job_status, retry
+from app.models import Job, JobState, Track, TrackAttemptOutcome, TrackState, UserSettings
+from app.services import alerts, archive, attempts, events, job_status, retry, watch
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
+# A module, not the task: celery_app imports this module while tasks.expand is still loading.
+from app.tasks import expand as expand_tasks
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +152,88 @@ def _reclaim_stale_tracks(db) -> None:
     job_status.publish_changes(db, job_ids)
 
 
+def _dispatch_due_watched_jobs(db) -> None:
+    """v63: starts the re-expansion of each watched job that is due, within the hourly cap
+    (`REEXPAND_MAX_PER_HOUR`, counting every re-expansion started in the last hour, "check now"
+    included). The rest stay due, and a later tick starts them once the hour has room: their
+    `next_expand_at` is the only schedule (Postgres, never a Celery ETA). A due job with a
+    re-expansion already queued or running ("check now") is left to it; that run has moved its
+    `next_expand_at` on already.
+
+    Runs whether or not the breaker holds: a re-expansion reads metadata only, and its new
+    tracks wait like any other."""
+    now = datetime.now(timezone.utc)
+    watch.lock_cap(db)
+    budget = get_settings().reexpand_max_per_hour - watch.started_this_hour(db, now)
+    if budget <= 0:
+        db.commit()
+        return
+    due = (
+        db.execute(
+            select(Job)
+            .where(
+                Job.watch_interval_hours.is_not(None),
+                Job.next_expand_at <= now,
+                Job.archived_at.is_(None),
+                Job.state == JobState.EXPANDED,
+                Job.source_type.in_(watch.WATCHABLE_SOURCE_TYPES),
+            )
+            .order_by(Job.next_expand_at.asc())
+            # Room for jobs whose marker is held (skipped below) without locking every due row.
+            .limit(budget + 20)
+            .with_for_update(skip_locked=True)
+        )
+        .scalars()
+        .all()
+    )
+    started = []
+    for job in due:
+        # A job whose run is already queued or running ("check now") takes no slot of the
+        # hour's budget (review round 6): the next due one does.
+        if len(started) >= budget:
+            break
+        try:
+            token = watch.claim_run(job.id)
+        except watch.MarkerUnavailable as exc:
+            logger.warning("dispatch_due_tracks: no watched job started, Redis unavailable: %s", exc)
+            break
+        if token is None:
+            continue
+        previous_last, previous_next = job.last_expanded_at, job.next_expand_at
+        watch.mark_started(job, now)
+        started.append((job.id, token, previous_last, previous_next, job.next_expand_at))
+    try:
+        db.commit()
+    except Exception:
+        # Nothing was queued: the markers mustn't hold these jobs "running" until they expire.
+        for job_id, token, *_times in started:
+            watch.release_run(job_id, token)
+        raise
+    for job_id, token, last_expanded_at, next_expand_at, ours_next in started:
+        try:
+            expand_tasks.expand_job.delay(str(job_id), reexpand=True, marker=token)
+        except Exception as exc:
+            # The broker refused it: due again on the next tick, and not counted. Only what
+            # this tick wrote is put back: an interval changed (or a watch stopped) meanwhile
+            # keeps its own next check.
+            logger.warning("dispatch_due_tracks: watched job %s not started: %s", job_id, exc)
+            db.execute(
+                update(Job)
+                .where(Job.id == job_id, Job.last_expanded_at == now)
+                .values(
+                    last_expanded_at=last_expanded_at,
+                    next_expand_at=case(
+                        (Job.next_expand_at.is_not_distinct_from(ours_next), next_expand_at),
+                        else_=Job.next_expand_at,
+                    ),
+                )
+            )
+            db.commit()
+            watch.release_run(job_id, token)
+            continue
+        logger.info("dispatch_due_tracks: watched job %s re-expansion started", job_id)
+
+
 @celery_app.task(name="app.tasks.beat.dispatch_due_tracks")
 def dispatch_due_tracks() -> None:
     # v36: written first, on every tick -- the alert watchdog (worker-meta, not beat)
@@ -171,6 +255,12 @@ def dispatch_due_tracks() -> None:
         ):
             retry.record_breaker_release(db, now, end_running=False)
         db.commit()
+        # v63: before the breaker's gate (metadata only), and never in the way of the tracks'.
+        try:
+            _dispatch_due_watched_jobs(db)
+        except Exception:
+            logger.exception("dispatch_due_tracks: the watched-job pass failed")
+            db.rollback()
         if retry.breaker_active(worker_state, now):
             # No query at all while tripped/paused — avoids a thundering herd of tracks
             # all becoming due at once right when the breaker releases.

@@ -221,6 +221,22 @@ export const BINDINGS: Binding[] = [
 		routes: DASHBOARD,
 		adminOnly: true
 	},
+	// v63: a job row's watch (daily, or off) and "retry failed". Free on Hungarian QWERTZ
+	// (plain `w`, Shift+R beside `r`'s track retry), no AltGr.
+	{
+		id: 'watch',
+		keys: [{ key: 'w' }],
+		label: m.kbd_watch,
+		group: 'list',
+		routes: DASHBOARD
+	},
+	{
+		id: 'retry-failed',
+		keys: [{ key: 'r', shift: true }],
+		label: m.kbd_retry_failed,
+		group: 'list',
+		routes: DASHBOARD
+	},
 
 	// Queue controls
 	{

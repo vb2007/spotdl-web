@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import { link } from '$lib/stores/link';
@@ -9,7 +10,7 @@
 	import type { Job, JobLifecycle, JobSourceType } from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
-	import { formatNumber, keepReadings } from '$lib/i18n/format';
+	import { counted, formatDateTime, formatNumber, keepReadings } from '$lib/i18n/format';
 	import { jobStatusLabel } from '$lib/i18n/labels';
 
 	// v54: `all` and `others` both show rows that can be someone else's, so both name the owner.
@@ -93,8 +94,11 @@
 		destroyed = true;
 	});
 	let showInFlight = $derived(IN_FLIGHT_LIFECYCLES.has(job.status.lifecycle));
+	// v63: a watched job is never archived (owner's decision): stop watching it first.
 	let showArchive = $derived(
-		job.archived_at === null && ARCHIVABLE_LIFECYCLES.has(job.status.lifecycle)
+		job.archived_at === null &&
+			job.watch_interval_hours === null &&
+			ARCHIVABLE_LIFECYCLES.has(job.status.lifecycle)
 	);
 
 	interface Segment {
@@ -233,15 +237,207 @@
 		}
 	}
 
+	// ---- v63: watch, "check now" and "retry failed" (this block and the markup block below
+	// are v63's; v64's export control keeps to its own). Offered while the row is open, as its
+	// keyboard reach is (lists.ts), on a job whose link has been read and that isn't archived.
+	let actionable = $derived(job.state === 'expanded' && job.archived_at === null);
+	// Owner's decision: a search re-run would add a different song as "new"; links only.
+	let checkable = $derived(actionable && job.source_type !== 'search');
+	let watchable = $derived(api.WATCHABLE_SOURCE_TYPES.has(job.source_type));
+	let watched = $derived(job.watch_interval_hours !== null);
+	// Stopping a watch stays possible on a job that can no longer start one (archived since).
+	let showWatch = $derived(watchable && (actionable || watched));
+	let waitingCount = $derived(job.track_counts.waiting ?? 0);
+	let notFoundCount = $derived(job.track_counts.lookup_failed ?? 0);
+	let showRetryFailed = $derived(actionable && waitingCount > 0);
+	// The override of not-found's terminal rule is the admin's alone; absent for anyone else.
+	let showRetryNotFound = $derived(isAdmin && actionable && notFoundCount > 0);
+
+	const WATCH_LABEL: Record<number, () => string> = {
+		[api.WATCH_INTERVALS.daily]: m.job_watch_daily,
+		[api.WATCH_INTERVALS.weekly]: m.job_watch_weekly,
+		[api.WATCH_INTERVALS.monthly]: m.job_watch_monthly
+	};
+	const intervalLabel = (hours: number) =>
+		WATCH_LABEL[hours]?.() ?? m.job_watch_hours({ hours: formatNumber(hours) });
+	// An interval set through the API that the menu doesn't offer is still shown as chosen.
+	let watchOptions = $derived.by((): number[] => {
+		const offered: number[] = Object.values(api.WATCH_INTERVALS);
+		const current = job.watch_interval_hours;
+		return current !== null && !offered.includes(current) ? [...offered, current] : offered;
+	});
+	// On the browser's clock (v56, A7): the server's may be ahead or behind. Re-read every
+	// half minute while watched, so "next <time>" turns into "checking soon" once it's passed.
+	let clockNow = $state(Date.now());
+	$effect(() => {
+		if (!watched) return;
+		const timer = setInterval(() => (clockNow = Date.now()), 30_000);
+		return () => clearInterval(timer);
+	});
+	let nextCheckDue = $derived(
+		job.next_expand_at !== null && Date.parse(api.serverToLocal(job.next_expand_at)) <= clockNow
+	);
+	// A server timestamp, placed on the browser's clock as `nextCheckDue` reads it (v56, A7).
+	const shortDate = (value: string) =>
+		formatDateTime(api.serverToLocal(value), {
+			month: 'short',
+			day: 'numeric',
+			hour: 'numeric',
+			minute: '2-digit'
+		});
+
+	// One save at a time, and the last choice wins (DESIGN.md's save model, v62): arrowing
+	// through the closed menu fires a change per step, and only the one it stops on is saved.
+	// Afterwards the menu shows what the server has, a failed save included.
+	let watchSelect: HTMLSelectElement | undefined = $state();
+	let watchBusy = false;
+	let watchWanted: { hours: number | null } | null = null;
+	// The watch as last asked for, while a save is still answering: `w` toggles from it, so two
+	// quick presses cancel out instead of both asking for "daily".
+	let watchRequested: { hours: number | null } | null = null;
+	async function handleWatch(intervalHours: number | null) {
+		watchWanted = { hours: intervalHours };
+		watchRequested = { hours: intervalHours };
+		if (watchBusy) return;
+		watchBusy = true;
+		const session = queue.getResetCount();
+		try {
+			while (watchWanted !== null) {
+				const { hours } = watchWanted;
+				watchWanted = null;
+				try {
+					const updated = await queue.setJobWatch(job.id, hours);
+					if (queue.getResetCount() !== session) return;
+					if (watchWanted !== null) continue;
+					if (updated.watch_interval_hours === null) showNotice(m.job_notice_unwatched());
+					else
+						showNotice(
+							m.job_notice_watching({
+								interval: intervalLabel(updated.watch_interval_hours),
+								time: updated.next_expand_at ? shortDate(updated.next_expand_at) : ''
+							})
+						);
+				} catch (err) {
+					if (queue.getResetCount() !== session) return;
+					watchWanted = null;
+					showNotice(errorText(err, m.job_notice_watch_failed), true);
+				}
+			}
+		} finally {
+			watchBusy = false;
+			watchWanted = null;
+			watchRequested = null;
+			await tick();
+			if (watchSelect)
+				watchSelect.value =
+					job.watch_interval_hours === null ? '' : String(job.watch_interval_hours);
+		}
+	}
+
+	let checking = false;
+	async function handleCheckNow() {
+		// A second press while the first is answering would only read "already being checked".
+		if (checking) return;
+		checking = true;
+		const session = queue.getResetCount();
+		try {
+			await queue.reexpandJob(job.id);
+			if (queue.getResetCount() === session) showNotice(m.job_notice_checking());
+		} catch (err) {
+			if (queue.getResetCount() !== session) return;
+			// A check already queued or running is the outcome asked for, not a failure.
+			if (err instanceof api.ApiError && err.code === 'reexpand_running')
+				showNotice(m.job_notice_checking());
+			else showNotice(errorText(err, m.job_notice_check_failed), true);
+		} finally {
+			checking = false;
+		}
+	}
+
+	// One request at a time, in order: a confirmed "retry not found" pressed while "retry
+	// waiting" is answering runs after it, never dropped.
+	let retryQueue: Promise<void> = Promise.resolve();
+	function handleRetryFailed(includeNotFound = false): Promise<void> {
+		retryQueue = retryQueue.then(() => retryFailedOnce(includeNotFound));
+		return retryQueue;
+	}
+
+	async function retryFailedOnce(includeNotFound: boolean) {
+		const session = queue.getResetCount();
+		try {
+			const result = await queue.retryFailedTracks(job.id, includeNotFound);
+			if (queue.getResetCount() !== session) return;
+			const parts: string[] = [];
+			if (result.retried > 0 && result.cooldown > 0)
+				parts.push(m.job_notice_retry_partly(counted(result.retried)));
+			else if (result.retried > 0)
+				parts.push(
+					result.breaker_held
+						? m.job_notice_retried_held(counted(result.retried))
+						: m.job_notice_retried(counted(result.retried))
+				);
+			else if (result.cooldown > 0) parts.push(m.job_notice_retry_cooldown());
+			if (result.overridden > 0) parts.push(m.job_notice_overridden(counted(result.overridden)));
+			if (parts.length) showNotice(parts.join(' · '));
+		} catch (err) {
+			if (queue.getResetCount() === session)
+				showNotice(errorText(err, m.job_notice_retry_failed), true);
+		}
+	}
+
+	// Not found is terminal by rule: putting those tracks back asks first (v43's dialog).
+	let notFoundAsking = false;
+	let retryNotFoundButton: HTMLButtonElement | undefined = $state();
+	async function handleRetryNotFound() {
+		if (notFoundAsking) return;
+		notFoundAsking = true;
+		try {
+			const session = queue.getResetCount();
+			const confirmed = await confirmAction({
+				title: m.job_retry_not_found_title(),
+				subject: job.title,
+				subjectIsAddress: titleIsUrl,
+				// The same request makes the waiting tracks due too: the question says so.
+				body: [
+					m.job_retry_not_found_body(counted(notFoundCount)),
+					...(waitingCount > 0 ? [m.job_retry_not_found_also_waiting(counted(waitingCount))] : [])
+				].join(' '),
+				confirmLabel: m.job_retry_not_found_confirm(),
+				cancelLabel: m.job_retry_not_found_keep()
+			});
+			const landing = () => (destroyed ? remounted() : (retryNotFoundButton ?? toggleButton));
+			if (!confirmed) return keepFocus(landing());
+			if (queue.getResetCount() !== session) return;
+			await handleRetryFailed(true);
+			// The button goes once nothing is left not found: land on the row itself.
+			await keepFocus(destroyed ? remounted() : toggleButton);
+		} finally {
+			notFoundAsking = false;
+		}
+	}
+	// ---- end v63
+
 	// v45: the row's keys (registry's `x`, `a`, `b`, `Shift+B`/`+`, `-`), each only where its
 	// button is offered, so a key never does what the row doesn't show.
+	// v63: `w` and `Shift+R` likewise, only on an open row (where their controls are).
 	const keys = kbRow({
 		cancel: () => showInFlight && (handleCancel(), true),
 		archive: () =>
 			showArchive ? (handleArchive(), true) : job.archived_at !== null && (handleUnarchive(), true),
 		bump: () => isAdmin && showInFlight && (handleBump(), true),
 		priorityUp: () => isAdmin && showInFlight && (stepPriority(1), true),
-		priorityDown: () => isAdmin && showInFlight && (stepPriority(-1), true)
+		priorityDown: () => isAdmin && showInFlight && (stepPriority(-1), true),
+		watch: () =>
+			isOpen &&
+			showWatch &&
+			(watched || actionable) &&
+			(handleWatch(
+				(watchRequested ? watchRequested.hours !== null : watched)
+					? null
+					: api.WATCH_INTERVALS.daily
+			),
+			true),
+		retryFailed: () => isOpen && showRetryFailed && (handleRetryFailed(), true)
 	});
 
 	// One step at a time: the row's priority only moves once the server answers, so a quick
@@ -269,7 +465,9 @@
 </script>
 
 <li class="job" aria-labelledby="job-title-{job.id}" data-kb-row={job.id} {@attach keys}>
-	<div class="row">
+	<!-- v63: an open row's actions take a line of their own (open, it offers watch, check now and
+	     retry failed too, which would squeeze the title to a sliver). -->
+	<div class="row" class:open={isOpen}>
 		<!-- v41 (F16): no aria-label, so the button's name is what it shows (status, title,
 		     type, owner; WCAG 2.5.3), and aria-controls ties it to the track list (F29). -->
 		<button
@@ -316,6 +514,24 @@
 			{#if totalTracks > 0 && (totalTracks !== 1 || !badgeSaysTrack)}
 				<span class="breakdown mono">{breakdownVisible}</span>
 			{/if}
+			{#if watched}
+				<!-- v63: the watch and its next check, on a line of its own (in the title's tags it was
+				     cut to "watched…"). -->
+				<span class="breakdown mono"
+					>{nextCheckDue || job.next_expand_at === null
+						? m.job_watched_soon()
+						: m.job_watched_next({ time: keepReadings(shortDate(job.next_expand_at)) })}</span
+				>
+			{/if}
+			{#if job.new_tracks > 0}
+				<!-- v63: what re-expansion has added since the job was submitted. -->
+				<span class="breakdown mono"
+					>{m.job_new_since({
+						...counted(job.new_tracks),
+						date: formatDateTime(job.created_at, { month: 'short', day: 'numeric' })
+					})}</span
+				>
+			{/if}
 		</div>
 
 		<div class="row-actions">
@@ -352,6 +568,64 @@
 					onclick={handleCancel}>{m.job_cancel()}</button
 				>
 			{/if}
+			<!-- v63: watch, "check now" and "retry failed", while the row is open. -->
+			{#if isOpen}
+				{#if showRetryFailed}
+					<button
+						type="button"
+						class="action"
+						aria-label={m.job_retry_failed_label({ ...counted(waitingCount), title: job.title })}
+						onclick={() => handleRetryFailed()}>{m.job_retry_failed(counted(waitingCount))}</button
+					>
+				{/if}
+				{#if showRetryNotFound}
+					<button
+						bind:this={retryNotFoundButton}
+						type="button"
+						class="action"
+						aria-label={m.job_retry_not_found_label({
+							...counted(notFoundCount),
+							title: job.title
+						})}
+						onclick={handleRetryNotFound}>{m.job_retry_not_found(counted(notFoundCount))}</button
+					>
+				{/if}
+				{#if checkable}
+					<button
+						type="button"
+						class="action"
+						aria-label={m.job_check_now_label({ title: job.title })}
+						onclick={handleCheckNow}>{m.job_check_now()}</button
+					>
+				{/if}
+				{#if showWatch}
+					<label class="watch mono">
+						{m.job_watch()}
+						<select
+							bind:this={watchSelect}
+							class="watch-select"
+							aria-label={m.job_watch_of({ title: job.title })}
+							value={job.watch_interval_hours === null ? '' : String(job.watch_interval_hours)}
+							onchange={(e) => {
+								const value = e.currentTarget.value;
+								handleWatch(value === '' ? null : Number(value));
+							}}
+						>
+							<option value="">{m.job_watch_off()}</option>
+							{#if actionable || watched}
+								{#each watchOptions as hours (hours)}
+									<option
+										value={String(hours)}
+										disabled={!actionable && hours !== job.watch_interval_hours}
+										>{intervalLabel(hours)}</option
+									>
+								{/each}
+							{/if}
+						</select>
+					</label>
+				{/if}
+			{/if}
+			<!-- end v63 -->
 			{#if showArchive}
 				<button
 					type="button"
@@ -583,6 +857,20 @@
 		gap: var(--space-2);
 	}
 
+	/* v63: open, the actions drop under the title, as the tablet band's always do (the bands
+	   below place them themselves, so this is the wide screen's alone). */
+	@media (min-width: 60.0625em) {
+		.row.open .row-actions {
+			grid-column: 3 / -1;
+			grid-row: 2;
+			justify-content: flex-start;
+		}
+
+		.row.open .row-actions:empty {
+			display: none;
+		}
+	}
+
 	.priority {
 		display: inline-flex;
 		align-items: center;
@@ -655,6 +943,29 @@
 		}
 	}
 
+	/* v63: the watch interval, labelled like priority (a control's word in the label face). */
+	.watch {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		font-size: var(--fs-label);
+		color: var(--text-muted);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.watch-select {
+		background: var(--bg-0);
+		border: 1px solid var(--line-control);
+		border-radius: 4px;
+		padding: var(--space-1) var(--space-2);
+		color: var(--text-primary);
+		font-family: var(--font-sans);
+		font-size: var(--fs-detail);
+		text-transform: none;
+		letter-spacing: normal;
+	}
+
 	.archived-tag {
 		font-size: var(--fs-label);
 		color: var(--text-muted);
@@ -714,7 +1025,8 @@
 	@media (pointer: coarse) {
 		.toggle,
 		.action,
-		.priority-input {
+		.priority-input,
+		.watch-select {
 			min-height: 2.75rem;
 		}
 	}

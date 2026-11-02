@@ -47,6 +47,12 @@
 	"error_library_paths_quarantine_downloads_contains": "A karanténmappa nem tartalmazhatja a letöltési mappát.",
 	"error_track_not_found": "Nincs ilyen szám",
 	"error_job_archived": "A feladat archiválva van; előbb hozd vissza",
+	"error_reexpand_running": "Ezt a feladatot már ellenőrzi új számokért.",
+	"error_job_not_reexpandable": "Csak olyan feladatot lehet új számokért ellenőrizni, amelynek a linkjét már beolvasta.",
+	"error_job_not_reexpandable_search": "Keresést nem lehet új számokért ellenőrizni, csak linkként beküldött feladatot.",
+	"error_job_not_watchable_type": "Csak lejátszási listát vagy előadót lehet figyelni.",
+	"error_job_not_watchable": "Csak olyan feladatot lehet figyelni, amelynek a linkjét már beolvasta, és nincs archiválva.",
+	"error_watch_interval_invalid": "Két ellenőrzés között {min}–{max} óra telhet el.",
 	"error_track_not_retryable": "A szám állapota „{state}”, így nem próbálható újra",
 	"error_track_not_cancellable": "A szám állapota „{state}”, így nem szakítható meg",
 	"error_retry_cooldown": "Az „újra most” várakozásonként egyszer használható. Következő próbálkozás: {time}.",
@@ -96,7 +102,7 @@
 	"account_disconnecting": "lecsatlakozás…",
 	"account_preferences": "Saját beállítások",
 	"account_retention_heading": "Napló megőrzése",
-	"account_retention_hint": "A befejezett feladatok (kész, sikertelen vagy megszakított) archiválódnak, ha ennyi ideig semmi sem történik bennük. Az archivált feladat rejtve marad, sosem törlődik, és az „archiváltak is” kapcsolóval visszahozható. Letöltés alatt álló vagy várakozó feladat sosem archiválódik.",
+	"account_retention_hint": "A befejezett feladatok (kész, sikertelen vagy megszakított) archiválódnak, ha ennyi ideig semmi sem történik bennük. Az archivált feladat rejtve marad, sosem törlődik, és az „archiváltak is” kapcsolóval visszahozható. Letöltés alatt álló vagy várakozó feladat sosem archiválódik. Figyelt feladat sosem archiválódik.",
 	"account_retention_loading": "A megőrzési beállítás betöltése…",
 	"account_retention_load_failed": "Nem sikerült beolvasni a megőrzési beállításodat: {error}",
 	"account_retention_try_again": "próbáld újra",
@@ -154,6 +160,7 @@
 	"attempt_outcome_cancelled": "megszakítva",
 	"attempt_outcome_skipped_duplicate": "már megvan",
 	"attempt_outcome_held": "visszatartva · nem volt próbálkozás",
+	"attempt_outcome_manual_override": "kézi felülbírálás · újra sorban",
 	"track_unknown_title": "Ismeretlen cím",
 	"track_history_load_failed": "Nem sikerült betölteni a próbálkozásokat.",
 	"track_cancel_title": "Megszakítod ezt a számot?",
@@ -235,6 +242,126 @@
 	"job_archived": "archivált",
 	"job_unarchive": "visszahozás",
 	"job_unarchive_label": "{title} visszahozása",
+	"job_watch": "figyelés",
+	"job_watch_of": "{title} figyelése új számokért",
+	"job_watch_off": "nincs figyelve",
+	"job_watch_daily": "naponta",
+	"job_watch_weekly": "hetente",
+	"job_watch_monthly": "havonta",
+	"job_watch_hours": "{hours} óránként",
+	"job_watched_next": "figyelt · következő: {time}",
+	"job_watched_soon": "figyelt · hamarosan ellenőrzi",
+	"job_new_since": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "{n} új {date} óta"
+			}
+		}
+	],
+	"job_check_now": "ellenőrzés most",
+	"job_check_now_label": "{title} ellenőrzése új számokért most",
+	"job_retry_failed": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "várakozók újra ({n})"
+			}
+		}
+	],
+	"job_retry_failed_label": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "{title} {n} várakozó számának újrapróbálása most"
+			}
+		}
+	],
+	"job_retry_not_found": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "nem talált számok újra ({n})"
+			}
+		}
+	],
+	"job_retry_not_found_label": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "{title} {n} nem talált számának újrapróbálása"
+			}
+		}
+	],
+	"job_retry_not_found_title": "Újrapróbálod a nem talált számokat?",
+	"job_retry_not_found_body": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "Még egy keresést és letöltést kap {n} nem talált szám. A „nem található” rendesen végleges, ezért az előzményeikben kézi felülbírálásként szerepel. Amelyik most sem található, visszakerül a nem találtak közé."
+			}
+		}
+	],
+	"job_retry_not_found_also_waiting": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "Emellett {n} várakozó számot is most újrapróbál."
+			}
+		}
+	],
+	"job_retry_not_found_confirm": "újrapróbálás",
+	"job_retry_not_found_keep": "maradjanak így",
+	"job_notice_watching": "figyelve, {interval}; következő ellenőrzés: {time}",
+	"job_notice_unwatched": "már nincs figyelve",
+	"job_notice_watch_failed": "Nem sikerült módosítani a figyelést.",
+	"job_notice_checking": "új számok keresése…",
+	"job_notice_check_failed": "Nem sikerült ellenőrizni ezt a feladatot.",
+	"job_notice_retried": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "{n} várakozó szám a következő körben megy"
+			}
+		}
+	],
+	"job_notice_retried_held": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "{n} várakozó szám a szünet végén megy"
+			}
+		}
+	],
+	"job_notice_retry_cooldown": "Ebben a várakozásban már újrapróbáltad; a menetrend szerint jönnek.",
+	"job_notice_retry_partly": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "{n} újrapróbálva; a többit ebben a várakozásban már újrapróbáltad"
+			}
+		}
+	],
+	"job_notice_overridden": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "{n} nem talált szám újra sorban"
+			}
+		}
+	],
+	"job_notice_retry_failed": "Nem sikerült újrapróbálni a feladat számait.",
 	"job_tracks_loading": "Számok betöltése…",
 	"job_tracks_empty": "Nincs szám.",
 	"job_tracks_failed": "Nem sikerült betölteni a feladat számait.",
@@ -349,7 +476,7 @@
 	"queuectl_sort_next_retry": "következő próbálkozás",
 	"queuectl_clear_none": "Nincs mit kiüríteni: ebben a nézetben nincs befejezett feladat.",
 	"queuectl_clear_title": "Kiüríted a naplót?",
-	"queuectl_clear_body": "Minden befejezett feladatod (kész, sikertelen vagy megszakított) az archívumba kerül, bármit mutat is ez a nézet. Az archivált feladatok az „archiváltak is” alatt megmaradnak, és egyenként visszahozhatók. A még letöltés alatt álló vagy várakozó feladatok maradnak.",
+	"queuectl_clear_body": "Minden befejezett feladatod (kész, sikertelen vagy megszakított) az archívumba kerül, bármit mutat is ez a nézet. Az archivált feladatok az „archiváltak is” alatt megmaradnak, és egyenként visszahozhatók. A még letöltés alatt álló vagy várakozó feladatok maradnak. Figyelt feladat sosem kerül archívumba: előbb állítsd le a figyelését.",
 	"queuectl_clear_yes": "napló kiürítése",
 	"queuectl_clear_no": "maradjon a napló",
 	"queuectl_clear_failed": "Nem sikerült kiüríteni a naplót: {reason}",
@@ -750,6 +877,8 @@
 	"kbd_priority_up": "A feladat prioritásának emelése eggyel",
 	"kbd_priority_down": "A feladat prioritásának csökkentése eggyel",
 	"kbd_repeats": "A szám előzményeinek kinyitása, és minden ismétlés megjelenítése vagy elrejtése",
+	"kbd_watch": "A nyitott feladat napi figyelése, vagy a figyelés leállítása",
+	"kbd_retry_failed": "A nyitott feladat várakozó számainak újrapróbálása most",
 	"kbd_scope_jobs": "Feladatok mutatása",
 	"kbd_scope_tracks": "Számok mutatása",
 	"kbd_filters": "Ugrás a szűrőkre (a nyilak léptetnek, a szóköz kapcsol)",

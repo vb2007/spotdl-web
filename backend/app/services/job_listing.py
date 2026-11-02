@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 
 from app.db import begin_snapshot
 from app.models import Job, JobSourceType, User
-from app.services import pagination, rollup, search
+from app.services import pagination, rollup, search, watch
 from app.services.view_scope import View, owner_condition
 from app.services.serializers import job_to_dict, track_counts_by_job
 
@@ -75,6 +75,10 @@ def list_jobs(
         Job.error,
         Job.created_at,
         Job.archived_at,
+        # v63: serialized by job_to_dict (the watch).
+        Job.watch_interval_hours,
+        Job.last_expanded_at,
+        Job.next_expand_at,
         User.email.label("owner_email"),
         User.username.label("owner_username"),
     ).join(User, Job.user_id == User.id)
@@ -138,8 +142,16 @@ def list_jobs(
     rows = db.execute(page_stmt).all()
 
     counts_map = track_counts_by_job(db, [row.id for row in rows])
+    new_map = watch.new_track_counts(db, [row.id for row in rows])
     items = [
-        job_to_dict(row, counts_map.get(row.id, {}), row.owner_email, row.owner_username, row.title)
+        job_to_dict(
+            row,
+            counts_map.get(row.id, {}),
+            row.owner_email,
+            row.owner_username,
+            row.title,
+            new_tracks=new_map.get(row.id, 0),
+        )
         for row in rows
     ]
 

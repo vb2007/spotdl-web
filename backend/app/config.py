@@ -176,6 +176,11 @@ class Settings(BaseSettings):
         default=60, ge=1, alias="JOB_CREATE_RATE_LIMIT_WINDOW_SECONDS"
     )
 
+    # v63: at most this many re-expansions of jobs (watched ones and "check now") are started
+    # in any hour; beat leaves a due watched job for a later tick once the hour's are used.
+    # Metadata only (Spotify), but a whole discography each. 0 stops scheduled re-expansion.
+    reexpand_max_per_hour: int = Field(default=4, ge=0, alias="REEXPAND_MAX_PER_HOUR")
+
     @field_validator("allowed_emails", "frontend_origins", mode="before")
     @classmethod
     def _split_comma_separated(cls, value: object) -> object:

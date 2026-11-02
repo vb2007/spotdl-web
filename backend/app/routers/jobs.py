@@ -5,19 +5,21 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel
-from sqlalchemy import func, update
+from sqlalchemy import case, func, update
 from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.errors import ApiError
-from app.models import DownloadedTrack, Job, JobSourceType, JobState, Track, TrackState, User
+from app.models import DownloadedTrack, Job, JobSourceType, JobState, Track, TrackAttemptOutcome, TrackState, User
 from app.routers.auth import Principal, require_admin_hidden, require_session, require_session_or_api_key
-from app.services import archive, events, job_listing, job_status, rate_limit, rollup, spotify_urls, track_listing
+from app.services import archive, attempts, events, job_listing, job_status, rate_limit, retry, rollup, spotify_urls, track_listing, watch
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import job_to_dict, track_counts, track_song_meta
 from app.services.track_states import CANCELLABLE_TRACK_STATES, cancelled_used_proxy_id
 from app.services.view_scope import View, resolve_view
 from app.tasks.expand import expand_job
+# After expand: importing tasks.download first is a circular import (celery_app imports expand).
+from app.tasks.download import download_track  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +34,12 @@ class CreateJobRequest(BaseModel):
 
 class SetPriorityRequest(BaseModel):
     priority: int
+
+
+class SetWatchRequest(BaseModel):
+    # Any JSON value, checked in the handler, so a bad one answers with a stable code (v46).
+    # Required: an empty body (or a misspelled key) must not read as "stop watching".
+    interval_hours: Any
 
 
 class ArchiveJobsRequest(BaseModel):
@@ -204,7 +212,12 @@ def create_job(
         response.status_code = 200
         return {
             **job_to_dict(
-                existing, track_counts(db, existing.id), user.email, user.username, rollup.job_title(db, existing)
+                existing,
+                track_counts(db, existing.id),
+                user.email,
+                user.username,
+                rollup.job_title(db, existing),
+                new_tracks=watch.new_tracks(db, existing.id),
             ),
             "hint": "already_queued",
         }
@@ -233,7 +246,9 @@ def create_job(
         logger.warning("create_job: expansion not enqueued for %s: %s", job.id, type(exc).__name__)
         raise ApiError(503, "queue_unavailable", "The queue is unavailable; try again shortly") from None
     return {
-        **job_to_dict(job, track_counts(db, job.id), user.email, user.username, rollup.job_title(db, job)),
+        **job_to_dict(
+            job, track_counts(db, job.id), user.email, user.username, rollup.job_title(db, job), new_tracks=0
+        ),
         "hint": hint,
     }
 
@@ -352,6 +367,18 @@ def _get_job_or_404(
     return row
 
 
+def _job_answer(db: Session, job: Job, owner_email: str, owner_username: str | None) -> dict:
+    """One job's REST answer, read now (its counts after the caller's commit)."""
+    return job_to_dict(
+        job,
+        track_counts(db, job.id),
+        owner_email,
+        owner_username,
+        rollup.job_title(db, job),
+        new_tracks=watch.new_tracks(db, job.id),
+    )
+
+
 @router.get("/{job_id}")
 def get_job(
     job_id: uuid.UUID,
@@ -364,9 +391,7 @@ def get_job(
     job, owner_email, owner_username = _get_job_or_404(
         db, job_id, principal.user, owner_only=principal.api_key is not None
     )
-    return job_to_dict(
-        job, track_counts(db, job.id), owner_email, owner_username, rollup.job_title(db, job)
-    )
+    return _job_answer(db, job, owner_email, owner_username)
 
 
 @router.get("/{job_id}/tracks")
@@ -462,6 +487,9 @@ def cancel_job(
             {"lifecycle": status.lifecycle, "outcome": status.outcome},
         )
     job.state = JobState.CANCELLED
+    # v63: "don't download this" ends its watch too (beat skips a cancelled job anyway).
+    job.watch_interval_hours = None
+    job.next_expand_at = None
     db.commit()
     # Published to the job's *owner*, not the acting session -- an admin cancelling a
     # foreign job must update that owner's live view, not the admin's own channel.
@@ -473,9 +501,7 @@ def cancel_job(
     job_status.publish_change(db, job.id)
     # Read after the cancel commit above, not before -- counts must reflect the just
     # -cancelled tracks.
-    return job_to_dict(
-        job, track_counts(db, job.id), owner_email, owner_username, rollup.job_title(db, job)
-    )
+    return _job_answer(db, job, owner_email, owner_username)
 
 
 @router.patch("/{job_id}/priority")
@@ -491,9 +517,7 @@ def set_job_priority(
     job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
     job.priority = payload.priority
     db.commit()
-    return job_to_dict(
-        job, track_counts(db, job.id), owner_email, owner_username, rollup.job_title(db, job)
-    )
+    return _job_answer(db, job, owner_email, owner_username)
 
 
 @router.post("/{job_id}/bump")
@@ -512,6 +536,246 @@ def bump_job(
     max_priority = db.query(func.max(Job.priority)).scalar() or 0
     job.priority = max_priority + 1
     db.commit()
-    return job_to_dict(
-        job, track_counts(db, job.id), owner_email, owner_username, rollup.job_title(db, job)
-    )
+    return _job_answer(db, job, owner_email, owner_username)
+
+
+# v63: watched jobs, "check now" and "retry failed".
+
+
+@router.put("/{job_id}/watch")
+def set_job_watch(
+    job_id: uuid.UUID,
+    payload: SetWatchRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    """Watches a playlist or artist job (`interval_hours`, at least a day), or stops watching
+    it (`null`). A watched job is never archived (services/archive.py). Its owner's, or an admin's on any job; anyone else's is a 404. A watched job
+    is re-expanded every interval from now on (services/watch.py); the first check is one
+    interval away, and an unchanged interval keeps the check already scheduled."""
+    job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
+    interval = payload.interval_hours
+    if interval is not None and (
+        not isinstance(interval, int)
+        or isinstance(interval, bool)
+        or not watch.MIN_WATCH_INTERVAL_HOURS <= interval <= watch.MAX_WATCH_INTERVAL_HOURS
+    ):
+        raise ApiError(
+            422,
+            "watch_interval_invalid",
+            f"A watch interval is a whole number of hours from {watch.MIN_WATCH_INTERVAL_HOURS}"
+            f" to {watch.MAX_WATCH_INTERVAL_HOURS}",
+            {"min": watch.MIN_WATCH_INTERVAL_HOURS, "max": watch.MAX_WATCH_INTERVAL_HOURS},
+        )
+    db.refresh(job, with_for_update=True)
+    if interval is None:
+        job.watch_interval_hours = None
+        job.next_expand_at = None
+    elif interval != job.watch_interval_hours:
+        if not watch.is_watchable(job):
+            raise ApiError(
+                409,
+                "job_not_watchable",
+                "Only a playlist or an artist can be watched",
+                {"reason": "source_type", "source_type": job.source_type.value},
+            )
+        if job.state != JobState.EXPANDED or job.archived_at is not None:
+            raise ApiError(
+                409,
+                "job_not_watchable",
+                "Only an expanded, unarchived job can be watched",
+                {"reason": "archived" if job.archived_at is not None else "state", "state": job.state.value},
+            )
+        job.watch_interval_hours = interval
+        job.next_expand_at = datetime.now(timezone.utc) + timedelta(hours=interval)
+    db.commit()
+    # The owner's other tabs (and the owner, when an admin set it) re-read the row.
+    events.publish_job_event(job.user_id, job.id, job.state.value, watch=True)
+    return _job_answer(db, job, owner_email, owner_username)
+
+
+@router.post("/{job_id}/reexpand", status_code=202)
+def reexpand_job(
+    job_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    """"Check now": re-expands the job at once, adding only the tracks new to it (any link's
+    source type, never a search: owner's decision; the job must be expanded and unarchived). Its owner's, or an admin's on any job;
+    anyone else's is a 404. One at a time per job: 409 `reexpand_running` while one is queued
+    or running, a scheduled one included. Counts toward the hourly cap, never held by it (the
+    cap paces beat's scheduled runs). A watched job's next scheduled run moves to an interval
+    from now."""
+    job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
+    db.refresh(job, with_for_update=True)
+    if job.archived_at is not None:
+        raise ApiError(409, "job_archived", "Job is archived; unarchive it first")
+    if job.state != JobState.EXPANDED:
+        raise ApiError(
+            409,
+            "job_not_reexpandable",
+            f"Job is {job.state.value}, not expanded",
+            {"reason": "state", "state": job.state.value},
+        )
+    if job.source_type == JobSourceType.SEARCH:
+        # Owner's decision (2026-10-30): a search re-run would add whatever the text matches
+        # now, a different song, as "new". Only a link is checked again.
+        raise ApiError(
+            409,
+            "job_not_reexpandable",
+            "Only a job submitted as a link can be checked for new tracks",
+            {"reason": "source_type", "source_type": job.source_type.value},
+        )
+    try:
+        token = watch.claim_run(job.id)
+    except watch.MarkerUnavailable:
+        raise ApiError(503, "queue_unavailable", "The queue is unavailable; try again shortly") from None
+    if token is None:
+        raise ApiError(409, "reexpand_running", "This job is already being checked")
+    previous = (job.last_expanded_at, job.next_expand_at)
+    now = datetime.now(timezone.utc)
+    watch.mark_started(job, now)
+    ours_next = job.next_expand_at
+    try:
+        db.commit()
+    except Exception:
+        # Nothing was queued: the marker mustn't hold the job "running" until it expires.
+        watch.release_run(job.id, token)
+        raise
+    try:
+        expand_job.delay(str(job.id), reexpand=True, marker=token)
+    except Exception as exc:
+        # Put back only what this request wrote: a watch set meanwhile (its own next check)
+        # must survive, as beat's own rollback does.
+        db.execute(
+            update(Job)
+            .where(Job.id == job.id, Job.last_expanded_at == now)
+            .values(
+                last_expanded_at=previous[0],
+                next_expand_at=case(
+                    (Job.next_expand_at.is_not_distinct_from(ours_next), previous[1]),
+                    else_=Job.next_expand_at,
+                ),
+            )
+        )
+        db.commit()
+        watch.release_run(job.id, token)
+        logger.warning("reexpand_job: %s not enqueued: %s", job.id, type(exc).__name__)
+        raise ApiError(503, "queue_unavailable", "The queue is unavailable; try again shortly") from None
+    events.publish_job_event(job.user_id, job.id, job.state.value, watch=True)
+    return _job_answer(db, job, owner_email, owner_username)
+
+
+# Recorded on each not-found track an admin's "retry failed" puts back (raw worker-side text,
+# untranslated like every attempt note).
+MANUAL_OVERRIDE_NOTE = "Not found before; an admin queued it for one more attempt"
+
+
+@router.post("/{job_id}/retry-failed")
+def retry_failed_tracks(
+    job_id: uuid.UUID,
+    include_not_found: bool = False,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_session),
+) -> dict:
+    """"Retry failed": every `waiting` track of the job is due now, by single retry's rules
+    (routers/tracks.py's retry_track), applied per track: the breaker still holds them, and a
+    non-admin's retry-now works once per ladder step (v56, A8), so a track already retried in
+    its step is left to its slot (`cooldown` counts those). Its owner's, or an admin's on any
+    job; anyone else's is a 404; an archived or cancelled job is a 409, as for one track.
+
+    `include_not_found` (admin only, 403 otherwise): every `lookup_failed` track is put back
+    `queued` for one more attempt, an explicit override of LookupError's terminal rule,
+    recorded in its attempt history as `manual_override`."""
+    job, owner_email, owner_username = _get_job_or_404(db, job_id, user)
+    if include_not_found and not user.is_admin:
+        raise ApiError(403, "admin_required", "Admin access required")
+    # The job's row lock first, before the bulk UPDATEs of its tracks (cancel_job's order, so
+    # the two serialize instead of deadlocking); a cancel committing meanwhile is seen.
+    db.refresh(job, with_for_update=True)
+    if job.archived_at is not None:
+        raise ApiError(409, "job_archived", "Job is archived; unarchive it first")
+    if job.state == JobState.CANCELLED:
+        raise ApiError(409, "job_cancelled", "Job is cancelled; submit the link again")
+
+    now = datetime.now(timezone.utc)
+    waiting = (Track.job_id == job.id, Track.state == TrackState.WAITING)
+    retry_now = update(Track).where(*waiting)
+    if user.is_admin:
+        retry_now = retry_now.values(scheduled_at=now)
+    else:
+        retry_now = retry_now.where(Track.retry_now_step.is_distinct_from(Track.attempt_count)).values(
+            scheduled_at=now, retry_now_step=Track.attempt_count
+        )
+    retried = db.execute(
+        retry_now.returning(Track.id, Track.song_json, Track.attempt_count).execution_options(
+            synchronize_session=False
+        )
+    ).all()
+    # The ones the per-step rule left to their slot, counted as such (a track beat queued
+    # meanwhile is neither).
+    cooldown = 0
+    if not user.is_admin:
+        cooldown = db.query(func.count(Track.id)).filter(
+            *waiting,
+            Track.retry_now_step == Track.attempt_count,
+            Track.id.not_in([track_id for track_id, _song, _n in retried]),
+        ).scalar()
+    overridden = []
+    if include_not_found:
+        overridden = db.execute(
+            update(Track)
+            .where(Track.job_id == job.id, Track.state == TrackState.LOOKUP_FAILED)
+            .values(state=TrackState.QUEUED, scheduled_at=None)
+            .returning(Track.id, Track.song_json, Track.attempt_count)
+            .execution_options(synchronize_session=False)
+        ).all()
+        for track_id, _song_json, _attempt_count in overridden:
+            attempts.record_attempt(
+                db,
+                track_id,
+                now,
+                now,
+                TrackAttemptOutcome.MANUAL_OVERRIDE,
+                warning_message=MANUAL_OVERRIDE_NOTE,
+            )
+    db.commit()
+
+    for track_id, song_json, attempt_count in retried:
+        events.publish_track_event(
+            job.user_id,
+            track_id,
+            job.id,
+            TrackState.WAITING.value,
+            scheduled_at=now,
+            attempt_count=attempt_count,
+            **track_song_meta(song_json),
+        )
+    for track_id, song_json, attempt_count in overridden:
+        events.publish_track_event(
+            job.user_id,
+            track_id,
+            job.id,
+            TrackState.QUEUED.value,
+            attempt_count=attempt_count,
+            **track_song_meta(song_json),
+        )
+    job_status.publish_change(db, job.id)
+    # Sent as beat sends a due track. One the broker refuses stays `queued`, and beat's stale
+    # reclaim puts it back in the ladder.
+    for track_id, _song_json, _attempt_count in overridden:
+        try:
+            download_track.delay(str(track_id))
+        except Exception as exc:
+            logger.warning("retry_failed_tracks: track %s not enqueued: %s", track_id, type(exc).__name__)
+            break
+
+    worker_state = retry.get_worker_state(db)
+    db.commit()
+    return {
+        "job": _job_answer(db, job, owner_email, owner_username),
+        "retried": len(retried),
+        "cooldown": cooldown,
+        "overridden": len(overridden),
+        "breaker_held": retry.breaker_active(worker_state, now),
+    }

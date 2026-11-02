@@ -41,7 +41,13 @@ def track_counts(db: Session, job_id: uuid.UUID) -> dict[str, int]:
 
 
 def job_to_dict(
-    job: Job, counts: dict[str, int], owner_email: str, owner_username: str | None, title: str
+    job: Job,
+    counts: dict[str, int],
+    owner_email: str,
+    owner_username: str | None,
+    title: str,
+    *,
+    new_tracks: int,
 ) -> dict:
     """counts is passed in, not queried -- dropping the Session parameter is what makes
     list_jobs's N+1 impossible to reintroduce by accident: this function has nothing left
@@ -55,7 +61,10 @@ def job_to_dict(
     get one rather than this function silently querying for it.
 
     `status` (v18) is derived from `counts` and `job.state`, never stored -- see
-    `rollup.derive_rollup`."""
+    `rollup.derive_rollup`.
+
+    `new_tracks` (v63): how many tracks re-expansions added after the job's first expansion
+    (`watch.new_track_counts`), required for the same reason as `counts`."""
     rollup = derive_rollup(job.state, counts)
     return {
         "id": str(job.id),
@@ -71,6 +80,11 @@ def job_to_dict(
         "owner_username": owner_username,
         "title": title,
         "status": {"lifecycle": rollup.lifecycle, "outcome": rollup.outcome},
+        # v63: the watch (null interval = not watched) and what re-expansion has added.
+        "watch_interval_hours": job.watch_interval_hours,
+        "next_expand_at": job.next_expand_at.isoformat() if job.next_expand_at is not None else None,
+        "last_expanded_at": job.last_expanded_at.isoformat() if job.last_expanded_at is not None else None,
+        "new_tracks": new_tracks,
     }
 
 

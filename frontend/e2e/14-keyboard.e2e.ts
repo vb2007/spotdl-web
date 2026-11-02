@@ -184,6 +184,14 @@ test.describe('as the admin', () => {
 		await focusRowByKeys(page, 'jobs', admin.jobId);
 		await openJob(page, admin.jobId);
 		expect(await tabStopsIn(page, `job-tracks:${admin.jobId}`)).toBe(1);
+		// v63: an open job's "check now" comes before its archive.
+		await page.keyboard.press('Tab');
+		await expect(
+			jobRow(page, admin.title).getByRole('button', {
+				name: t(m.job_check_now_label, { title: admin.title }),
+				exact: true
+			})
+		).toBeFocused();
 		await page.keyboard.press('Tab');
 		await expect(
 			jobRow(page, admin.title).getByRole('button', {
