@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
@@ -42,13 +43,13 @@ def current_session(request: Request, db: Session = Depends(get_db)) -> UserSess
     if token is None:
         raise ApiError(401, "not_authenticated", "Not authenticated")
 
-    session = get_valid_session(db, token)
+    # v69: no `last_seen_at` touch here: `require_session` writes and commits it in one call, once
+    # the allowlist check passed, so a refused request never keeps an off-list session alive
+    # (review round 7) and the session row's lock never spans two threadpool calls (round 8).
+    # `logout` needs no touch; it commits its own delete.
+    session = get_valid_session(db, token, touch=False)
     if session is None:
         raise _no_session(db, request, token)
-
-    # v69: not committed here: `require_session` commits the `last_seen_at` touch only once the
-    # allowlist check passed, so a refused request never keeps an off-list session alive (review
-    # round 7). `logout` commits its own delete.
     return session
 
 
@@ -76,6 +77,7 @@ def require_session(
     if not allowlist.is_allowed(db, user.email):
         db.rollback()
         raise _off_the_allowlist(request)
+    session.last_seen_at = datetime.now(timezone.utc)
     db.commit()
     return user
 

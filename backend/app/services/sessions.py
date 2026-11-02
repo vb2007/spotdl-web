@@ -17,7 +17,9 @@ def create_session(db: Session, user_id: uuid.UUID) -> UserSession:
     return session
 
 
-def get_valid_session(db: Session, token: str) -> UserSession | None:
+def get_valid_session(db: Session, token: str, *, touch: bool = True) -> UserSession | None:
+    """`touch=False` (v69): don't write `last_seen_at` here; the caller does once it decided
+    to keep the session (`routers/auth.py`'s `require_session`), in one call with its commit."""
     # v53: a cookie can carry a NUL (Starlette unquotes `"\000"`), which Postgres can't
     # compare (a 500 on every route): no real token holds one, so it's simply no session.
     if "\x00" in token or any(0xD800 <= ord(c) <= 0xDFFF for c in token):
@@ -35,8 +37,9 @@ def get_valid_session(db: Session, token: str) -> UserSession | None:
         db.flush()
         return None
 
-    session.last_seen_at = datetime.now(timezone.utc)
-    db.flush()
+    if touch:
+        session.last_seen_at = datetime.now(timezone.utc)
+        db.flush()
     return session
 
 

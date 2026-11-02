@@ -888,4 +888,4 @@ here.
     (live review round 2: a row deleted outside `/users` otherwise left its session working); the error codes (`lib/i18n/errors.ts`, `i18n.test.ts`);
     `AdminOnlyNotice.svelte` (the non-admin's `/users`); docstrings (`models/user.py`); and the tests
     the table and the stream changed (`conftest.py`, `test_admin_gating.py`, `test_api_keys.py`,
-    `test_config.py`, `test_extension_jobs.py`, `test_stream.py`, `test_watch_jobs.py`).
+    `test_config.py`, `test_extension_jobs.py`, `test_jobs.py` (a query-count bound +1 for the per-request allowlist read), `test_stream.py`, `test_watch_jobs.py`).
