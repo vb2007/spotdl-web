@@ -7715,7 +7715,7 @@ independently-found production bug from the same conversation)
   as a full page load. The page focused "queue it" in `onMount` (about 75 ms on the nginx build),
   and SvelteKit's first-load `reset_focus` then focused `<body>` in the same turn, unless an
   element carries `autofocus`, which it focuses instead. Under `vite dev` the mount came later
-  (about 330 ms), after the reset, so every dev check and spec 21 passed. The live review caught
+  (about 330 ms), after the reset, so every dev check and the share spec (23) passed. The live review caught
   it on the nginx build; the action now carries `autofocus` (a reasoned `svelte-ignore`).
 - **History around a share.** A signed-out share's first load is *replaced* by `/login?next=`, so
   the login must replace that entry with the share too (`goto(next, { replaceState: true })`):

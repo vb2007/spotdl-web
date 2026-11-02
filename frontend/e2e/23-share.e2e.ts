@@ -3,7 +3,7 @@ import type { Job } from '../src/lib/api';
 import { m, t } from './support/i18n';
 import { LEDGER_TRACKS, USER_STATE, userIdentity } from './support/stack';
 
-// Spec 21 (v65): the installed app's share target, `/share?title&text&url` (the manifest's GET
+// Spec 23 (v65): the installed app's share target, `/share?title&text&url` (the manifest's GET
 // `share_target`). Signed out, a share goes through /login and comes back to itself; signed in,
 // it shows what it would queue with "queue it" focused, and Enter queues it. `next` never leaves
 // the site. A track already in the ledger, so the queued job resolves as a duplicate (no download).
