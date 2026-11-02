@@ -7,7 +7,7 @@ import redis.asyncio as aioredis
 
 from app.models import User
 from app.routers import stream as stream_router
-from app.services.events import ADMIN_CHANNEL_PATTERN, channel_for
+from app.services.events import ADMIN_CHANNEL_PATTERN, channel_for, control_channel_for
 
 
 async def _fake_event_stream(request, user, view):
@@ -42,6 +42,7 @@ class _FakeRequest:
 
     def __init__(self, polls: int = 0):
         self.polls = polls
+        self.cookies: dict[str, str] = {}
 
     async def is_disconnected(self) -> bool:
         if self.polls <= 0:
@@ -98,9 +99,11 @@ class _FakeRedisClient:
         pass
 
 
-def _drive(monkeypatch, user: User, view: str, messages=None) -> tuple[_FakePubSub, list[str]]:
+def _drive(monkeypatch, user: User, view: str, messages=None, status: str = "ok") -> tuple[_FakePubSub, list[str]]:
     fake_client = _FakeRedisClient(messages)
     monkeypatch.setattr(aioredis.Redis, "from_url", lambda url: fake_client)
+    # v69: the periodic session re-check (its own tests are in test_allowlist.py).
+    monkeypatch.setattr(stream_router, "_session_status", lambda request, token, user_id: status)
     sent: list[str] = []
 
     async def _run():
@@ -117,9 +120,10 @@ def test_event_stream_subscribes_to_the_users_own_channel(monkeypatch):
 
     pubsub, _ = _drive(monkeypatch, user, "mine")
 
-    assert pubsub.subscribed == [channel_for(user.id)]
+    # v69: and the user's own control channel, by exact name.
+    assert pubsub.subscribed == [channel_for(user.id), control_channel_for(user.id)]
     assert pubsub.psubscribed == []
-    assert pubsub.unsubscribed == [channel_for(user.id)]
+    assert pubsub.unsubscribed == [channel_for(user.id), control_channel_for(user.id)]
 
 
 def test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern(monkeypatch):
@@ -128,7 +132,7 @@ def test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern(monkeypat
     pubsub, _ = _drive(monkeypatch, admin, "all")
 
     assert pubsub.psubscribed == [ADMIN_CHANNEL_PATTERN]
-    assert pubsub.subscribed == []
+    assert pubsub.subscribed == [control_channel_for(admin.id)]
     assert pubsub.punsubscribed == [ADMIN_CHANNEL_PATTERN]
 
 
@@ -138,9 +142,9 @@ def test_event_stream_admin_others_psubscribes_and_unsubscribes_like_all(monkeyp
     pubsub, _ = _drive(monkeypatch, admin, "others")
 
     assert pubsub.psubscribed == [ADMIN_CHANNEL_PATTERN]
-    assert pubsub.subscribed == []
+    assert pubsub.subscribed == [control_channel_for(admin.id)]
     assert pubsub.punsubscribed == [ADMIN_CHANNEL_PATTERN]
-    assert pubsub.unsubscribed == []
+    assert pubsub.unsubscribed == [control_channel_for(admin.id)]
 
 
 @pytest.mark.parametrize("view", ["all", "others"])
@@ -151,7 +155,7 @@ def test_event_stream_non_admin_all_users_flag_is_ignored(monkeypatch, view):
 
     pubsub, _ = _drive(monkeypatch, user, view)
 
-    assert pubsub.subscribed == [channel_for(user.id)]
+    assert pubsub.subscribed == [channel_for(user.id), control_channel_for(user.id)]
     assert pubsub.psubscribed == []
 
 

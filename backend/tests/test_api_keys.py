@@ -19,15 +19,14 @@ pytestmark = pytest.mark.usefixtures("fake_redis", "_more_identities")
 
 
 @pytest.fixture()
-def _more_identities(monkeypatch):
+def _more_identities(db_session):
     # A key re-checks the allowlist on every use, so the extra identities these tests mint
-    # sessions for directly must be on it too.
-    from app.config import get_settings
+    # sessions for directly must be on it too (v69: the allowlist table).
+    from app.models import AllowedEmail
 
-    settings = get_settings()
-    monkeypatch.setattr(
-        settings, "allowed_emails", [*settings.allowed_emails, "a@example.com", "b@example.com", "other@example.com"]
-    )
+    for email in ("a@example.com", "b@example.com", "other@example.com"):
+        db_session.merge(AllowedEmail(email=email))
+    db_session.flush()
 
 
 def _as(client, cookie: dict[str, str]):

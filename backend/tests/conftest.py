@@ -121,8 +121,8 @@ os.environ["DATABASE_URL"] = RUN_DATABASE_URL or "postgresql+psycopg://refused@r
 os.environ["PGTZ"] = "UTC"
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("SESSION_SECRET", "test-secret")
-# Two addresses: ADMIN_EMAIL must be allowlisted too (config.py's v17 validator), and
-# most ownership/admin-gating tests need a non-admin *and* an admin identity available.
+# Two addresses, imported into the allowlist table by its migration (v69; ADMIN_EMAIL is always
+# allowed): most ownership/admin-gating tests need a non-admin *and* an admin identity available.
 os.environ.setdefault("ALLOWED_EMAILS", "allowed@example.com,admin@example.com")
 os.environ.setdefault("ADMIN_EMAIL", "admin@example.com")
 
@@ -363,6 +363,20 @@ def _truncate_all() -> None:
                 "INSERT INTO worker_state (id, breaker_trip_count, consecutive_failures, paused) "
                 "VALUES (1, 0, 0, false)"
             )
+        )
+        # v69: and the allowlist rows the migration imports from ALLOWED_EMAILS + ADMIN_EMAIL.
+        _seed_allowlist(conn)
+
+
+def _seed_allowlist(conn) -> None:
+    from app.config import get_settings
+    from app.services.users import normalize_email
+
+    settings = get_settings()
+    for email in {normalize_email(e) for e in [*settings.allowed_emails, settings.admin_email]} - {""}:
+        conn.execute(
+            text("INSERT INTO allowed_emails (email) VALUES (:email) ON CONFLICT DO NOTHING"),
+            {"email": email},
         )
 
 
