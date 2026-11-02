@@ -250,6 +250,7 @@ export class ListWindow<T> {
 	readonly style = $derived.by((): string | undefined => {
 		const slice = this.#slice;
 		if (!slice) return undefined;
+		// i18n-ignore: CSS
 		return `padding-top: ${Math.round(slice.padTop)}px; padding-bottom: ${Math.round(slice.padBottom)}px`;
 	});
 
