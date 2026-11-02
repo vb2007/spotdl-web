@@ -9,7 +9,7 @@ import {
 } from './support/stack';
 import { openDashboard, submitUrl } from './support/ui';
 
-// Spec 21 (v66): a browser notification when one of the user's own jobs settles. The browser's
+// Spec 24 (v66): a browser notification when one of the user's own jobs settles. The browser's
 // own Notification is replaced by a recorder in every page (`window.__notes`), so what the app
 // asked to show is read back exactly; a real browser's notification is evidenced in the PR.
 // Ledger tracks, so every job settles as a duplicate without a download.

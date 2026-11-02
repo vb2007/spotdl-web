@@ -86,8 +86,8 @@ needed" claim — rather than silently deleted.
 **Docker Compose & deployment**
 - Override files **merge** list keys (`ports`, `volumes`) and **replace** mapping keys
   (`command`, `healthcheck`, `build`); use `!override` when a list must replace → *v01, v05, v12*
-- `api` mounts `/downloads` and the library **read-only** since v66 (my stats reads file sizes,
-  which nothing records); a fixture or seed that writes files runs in `worker-meta` → *v66*
+- `api`'s file mounts are **read-only** (v64's export; v66's my stats reads file sizes through
+  them, since nothing records them): a fixture or seed that writes files runs in `worker-meta` → *v66*
 - Never hardcode `172.17.0.1`; use `host.docker.internal` via `extra_hosts` → *v01*
 - `localhost` resolves to IPv6 first in these images and nothing binds it — healthchecks must use
   `127.0.0.1` → *v12*
@@ -7767,7 +7767,8 @@ independently-found production bug from the same conversation)
   the server doesn't know what the job left (an expired or flushed key), and an archived job is
   old news: neither announces. `null` (a job new and done at once) does.
 - **Library size isn't stored anywhere** (`downloaded_tracks` has no size), and `api` mounted
-  neither file root. The owner chose read-only mounts on `api` over a size column: the count is
+  neither file root. The owner chose read-only mounts on `api` over a size column (v64, built in
+  parallel, added the same mounts for its export; since the rebase they're one set): the count is
   SQL, the size `os.stat` on the user's distinct ledger paths in the same request, and a file the
   disk doesn't show is `unreadable`, never zero bytes. A user's contribution is the ledger rows
   behind their `completed` tracks; a `skipped_duplicate` was someone else's download.

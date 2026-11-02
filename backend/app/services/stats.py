@@ -379,8 +379,8 @@ def contributed_files(db: Session, user_id) -> list[str]:
 
 def measure_files(paths: list[str]) -> dict:
     """The contribution's count and size. The size isn't recorded anywhere, so it's read off the
-    disk (the api mounts both roots read-only for this, v66): call it after the request's
-    snapshot is over, one stat per file. A file the disk doesn't show (moved mid-read, or a root
+    disk (the api mounts both roots read-only: v64's export, and this since v66): call it after
+    the request's snapshot is over, one stat per file. A file the disk doesn't show (moved mid-read, or a root
     not mounted) is counted as `unreadable` rather than as zero bytes."""
     size = 0
     unreadable = 0

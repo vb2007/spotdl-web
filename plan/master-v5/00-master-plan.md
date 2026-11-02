@@ -800,7 +800,8 @@ here.
     read-only mounts on `api` (base compose, the dev override's real directories, the production
     overlay's `DOWNLOADS_DIR`/`LIBRARY_DIR`, all `:ro`) over a size column or files only: the
     file count is SQL, the size is `os.stat` on the user's ledger paths in the same request, and
-    a file the disk doesn't show is reported as `unreadable`, never as zero bytes.
+    a file the disk doesn't show is reported as `unreadable`, never as zero bytes. (v64, built in
+    parallel, added the same mounts for its export; after the rebase onto it they're one set.)
   - **The dashboard's stream isn't `mine` for an admin in `all`/`others`.** It carries every
     user's events, with no owner in them. Notifications listen to a `mine` stream only: the
     dashboard's own when it is `mine` (always, for a non-admin), else one opened just for them.
