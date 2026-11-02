@@ -22,6 +22,32 @@ from app.services.events import ADMIN_CHANNEL_PATTERN, channel_for, control_chan
 pytestmark = pytest.mark.usefixtures("fake_redis")
 
 
+class _RevokedStore:
+    """The two commands allowlist's revoked-session record uses (CI's pytest has no Redis)."""
+
+    def __init__(self):
+        self.keys = {}
+
+    def pipeline(self, transaction=False):
+        return self
+
+    def set(self, key, value, ex=None):
+        self.keys[key] = ex
+
+    def execute(self):
+        return []
+
+    def exists(self, key):
+        return int(key in self.keys)
+
+
+@pytest.fixture(autouse=True)
+def revoked_store(monkeypatch):
+    store = _RevokedStore()
+    monkeypatch.setattr(allowlist, "_redis", lambda: store)
+    return store
+
+
 @pytest.fixture(autouse=True)
 def published(monkeypatch):
     """The control publishes and status moves a removal or an addition makes."""
@@ -218,8 +244,11 @@ def test_removal_ends_sessions_revokes_keys_and_tells_the_stream(
 
     assert db_session.query(UserSession).filter(UserSession.user_id == owner.id).count() == 0
     assert all(key.revoked_at is not None for key in db_session.query(ApiKey).filter(ApiKey.user_id == owner.id))
-    # The user's next request, from either session, and their key: all 401.
-    assert client.get("/api/auth/me", cookies=second).status_code == 401
+    # The user's next request, from either session, and their key: all 401. v69 (live round 1):
+    # a removed session says so (`access_removed`), so every tab of theirs can say why.
+    gone = client.get("/api/auth/me", cookies=second)
+    assert (gone.status_code, gone.json()["code"]) == (401, "access_removed")
+    assert client.get("/api/jobs", cookies=second).json()["code"] == "access_removed"
     client.cookies.clear()
     assert client.get("/api/auth/me", headers=bearer(raw)).status_code == 401
     assert published.control == [(owner.id, events.CONTROL_REVOKED)]
@@ -444,3 +473,20 @@ def test_a_removal_announces_each_held_job(admin_client, db_session, make_user, 
     db_session.commit()
     assert admin_client.delete("/api/admin/allowlist/allowed@example.com").status_code == 204
     assert sent == [(user.id, job.id, "expanded")]
+
+
+def test_an_ended_session_that_wasnt_removed_stays_not_authenticated(client, session_cookie, revoked_store):
+    cookie = session_cookie("allowed@example.com")
+    assert client.post("/api/auth/logout", cookies=cookie).status_code == 200
+    gone = client.get("/api/auth/me", cookies=cookie)
+    assert (gone.status_code, gone.json()["code"]) == (401, "not_authenticated")
+
+
+def test_the_revoked_record_lives_as_long_as_a_session_could(admin_client, client, session_cookie, revoked_store):
+    from app.services.sessions import SESSION_IDLE_TIMEOUT
+
+    session_cookie("allowed@example.com")
+    assert admin_client.delete("/api/admin/allowlist/allowed@example.com").status_code == 204
+    assert list(revoked_store.keys.values()) == [int(SESSION_IDLE_TIMEOUT.total_seconds())]
+    # Keyed by a hash, never the token itself.
+    assert all(len(key.rsplit(":", 1)[1]) == 64 for key in revoked_store.keys)

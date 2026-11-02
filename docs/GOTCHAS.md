@@ -8021,9 +8021,11 @@ independently-found production bug from the same conversation)
   session closed before the next wait (v31's idle-in-transaction rule) and does not touch
   `last_seen_at` (a write per open tab every 15s). It reports `revoked` when the owner's address is
   off the allowlist even though the session row is already gone, so the raw stream still ends on
-  `session.revoked`. In the browser a lost publish usually reads "Your session ended" instead: the
-  dashboard's 5s worker poll meets the 401 before the 15s re-check, and once the session row is gone
-  no request can tell a removal from an expiry (review round 3).
+  `session.revoked`. *(2026-11-02, live review round 1: a removal also records each ended session's
+  token hash in Redis (`spotdl:revoked-session:<sha256>`, for the session lifetime), and a request
+  carrying one answers 401 `access_removed`: a lost publish, a tab with no stream, a reload or an
+  offline tab all land on "Your access was removed". Best effort: with Redis down at the removal
+  they read "Your session ended".)*
 - **"Started" is about the job, not the track, and `waiting` isn't started.** Beat's stale sweep
   moves a reclaimed `queued` track to `waiting` with no attempt, so the removal's test is
   `downloading`/`completed`/`skipped_duplicate`/`lookup_failed` or `attempt_count > 0`. A track whose
@@ -8039,3 +8041,8 @@ independently-found production bug from the same conversation)
   "This e-mail address's domain can't receive e-mail". Lost slot identities can't be replaced with
   fresh test-domain accounts; `AGENT_ADMIN_EMAIL` lets a slot reuse another slot's saved admin
   (stacks share no data, so two slots on one upstream account don't interfere).
+- **A remove/re-add cycle can repeat a resumed track's message** (live review round 1, accepted).
+  A resumed track is `pending` with its message in the broker (as a first expansion's is), so a
+  second removal holds it again and the next re-add sends it once more. The extra messages are
+  no-ops at the worker (the gate re-pends a held one; a finished one is ignored), and a single
+  re-add still sends each track once; only the broker grows, by one message per track per cycle.

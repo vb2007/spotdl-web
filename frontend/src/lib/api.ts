@@ -620,6 +620,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 			// Hungarian sentence).
 			params = { status: String(response.status) };
 		}
+		// v69: the server knows this session was ended by a removal from the allowlist.
+		if (response.status === 401 && code === 'access_removed' && !signingOut)
+			endReason = 'access_removed';
 		if (response.status === 401 && !signingOut && !SESSION_PATHS.has(path.split('?')[0]))
 			unauthorizedHandler?.();
 		throw new ApiError(response.status, detail, code, params);

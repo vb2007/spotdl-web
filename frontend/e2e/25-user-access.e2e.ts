@@ -147,6 +147,9 @@ test('a removed user is sent to /login live, saying why, and their other tab fol
 }) => {
 	// A fresh sign-in of its own: the saved session is ended by the removal anyway.
 	const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+	// And a second, unrelated browser on a page with no stream, reloaded after the removal: the
+	// server says the session was a removed one (`access_removed`), so it says why too.
+	const lone = await browser.newContext({ storageState: { cookies: [], origins: [] } });
 	const admin = await adminApi(baseURL!);
 	try {
 		const dashboard = await context.newPage();
@@ -155,6 +158,10 @@ test('a removed user is sent to /login live, saying why, and their other tab fol
 		const other = await context.newPage();
 		await other.goto('/account');
 		await expect(other.getByRole('heading', { level: 1 })).toBeVisible();
+		const stats = await lone.newPage();
+		await loginViaUi(stats, userIdentity());
+		await stats.goto('/stats');
+		await expect(stats.getByRole('heading', { level: 1 })).toBeVisible();
 
 		const removed = await admin.delete(
 			`/api/admin/allowlist/${encodeURIComponent(userIdentity().email)}`
@@ -171,8 +178,14 @@ test('a removed user is sent to /login live, saying why, and their other tab fol
 		await expect(
 			other.getByRole('status').filter({ hasText: t(m.login_access_removed) })
 		).toBeVisible();
+		await stats.reload();
+		await stats.waitForURL('**/login');
+		await expect(
+			stats.getByRole('status').filter({ hasText: t(m.login_access_removed) })
+		).toBeVisible();
 	} finally {
 		await admin.dispose();
+		await lone.close();
 		await context.close();
 		await restoreUser(baseURL!);
 	}

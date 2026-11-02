@@ -47,7 +47,8 @@ const PATHS_OVERLAP: Record<string, () => string> = {
 
 const BY_CODE: Record<string, (params: Params) => string> = {
 	invalid_credentials: () => m.error_invalid_credentials(),
-	// v69: /users, the login allowlist.
+	// v69: /users, the login allowlist; a request from a session a removal ended.
+	access_removed: () => m.login_access_removed(),
 	invalid_email: () => m.error_invalid_email(),
 	email_already_allowed: () => m.error_email_already_allowed(),
 	cannot_remove_admin: () => m.error_cannot_remove_admin(),

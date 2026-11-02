@@ -26,6 +26,7 @@ removal locks the user's job rows (`FOR UPDATE`) before deciding, and `download_
 serialize: whichever commits first wins, and nothing starts after a hold.
 """
 
+import hashlib
 import logging
 import uuid
 from dataclasses import dataclass, field
@@ -41,6 +42,7 @@ from app.errors import ApiError
 from app.models import AllowedEmail, ApiKey, Job, JobState, Track, TrackState, User, UserSession
 from app.services import events, job_status
 from app.services.spotify_urls import storable
+from app.services.sessions import SESSION_IDLE_TIMEOUT
 from app.services.users import normalize_email
 
 logger = logging.getLogger(__name__)
@@ -65,6 +67,60 @@ _UNHOLDABLE_JOB_STATES = (JobState.CANCELLED, JobState.FAILED)
 # How long a resume's claim on the held jobs' tracks keeps beat from sending them a second time
 # (the same lease, and the same reason, as expand_job's first dispatch: tasks/expand.py).
 DISPATCH_LEASE = timedelta(minutes=10)
+
+# A removed user's ended sessions, by token hash, for as long as one could have lived: a request
+# still carrying one answers 401 `access_removed` (not `not_authenticated`), so every tab of theirs
+# says why, not only the one whose stream got `revoked` (review: live round 1).
+REVOKED_SESSION_PREFIX = "spotdl:revoked-session:"
+
+
+_revoked_client = None
+
+
+def _redis():
+    """Its own client with short timeouts (job_status' pattern): this runs on a 401, and a stalled
+    Redis must cost a request half a second, never a socket's whole wait."""
+    global _revoked_client
+    if _revoked_client is None:
+        import redis
+        from redis.backoff import NoBackoff
+        from redis.retry import Retry
+
+        _revoked_client = redis.Redis.from_url(
+            get_settings().redis_url,
+            socket_timeout=0.5,
+            socket_connect_timeout=0.5,
+            retry=Retry(NoBackoff(), 0),
+        )
+    return _revoked_client
+
+
+def _token_key(token: str) -> str:
+    return REVOKED_SESSION_PREFIX + hashlib.sha256(token.encode()).hexdigest()
+
+
+def _remember_revoked(tokens: list[str]) -> None:
+    """Best effort: with Redis down, a removed user's tab says "session ended" instead."""
+    if not tokens:
+        return
+    try:
+        pipe = _redis().pipeline(transaction=False)
+        for token in tokens:
+            pipe.set(_token_key(token), 1, ex=int(SESSION_IDLE_TIMEOUT.total_seconds()))
+        pipe.execute()
+    except Exception:
+        logger.warning("allowlist: couldn't record the removed user's ended sessions", exc_info=True)
+
+
+def session_was_revoked(token: str | None) -> bool:
+    """Whether `token` belonged to a session a removal ended. False when Redis can't say."""
+    if not token or not storable(token):
+        return False
+    try:
+        return bool(_redis().exists(_token_key(token)))
+    except Exception:
+        return False
+
 
 IGNORED_ENV_WARNING = (
     "ALLOWED_EMAILS is ignored since v69, manage users in /users "
@@ -171,9 +227,12 @@ def remove(db: Session, email: str) -> Removal:
     removal = Removal(user_id=user_id)
     if user_id is not None:
         _lock_user_jobs(db, user_id)
-        removal.sessions_ended = db.execute(
-            delete(UserSession).where(UserSession.user_id == user_id)
-        ).rowcount
+        ended_tokens = list(
+            db.execute(
+                delete(UserSession).where(UserSession.user_id == user_id).returning(UserSession.token)
+            ).scalars()
+        )
+        removal.sessions_ended = len(ended_tokens)
         removal.keys_revoked = db.execute(
             update(ApiKey)
             .where(ApiKey.user_id == user_id, ApiKey.revoked_at.is_(None))
@@ -209,6 +268,7 @@ def remove(db: Session, email: str) -> Removal:
         len(removal.held_job_ids),
     )
     if user_id is not None:
+        _remember_revoked(ended_tokens)
         events.publish_control(user_id, events.CONTROL_REVOKED)
         # Their rollup moved to `held` (the admin's "others" view shows it): the chips move on
         # `job.status`, and an open row re-reads itself on `job.state` (review round 4).

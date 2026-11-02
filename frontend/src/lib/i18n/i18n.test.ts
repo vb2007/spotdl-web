@@ -302,6 +302,7 @@ const BACKEND_CODES = [
 	'job_not_watchable',
 	'watch_interval_invalid',
 	// v69
+	'access_removed',
 	'invalid_email',
 	'email_already_allowed',
 	'cannot_remove_admin',

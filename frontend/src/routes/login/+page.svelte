@@ -32,9 +32,10 @@
 	let endedText = $state('');
 	// Its line is held from the first paint whenever it applies, so the sentence arriving (or
 	// an error clearing it) never moves the fields under a finger.
-	const showEnded = page.state.sessionEnded === true || sessionEnded;
-	// v69: the admin removed this address (the stream said so, here or in another tab).
-	const accessRemoved = page.state.accessRemoved === true;
+	const showEnded = page.state.sessionEnded === true || sessionEnded !== null;
+	// v69: the admin removed this address (the stream or a request's 401 said so, here or in
+	// another tab, or on this tab's reload).
+	const accessRemoved = page.state.accessRemoved === true || sessionEnded === 'access_removed';
 	onMount(() => {
 		if (!showEnded) return;
 		// Read once: cleared from this history entry, so Back to it later (after a deliberate

@@ -51,12 +51,15 @@ export const load: LayoutLoad = async ({ url }) => {
 	let sessionGone = false;
 	// 0: the request never got an answer (the network, the api down).
 	let failedStatus: number | null = null;
+	// v69: `access_removed` -- the session was ended by a removal from the allowlist.
+	let accessRemoved = false;
 	try {
 		session = await api.me();
 	} catch (err) {
 		session = null;
 		failedStatus = err instanceof api.ApiError ? err.status : 0;
 		sessionGone = failedStatus === 401;
+		accessRemoved = sessionGone && err instanceof api.ApiError && err.code === 'access_removed';
 	}
 
 	// v47: nor does a failed first answer sign anyone out. A 5xx, a 429 or a network failure
@@ -76,8 +79,11 @@ export const load: LayoutLoad = async ({ url }) => {
 		if (sessionGone) {
 			queue.reset();
 			notifications.reset();
-			// v47: only a tab that had a session here says it ended (not a first visit).
-			if (lastSessionEmail !== null && !api.isSigningOut()) markSessionEnded();
+			// v47: only a tab that had a session here says it ended (not a first visit). v69: a
+			// removed session says so even on a fresh load (a reload right after the removal):
+			// its cookie proves there was one.
+			if (accessRemoved && !api.isSigningOut()) markSessionEnded('access_removed');
+			else if (lastSessionEmail !== null && !api.isSigningOut()) markSessionEnded();
 		}
 		// v65: a share opened signed out comes back to itself, its parameters included.
 		redirect(302, url.pathname === '/share' ? loginFor(url.pathname + url.search) : '/login');

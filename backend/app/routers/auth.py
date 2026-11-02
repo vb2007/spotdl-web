@@ -20,6 +20,14 @@ COOKIE_NAME = "SPOTDL_SESSION"
 _INVALID_CREDENTIALS = ApiError(401, "invalid_credentials", "Invalid credentials")
 
 
+def _no_session(token: str | None) -> ApiError:
+    """The 401 for a cookie that names no live session. v69: `access_removed` when a removal
+    ended it (services/allowlist.py), so the page can say why; otherwise `not_authenticated`."""
+    if allowlist.session_was_revoked(token):
+        return ApiError(401, "access_removed", "Your access was removed")
+    return ApiError(401, "not_authenticated", "Not authenticated")
+
+
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -32,7 +40,7 @@ def current_session(request: Request, db: Session = Depends(get_db)) -> UserSess
 
     session = get_valid_session(db, token)
     if session is None:
-        raise ApiError(401, "not_authenticated", "Not authenticated")
+        raise _no_session(token)
 
     db.commit()
     return session
@@ -106,7 +114,7 @@ def require_session_or_api_key(request: Request, db: Session = Depends(get_db)) 
 
     bearer = _bearer_token(request)
     if bearer is None:
-        raise ApiError(401, "not_authenticated", "Not authenticated")
+        raise _no_session(token)
     key = api_keys.authenticate(db, bearer)
     user = db.get(User, key.user_id) if key is not None else None
     # A key outlives a login, so it re-checks the allowlist a login checks. v69: a removal
@@ -144,7 +152,7 @@ def require_session_for_streaming(request: Request) -> User:
     try:
         session = get_valid_session(db, token)
         if session is None:
-            raise ApiError(401, "not_authenticated", "Not authenticated")
+            raise _no_session(token)
 
         user = db.get(User, session.user_id)
         if user is None:
