@@ -73,3 +73,7 @@ class Job(Base):
     watch_interval_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
     last_expanded_at: Mapped[datetime | None] = mapped_column(nullable=True)
     next_expand_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # v69: set when the owner's address was removed from the allowlist before this job had
+    # started (no attempt, no dedup result); none of its tracks is attempted until it's cleared
+    # by adding the address again. A started job is never held. Rollup lifecycle `held`.
+    held_at: Mapped[datetime | None] = mapped_column(nullable=True)

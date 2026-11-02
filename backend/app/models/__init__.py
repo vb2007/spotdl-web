@@ -1,4 +1,5 @@
 from app.models.alert_outbox import AlertOutbox, AlertState
+from app.models.allowed_email import AllowedEmail
 from app.models.api_key import ApiKey
 from app.models.app_settings import AppSettings
 from app.models.breaker_event import BreakerEvent, BreakerEventKind
@@ -16,6 +17,7 @@ from app.models.worker_state import WorkerState
 __all__ = [
     "AlertOutbox",
     "AlertState",
+    "AllowedEmail",
     "ApiKey",
     "AppSettings",
     "BreakerEvent",
