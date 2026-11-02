@@ -951,8 +951,9 @@ needed" claim — rather than silently deleted.
 - A `native` binding (handled by the focused element) may share a chord with a dispatched one;
   the registry never matches it → *v67*
 - A windowed list (`lib/listWindow.svelte.ts`, above 200 rows) has rows that aren't in the DOM:
-  find a row by id through `rowById` (`lib/keyboard/lists`), never `querySelector`, and never
-  measure the window's last child (`:last-child` drops its border; measuring it spun forever) → *v68*
+  find a row by id through `rowById` (`lib/keyboard/lists`), never `querySelector`. Measure the
+  window's last child ignoring changes under 2.5px: `:last-child` drops its border (taking that
+  spun forever), but skipping it outright kept a collapsed job's open height (a blank window) → *v68*
 - A windowed list's estimate for unmeasured rows must be stable (a per-row median), and the
   scroll anchor only a window row in view: a moving mean, or anchoring on a kept row outside the
   window, made the hand-made anchoring chase the page to the top → *v68*
@@ -7940,6 +7941,14 @@ independently-found production bug from the same conversation)
   its targets across its own corrections (the scroll event of its own `scrollBy` doesn't re-take
   it), and follows every window row in view, so a batch removing the first few still leaves one
   to hold (with three, removing three at the top of the view moved it by their height).
+- **Correct once a frame, not once a render.** An archive of several jobs arrives as one live
+  removal each, a few milliseconds apart and not in the list's order. Corrected render by render,
+  the row held could be one a later removal of the same frame shifted (a batch at the top of the
+  view moved it by rows). Each render is still corrected at once (deferring them all let the
+  window drift off the rows read while 40 unrendered rows above went), and once more in
+  `requestAnimationFrame` (before that frame's layout and paint) against the anchor as the frame
+  began, as Chromium's own anchoring works per frame: the rows after a removed batch stay put
+  (main: same), a single removal mid-view keeps the rows above it (main: same).
 - **A nested window gets the hold only if it has a row in view.** An outer list whose row in view
   holds an active inner list hands the correction to it; while the view shows that job's header
   or footer, the inner list has no anchor, so the outer row holds it itself.

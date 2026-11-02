@@ -23,11 +23,13 @@
  * - Heights are measured once per render (one read pass, `getBoundingClientRect`) and then by a
  *   ResizeObserver (a row that opens, a font that loads). A row never measured counts as the
  *   median measured height per keyboard row, times its rows, and that estimate moves only when
- *   the median drifts by a quarter (a resize to a phone's width): every move of it shifts every
- *   unmeasured row at once, and a mean (one 400-track group among single tracks) moved with each
- *   row measured, which the anchoring then chased up the page. The last rendered row isn't measured unless it's the list's real
- *   last: the rows' `:last-child` rule drops their bottom border, and a window edge measured 1px
- *   short moved the window, which moved the edge (an endless re-render).
+ *   the median drifts by a quarter: every move of it shifts every unmeasured row at once, and a
+ *   mean (one 400-track group among single tracks) moved with each row measured, which the
+ *   anchoring then chased up the page. A change of the page's width forgets every height (rows
+ *   wrap differently), and the rows in the window are measured afresh. The window's last
+ *   rendered row ignores changes under 2.5px unless it's the list's real last: the rows'
+ *   `:last-child` rule drops their bottom border, and a window edge measured 1px short moved
+ *   the window, which moved the edge (an endless re-render).
  * - Scroll anchoring by hand: padding changes suppress the browser's own anchoring (CSS Scroll
  *   Anchoring's suppression triggers), so the first row in view is held in place after every
  *   render and resize, the way the browser holds a plain list. The browser's own stays on: with
@@ -163,6 +165,10 @@ export class ListWindow<T> {
 	/** Where this window's own last correction left the page (its scroll event isn't the
 	 * user's, so it doesn't re-take the anchor). */
 	#ownScroll: number | null = null;
+	/** The anchor as this frame's first render found it (`#holdFrame`). */
+	#frameAnchor: Anchor | null = null;
+	/** Counts scrolls not made by this window (the user's, a focus() bringing a row in). */
+	#scrolled = 0;
 	/** The nested window holding the view instead (an open job's tracks filling it). */
 	#delegate: ListWindow<unknown> | null = null;
 	#annotated = false;
@@ -308,6 +314,7 @@ export class ListWindow<T> {
 			const own = this.#ownScroll !== null && Math.abs(window.scrollY - this.#ownScroll) < 1;
 			this.#ownScroll = null;
 			// Only a list near or above the threshold ever uses its anchor.
+			if (!own) this.#scrolled++;
 			if (this.#near && !own) this.#capture();
 			this.#readView();
 		};
@@ -350,7 +357,18 @@ export class ListWindow<T> {
 		};
 		window.addEventListener('scroll', onScroll, { passive: true });
 		window.addEventListener('blur', onWindowBlur);
-		window.addEventListener('resize', onScroll, { passive: true });
+		// A width change: every height is the old width's (rows wrap differently).
+		let width = window.innerWidth;
+		const onResize = () => {
+			if (window.innerWidth !== width) {
+				width = window.innerWidth;
+				this.#heights.clear();
+				this.#perRowFrom = 0;
+				this.#measured++;
+			}
+			onScroll();
+		};
+		window.addEventListener('resize', onResize, { passive: true });
 		list.addEventListener('focusin', onFocusIn);
 		list.addEventListener('focusout', onFocusOut);
 		// A row opened or closed (its detail is kept while open).
@@ -370,7 +388,7 @@ export class ListWindow<T> {
 			if (windows.get(list) === (this as ListWindow<unknown>)) windows.delete(list);
 			window.removeEventListener('scroll', onScroll);
 			window.removeEventListener('blur', onWindowBlur);
-			window.removeEventListener('resize', onScroll);
+			window.removeEventListener('resize', onResize);
 			list.removeEventListener('focusin', onFocusIn);
 			list.removeEventListener('focusout', onFocusOut);
 			opened.disconnect();
@@ -508,8 +526,58 @@ export class ListWindow<T> {
 		}
 		if (changed) this.#remeasured();
 		this.#updatePins();
+		this.#holdFrame();
 		this.#correct();
 		this.#readView();
+	}
+
+	/** Every render is corrected at once (so the window never drifts away from the rows read),
+	 * and once more at the frame's end against the anchor as the frame began. Live removals land
+	 * a few milliseconds apart and not in the list's order: corrected render by render, the row
+	 * held could be one a later removal of the same frame shifted (a batch archive at the top of
+	 * the view moved it by rows). requestAnimationFrame runs before the frame's layout and paint,
+	 * so nothing shifted is shown; the browser's own anchoring works per frame too. */
+	#holdFrame(): void {
+		if (this.#frameAnchor !== null || !this.#anchor) return;
+		const start = this.#anchor;
+		const scrolled = this.#scrolled;
+		this.#frameAnchor = start;
+		requestAnimationFrame(() => {
+			this.#frameAnchor = null;
+			const now = this.#anchor;
+			// Only while the page moved by this window's corrections alone since (a focus()
+			// scrolling a restored neighbour into view is the place now).
+			if (
+				!this.#list ||
+				!now ||
+				scrolled !== this.#scrolled ||
+				Math.abs(window.scrollY - now.scrollY) >= 1
+			) {
+				return;
+			}
+			const row = start.rows.find((r) => r.el.isConnected && this.#isWindowRow(r.el));
+			if (!row) return;
+			const delta = row.el.getBoundingClientRect().top - row.top;
+			if (Math.abs(delta) < 1) return;
+			window.scrollBy({ top: delta, behavior: 'instant' });
+			this.#ownScroll = window.scrollY;
+			this.#anchor = {
+				rows: start.rows
+					.filter((r) => r.el.isConnected && this.#isWindowRow(r.el))
+					.map((r) =>
+						r === row
+							? r
+							: {
+									el: r.el,
+									top:
+										r.el.getBoundingClientRect().top -
+										(row.el.getBoundingClientRect().top - row.top)
+								}
+					),
+				scrollY: window.scrollY
+			};
+			this.#readView();
+		});
 	}
 
 	#onResize(entries: ResizeObserverEntry[]): void {

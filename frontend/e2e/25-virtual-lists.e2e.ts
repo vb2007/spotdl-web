@@ -1005,7 +1005,8 @@ test('a batch archiving the first rows in view leaves the next row where it was'
 	await loadUntil(page, JOBS, 400);
 	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight * 0.75));
 	await page.waitForTimeout(500);
-	// The first five rows in view archived in one call; the sixth is the one read.
+	// The first ten rows in view archived in one call (the live removals arrive a few ms apart,
+	// not in the list's order); the eleventh is the one read.
 	const inView = await page.evaluate(() =>
 		[...document.querySelectorAll<HTMLElement>('[data-kb-list="jobs"] > li')]
 			.filter((r) => {
@@ -1014,9 +1015,9 @@ test('a batch archiving the first rows in view leaves the next row where it was'
 			})
 			.map((r) => r.dataset.kbRow!)
 	);
-	expect(inView.length).toBeGreaterThan(8);
-	const gone = inView.slice(0, 5);
-	const reading = page.locator(`[data-kb-row="${inView[5]}"]`);
+	expect(inView.length).toBeGreaterThan(12);
+	const gone = inView.slice(0, 10);
+	const reading = page.locator(`[data-kb-row="${inView[10]}"]`);
 	const before = await reading.evaluate((el) => el.getBoundingClientRect().top);
 	const api = await request.newContext({
 		baseURL,

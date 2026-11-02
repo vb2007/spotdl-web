@@ -1401,7 +1401,8 @@ auto` on rows was tried and rejected: its paint containment clips the focus ring
    group) and an open job's tracks render only a window of rows around the viewport
    (`lib/listWindow.svelte.ts`); the rest is the list's own padding. On the nginx build a fully
    loaded 1600-job log went from 24,299 elements and 47.6 MB of heap to 689 and 6.2 MB, and a
-   scroll through it from 66.7 ms median frames to 16.7 ms. At or below 200 rows the markup is
+   scroll through it from 66.7 ms median frames (653 over 50 ms) to 16.7 ms (none over 50 ms,
+   the longest 33 ms). At or below 200 rows the markup is
    exactly what it was. The rows keep their focus ring and popups (nothing is clipped or
    contained); the focused row, the list's current row and any open row stay rendered outside
    the window; every rendered row carries `aria-setsize`/`aria-posinset`.
