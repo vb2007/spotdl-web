@@ -99,27 +99,38 @@ def _token_key(token: str) -> str:
     return REVOKED_SESSION_PREFIX + hashlib.sha256(token.encode()).hexdigest()
 
 
-def _remember_revoked(tokens: list[str]) -> None:
-    """Best effort: with Redis down, a removed user's tab says "session ended" instead."""
+def _remember_revoked(user_id: uuid.UUID, tokens: list[str]) -> None:
+    """Best effort: with Redis down, a removed user's tab says "session ended" instead. The
+    value is the owner, so the record stops counting once the address is added back."""
     if not tokens:
         return
     try:
         pipe = _redis().pipeline(transaction=False)
         for token in tokens:
-            pipe.set(_token_key(token), 1, ex=int(SESSION_IDLE_TIMEOUT.total_seconds()))
+            pipe.set(_token_key(token), str(user_id), ex=int(SESSION_IDLE_TIMEOUT.total_seconds()))
         pipe.execute()
     except Exception:
         logger.warning("allowlist: couldn't record the removed user's ended sessions", exc_info=True)
 
 
-def session_was_revoked(token: str | None) -> bool:
-    """Whether `token` belonged to a session a removal ended. False when Redis can't say."""
+def session_was_revoked(db: Session, token: str | None) -> bool:
+    """Whether `token` belonged to a session a removal ended, and its owner's address is still
+    off the allowlist (added back, it's an ordinary ended session). False when Redis can't say."""
     if not token or not storable(token):
         return False
     try:
-        return bool(_redis().exists(_token_key(token)))
+        owner = _redis().get(_token_key(token))
     except Exception:
         return False
+    if owner is None:
+        return False
+    try:
+        email = db.execute(
+            select(User.email).where(User.id == uuid.UUID(owner.decode() if isinstance(owner, bytes) else owner))
+        ).scalar_one_or_none()
+    except ValueError:
+        return False
+    return email is not None and not is_allowed(db, email)
 
 
 IGNORED_ENV_WARNING = (
@@ -268,7 +279,7 @@ def remove(db: Session, email: str) -> Removal:
         len(removal.held_job_ids),
     )
     if user_id is not None:
-        _remember_revoked(ended_tokens)
+        _remember_revoked(user_id, ended_tokens)
         events.publish_control(user_id, events.CONTROL_REVOKED)
         # Their rollup moved to `held` (the admin's "others" view shows it): the chips move on
         # `job.status`, and an open row re-reads itself on `job.state` (review round 4).

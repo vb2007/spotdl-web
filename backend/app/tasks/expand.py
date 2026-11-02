@@ -185,6 +185,8 @@ def _reexpand(db, job_id: str, marker: str | None = None) -> None:
     owner_email = db.execute(select(User.email).where(User.id == user_id)).scalar_one()
     if not allowlist.is_allowed(db, owner_email):
         logger.info("expand_job: job %s's owner was removed; not re-expanding", job_id)
+        db.rollback()
+        events.publish_job_event(user_id, job.id, JobState.EXPANDED.value, watch=True)
         return
     if not watch.start_run(job.id, marker):
         # Superseded: this message waited past its claim's lease, and a newer claim (with its own
@@ -202,6 +204,12 @@ def _reexpand(db, job_id: str, marker: str | None = None) -> None:
         events.publish_job_event(user_id, job.id, JobState.EXPANDED.value, watch=True)
         return
 
+    # v69: the owner's allowlist row FOR SHARE first, before the job's: a removal locks the row
+    # (its DELETE) and then the jobs, so this either waits for a removal in flight and sees it,
+    # or holds it off until these tracks are committed (review round 5).
+    owner_allowed = allowlist.is_allowed(
+        db, db.execute(select(User.email).where(User.id == user_id)).scalar_one(), lock=True
+    )
     # The job's row lock, as a first expansion's commit and cancel_job take it: a cancel
     # either lands first (and nothing is added) or cancels these tracks too.
     _lock_job(db, job)
@@ -212,8 +220,7 @@ def _reexpand(db, job_id: str, marker: str | None = None) -> None:
         return
     # v69: a run queued before its owner's address was removed adds nothing: new tracks are new
     # work (beat stops starting them; this covers one already on its way).
-    owner_email = db.execute(select(User.email).where(User.id == job.user_id)).scalar_one()
-    if not allowlist.is_allowed(db, owner_email):
+    if not owner_allowed:
         db.rollback()
         logger.info("expand_job: job %s's owner was removed meanwhile; not re-expanding", job_id)
         events.publish_job_event(user_id, job.id, JobState.EXPANDED.value, watch=True)

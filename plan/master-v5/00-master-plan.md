@@ -881,8 +881,10 @@ here.
     (`services/{job_listing,track_listing,job_status,serializers,stats}.py`, cancel's 409 in
     `routers/jobs.py`); the key create's re-check (`routers/account_keys.py`); "check now" refused
     for a removed owner (`routers/jobs.py`, a `job_not_reexpandable` reason); the session-ended path
-    and its reason (`+layout.svelte` beyond the nav, `lib/session.ts`, `app.d.ts`,
-    `routes/login/+page.svelte`); the error codes (`lib/i18n/errors.ts`, `i18n.test.ts`);
+    and its reason (`+layout.svelte` beyond the nav, `+layout.ts`, `lib/session.ts`,
+    `lib/stores/sessionEnded.ts`, `app.d.ts`, `routes/login/+page.svelte`), with the `access_removed`
+    401 a removed session's cookie gets (live review round 1; never to the extension, whose v53
+    fallback knows only `not_authenticated`); the error codes (`lib/i18n/errors.ts`, `i18n.test.ts`);
     `AdminOnlyNotice.svelte` (the non-admin's `/users`); docstrings (`models/user.py`); and the tests
     the table and the stream changed (`conftest.py`, `test_admin_gating.py`, `test_api_keys.py`,
     `test_config.py`, `test_extension_jobs.py`, `test_stream.py`, `test_watch_jobs.py`).

@@ -32,13 +32,14 @@ class _RevokedStore:
         return self
 
     def set(self, key, value, ex=None):
-        self.keys[key] = ex
+        self.keys[key] = (value, ex)
 
     def execute(self):
         return []
 
-    def exists(self, key):
-        return int(key in self.keys)
+    def get(self, key):
+        entry = self.keys.get(key)
+        return entry[0].encode() if entry else None
 
 
 @pytest.fixture(autouse=True)
@@ -482,11 +483,28 @@ def test_an_ended_session_that_wasnt_removed_stays_not_authenticated(client, ses
     assert (gone.status_code, gone.json()["code"]) == (401, "not_authenticated")
 
 
-def test_the_revoked_record_lives_as_long_as_a_session_could(admin_client, client, session_cookie, revoked_store):
+def test_the_revoked_record_lives_as_long_as_a_session_could(admin_client, client, session_cookie, revoked_store, db_session):
     from app.services.sessions import SESSION_IDLE_TIMEOUT
 
     session_cookie("allowed@example.com")
     assert admin_client.delete("/api/admin/allowlist/allowed@example.com").status_code == 204
-    assert list(revoked_store.keys.values()) == [int(SESSION_IDLE_TIMEOUT.total_seconds())]
+    user = db_session.query(User).filter(User.email == "allowed@example.com").one()
+    assert list(revoked_store.keys.values()) == [(str(user.id), int(SESSION_IDLE_TIMEOUT.total_seconds()))]
     # Keyed by a hash, never the token itself.
     assert all(len(key.rsplit(":", 1)[1]) == 64 for key in revoked_store.keys)
+
+
+def test_access_removed_ends_once_the_address_is_back_and_never_reaches_the_extension(
+    client, session_cookie, revoked_store
+):
+    """Review round 5: the extension's cookie-then-key fallback knows only `not_authenticated`
+    (and must try its key on a dead cookie); and once the address is added back, an old cookie is
+    an ordinary ended session."""
+    admin = session_cookie("admin@example.com", is_admin=True)
+    cookie = session_cookie("allowed@example.com")
+    assert client.delete("/api/admin/allowlist/allowed@example.com", cookies=admin).status_code == 204
+    assert client.get("/api/auth/me", cookies=cookie).json()["code"] == "access_removed"
+    from_extension = client.get("/api/auth/me", cookies=cookie, headers={"X-Spotdl-Client": "extension/1.0.2"})
+    assert (from_extension.status_code, from_extension.json()["code"]) == (401, "not_authenticated")
+    assert client.post("/api/admin/allowlist", json={"email": "allowed@example.com"}, cookies=admin).status_code == 201
+    assert client.get("/api/auth/me", cookies=cookie).json()["code"] == "not_authenticated"
