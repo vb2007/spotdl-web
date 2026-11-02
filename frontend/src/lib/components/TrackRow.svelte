@@ -48,6 +48,18 @@
 	let expanded = $state(false);
 	const detailId = $derived(`track-detail-${track.id}`);
 
+	// v67 (U3): in the tracks scope a row sits under its job's group header, which carries the
+	// job's title (a track row there comes with its job's summary). A one-track job's row doesn't
+	// show the title again (it stays in the row's name, for a screen reader), and a row whose
+	// album is the group's own doesn't repeat it either.
+	const group = $derived('job' in track ? (track as api.TrackWithJob).job : null);
+	const sameName = (a: string | null, b: string) =>
+		a !== null && a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
+	const titleInHeader = $derived(
+		group !== null && group.source_type === 'track' && sameName(track.title, group.title)
+	);
+	const albumInHeader = $derived(group !== null && sameName(track.album, group.title));
+
 	const { status: workerStatus } = worker;
 
 	// Attempt history (v24) is diagnostic, not part of the live queue -- fetched lazily on
@@ -537,14 +549,22 @@
 					>&nbsp;{track.progress}%</span
 				>{/if}</span
 		>
-		<span class="cell title" title={track.title ?? undefined}
-			>{track.title ?? m.track_unknown_title()}</span
-		>
+		{#if titleInHeader}
+			<span class="cell title in-header"><span class="sr-only">{track.title}</span></span>
+		{:else}
+			<span class="cell title" title={track.title ?? undefined}
+				>{track.title ?? m.track_unknown_title()}</span
+			>
+		{/if}
 		<span class="meta">
 			<span class="cell artist" title={track.artists?.join(', ')}
 				>{track.artists?.join(', ') ?? '—'}</span
 			>
-			<span class="cell album" title={track.album ?? undefined}>{track.album ?? '—'}</span>
+			{#if albumInHeader}
+				<span class="cell album in-header" aria-hidden="true"></span>
+			{:else}
+				<span class="cell album" title={track.album ?? undefined}>{track.album ?? '—'}</span>
+			{/if}
 		</span>
 		<span class="chevron" aria-hidden="true"></span>
 	</button>
@@ -1352,6 +1372,13 @@
 
 		.meta .cell.album::before {
 			content: ' · ';
+		}
+
+		/* v67 (U3): an album its group header already carries takes no room in the line (and
+		   no " · "). A title its header carries is only its screen-reader text, so its cell
+		   collapses by itself (never display:none, which would drop that text too). */
+		.cell.album.in-header {
+			display: none;
 		}
 	}
 
