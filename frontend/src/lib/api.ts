@@ -28,7 +28,10 @@ export type JobState = 'expanding' | 'expanded' | 'failed' | 'cancelled';
 /** v18's two derived rollup axes -- never stored, always computed server-side from the
  * job's own state plus its tracks' states (see CLAUDE.md's "Job rollup status" section).
  * `outcome` is only non-null once `lifecycle === 'settled'`. */
-export type JobLifecycle = 'expanding' | 'active' | 'waiting' | 'settled' | 'cancelled' | 'failed';
+/** v69: `held` -- the owner's address was removed from the allowlist before the job started;
+ * nothing of it runs until the address is added again (only the admin ever sees one). */
+export type JobLifecycle =
+	'expanding' | 'held' | 'active' | 'waiting' | 'settled' | 'cancelled' | 'failed';
 export type JobOutcome = 'complete' | 'partial';
 export interface JobStatus {
 	lifecycle: JobLifecycle;
@@ -45,6 +48,7 @@ export function statusKey(status: JobStatus): string {
  * (`rollup.STATUS_ORDER`) -- still-in-flight first, dead ends last. */
 export const STATUS_TOKENS: string[] = [
 	'expanding',
+	'held',
 	'active',
 	'waiting',
 	'settled:partial',
@@ -63,6 +67,8 @@ export interface Job {
 	created_at: string;
 	/** null while not archived -- v19. */
 	archived_at: string | null;
+	/** v69: set while the job is held (its owner's address was removed before it started). */
+	held_at?: string | null;
 	track_counts: Record<string, number>;
 	/** Whose job this is -- always present, but only interesting once an admin's "all
 	 * users" scope makes a foreign row visible at all. */
@@ -243,7 +249,14 @@ export interface JobStatusEvent {
 	ts: string;
 }
 
-export type StreamEvent = TrackStateEvent | JobStateEvent | JobStatusEvent | LibraryProgressEvent;
+/** v69: the last event a removed user's stream sends (their address was taken off the
+ * allowlist): the session is already gone, and the stream ends right after it. */
+export interface SessionRevokedEvent {
+	type: 'session.revoked';
+}
+
+export type StreamEvent =
+	TrackStateEvent | JobStateEvent | JobStatusEvent | LibraryProgressEvent | SessionRevokedEvent;
 
 export interface WorkerStatus {
 	paused: boolean;
@@ -556,6 +569,25 @@ export function sessionEnded(): void {
 	unauthorizedHandler?.();
 }
 
+// v69: why the session ended, when this tab knows more than a 401 says: the stream's
+// `session.revoked` (the address was taken off the allowlist). Read once by the layout's
+// session-ended path, which says so on `/login` and tells the other tabs.
+let endReason: 'access_removed' | null = null;
+
+/** v69: the stream said this user's access was removed: the same session-ended path as a 401,
+ * saying why. */
+export function accessRemoved(): void {
+	endReason = 'access_removed';
+	unauthorizedHandler?.();
+}
+
+/** v69: the reason `accessRemoved` left, cleared by reading it. */
+export function takeEndReason(): 'access_removed' | null {
+	const reason = endReason;
+	endReason = null;
+	return reason;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
 	const response = await fetch(`${API_BASE}${path}`, {
 		...init,
@@ -766,6 +798,32 @@ export interface ApiKey {
 export interface ApiKeyList {
 	keys: ApiKey[];
 	max_active: number;
+}
+
+/** v69: one login allowlist row (`/users`, admin only). `last_login_at` null: never signed
+ * in (no account yet); `added_by` null: imported from the old env list (`added_at` is then the
+ * import's time, or null for an ADMIN_EMAIL with no row at all). */
+export interface AllowlistRow {
+	email: string;
+	added_at: string | null;
+	added_by: string | null;
+	username: string | null;
+	last_login_at: string | null;
+	is_admin_email: boolean;
+	held_jobs: number;
+}
+
+export function listAllowlist(): Promise<{ items: AllowlistRow[] }> {
+	return request('/api/admin/allowlist');
+}
+
+/** `resumed_jobs`: how many held jobs of the address's account resumed with it. */
+export function addAllowedEmail(email: string): Promise<AllowlistRow & { resumed_jobs: number }> {
+	return request('/api/admin/allowlist', { method: 'POST', body: JSON.stringify({ email }) });
+}
+
+export function removeAllowedEmail(email: string): Promise<void> {
+	return request(`/api/admin/allowlist/${encodeURIComponent(email)}`, { method: 'DELETE' });
 }
 
 export function listApiKeys(): Promise<ApiKeyList> {

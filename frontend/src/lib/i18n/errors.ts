@@ -47,6 +47,11 @@ const PATHS_OVERLAP: Record<string, () => string> = {
 
 const BY_CODE: Record<string, (params: Params) => string> = {
 	invalid_credentials: () => m.error_invalid_credentials(),
+	// v69: /users, the login allowlist.
+	invalid_email: () => m.error_invalid_email(),
+	email_already_allowed: () => m.error_email_already_allowed(),
+	cannot_remove_admin: () => m.error_cannot_remove_admin(),
+	allowed_email_not_found: () => m.error_allowed_email_not_found(),
 	not_authenticated: () => m.error_not_authenticated(),
 	admin_required: () => m.error_admin_required(),
 	job_not_found: () => m.error_job_not_found(),
