@@ -6,6 +6,7 @@
 	here, with a copy control, until "done" or leaving the page.
 -->
 <script lang="ts">
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { onMount, tick } from 'svelte';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
@@ -35,6 +36,8 @@
 	let keys = $state<api.ApiKey[] | null>(null);
 	let maxActive = $state(10);
 	let loadError = $state<Shown>(null);
+	// v67 (U9): what failed, so its text is marked inside the sentence (ErrorSentence).
+	let loadFailure = $state<unknown>(null);
 
 	let label = $state('');
 	let creating = $state(false);
@@ -63,6 +66,7 @@
 				maxActive = list.max_active;
 			})
 			.catch((err) => {
+				loadFailure = err;
 				loadError = () => m.account_keys_load_failed({ error: errorText(err) });
 			});
 	}
@@ -282,7 +286,12 @@
 	{#if keys === null}
 		{#if loadError}
 			<div class="load-failed">
-				<p>{loadError()}</p>
+				<p>
+					<ErrorSentence
+						sentence={(e) => m.account_keys_load_failed({ error: e })}
+						error={errorText(loadFailure)}
+					/>
+				</p>
 				<button
 					type="button"
 					class="btn small"
@@ -344,7 +353,10 @@
 		role="alert"
 		lang={keys === null && loadError !== null ? undefined : textLang(error?.())}
 	>
-		{keys === null && loadError !== null ? loadError() : error?.()}
+		{#if keys === null && loadError !== null}<ErrorSentence
+				sentence={(e) => m.account_keys_load_failed({ error: e })}
+				error={errorText(loadFailure)}
+			/>{:else}{error?.()}{/if}
 	</p>
 </section>
 

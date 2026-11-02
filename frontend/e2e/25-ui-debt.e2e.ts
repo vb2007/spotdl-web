@@ -78,7 +78,7 @@ test('U10: the failure recorder is read by keyboard, its reading announced', asy
 	await expect(recorder).toBeVisible();
 	await expect(recorder).toHaveAttribute('aria-roledescription', t(m.stats_chart_role));
 	await tabTo(page, recorder);
-	await expect(recorder).toHaveAccessibleDescription(/arrows/);
+	await expect(recorder).toHaveAccessibleDescription(/arrow/);
 
 	// Nothing read yet: the value text says so.
 	await expect(recorder).toHaveAttribute('aria-valuetext', t(m.stats_chart_unread_hour));

@@ -946,7 +946,8 @@ on the column the nested tracks indent to. **Since v67 (U5, owner's choice) a cl
 carries no actions**: it is title, state and bar, and opening it shows its actions (an archived row
 keeps its "archived" tag). The row's keys (`a`, `x`, `b`…) still act on the focused row. Where the
 tags run short (Hungarian's "LEJÁTSZÁSI LISTA" at 320px), the type gives way before the owner, which
-keeps at least ten characters (and the type four): in the all/others views it's the cue that a row is someone else's. A phone track row is state, title, then "artist · album"
+keeps up to ten characters and the type up to four, each within its share of the tag line (an owner
+too long for it ends in an ellipsis): in the all/others views it's the cue that a row is someone else's. A phone track row is state, title, then "artist · album"
 as one muted line (wrapping to two, v47), with the chevron at the right.
 
 **Rejected designs worth restating so they aren't re-attempted** (from v09's `QueueTable`):
@@ -1134,7 +1135,8 @@ checks are for categorical palettes and don't apply to status colours.
   (on the flex container the ellipsis never applied: "audio_prov"), with the full name in its
   `title`, the readout and the table. Owner's decision: a non-admin reads **translated** classes
   ("YouTube refused" / "YouTube elutasította", "no file produced", "other error"), in Sans, with a
-  wider phone name column (8rem, on both charts so their buckets stay aligned); the admin keeps the
+  wider phone name column (6.5rem, on both charts so their buckets stay aligned; a longer name
+  ends in an ellipsis rather than squeezing the time axis); the admin keeps the
   machine names (`audio_provider`), in mono and marked `lang="en"`.
 - On a phone each table row becomes a stacked reading (route + rate, then the bar, units spelled out).
 - ~~A non-admin gets `AdminOnlyNotice` with its `reason` prop and the page makes no request.~~

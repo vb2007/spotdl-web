@@ -7834,7 +7834,12 @@ independently-found production bug from the same conversation)
   prototype rendered a blank page. `+layout.ts` awaits `localeReady()` after applying the session's
   language, and `locale.svelte.ts` loads nothing at module init: a signed-in user whose saved
   language isn't the browser's would otherwise download both. `applyLocale` switches only once the
-  language is here, and the newest request wins over a slower older one.
+  language is here, and the newest request wins over a slower older one. *(Corrected 2026-11-02,
+  v67's later review rounds: a message read with nothing loaded now returns its key instead of
+  throwing; with nothing loaded the page falls back to any language that loads; a failed import
+  is retried under a new URL, since a browser keeps a failed `import()` of a URL failed for the
+  page's life; a load that times out at 15s still switches if it lands, unless something newer
+  was asked.)*
 - **`text-overflow: ellipsis` on a flex container never applies to its text.** `/stats`' channel
   names were `display: flex` (key swatch + text) with the ellipsis on the container: the bare text
   is an anonymous flex item, so "audio_provider" was hard-cut to "audio_prov". The computed style

@@ -694,7 +694,8 @@
 											<span class="outcome {outcomeCond(head)}"
 												>{ATTEMPT_OUTCOME_LABEL[head.outcome]()}</span
 											>
-											{#if head.error_type}<span class="class">{head.error_type}</span>{/if}
+											{#if head.error_type}<span class="class" lang="en">{head.error_type}</span
+												>{/if}
 											<span class="via"
 												>{rows > 1 ? summarizeVia(group.attempts) : attemptVia(head)}</span
 											>

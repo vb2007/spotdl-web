@@ -143,8 +143,9 @@ export function applyLanguagePreference(saved: string | null | undefined): Promi
 
 function syncDocumentLang() {
 	if (typeof document !== 'undefined') document.documentElement.lang = current;
-	// v67 (U8): the installed app's worker keeps this language for the next build.
-	if (typeof navigator !== 'undefined')
+	// v67 (U8): the installed app's worker keeps the language on screen for the next build;
+	// only one that is (its messages here), never the module's first guess at the browser's.
+	if (typeof navigator !== 'undefined' && hasLocaleMessages(current))
 		navigator.serviceWorker?.controller?.postMessage({ type: 'locale', locale: current });
 }
 

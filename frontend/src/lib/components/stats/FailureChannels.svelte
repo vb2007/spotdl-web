@@ -652,10 +652,16 @@
 
 		/* Translated labels are words, longer than the machine names: a wider column. */
 		.channels.plain {
-			--name-col: 8rem;
+			--name-col: 6.5rem;
 		}
 
 		.tick.minor {
+			visibility: hidden;
+		}
+
+		/* v67: and only every fourth bucket's label at all: a day's "31., Szo" is two buckets
+		   wide on a phone, so every other one still overprinted the next. */
+		.tick:not(:nth-child(4n + 1)) {
 			visibility: hidden;
 		}
 	}

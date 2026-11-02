@@ -837,8 +837,9 @@ here.
   - **Files outside "Files owned", each a small delimited edit:**
     - U8: `routes/+layout.ts` awaits the language's messages before any route renders;
       `service-worker.ts` precaches neither language, keeps the one a page fetches, and on an
-      update re-fetches the languages the old cache held; `lib/i18n/locale.svelte.ts` switches
-      language only once its messages are there.
+      update re-fetches the page's language; `lib/i18n/locale.svelte.ts` switches language only
+      once its messages are there; `lib/i18n/locale-messages.d.ts` (new) types the plugin's
+      module.
     - U9: `lib/i18n/errors.ts` (`textLang`, with its unit test), a new
       `lib/components/ErrorSentence.svelte` (the error inside a translated sentence), and small
       `lang`/`ErrorSentence` edits in `ApiKeys.svelte`, `WorkerStatus.svelte`, `IncomingJobs.svelte`

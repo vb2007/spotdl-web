@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { onMount, tick } from 'svelte';
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -16,6 +17,8 @@
 		clockPreference,
 		detectLocale,
 		languagePreference,
+		locale,
+		resolveLocale,
 		type Clock
 	} from '$lib/i18n/locale.svelte';
 	import type { Locale } from '$lib/paraglide/runtime';
@@ -135,12 +138,15 @@
 
 	// v47: a failed first read says what failed and can be retried here (it took a reload).
 	let loadError = $state<Shown>(null);
+	// v67 (U9): what failed, so its text is marked inside the sentence (ErrorSentence).
+	let loadFailure = $state<unknown>(null);
 	function loadRetention() {
 		loadError = null;
 		api
 			.getRetentionSettings()
 			.then(syncForm)
 			.catch((err) => {
+				loadFailure = err;
 				loadError = () => m.account_retention_load_failed({ error: errorText(err) });
 			});
 	}
@@ -303,6 +309,15 @@
 	let languageError = $state<Shown>(null);
 	// v67: saved, but its messages couldn't be downloaded: said, but nothing is unsaved.
 	let languageLoadFailed = $state(false);
+	// A download that timed out may still land (locale.svelte.ts switches to it then): the page
+	// is in the saved language after all, so the failure is no longer true.
+	$effect(() => {
+		if (languageLoadFailed && locale.current === resolveLocale(languagePreference.current)) {
+			languageLoadFailed = false;
+			languageError = null;
+			languageSavedAt = new Date();
+		}
+	});
 	let languageSavedAt = $state<Date | null>(null);
 
 	async function saveLanguage(next: Locale | null) {
@@ -520,7 +535,12 @@
 					{#if loadError}
 						<!-- Announced by the always-present error line below, not as an inserted alert. -->
 						<div class="load-failed">
-							<p>{loadError()}</p>
+							<p>
+								<ErrorSentence
+									sentence={(e) => m.account_retention_load_failed({ error: e })}
+									error={errorText(loadFailure)}
+								/>
+							</p>
 							<button type="button" class="btn small" onclick={retryRetention}
 								>{m.account_retention_try_again()}</button
 							>
@@ -586,7 +606,10 @@
 					role="alert"
 					lang={saved === null && loadError !== null ? undefined : textLang(error?.())}
 				>
-					{saved === null && loadError !== null ? loadError() : error?.()}
+					{#if saved === null && loadError !== null}<ErrorSentence
+							sentence={(e) => m.account_retention_load_failed({ error: e })}
+							error={errorText(loadFailure)}
+						/>{:else}{error?.()}{/if}
 				</p>
 			</div>
 
