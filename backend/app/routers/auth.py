@@ -5,11 +5,10 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
 from app.db import get_db
 from app.errors import ApiError
 from app.models import ApiKey, User, UserSession
-from app.services import api_keys, rate_limit, upstream_auth, user_settings
+from app.services import allowlist, api_keys, rate_limit, upstream_auth, user_settings
 from app.services.sessions import SESSION_IDLE_TIMEOUT, create_session, delete_session, get_valid_session
 from app.services.spotify_urls import storable
 from app.services.users import get_or_create_user
@@ -74,10 +73,6 @@ def require_admin_hidden(user: User = Depends(require_session)) -> User:
     return user
 
 
-def _allowlisted(email: str) -> bool:
-    return email.strip().lower() in {e.strip().lower() for e in get_settings().allowed_emails}
-
-
 @dataclass
 class Principal:
     """Who a `require_session_or_api_key` route is acting for, and how they got in."""
@@ -114,9 +109,10 @@ def require_session_or_api_key(request: Request, db: Session = Depends(get_db)) 
         raise ApiError(401, "not_authenticated", "Not authenticated")
     key = api_keys.authenticate(db, bearer)
     user = db.get(User, key.user_id) if key is not None else None
-    # A key outlives a login, so it re-checks the allowlist a login checks: someone taken off
-    # ALLOWED_EMAILS can't sign in to revoke their keys, and no one else can see them.
-    if user is not None and not _allowlisted(user.email):
+    # A key outlives a login, so it re-checks the allowlist a login checks. v69: a removal
+    # revokes the user's keys too; this stays as the second line (an address taken off the
+    # table by hand, say).
+    if user is not None and not allowlist.is_allowed(db, user.email):
         user = None
     if user is None:
         # Never echoes the key back, not even its prefix.
@@ -189,7 +185,10 @@ async def login(
     await run_in_threadpool(rate_limit.hit_login, payload.email, address)
 
     upstream_ok, username = await upstream_auth.login(payload.email, payload.password)
-    allowed = _allowlisted(payload.email)
+    # v69: the allowlist table, read now (never cached), so an address added in /users signs
+    # in on its next attempt. Its row stays locked (FOR SHARE) until this login commits its
+    # session: a removal meanwhile waits for it, then ends that session with the others.
+    allowed = allowlist.is_allowed(db, payload.email, lock=True)
 
     # Upstream failure and allowlist rejection must be indistinguishable to the caller.
     if not upstream_ok or not allowed:
