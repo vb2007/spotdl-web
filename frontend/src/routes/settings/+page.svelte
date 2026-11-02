@@ -27,6 +27,17 @@
 		{ id: 'proxies', label: m.settings_section_proxies }
 	] as const;
 	let activeSection = $state<string>('worker');
+	// v67 (U2): below 64em the index is a one-line bar along the top that scrolls sideways; the
+	// section being read keeps its link in view (scrolled within the bar, never the page).
+	let indexList: HTMLUListElement | undefined = $state();
+	$effect(() => {
+		const list = indexList;
+		const link = list?.querySelector<HTMLElement>(`a[href="#${activeSection}"]`);
+		if (!list || !link || list.scrollWidth <= list.clientWidth) return;
+		const left = link.offsetLeft - list.offsetLeft;
+		if (left < list.scrollLeft || left + link.offsetWidth > list.scrollLeft + list.clientWidth)
+			list.scrollTo({ left: Math.max(0, left - 16), behavior: 'smooth' });
+	});
 
 	// v46: a sentence with inline <code> fragments (env names, file names, templates). The
 	// message marks each with a named placeholder; each is filled with its own numbered
@@ -798,8 +809,8 @@
 		{#if !isAdmin}
 			<AdminOnlyNotice page="settings" />
 		{:else}
-			<nav class="index" aria-label={m.settings_index_label()}>
-				<ul>
+			<nav class="index settings-index" aria-label={m.settings_index_label()}>
+				<ul bind:this={indexList}>
 					{#each SECTIONS as section (section.id)}
 						<li>
 							<a
@@ -900,7 +911,7 @@
 											gb: formatNumber(defaults.default_max_gb)
 										})}
 									</p>
-									<div class="grid">
+									<div class="grid pairs">
 										{#each EXPORT_FIELDS as field (field.key)}
 											<div class="form-field">
 												<label class="label" for={field.key}>{field.label()}</label>
@@ -1127,7 +1138,7 @@
 
 							<fieldset class="group">
 								<legend class="group-title">{m.settings_alerts_thresholds()}</legend>
-								<div class="grid">
+								<div class="grid pairs">
 									{#each ALERT_NUMBERS as field (field.key)}
 										<div class="form-field">
 											<label class="label" for={field.key}>{field.label()}</label>
@@ -1617,6 +1628,10 @@
 		color: var(--text-muted);
 	}
 
+	/* v67 (U2): below 1024px the index is a one-line bar that sticks to the top of the window
+	   (it was a wrapping row at the top only, with no way back to it partway down a ~3200px
+	   phone page). It scrolls sideways when the sections don't fit, and the section being read
+	   keeps its link in view (the script above). */
 	@media (max-width: 63.9375em) {
 		.main {
 			grid-template-columns: minmax(0, 1fr);
@@ -1624,14 +1639,35 @@
 		}
 
 		.index {
-			position: static;
+			top: 0;
+			z-index: 2;
+			margin-inline: calc(-1 * var(--space-2));
+			padding-inline: var(--space-2);
+			background: var(--bg-0);
+			border-bottom: 1px solid var(--line);
 		}
 
 		.index ul {
 			flex-direction: row;
-			flex-wrap: wrap;
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			scrollbar-width: none;
 			gap: var(--space-1) var(--space-2);
 			border-left: none;
+		}
+
+		.index li {
+			flex: none;
+		}
+
+		/* An anchor's section, and whatever Tab focuses, scrolls into view below the bar rather
+		   than under it (WCAG 2.4.11); only while this page's bar is on screen. */
+		:global(html:has(nav.settings-index)) {
+			scroll-padding-top: 3.5rem;
+		}
+
+		.section {
+			scroll-margin-top: var(--space-2);
 		}
 
 		.index a {
@@ -1668,6 +1704,11 @@
 			grid-template-columns: minmax(0, 1fr);
 		}
 
+		/* A toggle's name and hint sit tighter; its 44px switch still sets the row's height. */
+		.toggle-row {
+			padding: var(--space-2) 0;
+		}
+
 		.add-row {
 			flex-direction: column;
 		}
@@ -1679,6 +1720,22 @@
 
 		.controls {
 			justify-content: flex-start;
+		}
+	}
+
+	/* v67 (U2): the short numeric fields (zip limits, alert thresholds) two to a row on a phone
+	   wide enough for two (from 360px). The unit goes under its field, so every input in a
+	   column is the column's width (v47's one end x), and a pair's fields stay level when one
+	   label takes two lines. Narrower, they stay one to a row with the unit beside. */
+	@media (min-width: 22.5em) and (max-width: 40em) {
+		.grid.pairs {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			align-items: end;
+		}
+
+		.grid.pairs .with-unit {
+			grid-template-columns: minmax(0, 1fr);
+			gap: var(--space-1);
 		}
 	}
 
