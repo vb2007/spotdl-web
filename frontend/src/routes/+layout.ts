@@ -97,12 +97,14 @@ export const load: LayoutLoad = async ({ url }) => {
 		localeAppliedFor = identity;
 		applyLanguagePreference(session?.language);
 		applyClock(session?.clock);
+	} else if (!hasLocaleMessages(locale.current)) {
+		// v67 (U8): a language whose messages never arrived (every language failed, the page
+		// showing keys) is tried again on a later load, so the network coming back brings the
+		// words back. Only when this load applied none: a fresh apply is the newest request.
+		applyLocale(locale.current);
 	}
 	// v67 (U8): the language's messages are downloaded on demand; no route renders before they're
-	// here (an unreachable reload keeps the language, and messages, already on screen). One that
-	// never arrived (every language failed, the page showing keys) is tried again on each load,
-	// so the network coming back brings the words back.
-	if (!hasLocaleMessages(locale.current)) applyLocale(locale.current);
+	// here (an unreachable reload keeps the language, and messages, already on screen).
 	await localeReady();
 	if (session !== null && onLoginPage) {
 		// v65: signed in already (another tab), so straight on to where the login was for.
