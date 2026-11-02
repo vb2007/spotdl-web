@@ -567,5 +567,21 @@
   "565": "Session",
   "566": "datetime",
   "567": "Session",
-  "568": "Session"
+  "568": "Session",
+  "569": "record_download",
+  "570": "_track",
+  "571": "managed_roots",
+  "572": "path_relation",
+  "573": "lock_file_in",
+  "574": "celery_app.py",
+  "575": "quarantine",
+  "576": "sent",
+  "577": "test_the_zip_says_how_many_tracks_have_a_file_on_disk",
+  "578": "test_a_file_moved_before_its_stat_is_found_through_the_ledger",
+  "579": "test_a_file_name_that_isnt_utf8_exports_under_a_replacement_name",
+  "580": "test_a_file_swapped_after_the_plan_ends_the_stream_without_hanging",
+  "581": "test_the_response_closes_its_stream_when_the_client_is_gone",
+  "582": "2026-11-02T10-04-33Z__frontend-src-routes-account-page-svelte.md",
+  "583": "2026-11-02T10-04-33Z__frontend-src-routes-page-svelte.md",
+  "584": "2026-11-02T10-04-33Z__frontend-src-routes-stats-page-svelte.md"
 }
