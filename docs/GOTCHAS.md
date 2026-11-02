@@ -7949,6 +7949,15 @@ independently-found production bug from the same conversation)
   `requestAnimationFrame` (before that frame's layout and paint) against the anchor as the frame
   began, as Chromium's own anchoring works per frame: the rows after a removed batch stay put
   (main: same), a single removal mid-view keeps the rows above it (main: same).
+- **Don't forget heights on a resize.** Clearing them on a width change (to re-estimate at the new
+  width) threw the view hundreds of rows away: deep in an open playlist, or across the 900px
+  layout step, the window was rebuilt from estimates before the anchor could hold. The rendered
+  rows re-measure through the ResizeObserver; with heights kept a width change lands where main
+  does (row 697 for 700 at 900px) and inside an open playlist nearer than main.
+- **Below the threshold the ResizeObserver still follows the rows (100–200 band).** Measuring only
+  unknown rows there kept a job's open height after it collapsed, and the first window then
+  started thousands of pixels off; the observer costs nothing until a row changes size, and the
+  anchor is taken once a frame, so a patch forces no layout.
 - **A nested window gets the hold only if it has a row in view.** An outer list whose row in view
   holds an active inner list hands the correction to it; while the view shows that job's header
   or footer, the inner list has no anchor, so the outer row holds it itself.

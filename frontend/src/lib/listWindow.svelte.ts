@@ -25,8 +25,8 @@
  *   median measured height per keyboard row, times its rows, and that estimate moves only when
  *   the median drifts by a quarter: every move of it shifts every unmeasured row at once, and a
  *   mean (one 400-track group among single tracks) moved with each row measured, which the
- *   anchoring then chased up the page. A change of the page's width forgets every height (rows
- *   wrap differently), and the rows in the window are measured afresh. The window's last
+ *   anchoring then chased up the page. A resize keeps the heights (the rendered rows
+ *   re-measure; forgetting them all lost the view on a width change). The window's last
  *   rendered row ignores changes under 2.5px unless it's the list's real last: the rows'
  *   `:last-child` rule drops their bottom border, and a window edge measured 1px short moved
  *   the window, which moved the edge (an endless re-render).
@@ -167,6 +167,8 @@ export class ListWindow<T> {
 	#ownScroll: number | null = null;
 	/** The anchor as this frame's first render found it (`#holdFrame`). */
 	#frameAnchor: Anchor | null = null;
+	/** A near list's anchor is waiting for the next frame. */
+	#captureQueued = false;
 	/** Counts scrolls not made by this window (the user's, a focus() bringing a row in). */
 	#scrolled = 0;
 	/** The nested window holding the view instead (an open job's tracks filling it). */
@@ -357,18 +359,11 @@ export class ListWindow<T> {
 		};
 		window.addEventListener('scroll', onScroll, { passive: true });
 		window.addEventListener('blur', onWindowBlur);
-		// A width change: every height is the old width's (rows wrap differently).
-		let width = window.innerWidth;
-		const onResize = () => {
-			if (window.innerWidth !== width) {
-				width = window.innerWidth;
-				this.#heights.clear();
-				this.#perRowFrom = 0;
-				this.#measured++;
-			}
-			onScroll();
-		};
-		window.addEventListener('resize', onResize, { passive: true });
+		// A resize keeps the heights: the rendered rows re-measure through the ResizeObserver.
+		// (Forgetting every height on a width change threw the view hundreds of rows away, deep
+		// in an open playlist or across the 900px layout step: the window was rebuilt from
+		// estimates before the anchor could hold.)
+		window.addEventListener('resize', onScroll, { passive: true });
 		list.addEventListener('focusin', onFocusIn);
 		list.addEventListener('focusout', onFocusOut);
 		// A row opened or closed (its detail is kept while open).
@@ -388,7 +383,7 @@ export class ListWindow<T> {
 			if (windows.get(list) === (this as ListWindow<unknown>)) windows.delete(list);
 			window.removeEventListener('scroll', onScroll);
 			window.removeEventListener('blur', onWindowBlur);
-			window.removeEventListener('resize', onResize);
+			window.removeEventListener('resize', onScroll);
 			list.removeEventListener('focusin', onFocusIn);
 			list.removeEventListener('focusout', onFocusOut);
 			opened.disconnect();
@@ -458,35 +453,40 @@ export class ListWindow<T> {
 				this.#annotated = false;
 				this.#correct();
 			}
-			this.#resize?.disconnect();
-			this.#observed.clear();
 			// Nearing the threshold, every row is rendered: their heights are learned now, so
 			// the first window has its rows' real places (with 56px guesses, crossing 200 moved
 			// the view by thousands of pixels), and the view's anchor is kept for that render.
 			// So are the rows to keep: the first window must already keep the focused, current
 			// and open rows, or crossing 200 unmounts them (focus to <body>, a detail closed).
+			// Heights come from the ResizeObserver alone here (each row once, then each real
+			// change: a job collapsing), so a patch forces no layout; the anchor is taken once a
+			// frame.
 			const items = this.#items();
 			if (this.#near && children.length === items.length) {
-				const lastKey = items.length ? this.#key(items[items.length - 1]) : null;
-				let changed = false;
+				const seen = new Set<Element>();
 				for (let c = 0; c < children.length; c++) {
-					const key = this.#key(items[c]);
-					this.#keys.set(children[c], key);
-					// Rows not measured yet only: this runs on every patch (a new items array), and
-					// a 150-row list re-measured whole each time is a layout a patch didn't need.
-					const sizeKey = this.#sizeKey(items[c]);
-					if (!this.#heights.has(sizeKey)) {
-						const height = children[c].getBoundingClientRect().height;
-						changed =
-							this.#record(sizeKey, height, this.#tolerance(children[c], key, lastKey)) || changed;
+					const el = children[c];
+					this.#keys.set(el, this.#key(items[c]));
+					this.#sizeKeys.set(el, this.#sizeKey(items[c]));
+					seen.add(el);
+					if (!this.#observed.has(el)) {
+						this.#observed.add(el);
+						this.#resize?.observe(el);
 					}
 				}
-				if (changed) this.#estimatePerRow();
+				for (const el of this.#observed) {
+					if (!seen.has(el)) {
+						this.#resize?.unobserve(el);
+						this.#observed.delete(el);
+					}
+				}
 				const focused = this.#childKey(document.activeElement);
 				if (focused !== null) this.#focusKey = focused;
 				this.#updatePins();
-				this.#capture();
+				this.#captureSoon();
 			} else {
+				this.#resize?.disconnect();
+				this.#observed.clear();
 				this.#anchor = null;
 			}
 			return;
@@ -593,7 +593,18 @@ export class ListWindow<T> {
 			changed = this.#record(sizeKey, height, tolerance) || changed;
 		}
 		if (changed) this.#remeasured();
-		this.#correct();
+		// Below the threshold the browser's own anchoring holds a plain list.
+		if (this.active) this.#correct();
+	}
+
+	/** Takes the anchor once, at the next frame (a near list's patches force no layout). */
+	#captureSoon(): void {
+		if (this.#captureQueued) return;
+		this.#captureQueued = true;
+		requestAnimationFrame(() => {
+			this.#captureQueued = false;
+			if (this.#list && !this.active) this.#capture();
+		});
 	}
 
 	/** What a height is remembered by: the item, and how many rows it holds (a job's group in

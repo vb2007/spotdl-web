@@ -348,6 +348,8 @@ test('a live update to a job off the window shows once it is scrolled into view'
 		type: 'reads',
 		description: `job list reads after the cancel: ${reads.length ? reads.join(', ') : 'none'}`
 	});
+	// The stream's patch did it: the job list wasn't read again (a resync would also show it).
+	expect(reads.filter((url) => new URL(url).pathname === '/api/jobs')).toEqual([]);
 	expect(errors).toEqual([]);
 });
 
@@ -1032,5 +1034,47 @@ test('a batch archiving the first rows in view leaves the next row where it was'
 	const after = await reading.evaluate((el) => el.getBoundingClientRect().top);
 	test.info().annotations.push({ type: 'batch', description: `next row: ${before} -> ${after}` });
 	expect(Math.abs(after - before), 'the next row stays').toBeLessThan(2);
+	expect(errors).toEqual([]);
+});
+
+test('a job opened and closed below the threshold leaves the crossing where it was', async ({
+	page
+}) => {
+	desktopOnly();
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await loadUntil(page, JOBS, 150);
+	// Opened (50 tracks, ~2000px) and closed again while the list is plain: its height must be
+	// the closed one when the list crosses 200.
+	await page.evaluate(() => window.scrollTo(0, 0));
+	const toggle = jobToggle(page, fixtureTitle(BIG_AT));
+	await toggle.click();
+	await expect(page.locator(`[data-kb-list="job-tracks:${fixture.bigJobId}"] > li`)).toHaveCount(
+		50
+	);
+	await page.waitForTimeout(300);
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	await loadUntil(page, JOBS, 200);
+	expect(await page.locator('[data-kb-list="jobs"]').getAttribute('style')).toBeNull();
+	const row = page.locator('[data-kb-list="jobs"] > li').nth(189);
+	const id = (await row.getAttribute('data-kb-row'))!;
+	await row.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+	await page.waitForTimeout(300);
+	const top = () =>
+		page.evaluate(
+			(rowId) =>
+				document.querySelector(`[data-kb-row="${rowId}"]`)?.getBoundingClientRect().top ?? null,
+			id
+		);
+	const before = (await top())!;
+	await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+	await loadMoreButton(page).dispatchEvent('click', { detail: 1 });
+	await expect(page.locator('[data-kb-list="jobs"]')).toHaveAttribute('style', /padding-top/);
+	await page.waitForTimeout(500);
+	const after = await top();
+	expect(after, 'row 190 still rendered').not.toBeNull();
+	expect(Math.abs(after! - before), 'row 190 stays put').toBeLessThan(2);
 	expect(errors).toEqual([]);
 });
