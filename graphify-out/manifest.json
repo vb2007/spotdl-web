@@ -130,8 +130,8 @@
     "semantic_hash": ""
   },
   "docker-compose.yml": {
-    "mtime": 1793583646.3866804,
-    "ast_hash": "2b439042e6430b6b8dc1ea6bf2413892",
+    "mtime": 1793584102.5372565,
+    "ast_hash": "56c0de1f94a1c2f8dc86988f8adbce95",
     "semantic_hash": ""
   },
   "frontend/README.md": {
@@ -375,8 +375,8 @@
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
-    "mtime": 1793583776.1223073,
-    "ast_hash": "fb36f67b4eaca301d3eb16da44dd1f67",
+    "mtime": 1793585377.935472,
+    "ast_hash": "20140a6d753411f0df3eee0ee081426f",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/IncomingJobs.svelte": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1793583856.347328,
-    "ast_hash": "f667cdbc2df97e3bd84f190d34ec242d",
+    "mtime": 1793584214.7851512,
+    "ast_hash": "df1f0e6205c3222fdf2973c2b03fb817",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -740,8 +740,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobRow.svelte": {
-    "mtime": 1793583774.7385125,
-    "ast_hash": "f8f060bd0c7a01a2fd94f7ec8829bba0",
+    "mtime": 1793585377.9358191,
+    "ast_hash": "784465cc2375ca4b5a86920157c7e251",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobTrackList.svelte": {
@@ -1425,8 +1425,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/14-keyboard.e2e.ts": {
-    "mtime": 1793583774.7369626,
-    "ast_hash": "06e1c4e1af3dc222947ae316928b9e55",
+    "mtime": 1793585377.9347355,
+    "ast_hash": "4e6c5fcff165316d786ac598596305db",
     "semantic_hash": ""
   },
   "frontend/e2e/support/guards.ts": {
@@ -1620,8 +1620,8 @@
     "semantic_hash": ""
   },
   "plan/master-v5/00-master-plan.md": {
-    "mtime": 1793583776.1223073,
-    "ast_hash": "115eefe5cf743c43fa53fc8820121b28",
+    "mtime": 1793584225.3500276,
+    "ast_hash": "050176f80cd0af1cf158ef5e8a434e23",
     "semantic_hash": ""
   },
   "plan/master-v5/IMPLEMENTATION_PROMPT.md": {
@@ -2199,14 +2199,14 @@
     "ast_hash": "34844c7e5949dd1e84b98bc92ed54e1e",
     "semantic_hash": ""
   },
-  "frontend/e2e/21-export.e2e.ts": {
-    "mtime": 1793583772.8430486,
-    "ast_hash": "cedead39bf3d8068fe8dd8b4103f3e84",
-    "semantic_hash": ""
-  },
   "frontend/project.inlang/cache/paraglide-js/a196bc2f6af0c88d.json": {
     "mtime": 1793583974.5942113,
     "ast_hash": "1c290df15d96277bbeaa8c643af3a056",
+    "semantic_hash": ""
+  },
+  "frontend/e2e/22-export.e2e.ts": {
+    "mtime": 1793585377.9344985,
+    "ast_hash": "330613d5d275a8832ab32d5eec8c6967",
     "semantic_hash": ""
   }
 }
