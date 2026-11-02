@@ -10,8 +10,10 @@ export function stepCrosshair(
 ): number | null | undefined {
 	if (n === 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return undefined;
 	switch (event.key) {
+		// From nothing picked, either arrow starts on the newest bucket: the value the chart (a
+		// slider) reports while nothing is picked, so a first arrow never moves the other way.
 		case 'ArrowRight':
-			return current === null ? 0 : Math.min(n - 1, current + 1);
+			return current === null ? n - 1 : Math.min(n - 1, current + 1);
 		case 'ArrowLeft':
 			return current === null ? n - 1 : Math.max(0, current - 1);
 		case 'Home':

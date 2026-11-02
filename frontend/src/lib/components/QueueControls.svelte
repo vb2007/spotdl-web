@@ -6,7 +6,7 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import { focusList, kbList } from '$lib/keyboard/lists';
 	import * as m from '$lib/paraglide/messages';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 	import { formatNumber } from '$lib/i18n/format';
 	import { jobStatusLabel, trackStateLabel } from '$lib/i18n/labels';
 
@@ -370,7 +370,7 @@
 		{/if}
 	</div>
 </div>
-<p class="clear-error" role="alert">{clearError}</p>
+<p class="clear-error" role="alert" lang={textLang(clearError)}>{clearError}</p>
 
 <div class="controls" role="group" aria-label={m.queuectl_controls_label()}>
 	<div class="find">

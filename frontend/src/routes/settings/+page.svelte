@@ -36,7 +36,11 @@
 		if (!list || !link || list.scrollWidth <= list.clientWidth) return;
 		const left = link.offsetLeft - list.offsetLeft;
 		if (left < list.scrollLeft || left + link.offsetWidth > list.scrollLeft + list.clientWidth)
-			list.scrollTo({ left: Math.max(0, left - 16), behavior: 'smooth' });
+			list.scrollTo({
+				left: Math.max(0, left - 16),
+				// i18n-ignore: a media query
+				behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+			});
 	});
 
 	// v46: a sentence with inline <code> fragments (env names, file names, templates). The

@@ -57,26 +57,29 @@ export const locale = {
 };
 
 /** Switches to `next` once its messages are here: at once when they already are. The returned
- * promise (also `localeReady()`) settles when the switch has happened. */
-export function applyLocale(next: Locale): Promise<void> {
+ * promise (`localeReady()` waits on the same switch) settles once it has happened, `true`, or
+ * once it couldn't, `false`: the language couldn't be downloaded (offline, a deploy replacing
+ * the build), and the page stays in the one on screen, whose messages are here. */
+export function applyLocale(next: Locale): Promise<boolean> {
 	const request = ++latest;
 	if (hasLocaleMessages(next)) {
 		current = next;
 		syncDocumentLang();
 		ready = Promise.resolve();
-		return ready;
+		return Promise.resolve(true);
 	}
-	ready = loadLocaleMessages(next).then(
+	const switched = loadLocaleMessages(next).then(
 		() => {
-			if (request !== latest) return;
-			current = next;
-			syncDocumentLang();
+			if (request === latest) {
+				current = next;
+				syncDocumentLang();
+			}
+			return true;
 		},
-		// Couldn't download it (offline, a deploy replacing the build): stay in the language
-		// already on screen, whose messages are here.
-		() => {}
+		() => false
 	);
-	return ready;
+	ready = switched.then(() => undefined);
+	return switched;
 }
 
 /** Settles once the language last asked for is on screen (or couldn't be loaded). */
@@ -96,7 +99,7 @@ export const languagePreference = {
 
 /** A session's saved language (or `null`: automatic, or signed out), applied: remembered for
  * /account and resolved into the language the page speaks. */
-export function applyLanguagePreference(saved: string | null | undefined): Promise<void> {
+export function applyLanguagePreference(saved: string | null | undefined): Promise<boolean> {
 	savedLanguage = saved && isLocale(saved) ? saved : null;
 	return applyLocale(resolveLocale(savedLanguage));
 }

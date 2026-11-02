@@ -11,7 +11,7 @@
 	import { queue } from '$lib/stores/queue';
 	import { confirmAction, keepFocus, keepFocusOnHeading } from '$lib/stores/confirm';
 	import * as m from '$lib/paraglide/messages';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 	import { formatDateTime, formatNumber } from '$lib/i18n/format';
 
 	// The longest name the backend takes (services/api_keys.py LABEL_MAX_LENGTH), in code
@@ -229,7 +229,9 @@
 					{creating ? m.account_keys_creating() : m.account_keys_create()}
 				</button>
 			</div>
-			<p id="api-key-label-error" class="field-error" role="alert">{labelError?.()}</p>
+			<p id="api-key-label-error" class="field-error" role="alert" lang={textLang(labelError?.())}>
+				{labelError?.()}
+			</p>
 			<p id="api-key-limit" class="field-hint">{atLimit ? m.account_keys_limit() : ''}</p>
 		</div>
 	</form>
@@ -251,6 +253,7 @@
 						spellcheck="false"
 						autocomplete="off"
 						value={fresh.key}
+						oncopy={() => (copied = 'yes')}
 						aria-describedby="api-key-fresh-hint"
 						onfocus={(event) => event.currentTarget.select()}
 					/>
@@ -329,7 +332,12 @@
 		</ul>
 	{/if}
 	<p class="save-state" role="status">{status?.()}</p>
-	<p class="form-error" class:sr-only={keys === null && loadError !== null} role="alert">
+	<p
+		class="form-error"
+		class:sr-only={keys === null && loadError !== null}
+		role="alert"
+		lang={textLang(error?.())}
+	>
 		{keys === null && loadError !== null ? loadError() : error?.()}
 	</p>
 </section>

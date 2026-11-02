@@ -311,8 +311,12 @@
 		try {
 			const saved = await api.updateLanguageSettings(next);
 			if (queue.getResetCount() !== resets) return;
-			applyLanguagePreference(saved.language);
-			languageSavedAt = new Date();
+			// v67 (U8): the language shows once its messages are here; "saved" waits for it, and
+			// a language that couldn't be downloaded says so rather than claiming the switch.
+			const switched = await applyLanguagePreference(saved.language);
+			if (queue.getResetCount() !== resets) return;
+			if (switched) languageSavedAt = new Date();
+			else languageError = () => m.account_language_load_failed();
 		} catch (err) {
 			languageError = () => errorText(err);
 		} finally {

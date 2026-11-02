@@ -834,6 +834,16 @@ here.
     - a signed-out share's login page says the share is waiting.
 
     The rest of the critique and audit findings are in the PR's "Found, not fixed".
-  - **U8 needed two files outside "Files owned":** `routes/+layout.ts` awaits the language's
-    messages before any route renders, and `service-worker.ts` leaves the per-language chunks out of
-    its precache (keeping the one a page fetches).
+  - **Files outside "Files owned", each a small delimited edit:**
+    - U8: `routes/+layout.ts` awaits the language's messages before any route renders;
+      `service-worker.ts` precaches neither language, keeps the one a page fetches, and on an
+      update re-fetches the languages the old cache held; `lib/i18n/locale.svelte.ts` switches
+      language only once its messages are there.
+    - U9: `lib/i18n/errors.ts` (`textLang`, with its unit test) and one `lang` attribute each in
+      `ApiKeys.svelte`, `WorkerStatus.svelte`, `IncomingJobs.svelte` and `routes/+page.svelte`'s
+      submit error (not its list rendering, which is v68's).
+    - U10: `lib/keyboard/bindings.ts` (`chart-step`, `chart-ends`) and its test.
+    - The owner's surface-audit picks: `ApiKeys.svelte`, `InstallApp.svelte`,
+      `lib/unsavedGuard.ts` (an optional question) and `routes/login/+page.svelte`.
+    - e2e: a new spec 25, plus specs 1, 5, 8, 12, 13, 14 and 18 following the new copy, names
+      and phone rows.

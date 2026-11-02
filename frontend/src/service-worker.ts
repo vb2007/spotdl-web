@@ -39,6 +39,20 @@ sw.addEventListener('install', (event) => {
 				...IMMUTABLE,
 				...FRESH.map((path) => new Request(path, { cache: 'reload' }))
 			]);
+			// v67 (U8): the languages the previous build's cache held, in this build's chunks: an
+			// update while the app is open never fetches them (the page runs the old build), and
+			// the installed app would then open offline with no messages at all.
+			const held = new Set<string>();
+			for (const key of await caches.keys()) {
+				if (key === CACHE || !key.startsWith('shell-')) continue;
+				for (const request of await (await caches.open(key)).keys()) {
+					const locale = /\/messages-([a-z]+)\./.exec(new URL(request.url).pathname)?.[1];
+					if (locale) held.add(locale);
+				}
+			}
+			await cache.addAll(
+				[...LAZY].filter((path) => held.has(/\/messages-([a-z]+)\./.exec(path)?.[1] ?? ''))
+			);
 			await sw.skipWaiting();
 		})()
 	);

@@ -151,11 +151,17 @@ function paraglideLocaleSplit(): Plugin {
 		},
 		buildStart() {
 			if (!clientBuild) return;
-			// SvelteKit names chunks by hash alone; an emitted chunk keeps the name given here. The
-			// hash is the message file's, so a changed text is a new immutable file.
+			// SvelteKit names chunks by hash alone; an emitted chunk keeps the name given here, so
+			// the name must change whenever the chunk can: nginx serves `_app/immutable` for a
+			// year. Its content depends on more than the message file (the toolchain, and the
+			// content-hashed shared chunk it imports, which other code can change), so the hash
+			// covers the message file and this build: a deploy is a new file (~20 KB once), never
+			// a stale one importing a chunk the deploy removed.
+			const build = String(Date.now());
 			for (const locale of MESSAGE_LOCALES) {
 				const hash = createHash('sha256')
 					.update(readFileSync(path.resolve(`messages/${locale}.json`)))
+					.update(build)
 					.digest('base64url')
 					.slice(0, 10);
 				this.emitFile({

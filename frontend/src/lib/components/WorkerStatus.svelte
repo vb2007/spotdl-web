@@ -5,7 +5,7 @@
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { apiErrorText, errorText } from '$lib/i18n/errors';
+	import { apiErrorText, errorText, textLang } from '$lib/i18n/errors';
 	import { formatClock } from '$lib/i18n/format';
 
 	// The admin's worker controls on /settings (v25). Rendered for the admin only (v43,
@@ -290,7 +290,7 @@
 	<!-- A read failure is said to assistive technology too (the visible lines above are not
 	     live regions); fixed text, so a failing poll isn't re-announced every 5s. -->
 	<p class="sr-only" role="alert">{readError ? m.worker_read_failed_alert() : ''}</p>
-	<p class="form-error" role="alert">{error}</p>
+	<p class="form-error" role="alert" lang={textLang(error)}>{error}</p>
 </div>
 
 <style>

@@ -27,6 +27,9 @@ test('archive and unarchive round trip, with show archived', async ({ page, base
 		await openDashboard(page);
 		const row = jobRow(page, admin.title);
 		await expect(row).toHaveCount(1);
+		// v67 (U5): a closed phone row carries no actions; its archive is on the open row.
+		const phone = (page.viewportSize()?.width ?? 1280) < 640;
+		if (phone) await jobToggle(page, admin.title).click();
 
 		await row.getByRole('button', { name: `archive: ${admin.title}`, exact: true }).click();
 		await expect(jobToggle(page, admin.title)).toHaveCount(0);
@@ -37,6 +40,7 @@ test('archive and unarchive round trip, with show archived', async ({ page, base
 		await expect(showArchived).toHaveAttribute('aria-pressed', 'true');
 		const newest = row.first();
 		await expect(newest).toContainText('archived');
+		if (phone) await newest.getByRole('button', { name: admin.title }).first().click();
 
 		await newest.getByRole('button', { name: `unarchive: ${admin.title}`, exact: true }).click();
 		await expect.poll(archivedAt).toBeNull();

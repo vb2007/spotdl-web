@@ -69,6 +69,16 @@ async function keyJourney(page: Page, baseURL: string, lang: Lang, label: string
 	// "done" puts it away for good; the list keeps only the prefix.
 	await tabTo(page, section.getByRole('button', { name: tr(m.account_keys_done), exact: true }));
 	await page.keyboard.press('Enter');
+	// v67: not copied, so closing it asks first ("keep it shown" focused), by keyboard too.
+	const closeQuestion = page.getByRole('alertdialog', { name: tr(m.account_keys_close_title) });
+	await expect(
+		closeQuestion.getByRole('button', { name: tr(m.account_keys_close_keep), exact: true })
+	).toBeFocused();
+	await tabTo(
+		page,
+		closeQuestion.getByRole('button', { name: tr(m.account_keys_close_confirm), exact: true })
+	);
+	await page.keyboard.press('Enter');
 	await expect(fresh).toHaveCount(0);
 	await expect(name).toBeFocused();
 	const row = section.getByRole('listitem').filter({ hasText: label });

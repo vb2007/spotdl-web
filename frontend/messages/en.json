@@ -1174,6 +1174,7 @@
 	"account_keys_close_confirm": "close without copying",
 	"account_keys_close_keep": "keep it shown",
 	"account_keys_leave_confirm": "leave without copying",
+	"account_language_load_failed": "Saved, but this page couldn’t load that language. Reload to see it.",
 	"account_keys_leave_title": "Leave without copying your new key?",
 	"account_keys_copy_failed": "Couldn't copy; select the key and copy it yourself.",
 	"account_keys_done": "done",
