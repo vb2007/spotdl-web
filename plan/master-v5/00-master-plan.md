@@ -839,9 +839,10 @@ here.
       `service-worker.ts` precaches neither language, keeps the one a page fetches, and on an
       update re-fetches the languages the old cache held; `lib/i18n/locale.svelte.ts` switches
       language only once its messages are there.
-    - U9: `lib/i18n/errors.ts` (`textLang`, with its unit test) and one `lang` attribute each in
-      `ApiKeys.svelte`, `WorkerStatus.svelte`, `IncomingJobs.svelte` and `routes/+page.svelte`'s
-      submit error (not its list rendering, which is v68's).
+    - U9: `lib/i18n/errors.ts` (`textLang`, with its unit test), a new
+      `lib/components/ErrorSentence.svelte` (the error inside a translated sentence), and small
+      `lang`/`ErrorSentence` edits in `ApiKeys.svelte`, `WorkerStatus.svelte`, `IncomingJobs.svelte`
+      and `routes/+page.svelte`'s submit error (not its list rendering, which is v68's).
     - U10: `lib/keyboard/bindings.ts` (`chart-step`, `chart-ends`) and its test.
     - The owner's surface-audit picks: `ApiKeys.svelte`, `InstallApp.svelte`,
       `lib/unsavedGuard.ts` (an optional question) and `routes/login/+page.svelte`.

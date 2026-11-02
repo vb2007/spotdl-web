@@ -945,7 +945,7 @@ on the column the nested tracks indent to. **Since v67 (U5, owner's choice) a cl
 carries no actions**: it is title, state and bar, and opening it shows its actions (an archived row
 keeps its "archived" tag). The row's keys (`a`, `x`, `b`…) still act on the focused row. Where the
 tags run short (Hungarian's "LEJÁTSZÁSI LISTA" at 320px), the type gives way before the owner, which
-keeps at least nine characters: in the all/others views it's the cue that a row is someone else's. A phone track row is state, title, then "artist · album"
+keeps at least ten characters (and the type four): in the all/others views it's the cue that a row is someone else's. A phone track row is state, title, then "artist · album"
 as one muted line (wrapping to two, v47), with the chevron at the right.
 
 **Rejected designs worth restating so they aren't re-attempted** (from v09's `QueueTable`):
@@ -1324,13 +1324,16 @@ Sans, the time mono). Hungarian runs longer: v46 and v47 checked every route at 
   follows the user's text size as well as the window (v47).
 - Language of parts (WCAG 3.1.2): raw English text on a Hungarian page carries `lang="en"` (v47).
   v67 (U9) added the rest whose language is known: an error the server answered with no code we
-  translate (`errors.ts`' `textLang()`, on every element that shows such an error whole), and
-  the admin's machine names for failure classes on `/stats`. Not marked, deliberately: **track,
-  artist and album metadata** (a Hungarian, Japanese or English title is all the same field, and
-  Spotify doesn't say which; a wrong `lang` is worse than none, since it switches the screen
-  reader's voice to the wrong language), and a raw fragment inside a translated sentence ("Couldn't
-  read the stats: …"), which would need the message split around it (a code-less error is a
-  backend bug in itself: every user-facing error has a code).
+  translate (`errors.ts`' `textLang()`, on every element that shows such an error whole, and through
+  `ErrorSentence.svelte` on the error inside a translated sentence, "Couldn't read the stats: …",
+  which marks only the fragment), and the admin's machine names for failure classes on `/stats`.
+  Not marked, deliberately: **track, artist and album metadata** (a Hungarian, Japanese or English
+  title is all the same field, and Spotify doesn't say which; a wrong `lang` is worse than none,
+  since it switches the screen reader's voice to the wrong language); text in an attribute (a
+  chart's summary label and value text can't carry a `lang`); and a sentence built as a string
+  before it's shown (`/account`'s and the key list's load errors, "clear log"'s failure, the
+  library's retry line, a Matrix send's reason), which would need restructuring to mark (a
+  code-less error is a backend bug in itself: every user-facing error has a code).
 - Forced colours: progress meters, job bars and `/stats`' charts keep their own colours under
   `forced-colors: active` (v44 for `/stats`, v47 for the rest).
 - **Landmarks and outline on `/` (v42, F29):** `header` (banner) → `nav[aria-label=Account]` →

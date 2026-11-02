@@ -1001,6 +1001,7 @@
 	"stats_legend_failed": "failed, retried",
 	"stats_legend_not_found": "not found",
 	"stats_rate_definition": "Success is completed ÷ (completed + failed). Not found is a verdict on the track, not the route, so it's counted apart.",
+	"stats_mine_rate_definition": "Success is completed ÷ (completed + failed). Not found is a verdict on the track, so it’s counted apart.",
 	"stats_no_attempts": "No download attempts in this window.",
 	"stats_col_route": "Route",
 	"stats_col_attempts": "Attempts",

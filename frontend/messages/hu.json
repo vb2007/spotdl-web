@@ -942,6 +942,7 @@
 	"stats_legend_failed": "sikertelen, újrapróbálva",
 	"stats_legend_not_found": "nem található",
 	"stats_rate_definition": "Siker = letöltve ÷ (letöltve + sikertelen). A „nem található” a számról mond ítéletet, nem az útvonalról, ezért külön számít.",
+	"stats_mine_rate_definition": "Siker = letöltve ÷ (letöltve + sikertelen). A „nem található” a számról mond ítéletet, ezért külön számít.",
 	"stats_no_attempts": "Ebben az időablakban nem volt letöltési próbálkozás.",
 	"stats_col_route": "Útvonal",
 	"stats_col_attempts": "Próbálkozások",

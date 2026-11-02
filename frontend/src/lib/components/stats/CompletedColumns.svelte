@@ -108,7 +108,11 @@
 				if (event.pointerType !== 'touch') hovered = null;
 			}}
 			onkeydown={onKeydown}
-			onblur={() => (hovered = null)}
+			onblur={(event) => {
+				// Focus into a dialog (the help overlay) comes back here: keep the reading.
+				if (!(event.relatedTarget instanceof Element && event.relatedTarget.closest('dialog')))
+					hovered = null;
+			}}
 		>
 			<span class="name" class:mono={!plain} title={m.stats_legend_completed()}
 				><span class="key"></span><span class="name-text">{m.stats_legend_completed()}</span></span

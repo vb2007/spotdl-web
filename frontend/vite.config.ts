@@ -144,6 +144,8 @@ function paraglideLocaleSplit(): Plugin {
 	const index = path.join(dir, '_index.js');
 	const testing = Boolean(process.env.VITEST);
 	let clientBuild = false;
+	// Each language's chunk as served (client build), for a retry by URL (below).
+	const served: Partial<Record<(typeof MESSAGE_LOCALES)[number], string>> = {};
 	return {
 		name: 'paraglide-locale-split',
 		configResolved(config) {
@@ -167,7 +169,7 @@ function paraglideLocaleSplit(): Plugin {
 				this.emitFile({
 					type: 'chunk',
 					id: path.join(dir, `${locale}.js`),
-					fileName: `_app/immutable/chunks/messages-${locale}.${hash}.js`
+					fileName: (served[locale] = `_app/immutable/chunks/messages-${locale}.${hash}.js`)
 				});
 			}
 		},
@@ -205,11 +207,27 @@ function paraglideLocaleSplit(): Plugin {
 				...keys.map(
 					(key) => `export const ${key} = /* @__PURE__ */ __msg(${JSON.stringify(key)});`
 				),
+				// The first try is a plain import (the bundler resolves it to the chunk). A browser
+				// keeps a failed import of a URL failed for the page's life, so a retry (after a
+				// failed or timed-out download) imports the same file under a new URL.
+				'const __tries = {};',
+				'const __retryUrl = {',
+				...MESSAGE_LOCALES.map(
+					(l) =>
+						`	${l}: ${served[l] ? JSON.stringify('/' + served[l]) : `new URL("./${l}.js", import.meta.url).href`},`
+				),
+				'};',
 				'const __loaders = {',
-				...MESSAGE_LOCALES.map((l) => `	${l}: () => import("./${l}.js"),`),
+				...MESSAGE_LOCALES.map(
+					(l) =>
+						`	${l}: (n) => n ? import(/* @vite-ignore */ __retryUrl.${l} + "?retry=" + n) : import("./${l}.js"),`
+				),
 				'};',
 				'export async function __loadLocaleMessages(locale) {',
-				'	__loaded[locale] ??= await __loaders[locale]();',
+				'	if (__loaded[locale]) return;',
+				'	const n = __tries[locale] ?? 0;',
+				'	__tries[locale] = n + 1;',
+				'	__loaded[locale] = await __loaders[locale](n);',
 				'}',
 				'export function __hasLocaleMessages(locale) {',
 				'	return locale in __loaded;',

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { untrack } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import * as api from '$lib/api';
@@ -662,7 +663,10 @@
 					{#if attemptsError && attemptsLoadedFor !== null}
 						<!-- A failed re-read never hides the history already loaded. -->
 						<p class="history-status history-error">
-							{m.track_history_refresh_failed({ error: attemptsError })}
+							<ErrorSentence
+								sentence={(e) => m.track_history_refresh_failed({ error: e })}
+								error={attemptsError}
+							/>
 						</p>
 					{/if}
 					{#if attemptsLoading && attemptsLoadedFor === null}

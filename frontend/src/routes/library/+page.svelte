@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
@@ -427,13 +428,19 @@
 				<!-- v47: the first load failure is announced here, a region present from the start
 				     (the visible block below is inserted with its text, which often isn't). -->
 				<p class="sr-only" role="alert">
-					{run === null && loadError ? m.library_load_failed({ error: loadError }) : ''}
+					{#if run === null && loadError}<ErrorSentence
+							sentence={(e) => m.library_load_failed({ error: e })}
+							error={loadError}
+						/>{/if}
 				</p>
 
 				{#if run === null}
 					{#if loadError}
 						<p class="form-error">
-							{m.library_load_failed({ error: loadError })}
+							<ErrorSentence
+								sentence={(e) => m.library_load_failed({ error: e })}
+								error={loadError}
+							/>
 							<button
 								type="button"
 								class="btn small"

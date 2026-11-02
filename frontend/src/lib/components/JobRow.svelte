@@ -965,10 +965,10 @@
 
 	/* v67: in the all/others views the owner is the cue that a row is someone else's (§2, v54),
 	   so when the tags run short the type gives way first (a Hungarian "LEJÁTSZÁSI LISTA" left
-	   the owner 7px, "v…"); the owner keeps at least nine characters. */
+	   the owner 7px, "v…"); the owner keeps at least ten characters, the type four. */
 	.source-type {
 		flex-shrink: 4;
-		min-width: 0;
+		min-width: 4ch;
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -978,7 +978,7 @@
 	}
 
 	.owner {
-		min-width: min(9ch, 100%);
+		min-width: min(10ch, 100%);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;

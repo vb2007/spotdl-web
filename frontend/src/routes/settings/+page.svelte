@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { onMount, tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
@@ -791,7 +792,7 @@
 	<!-- Not an alert itself: the section's always-present error line announces it (an alert
 	     inserted together with its text often isn't). -->
 	<div class="load-failed">
-		<p>{m.settings_section_load_failed({ error })}</p>
+		<p><ErrorSentence sentence={(e) => m.settings_section_load_failed({ error: e })} {error} /></p>
 		<button type="button" class="btn small" onclick={retry}>{m.settings_proxies_try_again()}</button
 		>
 	</div>
@@ -957,7 +958,10 @@
 								</fieldset>
 							{:else if exportLoadError}
 								<p class="field-error wide" role="alert">
-									{m.settings_section_load_failed({ error: exportLoadError })}
+									<ErrorSentence
+										sentence={(e) => m.settings_section_load_failed({ error: e })}
+										error={exportLoadError}
+									/>
 								</p>
 							{/if}
 							<!-- end v64 -->
@@ -982,11 +986,10 @@
 						role="alert"
 						lang={outputSettings !== null ? textLang(outputError) : undefined}
 					>
-						{outputSettings !== null
-							? outputError
-							: outputError
-								? m.settings_section_load_failed({ error: outputError })
-								: ''}
+						{#if outputSettings !== null}{outputError}{:else if outputError}<ErrorSentence
+								sentence={(e) => m.settings_section_load_failed({ error: e })}
+								error={outputError}
+							/>{/if}
 					</p>
 				</section>
 
@@ -1097,11 +1100,10 @@
 						role="alert"
 						lang={librarySettings !== null ? textLang(libraryError) : undefined}
 					>
-						{librarySettings !== null
-							? libraryError
-							: libraryError
-								? m.settings_section_load_failed({ error: libraryError })
-								: ''}
+						{#if librarySettings !== null}{libraryError}{:else if libraryError}<ErrorSentence
+								sentence={(e) => m.settings_section_load_failed({ error: e })}
+								error={libraryError}
+							/>{/if}
 					</p>
 				</section>
 
@@ -1225,11 +1227,10 @@
 						role="alert"
 						lang={alertSettings !== null ? textLang(alertError) : undefined}
 					>
-						{alertSettings !== null
-							? alertError
-							: alertError
-								? m.settings_section_load_failed({ error: alertError })
-								: ''}
+						{#if alertSettings !== null}{alertError}{:else if alertError}<ErrorSentence
+								sentence={(e) => m.settings_section_load_failed({ error: e })}
+								error={alertError}
+							/>{/if}
 					</p>
 				</section>
 
@@ -1281,7 +1282,12 @@
 						<!-- Nothing read: never claim "no proxies" over a failed load. -->
 						<!-- Not an alert itself: the sr-only alert below (present from the start) announces it. -->
 						<div class="load-failed">
-							<p>{m.settings_proxies_load_failed({ error: proxiesLoadError })}</p>
+							<p>
+								<ErrorSentence
+									sentence={(e) => m.settings_proxies_load_failed({ error: e })}
+									error={proxiesLoadError}
+								/>
+							</p>
 							<button
 								type="button"
 								class="btn small"

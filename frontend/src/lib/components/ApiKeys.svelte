@@ -156,7 +156,12 @@
 			confirmLabel: m.account_keys_close_confirm(),
 			cancelLabel: m.account_keys_close_keep()
 		});
-		if (!close && fresh === shown) await keepFocus(document.getElementById('api-key-fresh'));
+		if (!close && fresh === shown) {
+			// The dialog hands focus back to what opened it ("done", "create key"); the key is
+			// what's kept, so focus goes there.
+			await tick();
+			document.getElementById('api-key-fresh')?.focus();
+		}
 		return close && fresh === shown;
 	}
 

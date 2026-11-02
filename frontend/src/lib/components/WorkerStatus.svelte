@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { onMount, tick, untrack } from 'svelte';
 	import * as api from '$lib/api';
 	import { worker } from '$lib/stores/worker';
@@ -212,7 +213,9 @@
 
 	{#if $status === null}
 		{#if readError}
-			<p class="form-error">{m.worker_read_failed({ error: readError })}</p>
+			<p class="form-error">
+				<ErrorSentence sentence={(e) => m.worker_read_failed({ error: e })} error={readError} />
+			</p>
 		{:else}
 			<p class="state cond-idle">{m.worker_reading()}</p>
 		{/if}
@@ -284,7 +287,9 @@
 	{/if}
 
 	{#if $status !== null && readError}
-		<p class="note">{m.worker_refresh_failed({ error: readError })}</p>
+		<p class="note">
+			<ErrorSentence sentence={(e) => m.worker_refresh_failed({ error: e })} error={readError} />
+		</p>
 	{/if}
 	<p class="note" role="status">{note}</p>
 	<!-- A read failure is said to assistive technology too (the visible lines above are not

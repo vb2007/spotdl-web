@@ -202,7 +202,11 @@
 				if (event.pointerType !== 'touch') hovered = null;
 			}}
 			onkeydown={onKeydown}
-			onblur={() => (hovered = null)}
+			onblur={(event) => {
+				// Focus into a dialog (the help overlay) comes back here: keep the reading.
+				if (!(event.relatedTarget instanceof Element && event.relatedTarget.closest('dialog')))
+					hovered = null;
+			}}
 		>
 			{#each stats.failures.series as series, row (series.error_type)}
 				<!-- U14: the label is its own box, so it can end in an ellipsis; the full name stays in

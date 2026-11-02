@@ -8,6 +8,7 @@
   The page's refresh re-reads the first page (`readToken`), newest read wins.
 -->
 <script lang="ts">
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { tick, untrack } from 'svelte';
 	import * as api from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
@@ -161,7 +162,9 @@
 	</header>
 
 	{#if error}
-		<p class="form-error" role="alert">{m.stats_alerts_read_failed({ error })}</p>
+		<p class="form-error" role="alert">
+			<ErrorSentence sentence={(e) => m.stats_alerts_read_failed({ error: e })} {error} />
+		</p>
 		<button type="button" class="btn small retry" onclick={() => void readFirst()}
 			>{m.stats_alerts_try_again()}</button
 		>
@@ -233,7 +236,10 @@
 					>
 				{/if}
 				<p class="form-error" role="alert">
-					{#if olderError}{m.stats_alerts_older_failed({ error: olderError })}{/if}
+					{#if olderError}<ErrorSentence
+							sentence={(e) => m.stats_alerts_older_failed({ error: e })}
+							error={olderError}
+						/>{/if}
 				</p>
 			</div>
 		{/if}
