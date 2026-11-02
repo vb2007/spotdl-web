@@ -42,7 +42,7 @@
 	 * request: one `@`, something before it, a dot inside the domain, no whitespace. The backend
 	 * stays the real check. */
 	function looksLikeEmail(value: string): boolean {
-		if (value.length > 254 || /\s/.test(value)) return false;
+		if (value.length > 254 || /[\s/]/.test(value)) return false;
 		const parts = value.split('@');
 		if (parts.length !== 2 || !parts[0]) return false;
 		const domain = parts[1];
@@ -132,7 +132,9 @@
 			status = () => m.users_removed({ email: row.email });
 		} catch (err) {
 			// Removed meanwhile (another tab): it's gone either way, and the list says so below.
-			if (!(err instanceof api.ApiError && err.status === 404)) error = () => errorText(err);
+			// Only that 404: any other one (a route that didn't match) is a failure to say.
+			if (!(err instanceof api.ApiError && err.code === 'allowed_email_not_found'))
+				error = () => errorText(err);
 		} finally {
 			const { [row.email]: _unused, ...rest } = busy;
 			busy = rest;

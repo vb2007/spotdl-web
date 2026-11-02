@@ -48,7 +48,9 @@ MAX_EMAIL_LENGTH = 254
 
 # Track states that mean a job has started: an attempt ran (or is running), or dedup resolved a
 # track. `waiting` alone doesn't: beat's stale sweep moves a reclaimed `queued` track there
-# without any attempt (`_reclaim_stale_tracks`).
+# without any attempt (`_reclaim_stale_tracks`). Beside the states, a track that tried the
+# network counts: `attempt_count > 0` (the plan's ladder counter) or `attempts_made > 0` (a
+# reclaimed or cancelled `downloading` run, which the ladder counter doesn't see; review round 2).
 STARTED_TRACK_STATES = (
     TrackState.DOWNLOADING,
     TrackState.COMPLETED,
@@ -102,6 +104,8 @@ def validate_email(email: str) -> str:
         or len(normalized) > MAX_EMAIL_LENGTH
         or not storable(normalized)
         or any(char.isspace() for char in normalized)
+        # Not in a path segment: `DELETE /api/admin/allowlist/{email}` could never match it.
+        or "/" in normalized
         or normalized.count("@") != 1
         or not local
         or "." not in domain
@@ -116,7 +120,7 @@ def _job_started() -> ColumnElement:
     """Correlated on `Job`: one of its tracks has had an attempt or a dedup result."""
     return exists().where(
         Track.job_id == Job.id,
-        or_(Track.state.in_(STARTED_TRACK_STATES), Track.attempt_count > 0),
+        or_(Track.state.in_(STARTED_TRACK_STATES), Track.attempt_count > 0, Track.attempts_made > 0),
     )
 
 

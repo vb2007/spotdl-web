@@ -8026,7 +8026,9 @@ independently-found production bug from the same conversation)
   moves a reclaimed `queued` track to `waiting` with no attempt, so the removal's test is
   `downloading`/`completed`/`skipped_duplicate`/`lookup_failed` or `attempt_count > 0`. A track whose
   only run was reclaimed from `downloading` has a reclaim row but `attempt_count` 0, so its job counts
-  as not started (the plan's definition, applied literally).
+  as not started (the plan's definition, applied literally). *(2026-11-02, review round 2: corrected.
+  `attempts_made > 0` counts too: that run tried the network, and holding its job could leave a
+  `completed` track (the run finished after the reclaim) inside a held album.)*
 - **A held job's tracks carry no schedule.** The hold gate puts a track back to `pending` with
   `scheduled_at = NULL`, so beat (which since v56 also dispatches a due `pending` track) never sends
   it again; `expand_job` leaves a held job's new tracks unmarked. Re-adding the address claims them

@@ -487,7 +487,7 @@ def cancel_job(
     # cancellable tracks are exactly what makes a job `active`/`waiting`, rollup.py.)
     if job.state not in (JobState.EXPANDING, JobState.FAILED) and not cancelled_tracks:
         db.rollback()
-        status = rollup.derive_rollup(job.state, track_counts(db, job.id))
+        status = rollup.derive_rollup(job.state, track_counts(db, job.id), held=job.held_at is not None)
         raise ApiError(
             409,
             "job_not_cancellable",

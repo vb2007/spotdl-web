@@ -301,10 +301,15 @@ def expand_job(job_id: str, reexpand: bool = False, marker: str | None = None) -
             # reads the row's real current state afterward rather than trusting the
             # `job` object loaded at task start.
             # v69: RETURNING the job's hold, read under the row lock this UPDATE takes.
+            # A held job that turned out to have nothing to download isn't held any more: there's
+            # nothing a hold could stop (allowlist.remove holds only a job with work).
+            values = {"state": JobState.EXPANDED}
+            if not tracks:
+                values["held_at"] = None
             expanded = db.execute(
                 update(Job)
                 .where(Job.id == job.id, Job.state == JobState.EXPANDING)
-                .values(state=JobState.EXPANDED)
+                .values(**values)
                 .returning(Job.held_at)
             ).all()
             if len(expanded) == 1 and expanded[0].held_at is None:

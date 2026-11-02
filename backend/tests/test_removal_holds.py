@@ -504,3 +504,34 @@ def test_a_re_expansion_already_queued_adds_nothing_after_the_removal(world, mon
     expand_task.expand_job(str(job_id), reexpand=True, marker="token")
     with world.db() as db:
         assert db.query(Track).filter(Track.job_id == job_id).count() == 1
+
+
+def test_a_reclaimed_or_cancelled_download_counts_as_started(world):
+    """Review round 2: the stale sweep takes a stuck `downloading` track back to `waiting` with
+    `attempt_count` 0 but `attempts_made` 1. It tried the network, so its job has started."""
+    with world.db() as db:
+        user = _user(db)
+        job = _job(db, user, tracks=[(TrackState.WAITING, 0), (TrackState.PENDING, 0)])
+        reclaimed = db.query(Track).filter(Track.job_id == job.id, Track.state == TrackState.WAITING).one()
+        reclaimed.attempts_made = 1
+        job_id = job.id
+        db.commit()
+    with world.db() as db:
+        assert allowlist.remove(db, "removed@example.com").held_job_ids == []
+        assert not _held(db, job_id)
+
+
+def test_a_held_expansion_that_finds_nothing_isnt_held(world, monkeypatch):
+    """Review round 2: held while `expanding`, then expanded to zero tracks: nothing to hold (and
+    its cancel answered 409)."""
+    monkeypatch.setattr(expansion, "expand", lambda url: [])
+    with world.db() as db:
+        user = _user(db)
+        job_id = _job(db, user, source_type=JobSourceType.PLAYLIST, state=JobState.EXPANDING).id
+        db.commit()
+    with world.db() as db:
+        assert allowlist.remove(db, "removed@example.com").held_job_ids == [job_id]
+    expand_task.expand_job(str(job_id))
+    with world.db() as db:
+        job = db.get(Job, job_id)
+        assert (job.state, job.held_at) == (JobState.EXPANDED, None)

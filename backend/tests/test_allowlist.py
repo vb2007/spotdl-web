@@ -105,7 +105,8 @@ def test_a_duplicate_is_409(admin_client, email):
 @pytest.mark.parametrize(
     "email",
     ["", "   ", "no-at-sign", "two@@example.com", "a@b@example.com", "space in@example.com", "x@nodot",
-     "@example.com", "x@.example.com", "x@example.com.", "nul\x00@example.com", "a" * 250 + "@example.com"],
+     "@example.com", "x@.example.com", "x@example.com.", "nul\x00@example.com", "a" * 250 + "@example.com",
+     "ops/team@example.com"],
 )
 def test_a_malformed_address_is_422(admin_client, email):
     response = admin_client.post("/api/admin/allowlist", json={"email": email})
@@ -399,3 +400,13 @@ def test_removing_an_unstorable_address_is_404(admin_client):
     response = admin_client.delete("/api/admin/allowlist/a%00b@example.com")
     assert response.status_code == 404
     assert response.json()["code"] == "allowed_email_not_found"
+
+
+def test_a_key_create_rechecks_the_allowlist(authenticated_client, db_session):
+    """Review round 2: a key created during a removal (after its session check) outlived the
+    removal's revoke and worked again once the address came back."""
+    db_session.query(AllowedEmail).filter(AllowedEmail.email == "allowed@example.com").delete()
+    db_session.flush()
+    response = authenticated_client.post("/api/account/api-keys", json={"label": "late"})
+    assert response.status_code == 401
+    assert db_session.query(ApiKey).count() == 0

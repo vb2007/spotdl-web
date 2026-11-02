@@ -158,10 +158,9 @@
 				queue.reset();
 				notifications.reset();
 			} finally {
+				// v69: a reason that arrives during the navigation is left for /login's handler
+				// to drop; a new sign-in clears any (api.login), so it never reaches a later end.
 				ending = false;
-				// v69: a reason that arrived while this ran belongs to this ending, never to a
-				// later one (after a new sign-in on this tab).
-				api.takeEndReason();
 			}
 		})
 	);
