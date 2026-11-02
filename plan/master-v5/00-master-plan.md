@@ -173,6 +173,7 @@ files.
 | U11 | A drag released outside the window can strand the glow | #59 | v67 |
 | U12 | The `/stats` surface brief still has `## Unresolved` | `frontend/src/.impeccable/surfaces/frontend-src-routes-stats-page-svelte.md:39` | v67 |
 | U13 | 320px admin view 27px horizontal scroll | #58 (re-verify; may be fixed) | v67 |
+| U14 | `/stats` failure-class names clipped without an ellipsis at 390px ("audio_prov", "nem találh"), and shown as machine names (`audio_provider`, `no_output`) now that non-admins see the chart | #97 (v66) | v67 |
 
 ### Dev loop / tests → v52 unless noted
 
@@ -312,7 +313,7 @@ files.
 | **v64** | 4 | `dev-job-export` | Streamed zip of a job's present files, plus an `.m3u8` |
 | **v65** | 4 | `dev-pwa-share-target` | Installable PWA, a Web Share Target → `/share`, a login round-trip |
 | **v66** | 4 | `dev-personal-notifications` | Browser notifications when own jobs settle; a non-admin "my stats" |
-| **v67** | 5 | `dev-ui-debt` | U2, U3, U5–U13, plus an impeccable audit of every surface v53–v66 added |
+| **v67** | 5 | `dev-ui-debt` | U2, U3, U5–U14, plus an impeccable audit of every surface v53–v66 added |
 | **v68** | 5 | `dev-log-virtualization` | U4: virtualized job/track lists that keep keyboard, focus, live patching and load-more intact |
 | **v69** | 6 | `dev-v5-hardening` | The production close: the cross-user sweep over every new surface, the full e2e plus an extension pass, a production smoke, ledger re-confirmation, docs, the closing re-read |
 
