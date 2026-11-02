@@ -37,7 +37,9 @@
 	// v68 (U4): above 200 loaded tracks, a window of them ($lib/listWindow.svelte.ts).
 	const tracksWindow = new ListWindow({
 		items: () => state?.items ?? [],
-		key: (track) => track.id
+		key: (track) => track.id,
+		// The job's whole track count: "track 300 of 400" before every page is loaded.
+		total: () => total
 	});
 
 	// v45: "load more tracks" from the keyboard (Enter on it, or End/Shift+G on the last

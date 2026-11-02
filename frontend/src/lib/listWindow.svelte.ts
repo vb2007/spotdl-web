@@ -34,8 +34,13 @@
  * - Kept rendered outside the window: the row holding focus, the list's current (roving) row,
  *   and any open row (a track's detail is the row's own state, lost if it unmounted). They sit
  *   just past the window's edge, out of view, in their own place in the padding.
+ * - A kept row is only a stand-in at the window's edge: anything that focuses it (a key, Tab,
+ *   the help overlay putting focus back) renders the window around its real place first.
  * - Each rendered row carries `aria-setsize`/`aria-posinset`, so a screen reader says "812 of
- *   1600" for a list it only partly has.
+ *   1600" for a list it only partly has. The size is the list's whole total when the page knows
+ *   it exactly (`total`), else the rows loaded.
+ * - A window holding an open, windowed list of its own (a job's 400 tracks) leaves the scroll to
+ *   the inner one while that row fills the view: both correcting it undid each other.
  */
 /* eslint-disable svelte/prefer-svelte-reactivity -- deliberately plain: the Maps and Sets here are
    temporaries built inside a derived, or caches whose changes are announced by `#measured` (a
@@ -91,7 +96,12 @@ export interface ListWindowOptions<T> {
 	 * is one row). The tracks scope's item is a job's group, holding its tracks. */
 	rowIds?: (item: T) => string[];
 	threshold?: number;
+	/** The whole list's size when known exactly (more than the loaded rows); null if not. */
+	total?: () => number | null;
 }
+
+/** Every attached window by its list element, so an outer one can tell a nested one's row. */
+const windows = new Map<HTMLElement, ListWindow<unknown>>();
 
 interface Slice {
 	/** Item indices in render order: the window, with kept rows before and after it. */
@@ -107,6 +117,7 @@ export class ListWindow<T> {
 	#items: () => T[];
 	#key: (item: T) => string;
 	#rowIds: (item: T) => string[];
+	#total: () => number | null;
 	#threshold: number;
 
 	/** The viewport in the list's own coordinates (its top edge is 0). */
@@ -145,6 +156,7 @@ export class ListWindow<T> {
 		this.#key = opts.key;
 		this.#rowIds = opts.rowIds ?? ((item) => [opts.key(item)]);
 		this.#threshold = opts.threshold ?? VIRTUAL_THRESHOLD;
+		this.#total = opts.total ?? (() => null);
 		// After every render of the window (its rows, its padding): measure, keep the reading
 		// position, and learn where the viewport is now.
 		// Only while the list is mounted: its items aren't read otherwise (between a scope switch
@@ -270,6 +282,19 @@ export class ListWindow<T> {
 		const onFocusIn = (event: FocusEvent) => {
 			this.#focusKey = this.#childKey(event.target as Node);
 			this.#updatePins();
+			// Focus reached a kept row at its stand-in place (Tab, a dialog or the help overlay
+			// putting it back): the window moves to the row's real place. In a microtask, since a
+			// `focus()` called from an effect lands here too, where flushSync isn't allowed.
+			const key = this.#focusKey;
+			const at = key === null ? undefined : this.#index.byKey.get(key);
+			if (at !== undefined && this.active && !this.#inWindow(at)) {
+				queueMicrotask(() => {
+					if (this.#focusKey !== key || this.#index.byKey.get(key!) !== at) return;
+					this.#hold = at;
+					flushSync();
+					(event.target as Element).closest?.('li')?.scrollIntoView({ block: 'nearest' });
+				});
+			}
 		};
 		const onFocusOut = (event: FocusEvent) => {
 			const to = event.relatedTarget as Node | null;
@@ -288,6 +313,7 @@ export class ListWindow<T> {
 		const opened = new MutationObserver(() => this.#updatePins());
 		opened.observe(list, { subtree: true, attributes: true, attributeFilter: ['aria-expanded'] });
 		this.#resize = new ResizeObserver((entries) => this.#onResize(entries));
+		windows.set(list, this as ListWindow<unknown>);
 		const unregister = registerVirtual(list, {
 			ids: () => this.#allRowIds,
 			reveal: (id) => this.reveal(id)
@@ -295,6 +321,7 @@ export class ListWindow<T> {
 		this.#readView();
 		return () => {
 			unregister();
+			if (windows.get(list) === (this as ListWindow<unknown>)) windows.delete(list);
 			window.removeEventListener('scroll', onScroll);
 			window.removeEventListener('resize', onScroll);
 			list.removeEventListener('focusin', onFocusIn);
@@ -317,14 +344,26 @@ export class ListWindow<T> {
 		if (!list) return null;
 		const find = () => list.querySelector<HTMLElement>(`[data-kb-row="${CSS.escape(id)}"]`);
 		const row = find();
-		if (row || !this.active) return row;
+		if (!this.active) return row;
 		const at = this.#index.byRow.get(id);
-		if (at === undefined) return null;
+		if (at === undefined) return row;
+		// Rendered inside the window: where it really is. A kept row outside the window is only a
+		// stand-in at the window's edge, so it's revealed like an unrendered one.
+		if (row && this.#inWindow(at)) return row;
 		this.#hold = at;
 		flushSync();
 		const shown = find();
 		shown?.scrollIntoView({ block: 'nearest' });
 		return shown;
+	}
+
+	/** Whether item `index` is in the window proper (not a kept row outside it). */
+	#inWindow(index: number): boolean {
+		const slice = this.#lastSlice;
+		if (!slice) return true;
+		const first = slice.indices[slice.before];
+		const last = slice.indices[slice.indices.length - slice.after - 1];
+		return first !== undefined && index >= first && index <= last;
 	}
 
 	#afterRender(): void {
@@ -351,7 +390,7 @@ export class ListWindow<T> {
 		// Mid-update (a row's component not mounted yet): the next render catches up.
 		if (!slice || children.length !== slice.indices.length) return;
 		this.#annotated = true;
-		const size = String(items.length);
+		const size = String(Math.max(items.length, this.#total() ?? 0));
 		const lastKey = items.length ? this.#key(items[items.length - 1]) : null;
 		const seen = new Set<Element>();
 		let changed = false;
@@ -483,6 +522,10 @@ export class ListWindow<T> {
 			const box = el.getBoundingClientRect();
 			if (box.top >= window.innerHeight) return;
 			if (box.bottom > 0) {
+				// An open row holding a windowed list of its own: that list holds the view.
+				for (const [inner, nested] of windows) {
+					if (inner !== list && nested.active && el.contains(inner)) return;
+				}
 				this.#anchor = { el, top: box.top };
 				return;
 			}

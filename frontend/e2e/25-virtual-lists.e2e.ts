@@ -1,5 +1,5 @@
 import { expect, request, test, type Browser, type Page } from '@playwright/test';
-import { expectFocusInList, focusedRow, tabStopsIn } from './support/keyboard';
+import { expectFocusInList, focusedList, focusedRow, tabStopsIn } from './support/keyboard';
 import { m, t } from './support/i18n';
 import { jobToggle, openDashboard } from './support/ui';
 import {
@@ -41,13 +41,27 @@ const JOBS = 'jobs';
 /** The page's own "load more" (not an open job's). */
 const loadMoreButton = (page: Page) => page.locator('button.load-more:not([data-kb-load-more])');
 
-/** How many rows `list` has loaded: a windowed list's `aria-setsize`, else its rows. */
+/** How many rows `list` has loaded (a windowed list's `aria-setsize` is the whole total, so
+ * not that): the jobs from the queue's count line ("350 of 1,600 jobs"), an open job's tracks
+ * from its "load more" ("250 of 400 shown"), or every row once that button is gone. */
 function loadedRows(page: Page, list: string): Promise<number> {
 	return page.evaluate((name) => {
 		const el = document.querySelector(`[data-kb-list="${CSS.escape(name)}"]`);
 		if (!el) return 0;
-		const size = el.firstElementChild?.getAttribute('aria-setsize');
-		return size ? Number(size) : el.children.length;
+		const number = (text: string | undefined | null) =>
+			Number((text ?? '').match(/^\s*([\d,]+) of /)?.[1]?.replace(/,/g, '') ?? NaN);
+		if (name === 'jobs') {
+			const line = [...document.querySelectorAll('.queue *')].find(
+				(node) =>
+					node.children.length === 0 &&
+					/^\s*[\d,]+ of [\d,]+\+? jobs\s*$/.test(node.textContent ?? '')
+			);
+			const shown = number(line?.textContent);
+			if (!Number.isNaN(shown)) return shown;
+		}
+		const shown = el.closest('li')?.querySelector('[data-kb-load-more] .shown');
+		if (shown) return number(shown.textContent);
+		return Number(el.firstElementChild?.getAttribute('aria-setsize') ?? el.children.length);
 	}, list);
 }
 
@@ -199,6 +213,10 @@ test('j/k cross the window with focus in view; End loads more onto its first row
 	const errors = collectErrors(page);
 	await openDashboard(page);
 	await loadUntil(page, JOBS, 350);
+	// 350 of 1600 loaded: the screen reader's size is still the whole log's.
+	expect(
+		await page.locator('[data-kb-list="jobs"] > li').first().getAttribute('aria-setsize')
+	).toBe(String(FIXTURE_JOBS));
 	await page.evaluate(() => window.scrollTo(0, 0));
 	await page.keyboard.press('j');
 	await expectFocusInList(page, JOBS);
@@ -330,6 +348,46 @@ test('a live update to a job off the window shows once it is scrolled into view'
 		type: 'reads',
 		description: `job list reads after the cancel: ${reads.length ? reads.join(', ') : 'none'}`
 	});
+	expect(errors).toEqual([]);
+});
+
+test('a kept row, focused again, is shown at its real place', async ({ page }) => {
+	desktopOnly();
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await loadUntil(page, JOBS, 600);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	// Row 5 becomes the list's current row; focus then goes to the search, and the page is
+	// scrolled far down: row 5 stays rendered as a stand-in at the window's edge.
+	await page.keyboard.press('j');
+	for (let row = 2; row <= 5; row++) await page.keyboard.press('j');
+	expect(await posinsetOfFocus(page)).toBe(5);
+	const current = (await focusedRow(page))!;
+	const backTo = async (how: () => Promise<void>, label: string) => {
+		await page.keyboard.press('/');
+		await expect(page.locator('#queue-search')).toBeFocused();
+		await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight * 0.6));
+		await expect.poll(async () => (await windowOf(page)).min).toBeGreaterThan(300);
+		await how();
+		await expect.poll(() => focusedRow(page), { message: label }).toBe(current);
+		await expect.poll(() => focusInView(page), { message: `${label}: in view` }).toBe(true);
+		// Its real place: rows 4 and 6 are rendered around it.
+		const around = (await windowOf(page)).min;
+		expect(around, `${label}: the window is at row 5`).toBeLessThanOrEqual(5);
+	};
+	// j from outside the list (Esc leaves the search), and Tab into the list's one stop.
+	await backTo(async () => {
+		await page.keyboard.press('Escape');
+		await page.keyboard.press('j');
+	}, 'j');
+	await backTo(async () => {
+		await page.keyboard.press('Tab');
+		// Past the filter chips (a roving list too) to the jobs list's one stop.
+		for (let n = 0; n < 40 && (await focusedList(page)) !== JOBS; n++) {
+			await page.keyboard.press('Tab');
+		}
+	}, 'Tab');
 	expect(errors).toEqual([]);
 });
 
@@ -469,17 +527,18 @@ test.describe('open rows deep in a windowed list', () => {
 		);
 		await page.waitForTimeout(500);
 		const deep = await page.evaluate(() => {
-			const groups = [...document.querySelectorAll<HTMLElement>('[data-kb-list="tracks"] > li')];
-			const box = (g: HTMLElement) => g.getBoundingClientRect();
-			const mid = groups
-				.filter((g) => box(g).top > 0 && box(g).bottom < window.innerHeight)
-				.sort(
-					(a, b) =>
-						Number(b.getAttribute('aria-posinset')) - Number(a.getAttribute('aria-posinset'))
-				)[0];
+			// The last track row in view, and its group's place.
+			const rows = [
+				...document.querySelectorAll<HTMLElement>('[data-kb-list="tracks"] [data-kb-row]')
+			].filter((r) => {
+				const box = r.getBoundingClientRect();
+				return box.top > 0 && box.bottom < window.innerHeight;
+			});
+			const row = rows[rows.length - 1];
+			if (!row) return { pos: 0, row: '' };
 			return {
-				pos: Number(mid.getAttribute('aria-posinset')),
-				row: mid.querySelector<HTMLElement>('[data-kb-row]')!.dataset.kbRow!
+				pos: Number(row.closest('[data-kb-list] > li')!.getAttribute('aria-posinset')),
+				row: row.dataset.kbRow!
 			};
 		});
 		expect(deep.pos, 'a group deep in the list').toBeGreaterThan(50);
@@ -487,4 +546,55 @@ test.describe('open rows deep in a windowed list', () => {
 		expect(errors).toEqual([]);
 		await done();
 	});
+});
+
+test('an open job of 400 tracks in a windowed job list scrolls without jumps', async ({ page }) => {
+	desktopOnly();
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await loadUntil(page, JOBS, 250);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await jobToggle(page, fixtureTitle(BIG_AT)).click();
+	const list = `job-tracks:${fixture.bigJobId}`;
+	await expect(page.locator(`[data-kb-list="${list}"] > li`).first()).toBeVisible();
+	const more = page.locator(`[data-kb-row="${fixture.bigJobId}"] [data-kb-load-more]`);
+	while ((await more.count()) > 0) {
+		const before = await loadedRows(page, list);
+		await more.click();
+		await expect
+			.poll(async () => (await more.count()) === 0 || (await loadedRows(page, list)) > before)
+			.toBe(true);
+	}
+	// Both lists windowed: to the playlist's last tracks, then up through them a step at a time.
+	await page.locator(`[data-kb-list="${list}"] > li`).last().scrollIntoViewIfNeeded();
+	await page.waitForTimeout(500);
+	const firstInView = () =>
+		page.evaluate((name) => {
+			const rows = [...document.querySelectorAll<HTMLElement>(`[data-kb-list="${name}"] > li`)];
+			const row = rows.find((r) => {
+				const box = r.getBoundingClientRect();
+				return box.top >= 0 && box.bottom <= window.innerHeight;
+			});
+			return row ? { id: row.dataset.kbRow!, top: row.getBoundingClientRect().top } : null;
+		}, list);
+	const topOf = (id: string) =>
+		page.evaluate(
+			(rowId) =>
+				document.querySelector(`[data-kb-row="${rowId}"]`)?.getBoundingClientRect().top ?? null,
+			id
+		);
+	for (let step = 0; step < 25; step++) {
+		const anchor = (await firstInView())!;
+		expect(anchor, 'a track in view').not.toBeNull();
+		await page.evaluate(() => window.scrollBy(0, -300));
+		await page.waitForTimeout(150);
+		const top = await topOf(anchor.id);
+		expect(top, `step ${step}: the track is still rendered`).not.toBeNull();
+		expect(
+			Math.abs(top! - (anchor.top + 300)),
+			`step ${step}: moved by the scroll only`
+		).toBeLessThan(2);
+	}
+	expect(errors).toEqual([]);
 });

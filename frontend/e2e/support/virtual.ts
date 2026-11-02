@@ -126,7 +126,8 @@ export async function signInFixture(
 	await context.addCookies([{ name: 'SPOTDL_SESSION', value: token, url: baseURL }]);
 }
 
-/** Puts the log away after the spec: every fixture job archived, the live one settled, so the
+/** Puts the log away after the spec: every fixture job archived, the live one settled, its
+ * minted sessions deleted, so the
  * admin's all-users view of the specs that run after it (the next project's) doesn't page
  * through 1600 rows. */
 export function parkVirtualFixture(): void {
@@ -143,6 +144,8 @@ db.execute(text(f"""
 """), {"e": sys.argv[1]})
 db.execute(text(f"update jobs set archived_at = now() where user_id = {user} and archived_at is null"),
            {"e": sys.argv[1]})
+# The sessions the spec minted, one per test.
+db.execute(text(f"delete from sessions where user_id = {user}"), {"e": sys.argv[1]})
 db.commit()
 `,
 		[normalizeEmail(FIXTURE_EMAIL)]

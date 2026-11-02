@@ -280,7 +280,14 @@
 	// v68 (U4): above 200 rows each list renders a window of them ($lib/listWindow.svelte.ts).
 	const jobsWindow = new ListWindow<Job>({
 		items: () => ($filters.scope === 'jobs' ? ($page.items as Job[]) : []),
-		key: (job) => job.id
+		key: (job) => job.id,
+		// The screen reader's "of N": the exact total the count line uses, never the capped
+		// estimate (1000+), which isn't a size.
+		total: () => {
+			const exact = exactTotal($page.countsByStatus, $filters.status);
+			if (exact !== null) return exact;
+			return $page.totalEstimate < 1000 ? $page.totalEstimate : null;
+		}
 	});
 	// The tracks scope windows by job group; its rows (and its threshold) are the tracks.
 	const groupsWindow = new ListWindow({

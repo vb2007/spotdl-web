@@ -159,9 +159,11 @@ function rowIn(
 	reveal = true
 ): HTMLElement | null {
 	if (id === null || id === undefined) return null;
-	const row = rowsOf(list).find((r) => rowId(r) === id);
-	if (row || !reveal) return row ?? null;
-	return virtuals.get(list)?.reveal(id) ?? null;
+	// A windowed list decides even when the row is rendered: a kept row outside its window is
+	// only a stand-in at the window's edge.
+	const windowed = virtuals.get(list);
+	if (reveal && windowed?.ids()) return windowed.reveal(id);
+	return rowsOf(list).find((r) => rowId(r) === id) ?? null;
 }
 
 export function listOf(row: Element): HTMLElement | null {
@@ -505,7 +507,12 @@ export function rowItemById(id: string): HTMLElement | null {
  * its window renders it (scrolled into view) first. Null if no list has it. */
 export function rowById(id: string): HTMLElement | null {
 	const row = document.querySelector<HTMLElement>(`[data-kb-row="${CSS.escape(id)}"]`);
-	if (row) return row;
+	if (row) {
+		// Rendered, but perhaps as a kept stand-in outside its list's window.
+		const list = listOf(row);
+		const windowed = list ? virtuals.get(list) : undefined;
+		return windowed?.ids() ? (windowed.reveal(id) ?? row) : row;
+	}
 	for (const [list, rows] of virtuals) {
 		if (list.isConnected && rows.ids()?.includes(id)) return rows.reveal(id);
 	}
