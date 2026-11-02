@@ -476,20 +476,14 @@ test.describe('open rows deep in a windowed list', () => {
 			await more.click();
 			await expect.poll(() => loadedRows(page, list)).toBeGreaterThan(before);
 		}
-		// Windowed now: a track around 300, scrolled to.
+		// Windowed now: from the playlist's top, a screen at a time, to its track 300.
 		expect(await page.locator(`[data-kb-list="${list}"] > li`).count()).toBeLessThan(120);
-		for (let step = 0; ; step++) {
-			expect(step).toBeLessThan(200);
-			const max = await page.evaluate(
-				(name) =>
-					Math.max(
-						...[...document.querySelectorAll(`[data-kb-list="${CSS.escape(name)}"] > li`)].map(
-							(r) => Number(r.getAttribute('aria-posinset'))
-						)
-					),
-				list
-			);
-			if (max >= 300) break;
+		await page
+			.locator(`[data-kb-row="${fixture.bigJobId}"]`)
+			.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+		const track300 = page.locator(`[data-kb-list="${list}"] > li[aria-posinset="300"]`);
+		for (let step = 0; (await track300.count()) === 0; step++) {
+			expect(step, 'track 300 comes into the window').toBeLessThan(100);
 			await page.evaluate(() => window.scrollBy(0, window.innerHeight));
 			await page.waitForTimeout(50);
 		}
@@ -596,5 +590,146 @@ test('an open job of 400 tracks in a windowed job list scrolls without jumps', a
 			`step ${step}: moved by the scroll only`
 		).toBeLessThan(2);
 	}
+	expect(errors).toEqual([]);
+});
+
+test('a focused row archived off-screen in the overscan hands focus to a neighbour in view', async ({
+	page
+}) => {
+	desktopOnly();
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await loadUntil(page, JOBS, 300);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await page.keyboard.press('j');
+	for (let row = 2; row <= 120; row++) await page.keyboard.press('j');
+	const focused = (await focusedRow(page))!;
+	// Below the view, but still rendered (inside the window's overscan, not a kept row).
+	await page.evaluate((id) => {
+		const top = document.querySelector(`[data-kb-row="${id}"]`)!.getBoundingClientRect().top;
+		window.scrollBy(0, top - 1200);
+	}, focused);
+	await page.waitForTimeout(300);
+	const neighbour = await page.evaluate((id) => {
+		const row = document.querySelector<HTMLElement>(`[data-kb-row="${id}"]`)!;
+		return (row.nextElementSibling as HTMLElement).dataset.kbRow!;
+	}, focused);
+	await page.keyboard.press('a');
+	await expect(page.locator(`[data-kb-row="${focused}"]`)).toHaveCount(0);
+	await expect.poll(() => focusedRow(page)).toBe(neighbour);
+	await page.waitForTimeout(500);
+	expect(await focusInView(page), 'the neighbour is scrolled into view').toBe(true);
+	expect(errors).toEqual([]);
+});
+
+test('the current row archived in the background: Tab finds its neighbour, in view', async ({
+	page,
+	baseURL
+}) => {
+	desktopOnly();
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await loadUntil(page, JOBS, 600);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await page.keyboard.press('j');
+	for (let row = 2; row <= 5; row++) await page.keyboard.press('j');
+	const current = (await focusedRow(page))!;
+	const ids = await page.evaluate(() =>
+		[...document.querySelectorAll<HTMLElement>('[data-kb-list="jobs"] > li')].map(
+			(r) => r.dataset.kbRow!
+		)
+	);
+	const next = ids[ids.indexOf(current) + 1];
+	await page.keyboard.press('/');
+	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight * 0.6));
+	await expect.poll(async () => (await windowOf(page)).min).toBeGreaterThan(300);
+	const api = await request.newContext({
+		baseURL,
+		extraHTTPHeaders: { cookie: `SPOTDL_SESSION=${fixture.token}` }
+	});
+	expect(
+		(await api.post('/api/jobs/archive', { data: { job_ids: [current] } })).status()
+	).toBeLessThan(300);
+	await api.dispose();
+	await expect(page.locator(`[data-kb-row="${current}"]`)).toHaveCount(0);
+	// Its neighbour is the list's current row now, kept rendered for the Tab stop.
+	await expect(page.locator(`[data-kb-row="${next}"]`)).toHaveCount(1);
+	await page.keyboard.press('Escape');
+	for (let n = 0; n < 40 && (await focusedList(page)) !== JOBS; n++) {
+		await page.keyboard.press('Tab');
+	}
+	await expect.poll(() => focusedRow(page)).toBe(next);
+	await expect.poll(() => focusInView(page)).toBe(true);
+	expect(errors).toEqual([]);
+});
+
+test('an open job kept off the window, focused again, shows its own button', async ({ page }) => {
+	desktopOnly();
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await loadUntil(page, JOBS, 600);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	// The playlist, open: its row (50 tracks) is taller than the view.
+	await page.keyboard.press('j');
+	for (let row = 2; row <= BIG_AT + 1; row++) await page.keyboard.press('j');
+	expect(await focusedRow(page)).toBe(fixture.bigJobId);
+	await page.keyboard.press('Enter');
+	await expect(page.locator(`[data-kb-list="job-tracks:${fixture.bigJobId}"] > li`)).toHaveCount(
+		50
+	);
+	const tall = await page
+		.locator(`[data-kb-row="${fixture.bigJobId}"]`)
+		.evaluate((el) => el.getBoundingClientRect().height);
+	expect(tall).toBeGreaterThan(800);
+	await page.keyboard.press('/');
+	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight * 0.6));
+	await page.waitForTimeout(500);
+	await page.keyboard.press('Escape');
+	for (let n = 0; n < 40 && (await focusedList(page)) !== JOBS; n++) {
+		await page.keyboard.press('Tab');
+	}
+	await expect.poll(() => focusedRow(page)).toBe(fixture.bigJobId);
+	await expect
+		.poll(() => focusInView(page), { message: "the job's own button in view" })
+		.toBe(true);
+	expect(errors).toEqual([]);
+});
+
+test('crossing the threshold keeps the view where it was', async ({ page }) => {
+	desktopOnly();
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await loadUntil(page, JOBS, 200);
+	expect(await page.locator('[data-kb-list="jobs"]').getAttribute('style')).toBeNull();
+	// Row 190 at the top of the view, and the next page arriving while the user reads there,
+	// focus elsewhere: a pointer-type click (detail 1) dispatched on "load more", which moves no
+	// focus. (A real click focuses the button, and the browser then holds the button in place,
+	// as main does; a synthetic click() counts as the keyboard's and focuses the first new row.)
+	const row = page.locator('[data-kb-list="jobs"] > li').nth(189);
+	const id = (await row.getAttribute('data-kb-row'))!;
+	await row.evaluate((el) => el.scrollIntoView({ block: 'start' }));
+	await page.waitForTimeout(300);
+	const top = () =>
+		page.evaluate(
+			(rowId) =>
+				document.querySelector(`[data-kb-row="${rowId}"]`)?.getBoundingClientRect().top ?? null,
+			id
+		);
+	const before = (await top())!;
+	await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+	await loadMoreButton(page).dispatchEvent('click', { detail: 1 });
+	await expect.poll(() => loadedRows(page, JOBS)).toBe(250);
+	await expect(page.locator('[data-kb-list="jobs"]')).toHaveAttribute('style', /padding-top/);
+	await page.waitForTimeout(500);
+	const after = await top();
+	test
+		.info()
+		.annotations.push({ type: 'threshold', description: `row 190: ${before} -> ${after}` });
+	expect(after, 'row 190 still rendered').not.toBeNull();
+	expect(Math.abs(after! - before), 'row 190 stays put').toBeLessThan(2);
 	expect(errors).toEqual([]);
 });

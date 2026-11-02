@@ -7919,6 +7919,23 @@ independently-found production bug from the same conversation)
 - **The tracks scope windows by job group** (its threshold counts tracks). A single huge group
   (one 400-track playlist loaded whole) renders all its loaded tracks while any of it is in view;
   an open job's track list is windowed by track.
+- **Don't opt the windowed list out of the browser's scroll anchoring** (`overflow-anchor:
+  none`): Chromium then anchors on the next thing in view, the "load more" button below the list,
+  and keeps *it* in place, moving the view by the whole new page. With the list's rows eligible
+  it anchors on the row in view, as on a plain list. The hand-made correction is skipped when the
+  page scrolled since its anchor was taken: a `focus()` scrolling the restored neighbour into view
+  (before its scroll event) was being undone by the next render's correction.
+- **A kept row is a stand-in.** It sits at the window's edge, not at its real place: anything that
+  focuses it (`rowIn`/`rowById`, which always ask the window, and the window's own `focusin`, for
+  Tab and the help overlay) renders the window around it first. Scroll a row into view with
+  `showRow` (`lib/keyboard/lists`): the whole row when it fits the view (the button alone ends
+  flush on the edge, its focus ring cut), else its button centered (an open job is taller than
+  the view, and `nearest` on the row shows its bottom).
+- **A synthetic `button.click()` has `event.detail === 0`**, which the dashboard's "load more"
+  treats as the keyboard's (focus to the first new row, the view with it). A real pointer click
+  focuses the button, and Chromium then holds the *button* in place (main does the same). A spec
+  simulating "a page arrives while the user reads" dispatches a `click` with `detail: 1` and no
+  focus.
 - **The fixture is its own account** (`e2e/support/virtual.ts`, `v68fixture@example.com`, a
   session minted in the stack's database), its log dated two years back and archived after the
   spec, so the suite's two identities keep plain lists and the admin's all-users view doesn't page

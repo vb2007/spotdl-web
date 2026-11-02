@@ -128,6 +128,8 @@ export interface VirtualRows {
 	ids(): string[] | null;
 	/** Renders the row with this id (scrolled into view) and returns it; null if it has none. */
 	reveal(id: string): HTMLElement | null;
+	/** The list's current row changed (so the window can keep it rendered). */
+	changed?(): void;
 }
 
 const virtuals = new Map<HTMLElement, VirtualRows>();
@@ -274,6 +276,9 @@ function settle(list: HTMLElement, reveal = true): void {
 		m.active = next ?? prev ?? ids[0] ?? null;
 	}
 	if (m.active === null) m.active = ids[0];
+	// v68: a windowed list keeps the current row rendered, so Tab still finds it after its
+	// predecessor went away with focus elsewhere.
+	if (m.active !== before) virtuals.get(list)?.changed?.();
 	m.order = ids;
 	for (const nested of list.querySelectorAll<HTMLElement>('[data-kb-list]')) applyTabOrder(nested);
 	applyTabOrder(list);
@@ -460,13 +465,26 @@ export function move(row: HTMLElement, to: number | 'first' | 'last'): boolean {
 	if (target === undefined || target === rowId(row)) return false;
 	const next = rowIn(list, target);
 	if (!focusRow(next)) return false;
-	// A windowed list scrolls the whole row into view: the browser leaves a row it can partly
-	// see where it is, and one past the window's edge must not hide the focus ring.
+	// A windowed list scrolls the row's whole button into view: the browser leaves one it can
+	// partly see where it is, and one past the window's edge must not hide the focus ring.
+	// The button, not the row: an open job's row can be taller than the view.
 	if (next && virtuals.get(list)?.ids()) {
-		const box = next.getBoundingClientRect();
-		if (box.top < 0 || box.bottom > window.innerHeight) next.scrollIntoView({ block: 'nearest' });
+		const box = (itemOf(next) ?? next).getBoundingClientRect();
+		if (box.top < 0 || box.bottom > window.innerHeight) showRow(next);
 	}
 	return true;
+}
+
+/** v68: scrolls `row` into view for its focus ring: the whole row when it fits the view (its
+ * button alone would sit flush on the edge, the ring cut), else (an open job taller than the
+ * view) its own button, centered. */
+export function showRow(row: HTMLElement): void {
+	const item = itemOf(row);
+	if (item && row.getBoundingClientRect().height > window.innerHeight) {
+		item.scrollIntoView({ block: 'center' });
+	} else {
+		row.scrollIntoView({ block: 'nearest' });
+	}
 }
 
 /** The current row of the named list, focused. */

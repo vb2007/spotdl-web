@@ -30,7 +30,11 @@
  *   short moved the window, which moved the edge (an endless re-render).
  * - Scroll anchoring by hand: padding changes suppress the browser's own anchoring (CSS Scroll
  *   Anchoring's suppression triggers), so the first row in view is held in place after every
- *   render and resize, the way the browser holds a plain list.
+ *   render and resize, the way the browser holds a plain list. The browser's own stays on: with
+ *   the list opted out (`overflow-anchor: none`) it anchored on the next thing in view, the
+ *   "load more" button below, and moved the view by the whole new page. A correction is skipped
+ *   when the page was scrolled since the anchor was taken (a focus() bringing its row into view,
+ *   or the browser's own anchoring): that scroll is the place now.
  * - Kept rendered outside the window: the row holding focus, the list's current (roving) row,
  *   and any open row (a track's detail is the row's own state, lost if it unmounted). They sit
  *   just past the window's edge, out of view, in their own place in the padding.
@@ -46,7 +50,7 @@
    temporaries built inside a derived, or caches whose changes are announced by `#measured` (a
    reactive Map of 1600 heights would re-run every reader on each row measured). */
 import { flushSync, untrack } from 'svelte';
-import { currentRowId, registerVirtual } from '$lib/keyboard/lists';
+import { currentRowId, registerVirtual, rowAt, showRow } from '$lib/keyboard/lists';
 
 /** Above this many rows a list renders a window; at or below it, every row (as before v68). */
 export const VIRTUAL_THRESHOLD = 200;
@@ -142,7 +146,8 @@ export class ListWindow<T> {
 	#observed = new Set<Element>();
 	#resize: ResizeObserver | null = null;
 	#focusKey: string | null = null;
-	#anchor: { el: Element; top: number } | null = null;
+	/** The row holding the view, where it was, and the page's scroll then. */
+	#anchor: { el: Element; top: number; scrollY: number } | null = null;
 	#annotated = false;
 	#lastSlice: Slice | null = null;
 	/** Height changes taken this frame: past a budget, the rest wait for the next frame, so no
@@ -292,7 +297,9 @@ export class ListWindow<T> {
 					if (this.#focusKey !== key || this.#index.byKey.get(key!) !== at) return;
 					this.#hold = at;
 					flushSync();
-					(event.target as Element).closest?.('li')?.scrollIntoView({ block: 'nearest' });
+					// The row (or, taller than the view, its button) holding focus.
+					const row = rowAt(event.target as Element);
+					if (row) showRow(row);
 				});
 			}
 		};
@@ -316,7 +323,9 @@ export class ListWindow<T> {
 		windows.set(list, this as ListWindow<unknown>);
 		const unregister = registerVirtual(list, {
 			ids: () => this.#allRowIds,
-			reveal: (id) => this.reveal(id)
+			reveal: (id) => this.reveal(id),
+			// The list's current row moved (a removed row's neighbour): keep that one rendered.
+			changed: () => this.#updatePins()
 		});
 		this.#readView();
 		return () => {
@@ -353,7 +362,7 @@ export class ListWindow<T> {
 		this.#hold = at;
 		flushSync();
 		const shown = find();
-		shown?.scrollIntoView({ block: 'nearest' });
+		if (shown) showRow(shown);
 		return shown;
 	}
 
@@ -382,7 +391,25 @@ export class ListWindow<T> {
 			}
 			this.#resize?.disconnect();
 			this.#observed.clear();
-			this.#anchor = null;
+			// Nearing the threshold, every row is rendered: their heights are learned now, so
+			// the first window has its rows' real places (with 56px guesses, crossing 200 moved
+			// the view by thousands of pixels), and the view's anchor is kept for that render.
+			const items = this.#items();
+			if (items.length >= this.#threshold / 2 && children.length === items.length) {
+				const lastKey = items.length ? this.#key(items[items.length - 1]) : null;
+				let changed = false;
+				for (let c = 0; c < children.length; c++) {
+					const key = this.#key(items[c]);
+					if (this.#measurable(children[c], key, lastKey)) {
+						const height = children[c].getBoundingClientRect().height;
+						changed = this.#record(this.#sizeKey(items[c]), height) || changed;
+					}
+				}
+				if (changed) this.#estimatePerRow();
+				this.#capture();
+			} else {
+				this.#anchor = null;
+			}
 			return;
 		}
 		const slice = this.#slice;
@@ -510,8 +537,9 @@ export class ListWindow<T> {
 	#capture(): void {
 		this.#anchor = null;
 		const list = this.#list;
-		const slice = this.#lastSlice;
-		if (!list || !slice || list.getBoundingClientRect().top >= 0) return;
+		// Below the threshold every child is a row in place (no kept rows around a window).
+		const slice = this.#lastSlice ?? { before: 0, after: 0 };
+		if (!list || list.getBoundingClientRect().top >= 0) return;
 		// Only the window's own rows, and only one in view: a kept row outside the window moves
 		// with the window's edge (after a jump it's far from the viewport, and following it
 		// once threw the page back to the top), and a row below the view says nothing about it.
@@ -526,7 +554,7 @@ export class ListWindow<T> {
 				for (const [inner, nested] of windows) {
 					if (inner !== list && nested.active && el.contains(inner)) return;
 				}
-				this.#anchor = { el, top: box.top };
+				this.#anchor = { el, top: box.top, scrollY: window.scrollY };
 				return;
 			}
 		}
@@ -535,7 +563,10 @@ export class ListWindow<T> {
 	/** Puts the anchor row back where it was (rows above it measured, or padding changed). */
 	#correct(): void {
 		const anchor = this.#anchor;
-		if (anchor && anchor.el.isConnected) {
+		// Something scrolled the page since the anchor was taken (a focus() scrolling its row
+		// into view, before its scroll event): that scroll is the user's place now, so the
+		// anchor is taken again rather than restored over it.
+		if (anchor && Math.abs(window.scrollY - anchor.scrollY) < 1 && anchor.el.isConnected) {
 			const delta = anchor.el.getBoundingClientRect().top - anchor.top;
 			if (Math.abs(delta) >= 1) window.scrollBy({ top: delta, behavior: 'instant' });
 		}
