@@ -866,10 +866,13 @@ here.
     expanded job (an empty watched playlist) or one whose tracks were all cancelled has nothing a
     hold stops, and held it offered a cancel that answers 409. The hold also needs the job to be
     `expanding` or to have a `pending`/`queued`/`waiting` track (review round 1).
-  - **Beyond the named paths (review round 1):** a job create re-checks the allowlist under the
-    login's `FOR SHARE` (a cascade's Spotify call made a job created during a removal unheld), and a
-    re-expansion already queued when its owner is removed adds nothing (the plan names only beat's
-    selection).
+  - **Beyond the named paths (review rounds 1-3):** a job create and an API key create re-check the
+    allowlist under the login's `FOR SHARE` (a cascade's Spotify call made a job created during a
+    removal unheld; a key created then outlived the revoke), and a re-expansion already queued when
+    its owner is removed adds nothing (the plan names only beat's selection). "Started" also counts
+    `attempts_made > 0` (a reclaimed or cancelled run tried the network; `attempt_count` misses it),
+    and the `held` lifecycle needs the hold to still stop something (a held job emptied by per-track
+    cancels is `settled`).
   - **Placement:** the admin nav links live in `SubpageHeader.svelte` and the dashboard header, not in
     `+layout.svelte` (which holds the session-ended path the revocation reuses); the e2e spec is
     `25-user-access.e2e.ts`, since Playwright here runs `*.e2e.ts` only. A held job keeps the admin's
