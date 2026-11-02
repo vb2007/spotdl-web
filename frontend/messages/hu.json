@@ -1331,15 +1331,6 @@
 			}
 		}
 	],
-	"users_held_jobs": [
-		{
-			"declarations": ["input count", "input n"],
-			"selectors": [],
-			"match": {
-				"*": "{n} feladat visszatartva"
-			}
-		}
-	],
 	"users_added_resumed": [
 		{
 			"declarations": ["input count", "input n", "input email"],

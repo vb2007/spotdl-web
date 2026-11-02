@@ -244,9 +244,6 @@
 										<!-- No adder: the migration's import from the old env list. -->
 										<span class="fact">{m.users_imported()}</span>
 									{/if}
-									{#if row.held_jobs > 0}
-										<span class="fact held">{m.users_held_jobs(counted(row.held_jobs))}</span>
-									{/if}
 								</span>
 								{#if !row.is_admin_email}
 									<span class="controls">
@@ -396,11 +393,6 @@
 	.fact {
 		font-size: var(--fs-meta);
 		color: var(--text-muted);
-	}
-
-	/* Held jobs wait for the address to come back: the waiting condition's colour. */
-	.fact.held {
-		color: var(--waiting);
 	}
 
 	.controls {

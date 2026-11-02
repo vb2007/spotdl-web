@@ -1404,16 +1404,6 @@
 			}
 		}
 	],
-	"users_held_jobs": [
-		{
-			"declarations": ["input count", "local countPlural = count: plural", "input n"],
-			"selectors": ["countPlural"],
-			"match": {
-				"countPlural=one": "{n} job held",
-				"countPlural=*": "{n} jobs held"
-			}
-		}
-	],
 	"users_added_resumed": [
 		{
 			"declarations": [

@@ -338,8 +338,9 @@ def _send_resumed(db: Session, track_ids: list[uuid.UUID], lease: datetime) -> i
 
 def list_rows(db: Session) -> list[dict]:
     """Every allowlist row for `/users`, in one query: the address, when and by whom it was
-    added, the account behind it (none yet: never signed in) and how many of its jobs are held.
-    `ADMIN_EMAIL` is always listed, with or without a row."""
+    added, and the account behind it (none yet: never signed in). `ADMIN_EMAIL` is always
+    listed, with or without a row. No held-jobs count (owner's decision, 2026-11-02): a listed
+    address never has a held job, since a hold exists only while its address is off the list."""
     admin = admin_address()
     rows = union_all(
         select(AllowedEmail.email, AllowedEmail.added_at, AllowedEmail.added_by),
@@ -350,12 +351,6 @@ def list_rows(db: Session) -> list[dict]:
         ).where(~exists().where(AllowedEmail.email == admin)),
     ).subquery("rows")
     adder = aliased(User)
-    held = (
-        select(Job.user_id, func.count().label("held_jobs"))
-        .where(Job.held_at.is_not(None), Job.state.not_in(_UNHOLDABLE_JOB_STATES))
-        .group_by(Job.user_id)
-        .subquery("held")
-    )
     is_admin_email = rows.c.email == admin
     result = db.execute(
         select(
@@ -365,12 +360,10 @@ def list_rows(db: Session) -> list[dict]:
             User.username,
             User.last_login_at,
             is_admin_email.label("is_admin_email"),
-            func.coalesce(held.c.held_jobs, 0).label("held_jobs"),
         )
         .select_from(rows)
         .outerjoin(User, User.email == rows.c.email)
         .outerjoin(adder, adder.id == rows.c.added_by)
-        .outerjoin(held, held.c.user_id == User.id)
         .order_by(is_admin_email.desc(), rows.c.added_at.desc().nulls_last(), rows.c.email)
     ).all()
     return [row_to_dict(row) for row in result]
@@ -384,7 +377,6 @@ def row_to_dict(row) -> dict:
         "username": row.username,
         "last_login_at": row.last_login_at.isoformat() if row.last_login_at is not None else None,
         "is_admin_email": bool(row.is_admin_email),
-        "held_jobs": int(row.held_jobs),
     }
 
 

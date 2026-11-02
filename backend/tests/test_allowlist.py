@@ -91,7 +91,8 @@ def test_add_answers_201_with_the_normalized_row(admin_client, admin_user):
     assert body["email"] == "new.person@example.com"
     assert body["added_by"] == "admin@example.com"
     assert body["last_login_at"] is None and body["username"] is None
-    assert body["is_admin_email"] is False and body["held_jobs"] == 0
+    assert body["is_admin_email"] is False
+    assert "held_jobs" not in body  # owner's decision: no held count on /users
 
 
 @pytest.mark.parametrize("email", ["allowed@example.com", " ALLOWED@example.com", "admin@example.com"])
@@ -125,21 +126,9 @@ def test_removing_an_unknown_address_is_404(admin_client):
 
 
 def test_the_list_is_one_query_with_every_field(admin_client, admin_user, db_session, make_user, count_queries):
-    from datetime import datetime, timezone
-
-    from app.models import Job, JobSourceType, JobState
-
     signed_in = make_user("allowed@example.com")
     signed_in.username = "allowed"
     db_session.add(AllowedEmail(email="never@example.com", added_by=admin_user.id))
-    db_session.add_all(
-        [
-            Job(user_id=signed_in.id, source_url="u1", source_type=JobSourceType.ALBUM, state=JobState.EXPANDED, held_at=datetime.now(timezone.utc)),
-            Job(user_id=signed_in.id, source_url="u2", source_type=JobSourceType.ALBUM, state=JobState.EXPANDING, held_at=datetime.now(timezone.utc)),
-            # A cancelled job's hold no longer counts: nothing of it can run.
-            Job(user_id=signed_in.id, source_url="u3", source_type=JobSourceType.ALBUM, state=JobState.CANCELLED, held_at=datetime.now(timezone.utc)),
-        ]
-    )
     db_session.commit()
 
     with count_queries() as statements:
@@ -152,13 +141,11 @@ def test_the_list_is_one_query_with_every_field(admin_client, admin_user, db_ses
     assert rows["admin@example.com"]["is_admin_email"] is True
     assert rows["allowed@example.com"]["username"] == "allowed"
     assert rows["allowed@example.com"]["last_login_at"] is not None
-    assert rows["allowed@example.com"]["held_jobs"] == 2
     assert rows["never@example.com"] == {
         **rows["never@example.com"],
         "username": None,
         "last_login_at": None,
         "added_by": "admin@example.com",
-        "held_jobs": 0,
         "is_admin_email": False,
     }
 

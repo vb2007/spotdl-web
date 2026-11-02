@@ -812,7 +812,6 @@ export interface AllowlistRow {
 	username: string | null;
 	last_login_at: string | null;
 	is_admin_email: boolean;
-	held_jobs: number;
 }
 
 export function listAllowlist(): Promise<{ items: AllowlistRow[] }> {
