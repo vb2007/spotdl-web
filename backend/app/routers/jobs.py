@@ -625,15 +625,6 @@ def reexpand_job(
             f"Job is {job.state.value}, not expanded",
             {"reason": "state", "state": job.state.value},
         )
-    if not allowlist.is_allowed(db, owner_email):
-        # v69: its owner's address is off the allowlist, so a check would add nothing (expand
-        # skips it, as beat does): say so rather than stamp a check that never happens.
-        raise ApiError(
-            409,
-            "job_not_reexpandable",
-            "Its owner can't sign in any more; add the address again first",
-            {"reason": "owner_removed"},
-        )
     if job.source_type == JobSourceType.SEARCH:
         # Owner's decision (2026-10-30): a search re-run would add whatever the text matches
         # now, a different song, as "new". Only a link is checked again.
@@ -642,6 +633,15 @@ def reexpand_job(
             "job_not_reexpandable",
             "Only a job submitted as a link can be checked for new tracks",
             {"reason": "source_type", "source_type": job.source_type.value},
+        )
+    if not allowlist.is_allowed(db, owner_email):
+        # v69: its owner's address is off the allowlist, so a check would add nothing (expand
+        # skips it, as beat does): say so rather than stamp a check that never happens.
+        raise ApiError(
+            409,
+            "job_not_reexpandable",
+            "Its owner can't sign in any more; add the address again first",
+            {"reason": "owner_removed"},
         )
     try:
         token = watch.claim_run(job.id)
