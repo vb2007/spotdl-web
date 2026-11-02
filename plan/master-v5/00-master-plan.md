@@ -754,3 +754,7 @@ here.
   - **A library sweep during an export (owner, review round 1):** a file the sweep moves while
     the zip streams is found again through the ledger (re-resolve on miss), not left as a failed
     download.
+  - **`api` memory (owner, 2026-11-02):** many concurrent zip streams grew the worker's RSS
+    past production's 768M `api` limit (glibc's per-thread arenas). `api` runs with
+    `MALLOC_ARENA_MAX=2` in `docker-compose.yml` (outside v64's files); measured 832 → 392 MB
+    peak under the same load, with no visible cost to a stream's speed.
