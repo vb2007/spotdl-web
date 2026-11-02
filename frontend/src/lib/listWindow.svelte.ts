@@ -5,11 +5,16 @@
  *
  * In house rather than a library: the lists live in the page's own scroll (the window, not a
  * scrolling box), their rows vary in height (an open job holds its tracks, an open track its
- * detail), and the keyboard model (`$lib/keyboard/lists`) needs to render any row by id. The
- * vetted Svelte options (`@tanstack/svelte-virtual`, `svelte-virtual-list`) were weighed and
- * rejected: the first's adapter is store-based (Svelte 4) and absolutely positions every row (a
- * row's own `:last-child` borders and focus ring then sit on a transformed layer); the second
- * scrolls its own box. See the PR for the comparison.
+ * detail), the keyboard model (`$lib/keyboard/lists`) must render any row by id synchronously,
+ * and below the threshold the markup must stay exactly what it was. Weighed (their packages
+ * read, none integrated; the PR has the comparison):
+ * - `@tanstack/svelte-virtual` 3.13: window scrolling, measured sizes and a range extractor
+ *   (pinned rows) would all fit, but it's headless (the positioning is still ours), its Svelte
+ *   adapter is a `svelte/store` wrapper around a core with its own scheduling, and it would be
+ *   a new dependency for what is ~300 lines here.
+ * - `virtua` 0.54 (Svelte 5): renders its own absolutely positioned wrapper per item, which
+ *   breaks `ul > li` (list semantics, the rows' scoped styles, the e2e selectors).
+ * - `svelte-tiny-virtual-list` 4.0 (Svelte 5): scrolls its own fixed-height box.
  *
  * How it stays out of the way:
  * - The list element keeps its markup: the rows not rendered are the list's own top and bottom
