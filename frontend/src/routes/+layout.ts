@@ -4,6 +4,7 @@ import { queue } from '$lib/stores/queue';
 import { consumeSessionEnded, markSessionEnded } from '$lib/stores/sessionEnded';
 import { shortcutsEnabled } from '$lib/keyboard/registry';
 import { applyClock, applyLanguagePreference } from '$lib/i18n/locale.svelte';
+import { loginFor, safeNext } from '$lib/nextPath';
 import type { LayoutLoad } from './$types';
 
 // Adapter-static has no server to run a `+layout.server.ts` load against at request
@@ -66,7 +67,8 @@ export const load: LayoutLoad = async ({ url }) => {
 			// v47: only a tab that had a session here says it ended (not a first visit).
 			if (lastSessionEmail !== null && !api.isSigningOut()) markSessionEnded();
 		}
-		redirect(302, '/login');
+		// v65: a share opened signed out comes back to itself, its parameters included.
+		redirect(302, url.pathname === '/share' ? loginFor(url.pathname + url.search) : '/login');
 	}
 	if (session !== null) {
 		// v47: a live session answers any earlier "it ended" (a hover preload's, say).
@@ -87,7 +89,8 @@ export const load: LayoutLoad = async ({ url }) => {
 		applyClock(session?.clock);
 	}
 	if (session !== null && onLoginPage) {
-		redirect(302, '/');
+		// v65: signed in already (another tab), so straight on to where the login was for.
+		redirect(302, safeNext(url.searchParams.get('next')) ?? '/');
 	}
 
 	return { session, unreachable };

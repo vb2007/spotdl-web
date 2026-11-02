@@ -475,8 +475,8 @@
     "semantic_hash": ""
   },
   "backend/app/routers/settings.py": {
-    "mtime": 1793583774.5209537,
-    "ast_hash": "aa48b2e20745bab77e545c2da1da506d",
+    "mtime": 1793587522.8366463,
+    "ast_hash": "72ebcf6a1e5b63158a12d181a5cfd047",
     "semantic_hash": ""
   },
   "backend/app/services/app_settings.py": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1793584214.7851512,
-    "ast_hash": "df1f0e6205c3222fdf2973c2b03fb817",
+    "mtime": 1793587669.7266142,
+    "ast_hash": "fce6224abd002e589ca27ba37cd7fc99",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -2190,13 +2190,13 @@
     "semantic_hash": ""
   },
   "backend/app/services/export.py": {
-    "mtime": 1793583778.0781004,
-    "ast_hash": "f64587df602aa207c9f8551373842a84",
+    "mtime": 1793587522.8363974,
+    "ast_hash": "c5edc5c3db760e0352f76157afc252b3",
     "semantic_hash": ""
   },
   "backend/tests/test_export.py": {
-    "mtime": 1793583778.0781004,
-    "ast_hash": "34844c7e5949dd1e84b98bc92ed54e1e",
+    "mtime": 1793587590.4423966,
+    "ast_hash": "20bb54b354b4b74d5954f98648db3328",
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/a196bc2f6af0c88d.json": {
