@@ -87,3 +87,25 @@ sw.addEventListener('fetch', (event) => {
 sw.addEventListener('message', (event) => {
 	if (event.data?.type === 'version') event.ports[0]?.postMessage(version);
 });
+
+// v66: a job notification shown through this worker (Chrome on Android, where the page's own
+// `new Notification` throws). A tap focuses an open app tab, the dashboard first, and asks it to
+// focus the job's row (the page's own click does the same); with no tab open it opens the
+// dashboard. Only notifications carrying a job id are handled.
+sw.addEventListener('notificationclick', (event) => {
+	const jobId: unknown = event.notification.data?.jobId;
+	if (typeof jobId !== 'string') return;
+	event.notification.close();
+	event.waitUntil(
+		(async () => {
+			const tabs = await sw.clients.matchAll({ type: 'window', includeUncontrolled: true });
+			const tab = tabs.find((client) => new URL(client.url).pathname === '/') ?? tabs[0];
+			if (!tab) {
+				await sw.clients.openWindow('/');
+				return;
+			}
+			await tab.focus();
+			tab.postMessage({ type: 'job-notification-click', jobId });
+		})()
+	);
+});

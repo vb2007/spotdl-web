@@ -174,6 +174,22 @@ export function isSettle(event: api.JobStatusEvent): boolean {
 /** The dashboard's handler for a click on a notification: shows the job. */
 export function setActivate(handler: ((jobId: string) => void) | null) {
 	onActivate = handler;
+	listenForWorkerClicks();
+}
+
+let workerClicks = false;
+
+/** A notification the service worker showed (Chrome on Android) is clicked in the worker, which
+ * focuses this tab and posts the job's id here (`service-worker.ts`). */
+function listenForWorkerClicks() {
+	if (workerClicks || typeof navigator === 'undefined' || !navigator.serviceWorker) return;
+	workerClicks = true;
+	navigator.serviceWorker.addEventListener('message', (event: MessageEvent) => {
+		const data = event.data as { type?: unknown; jobId?: unknown } | null;
+		if (data?.type === 'job-notification-click' && typeof data.jobId === 'string') {
+			onActivate?.(data.jobId);
+		}
+	});
 }
 
 /** An event from one of the user's own streams. */
@@ -216,7 +232,9 @@ async function show(jobId: string) {
 		// A watched job (v63) settling again replaces its notification: say so, don't swap it in
 		// silently (review round 4).
 		renotify: true,
-		lang: document.documentElement.lang || undefined
+		lang: document.documentElement.lang || undefined,
+		// For the service worker's click handler (the fallback below).
+		data: { jobId: job.id }
 	};
 	try {
 		const notification = new Notification(job.title, options);
@@ -227,8 +245,8 @@ async function show(jobId: string) {
 		};
 	} catch {
 		// Chrome on Android shows notifications only from a service worker (the constructor
-		// throws there): through the installed app's, if there is one. Its click opens the app
-		// rather than this tab's row.
+		// throws there): through v65's, registered on every page. Its click focuses this tab and
+		// the job's row from the worker (`listenForWorkerClicks`).
 		const registration = await navigator.serviceWorker?.getRegistration().catch(() => undefined);
 		await registration?.showNotification(job.title, options).catch(() => {});
 	}

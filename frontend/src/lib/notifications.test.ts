@@ -304,3 +304,70 @@ describe('v66: the own stream', () => {
 		expect(streams).toHaveLength(1);
 	});
 });
+
+// Chrome on Android: the page's own constructor throws, so v65's service worker shows it, and
+// its click comes back to the page as a message (service-worker.ts's notificationclick).
+describe('v66: through the service worker', () => {
+	let shown: { title: string; options: NotificationOptions }[];
+	let worker: EventTarget & { getRegistration: () => Promise<unknown> };
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.resetModules();
+		shown = [];
+		class Throws {
+			static permission = 'granted';
+			constructor() {
+				throw new TypeError('Illegal constructor');
+			}
+		}
+		worker = Object.assign(new EventTarget(), {
+			getRegistration: async () => ({
+				showNotification: async (title: string, options: NotificationOptions) => {
+					shown.push({ title, options });
+				}
+			})
+		});
+		vi.stubGlobal('window', { Notification: Throws, focus() {} });
+		vi.stubGlobal('Notification', Throws);
+		vi.stubGlobal('navigator', {
+			serviceWorker: worker,
+			language: 'en-US',
+			languages: ['en-US']
+		});
+		vi.stubGlobal('document', { documentElement: { lang: 'en' } });
+		vi.doMock('$lib/api', () => ({
+			getJob: async (id: string) => ({ id, title: `Album ${id}`, track_counts: { completed: 2 } })
+		}));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+		vi.doUnmock('$lib/api');
+	});
+
+	it('shows it there, carrying the job id, and a click there focuses the job', async () => {
+		const module = await import('$lib/notifications');
+		module.adopt('a@example.com', true);
+		const activated: string[] = [];
+		module.setActivate((id) => activated.push(id));
+		module.observe({
+			type: 'job.status',
+			job_id: 'j1',
+			status: 'settled:complete',
+			prev_status: 'active',
+			archived: false,
+			ts: '2026-11-02T18:00:00Z'
+		});
+		await vi.advanceTimersByTimeAsync(1000);
+		expect(shown.map((s) => s.title)).toEqual(['Album j1']);
+		expect(shown[0].options.data).toEqual({ jobId: 'j1' });
+
+		worker.dispatchEvent(new MessageEvent('message', { data: { type: 'version' } }));
+		worker.dispatchEvent(
+			new MessageEvent('message', { data: { type: 'job-notification-click', jobId: 'j1' } })
+		);
+		expect(activated).toEqual(['j1']);
+	});
+});

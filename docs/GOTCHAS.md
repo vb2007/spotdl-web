@@ -679,6 +679,8 @@ needed" claim — rather than silently deleted.
 - An admin's dashboard in `all`/`others` carries every user's events, and no event names its
   owner: anything that must be the viewer's own (v66's notifications) listens to a `mine` stream,
   opening one of its own when the dashboard's isn't → *v66*
+- A notification shown through the service worker (Chrome on Android) is clicked in the worker:
+  `notificationclick` focuses a tab and posts the job id back to the page → *v66*
 - Vite's dev `/api` proxy never closes the browser's SSE response when `api` dies, so in the
   normal `docker compose up` loop an `api` restart never triggers a reconnect at all (production
   nginx does close it). Test reconnect behavior through the real `web` image → *v34* (fixed
@@ -7784,3 +7786,9 @@ independently-found production bug from the same conversation)
 - **Seeded attempt rows must end in the past.** The e2e teardown counts network attempts by
   `finished_at` since the run started, so a hand-seeded `track_attempts` row stamped in the future
   reads as "the run made N network download attempts" hours later. Clamp seeds to `now()`.
+- **A notification the service worker shows is clicked in the service worker.** Chrome on Android
+  throws on `new Notification` in a page, so v66 falls back to v65's worker
+  (`registration.showNotification`, registered on every page). Its click never reaches the page's
+  `onclick`: the worker's `notificationclick` focuses an open tab (the dashboard first) and posts
+  `{type: 'job-notification-click', jobId}`, which the page hands to the same row-focus handler;
+  the job id rides in the notification's `data`. With no tab open it opens `/`.
