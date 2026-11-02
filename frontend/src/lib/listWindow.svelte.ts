@@ -37,6 +37,9 @@
  * - Each rendered row carries `aria-setsize`/`aria-posinset`, so a screen reader says "812 of
  *   1600" for a list it only partly has.
  */
+/* eslint-disable svelte/prefer-svelte-reactivity -- deliberately plain: the Maps and Sets here are
+   temporaries built inside a derived, or caches whose changes are announced by `#measured` (a
+   reactive Map of 1600 heights would re-run every reader on each row measured). */
 import { flushSync, untrack } from 'svelte';
 import { currentRowId, registerVirtual } from '$lib/keyboard/lists';
 
