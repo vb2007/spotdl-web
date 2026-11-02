@@ -951,7 +951,8 @@ needed" claim — rather than silently deleted.
 - A `native` binding (handled by the focused element) may share a chord with a dispatched one;
   the registry never matches it → *v67*
 - A windowed list (`lib/listWindow.svelte.ts`, above 200 rows) has rows that aren't in the DOM:
-  find a row by id through `rowById` (`lib/keyboard/lists`), never `querySelector`. Measure the
+  find a row by id through `rowById` (`lib/keyboard/lists`), never `querySelector` (a plain lookup
+  works only for the rows a window keeps: the focused, current and open ones). Measure the
   window's last child ignoring changes under 2.5px: `:last-child` drops its border (taking that
   spun forever), but skipping it outright kept a collapsed job's open height (a blank window) → *v68*
 - A windowed list's estimate for unmeasured rows must be stable (a per-row median), and the

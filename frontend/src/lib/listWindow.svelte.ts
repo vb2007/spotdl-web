@@ -256,14 +256,14 @@ export class ListWindow<T> {
 	});
 
 	readonly #slice = $derived.by((): Slice | null => {
-		this.#preY = window.scrollY;
-		if (!this.active) return (this.#lastSlice = null);
 		// The page's scroll as this render begins, before it reaches the DOM (the slice is worked
 		// out during the render): a change the render itself makes (removing an open job moved
 		// scrollY by 100px) is corrected through, while a scroll before it (the user's, its event
-		// not yet in) makes the anchor stale. A plain field: an $effect.pre reading the same
+		// not yet in) makes the anchor stale. Before the inactive return too: the render that
+		// turns the window off corrects with it. A plain field: an $effect.pre reading the same
 		// deriveds looped (effect_update_depth_exceeded).
 		this.#preY = window.scrollY;
+		if (!this.active) return (this.#lastSlice = null);
 		const offsets = this.#offsets;
 		const n = offsets.length - 1;
 		const { height } = this.#view;
