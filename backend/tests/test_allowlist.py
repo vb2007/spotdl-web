@@ -319,7 +319,8 @@ def _run_stream(monkeypatch, user, view, messages, status="ok", polls=10):
             sent.append(chunk)
 
     asyncio.run(run())
-    return pubsub, sent
+    assert sent[:1] == [stream_router.HEARTBEAT]  # sent at once (test_stream.py)
+    return pubsub, sent[1:]
 
 
 async def _noop():

@@ -99,6 +99,11 @@ async def _event_stream(request: Request, user: User, view: View):
     else:
         await pubsub.subscribe(own_channel)
     await pubsub.subscribe(control_channel)
+    # v69: a first chunk at once. A proxy that holds the response headers until the first byte
+    # (Vite's dev proxy does) would otherwise open the page's EventSource only with the first
+    # heartbeat, 15s in. Before v69 the subscribe confirmation's empty read sent one by
+    # accident; the loop below now waits out the interval on such a read.
+    yield HEARTBEAT
     last_sent = last_checked = time.monotonic()
     try:
         while True:

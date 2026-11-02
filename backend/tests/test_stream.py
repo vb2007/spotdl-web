@@ -112,7 +112,9 @@ def _drive(monkeypatch, user: User, view: str, messages=None, status: str = "ok"
             sent.append(chunk)
 
     asyncio.run(_run())
-    return fake_client._pubsub, sent
+    # v69: the first chunk is always a heartbeat, sent at once (test_the_first_chunk_is_...).
+    assert sent[:1] == [stream_router.HEARTBEAT]
+    return fake_client._pubsub, sent[1:]
 
 
 def test_event_stream_subscribes_to_the_users_own_channel(monkeypatch):
@@ -186,6 +188,22 @@ def test_event_stream_others_heartbeats_through_a_run_of_dropped_messages(monkey
     _, sent = _drive(monkeypatch, admin, "others", messages)
 
     assert sent and all(chunk == stream_router.HEARTBEAT for chunk in sent)
+
+
+def test_the_first_chunk_is_a_heartbeat_sent_at_once(monkeypatch):
+    """v69: before any message or wait, so a proxy holding headers until the first byte (Vite's
+    dev proxy) opens the EventSource at once rather than 15s in."""
+    user = User(id=uuid.uuid4(), email="a@example.com", is_admin=False)
+    fake_client = _FakeRedisClient()
+    monkeypatch.setattr(aioredis.Redis, "from_url", lambda url: fake_client)
+
+    async def first():
+        async for chunk in stream_router._event_stream(_FakeRequest(polls=5), user, "mine"):
+            return chunk, list(fake_client._pubsub.timeouts)
+
+    chunk, waits = asyncio.run(first())
+    assert chunk == stream_router.HEARTBEAT
+    assert waits == []
 
 
 def test_the_heartbeat_is_an_event_page_javascript_receives():
