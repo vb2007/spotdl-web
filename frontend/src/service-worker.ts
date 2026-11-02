@@ -104,8 +104,9 @@ sw.addEventListener('notificationclick', (event) => {
 				await sw.clients.openWindow('/');
 				return;
 			}
-			await tab.focus();
+			// The job first: the row is focused even where the tab's focus is refused.
 			tab.postMessage({ type: 'job-notification-click', jobId });
+			await tab.focus();
 		})()
 	);
 });
