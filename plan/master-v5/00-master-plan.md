@@ -812,7 +812,7 @@ here.
     window split (owner's choice of the two layouts offered).
 
 - **2026-11-02, v67: the owner's choices, and the surface-audit fixes the owner folded in.**
-  - **U14:** a non-admin reads translated failure classes ("YouTube refused" / "a YouTube
+  - **U14:** a non-admin reads translated failure classes ("YouTube refused" / "YouTube
     elutasította", "no file produced", "other error"); the admin keeps the machine names
     everywhere, marked `lang="en"`.
   - **U2:** a sticky one-line section bar on phones and tablets (over collapsible sections), plus

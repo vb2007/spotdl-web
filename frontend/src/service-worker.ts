@@ -51,6 +51,19 @@ sw.addEventListener('activate', (event) => {
 				if (key !== CACHE && key.startsWith('shell-')) await caches.delete(key);
 			}
 			await sw.clients.claim();
+			// v67 (U8): on a first visit the page fetched its language before this worker took
+			// over; keep whichever language the browser already holds (`only-if-cached` never goes
+			// to the network), so the installed app opens offline in it.
+			const cache = await caches.open(CACHE);
+			for (const path of LAZY) {
+				if (await cache.match(path)) continue;
+				try {
+					const held = await fetch(path, { cache: 'only-if-cached', mode: 'same-origin' });
+					if (held.ok) await cache.put(path, held);
+				} catch {
+					// Not in the HTTP cache: a language this browser hasn't used.
+				}
+			}
 		})()
 	);
 });

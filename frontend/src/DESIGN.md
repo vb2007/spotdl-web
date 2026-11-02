@@ -1121,16 +1121,19 @@ checks are for categorical palettes and don't apply to status colours.
   readout reads every channel at once. The drawing is `role="img"` with a summary label, plus a
   "show as a table" `<details>`. Phones hide every other axis tick. Under `forced-colors` the marks
   are `CanvasText`.
-- **By keyboard (v67, U10)**: each chart (`FailureChannels`, `CompletedColumns`) is a Tab stop;
-  ← → step its crosshair a bucket at a time, Home/End jump to its ends, Esc clears it, and the
-  reading ("09:00–10:00: 3 audio_provider, 1 no_output, breaker clear") is announced by a polite
-  live region beside the image (an image's own children are presentational). The keys are listed
-  in the help overlay on `/stats` (`chart-step`, handled by the chart itself).
+- **By keyboard (v67, U10)**: each chart (`FailureChannels`, `CompletedColumns`) is a
+  `role="slider"` over its buckets (role description "chart"/"diagram", the summary as its label),
+  a Tab stop: ← → step its crosshair a bucket at a time, Home/End jump to its ends, Esc clears it.
+  The reading ("09:00–10:00: 3 audio_provider, 1 no_output, breaker clear") is its
+  `aria-valuetext`, announced as it moves, also in a screen reader's browse mode, where an image
+  would have kept the arrows. A tap shows the reading too and keeps it until the next. The keys
+  are listed under "Anywhere" in the help overlay on `/stats` (`chart-step`, `chart-ends`, handled
+  by the chart itself).
 - **Channel names (v67, U14)**: each name is a box of its own, so a long one ends in an ellipsis
   (on the flex container the ellipsis never applied: "audio_prov"), with the full name in its
   `title`, the readout and the table. Owner's decision: a non-admin reads **translated** classes
-  ("YouTube refused" / "a YouTube elutasította", "no file produced", "other error"), in Sans, with a
-  wider phone name column (7rem, on both charts so their buckets stay aligned); the admin keeps the
+  ("YouTube refused" / "YouTube elutasította", "no file produced", "other error"), in Sans, with a
+  wider phone name column (8rem, on both charts so their buckets stay aligned); the admin keeps the
   machine names (`audio_provider`), in mono and marked `lang="en"`.
 - On a phone each table row becomes a stacked reading (route + rate, then the bar, units spelled out).
 - ~~A non-admin gets `AdminOnlyNotice` with its `reason` prop and the page makes no request.~~
@@ -1338,9 +1341,10 @@ Sans, the time mono). Hungarian runs longer: v46 and v47 checked every route at 
   page's one `h1` and `h2` sections, each `section` labelled by its heading. `/settings` adds
   `nav[aria-label="Settings sections"]` (`aria-current="location"` on the section being read).
 - **`/stats` (v44):** `main#main` → one `h1`, `h2` per plate, `h3` per block, each labelled by its
-  heading. The window switch is `role="group"` + `aria-pressed`. The crosshair is pointer-only, so
-  the recorder's `role="img"` label and its "show as a table" view are the keyboard and screen-reader
-  path to the same numbers.
+  heading. The window switch is `role="group"` + `aria-pressed`. Since v67 (U10) each chart is a
+  `role="slider"` (role description "chart") whose arrows move the crosshair and whose value text is
+  the reading; its summary label and its "show as a table" view stay the full alternative (until
+  v67 the crosshair was pointer-only, and they were the only path).
 - **Keyboard (v45):** every action is reachable without the mouse (§6 "Keyboard"). A route change
   moves focus to the new page's `h1`; SvelteKit's route announcer reads its title. Rows announce
   their name (what the row shows) and `aria-expanded`. Any new interactive element must be

@@ -537,6 +537,7 @@
 		bind:this={rowButton}
 		type="button"
 		class="row"
+		class:title-in-header={titleInHeader}
 		data-kb-item
 		onclick={toggleExpanded}
 		aria-expanded={expanded}
@@ -853,6 +854,20 @@
 	.cell.album {
 		color: var(--text-muted);
 		font-size: var(--fs-detail);
+	}
+
+	/* v67 (U3): a title the group header carries is only the row's screen-reader text: no cell
+	   of its own (its sr-only text is out of flow), and on the wide grid the artist takes the
+	   title's column too, so the row reads from where every other row's title starts and the
+	   album stays in the album column. */
+	.cell.title.in-header {
+		display: contents;
+	}
+
+	@media (min-width: 60.0625em) {
+		.row.title-in-header .cell.artist {
+			grid-column: 2 / span 2;
+		}
 	}
 
 	/* v47: level with the title's first line, not the middle of a wrapped title. */

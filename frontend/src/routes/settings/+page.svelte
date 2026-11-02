@@ -1388,8 +1388,8 @@
 		gap: var(--space-4);
 	}
 
-	/* Desktop: the index is a sticky column beside the sections. Below 1024px it is a
-	   wrapping row of links above them (no sticky bar eating a phone's height). */
+	/* Desktop: the index is a sticky column beside the sections. Below 1024px it is a one-line
+	   bar along the top (v67, U2: see below). */
 	.main {
 		display: grid;
 		grid-template-columns: 9rem minmax(0, 1fr);

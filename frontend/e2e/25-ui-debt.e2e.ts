@@ -4,7 +4,7 @@ import { m, t } from './support/i18n';
 
 // v67: the UI debt slice's keyboard and pointer guards. U2: every setting on /settings stays a
 // Tab stop and, below 1024px, the section bar stays at the top of the window. U10: the stats
-// recorder is read by keyboard, its reading announced. U5: a closed phone job row carries no
+// recorder is read by keyboard (a slider), its reading announced as the value. U5: a closed phone job row carries no
 // actions. U11: a drag released outside the window leaves no glow stranded.
 
 test.use({ storageState: ADMIN_STATE });
@@ -73,33 +73,40 @@ test('U2: every setting on /settings is a Tab stop, and the section bar stays in
 
 test('U10: the failure recorder is read by keyboard, its reading announced', async ({ page }) => {
 	await page.goto('/stats');
-	const recorder = page.getByRole('img', { name: /^(Failures by type|No failures)/ });
+	// A slider over the buckets (role description "chart"), named by its summary.
+	const recorder = page.getByRole('slider', { name: /^(Failures by type|No failures)/ });
 	await expect(recorder).toBeVisible();
+	await expect(recorder).toHaveAttribute('aria-roledescription', t(m.stats_chart_role));
 	await tabTo(page, recorder);
 	await expect(recorder).toHaveAccessibleDescription(/arrows/);
 
-	const live = page.locator('.recorder [aria-live="polite"]');
-	await expect(live).toHaveText('');
+	// Nothing read yet: the value text says so.
+	await expect(recorder).toHaveAttribute('aria-valuetext', t(m.stats_chart_unread_hour));
 	await page.keyboard.press('End');
 	await expect(recorder.locator('.readout')).toBeVisible();
-	// The newest bucket's reading: its time, then every channel, the breaker's last.
-	await expect(live).toHaveText(/^.+: .*breaker (held|clear)$/);
-	const newest = await live.textContent();
+	// The newest bucket's reading, announced as the value: its time, then every channel, the
+	// breaker's last.
+	const max = Number(await recorder.getAttribute('aria-valuemax'));
+	await expect(recorder).toHaveAttribute('aria-valuenow', String(max));
+	await expect(recorder).toHaveAttribute('aria-valuetext', /^.+: .*breaker (held|clear)$/);
+	const newest = await recorder.getAttribute('aria-valuetext');
 	await page.keyboard.press('ArrowLeft');
-	await expect(live).not.toHaveText(newest ?? '');
+	await expect(recorder).toHaveAttribute('aria-valuenow', String(max - 1));
+	await expect(recorder).not.toHaveAttribute('aria-valuetext', newest ?? '');
 	await page.keyboard.press('Home');
-	await expect(live).toHaveText(/^.+: .*breaker (held|clear)$/);
+	await expect(recorder).toHaveAttribute('aria-valuenow', '0');
 
 	// Esc clears the crosshair (and stays the chart's while one is shown).
 	await page.keyboard.press('Escape');
 	await expect(recorder.locator('.readout')).toHaveCount(0);
-	await expect(live).toHaveText('');
+	await expect(recorder).toHaveAttribute('aria-valuetext', t(m.stats_chart_unread_hour));
 	await expect(recorder).toBeFocused();
 
 	// The help overlay lists the chart's keys on /stats.
 	await page.keyboard.press('h');
 	const help = page.getByRole('dialog', { name: t(m.help_title), exact: true });
 	await expect(help.getByText(t(m.kbd_chart_step), { exact: true })).toBeVisible();
+	await expect(help.getByText(t(m.kbd_chart_ends), { exact: true })).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(help).toBeHidden();
 });

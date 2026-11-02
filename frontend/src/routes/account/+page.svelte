@@ -84,7 +84,17 @@
 			keyboardError !== null ||
 			languageError !== null ||
 			clockError !== null ||
-			notifyError !== null
+			notifyError !== null,
+		// v67: an uncopied new key is lost for good, not an unsaved change: its own question.
+		() =>
+			keyUncopied
+				? {
+						title: m.account_keys_leave_title(),
+						body: m.account_keys_close_body(),
+						confirmLabel: m.account_keys_leave_confirm(),
+						cancelLabel: m.account_keys_close_keep()
+					}
+				: null
 	);
 	// An in-app exit with a save to make (or one under way) waits for it, and leaves only once it
 	// landed: a failure stays here, shown, never on a page that's gone (review round 7).

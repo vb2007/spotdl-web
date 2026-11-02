@@ -1032,8 +1032,8 @@
 		align-items: center;
 		justify-content: flex-end;
 		flex-wrap: wrap;
-		/* v67: groups sit further apart than the actions within one. */
-		gap: var(--space-2) var(--space-4);
+		/* v67: groups sit further apart than the actions within one, and so do wrapped lines. */
+		gap: var(--space-3) var(--space-4);
 	}
 
 	.action-group {
@@ -1043,10 +1043,13 @@
 		gap: var(--space-2);
 	}
 
-	/* v67: the destructive action set apart at the end of an open row's line (closed, the
-	   actions already sit at the row's end). */
-	.row.open .action.apart {
-		margin-inline-start: auto;
+	/* v67: the destructive action set apart at the end of an open row's line on the wide screen
+	   (closed, the actions already sit at the row's end). Narrower, where the line wraps, it
+	   follows the last group: pushed to the far end it was an orphan on a line of its own. */
+	@media (min-width: 60.0625em) {
+		.row.open .action.apart {
+			margin-inline-start: auto;
+		}
 	}
 
 	/* v63: open, the actions drop under the title, as the tablet band's always do (the bands

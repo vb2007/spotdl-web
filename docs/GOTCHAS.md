@@ -945,9 +945,9 @@ needed" claim — rather than silently deleted.
   `localeReady()`, and the first language is loaded lazily, never at module init → *v67*
 - `text-overflow: ellipsis` on a flex container never applies to its bare text (an anonymous flex
   item): wrap the text in its own box (`/stats`' channel names, "audio_prov") → *v67*
-- A focusable `role="img"` chart's live readout lives beside it, not inside it (an image's
-  children are presentational), and a sticky in-page bar needs `scroll-padding-top` on the root
-  or Tab focus lands under it (WCAG 2.4.11) → *v67*
+- A chart read by arrow keys is a `role="slider"` with the reading as `aria-valuetext`, not a
+  focusable `role="img"` (a screen reader in browse mode keeps the arrows), and a sticky in-page
+  bar needs `scroll-padding-top` on the root or Tab focus lands under it (WCAG 2.4.11) → *v67*
 - A `native` binding (handled by the focused element) may share a chord with a dispatched one;
   the registry never matches it → *v67*
 
@@ -7833,7 +7833,10 @@ independently-found production bug from the same conversation)
   still reports `ellipsis`; only a box of its own around the text (`min-width: 0`) draws it.
 - **A focusable chart's readout must sit beside the `role="img"`, not in it.** An image's children
   are presentational, so a live region inside it is never announced; v67's `aria-live` paragraph is
-  the chart's sibling. Arrow keys on a focused chart are the chart's own (`stepCrosshair`,
+  the chart's sibling. *(Corrected 2026-11-02, v67, after its audit: a focusable `img` read by
+  arrow keys is unreachable in a screen reader's browse mode, which keeps the arrows for its own
+  cursor. The charts are now `role="slider"` (role description "chart") with the reading as
+  `aria-valuetext`, which every screen reader announces as it changes; the live region is gone.)* Arrow keys on a focused chart are the chart's own (`stepCrosshair`,
   `stopPropagation`), listed in the help overlay as a `native` binding; the duplicate-chord test
   now skips `native` bindings, which the registry never dispatches (`←`/`→` are also the
   dashboard's expand/collapse).

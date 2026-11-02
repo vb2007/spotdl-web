@@ -15,7 +15,19 @@ import * as m from '$lib/paraglide/messages';
  *   (`beforeunload`; SvelteKit's `cancel()` of an unloading navigation asks the same).
  * - Leaving because the session ended or changed (another tab's sign-out, a 401) is never
  *   held: nothing typed here can be saved by this session any more. */
-export function guardUnsavedEdits(isDirty: (unloading: boolean) => boolean): void {
+/** v67: a page's own question for what it guards (an uncopied API key isn't an "unsaved change"),
+ * or `null` for the generic one. */
+export interface LeaveQuestion {
+	title: string;
+	body: string;
+	confirmLabel: string;
+	cancelLabel: string;
+}
+
+export function guardUnsavedEdits(
+	isDirty: (unloading: boolean) => boolean,
+	question?: () => LeaveQuestion | null
+): void {
 	// Set once "discard changes" was chosen, so the re-sent navigation goes through.
 	let discarding = false;
 
@@ -35,12 +47,14 @@ export function guardUnsavedEdits(isDirty: (unloading: boolean) => boolean): voi
 		// After this navigation's other callbacks: ConfirmDialog's answers any open question "no"
 		// on every navigation, this cancelled one included.
 		queueMicrotask(async () => {
-			const discard = await confirmAction({
-				title: m.unsaved_title(),
-				body: m.unsaved_body(),
-				confirmLabel: m.unsaved_discard(),
-				cancelLabel: m.unsaved_keep()
-			});
+			const discard = await confirmAction(
+				question?.() ?? {
+					title: m.unsaved_title(),
+					body: m.unsaved_body(),
+					confirmLabel: m.unsaved_discard(),
+					cancelLabel: m.unsaved_keep()
+				}
+			);
 			if (!discard) return;
 			discarding = true;
 			// Back/Forward: history.go returns before its navigation runs, so this stays set (the

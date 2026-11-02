@@ -34,7 +34,7 @@ test.describe('admin', () => {
 			await expect(routes.getByRole('rowheader', { name: route, exact: true })).toBeVisible();
 		}
 		// The recorder is an image whose alternative is its label and its table.
-		const recorder = panel.getByRole('img', { name: /^(Failures by type|No failures)/ });
+		const recorder = panel.getByRole('slider', { name: /^(Failures by type|No failures)/ });
 		await expect(recorder).toHaveAttribute('aria-label', /breaker/i);
 		await panel.getByText('show as a table').click();
 		await expect(panel.getByRole('columnheader', { name: 'Hour' })).toBeVisible();

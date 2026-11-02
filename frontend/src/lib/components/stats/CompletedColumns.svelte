@@ -86,22 +86,31 @@
 	</p>
 
 	{#if peak > 0}
-		<!-- v67 (U10): focusable; the arrows move the crosshair, the live region after it reads it. -->
-		<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+		<!-- v67 (U10): a slider over the buckets, as on the recorder (FailureChannels). -->
 		<div
 			class="chart"
 			class:plain
 			style:--n={n}
-			role="img"
+			role="slider"
+			aria-roledescription={m.stats_chart_role()}
 			aria-label={summary}
 			aria-describedby="{uid}-keys"
+			aria-orientation="horizontal"
+			aria-valuemin={0}
+			aria-valuemax={n - 1}
+			aria-valuenow={shown ?? n - 1}
+			aria-valuetext={reading ||
+				(unit === 'hour' ? m.stats_chart_unread_hour() : m.stats_chart_unread_day())}
 			tabindex="0"
 			onpointermove={onPointerMove}
-			onpointerleave={() => (hovered = null)}
+			onpointerdown={onPointerMove}
+			onpointerleave={(event) => {
+				if (event.pointerType !== 'touch') hovered = null;
+			}}
 			onkeydown={onKeydown}
 			onblur={() => (hovered = null)}
 		>
-			<span class="name mono" title={m.stats_legend_completed()}
+			<span class="name" class:mono={!plain} title={m.stats_legend_completed()}
 				><span class="key"></span><span class="name-text">{m.stats_legend_completed()}</span></span
 			>
 			<span class="strip">
@@ -140,7 +149,6 @@
 		<p class="sr-only" id="{uid}-keys">
 			{unit === 'hour' ? m.stats_chart_keys_hour() : m.stats_chart_keys_day()}
 		</p>
-		<p class="sr-only" aria-live="polite">{reading}</p>
 
 		<details class="as-table">
 			<summary>{m.stats_show_as_table()}</summary>
@@ -409,7 +417,7 @@
 
 		/* FailureChannels' translated-label column, so the two charts' buckets line up. */
 		.chart.plain {
-			--name-col: 7rem;
+			--name-col: 8rem;
 		}
 
 		.tick.minor {
@@ -422,6 +430,7 @@
 	@media (pointer: coarse) {
 		.as-table summary {
 			padding-block: 0.75rem;
+			min-height: 2.75rem;
 		}
 	}
 

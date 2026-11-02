@@ -132,7 +132,7 @@
 		hovered = next;
 	}
 
-	// The crosshair's reading in words, for the live region (U10): announced as it moves.
+	// The crosshair's reading in words (U10): the chart's `aria-valuetext`, announced as it moves.
 	const reading = $derived.by(() => {
 		if (shown === null) return '';
 		const parts = stats.failures.series.map(
@@ -177,19 +177,30 @@
 	</p>
 
 	{#if lastRow > 0}
-		<!-- v67 (U10): focusable; the arrow keys move the crosshair (stepCrosshair), and its reading
-		     is announced by the live region after it (an image's own children are presentational). -->
-		<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
+		<!-- v67 (U10): a slider over the buckets (a "chart", by its role description): the arrow keys
+		     move the crosshair (stepCrosshair), even in a screen reader's browse mode, and its
+		     reading is the value text, announced as it moves. A tap shows it too. -->
 		<div
 			class="channels"
 			class:plain
 			style:--n={n}
-			role="img"
+			role="slider"
+			aria-roledescription={m.stats_chart_role()}
 			aria-label={summary}
 			aria-describedby="{uid}-keys"
+			aria-orientation="horizontal"
+			aria-valuemin={0}
+			aria-valuemax={n - 1}
+			aria-valuenow={shown ?? n - 1}
+			aria-valuetext={reading ||
+				(unit === 'hour' ? m.stats_chart_unread_hour() : m.stats_chart_unread_day())}
 			tabindex="0"
 			onpointermove={onPointerMove}
-			onpointerleave={() => (hovered = null)}
+			onpointerdown={onPointerMove}
+			onpointerleave={(event) => {
+				// A tap's pointer leaves as soon as it lifts: its reading stays until the next one.
+				if (event.pointerType !== 'touch') hovered = null;
+			}}
 			onkeydown={onKeydown}
 			onblur={() => (hovered = null)}
 		>
@@ -285,7 +296,6 @@
 		<p class="sr-only" id="{uid}-keys">
 			{unit === 'hour' ? m.stats_chart_keys_hour() : m.stats_chart_keys_day()}
 		</p>
-		<p class="sr-only" aria-live="polite">{reading}</p>
 	{/if}
 
 	{#if hasBreaker}
@@ -312,7 +322,7 @@
 						<tr>
 							<th scope="col">{unit === 'hour' ? m.stats_col_hour() : m.stats_col_day()}</th>
 							{#each stats.failures.series as series (series.error_type)}
-								<th scope="col" class="mono" lang={classLang(series.error_type)}
+								<th scope="col" class:mono={!plain} lang={classLang(series.error_type)}
 									>{classLabel(series.error_type)}</th
 								>
 							{/each}
@@ -638,7 +648,7 @@
 
 		/* Translated labels are words, longer than the machine names: a wider column. */
 		.channels.plain {
-			--name-col: 7rem;
+			--name-col: 8rem;
 		}
 
 		.tick.minor {
@@ -659,6 +669,7 @@
 		   list-item. */
 		.as-table summary {
 			padding-block: 0.75rem;
+			min-height: 2.75rem;
 		}
 	}
 </style>
