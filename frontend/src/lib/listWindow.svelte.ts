@@ -93,6 +93,9 @@ export interface ListWindowOptions<T> {
 interface Slice {
 	/** Item indices in render order: the window, with kept rows before and after it. */
 	indices: number[];
+	/** How many of `indices` are kept rows before the window, and after it. */
+	before: number;
+	after: number;
 	padTop: number;
 	padBottom: number;
 }
@@ -216,6 +219,8 @@ export class ListWindow<T> {
 		indices.push(...after);
 		const slice: Slice = {
 			indices,
+			before: before.length,
+			after: after.length,
 			padTop: Math.max(0, offsets[start] - sum(before)),
 			padBottom: Math.max(0, offsets[n] - offsets[end] - sum(after))
 		};
@@ -462,9 +467,17 @@ export class ListWindow<T> {
 	#capture(): void {
 		this.#anchor = null;
 		const list = this.#list;
-		if (!list || !this.active || list.getBoundingClientRect().top >= 0) return;
-		for (const el of list.children) {
+		const slice = this.#lastSlice;
+		if (!list || !slice || list.getBoundingClientRect().top >= 0) return;
+		// Only the window's own rows, and only one in view: a kept row outside the window moves
+		// with the window's edge (after a jump it's far from the viewport, and following it
+		// once threw the page back to the top), and a row below the view says nothing about it.
+		const children = list.children;
+		const end = children.length - slice.after;
+		for (let c = slice.before; c < end; c++) {
+			const el = children[c];
 			const box = el.getBoundingClientRect();
+			if (box.top >= window.innerHeight) return;
 			if (box.bottom > 0) {
 				this.#anchor = { el, top: box.top };
 				return;

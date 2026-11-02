@@ -138,9 +138,15 @@ test('the list renders a window above the threshold; the screen reader gets the 
 	expect(win.count).toBeLessThan(80);
 	expect(after).toBeLessThan(before * 2);
 
-	// Deep in the list: the row's place and the list's size in the accessibility tree.
+	// To the end, then a jump back to the middle: the view lands there and stays (a kept row,
+	// the list's current one, once pulled the page back to the top).
+	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+	await expect.poll(async () => (await windowOf(page)).max).toBe(FIXTURE_JOBS);
 	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight / 2));
 	await expect.poll(async () => (await windowOf(page)).min).toBeGreaterThan(500);
+	await page.waitForTimeout(1_000);
+	expect((await windowOf(page)).min, 'still mid-list').toBeGreaterThan(500);
+	// Deep in the list: the row's place and the list's size in the accessibility tree.
 	const readDeep = () =>
 		page.evaluate(() => {
 			const rows = [...document.querySelectorAll<HTMLElement>('[data-kb-list="jobs"] > li')];
