@@ -4,7 +4,7 @@ import { queue } from '$lib/stores/queue';
 import * as notifications from '$lib/notifications';
 import { consumeSessionEnded, markSessionEnded } from '$lib/stores/sessionEnded';
 import { shortcutsEnabled } from '$lib/keyboard/registry';
-import { applyClock, applyLanguagePreference } from '$lib/i18n/locale.svelte';
+import { applyClock, applyLanguagePreference, localeReady } from '$lib/i18n/locale.svelte';
 import { loginFor, safeNext } from '$lib/nextPath';
 import type { LayoutLoad } from './$types';
 
@@ -91,6 +91,9 @@ export const load: LayoutLoad = async ({ url }) => {
 		applyLanguagePreference(session?.language);
 		applyClock(session?.clock);
 	}
+	// v67 (U8): the language's messages are downloaded on demand; no route renders before they're
+	// here (an unreachable reload keeps the language, and messages, already on screen).
+	await localeReady();
 	if (session !== null && onLoginPage) {
 		// v65: signed in already (another tab), so straight on to where the login was for.
 		redirect(302, safeNext(url.searchParams.get('next')) ?? '/');

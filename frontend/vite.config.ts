@@ -1,4 +1,5 @@
-import { createReadStream } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { createReadStream, readFileSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import adapter from '@sveltejs/adapter-static';
@@ -126,6 +127,85 @@ function watchCompiledMessages(): Plugin {
 	};
 }
 
+/** v67 (U8): each language's messages in a chunk of its own, and only the page's language
+ * downloaded. Paraglide's index (`messages/_index.js`) imports every language statically, so
+ * both shipped in one chunk on every route. This plugin rewrites the index into thin dispatchers
+ * over modules loaded on demand (`virtual:locale-messages`, which `lib/i18n/locale.svelte.ts`
+ * awaits before a language is shown), and names each language's chunk
+ * `messages-<locale>.<hash>.js` so the service worker can leave them out of its precache (it
+ * keeps the one the page loads). Paraglide is pinned (package.json): the rewrite reads its index's
+ * `export const <key> =` lines and fails the build if it finds none. vitest keeps Paraglide's
+ * own index, every language loaded. */
+const MESSAGE_LOCALES = ['en', 'hu'] as const;
+const LOCALE_MESSAGES = 'virtual:locale-messages';
+
+function paraglideLocaleSplit(): Plugin {
+	const dir = path.resolve('src/lib/paraglide/messages');
+	const index = path.join(dir, '_index.js');
+	const testing = Boolean(process.env.VITEST);
+	let clientBuild = false;
+	return {
+		name: 'paraglide-locale-split',
+		configResolved(config) {
+			clientBuild = config.command === 'build' && !config.build.ssr;
+		},
+		buildStart() {
+			if (!clientBuild) return;
+			// SvelteKit names chunks by hash alone; an emitted chunk keeps the name given here. The
+			// hash is the message file's, so a changed text is a new immutable file.
+			for (const locale of MESSAGE_LOCALES) {
+				const hash = createHash('sha256')
+					.update(readFileSync(path.resolve(`messages/${locale}.json`)))
+					.digest('base64url')
+					.slice(0, 10);
+				this.emitFile({
+					type: 'chunk',
+					id: path.join(dir, `${locale}.js`),
+					fileName: `_app/immutable/chunks/messages-${locale}.${hash}.js`
+				});
+			}
+		},
+		resolveId(id) {
+			return id === LOCALE_MESSAGES ? `\0${LOCALE_MESSAGES}` : undefined;
+		},
+		load(id) {
+			if (id !== `\0${LOCALE_MESSAGES}`) return;
+			if (testing)
+				return 'export async function loadLocaleMessages() {}\nexport const hasLocaleMessages = () => true;';
+			return `export { __loadLocaleMessages as loadLocaleMessages, __hasLocaleMessages as hasLocaleMessages } from ${JSON.stringify(index)};`;
+		},
+		transform(code, id) {
+			if (testing || id !== index) return;
+			const keys = [...code.matchAll(/^export const (\w+) = /gm)].map((match) => match[1]);
+			if (keys.length === 0) this.error(`paraglide-locale-split: no messages found in ${id}`);
+			const [base, ...others] = MESSAGE_LOCALES;
+			return [
+				'import { getLocale, experimentalStaticLocale } from "../runtime.js";',
+				`const __loaded = {};`,
+				// The asked-for language, else the base one, else whichever is loaded: a message
+				// read before its language arrived shows in another rather than throwing.
+				'const __msg = (key) => (inputs, options = {}) => {',
+				'	const locale = experimentalStaticLocale ?? options.locale ?? getLocale();',
+				`	const messages = __loaded[locale] ?? __loaded.${base} ?? ${others.map((l) => `__loaded.${l}`).join(' ?? ')};`,
+				'	return messages[key](inputs);',
+				'};',
+				...keys.map(
+					(key) => `export const ${key} = /* @__PURE__ */ __msg(${JSON.stringify(key)});`
+				),
+				'const __loaders = {',
+				...MESSAGE_LOCALES.map((l) => `	${l}: () => import("./${l}.js"),`),
+				'};',
+				'export async function __loadLocaleMessages(locale) {',
+				'	__loaded[locale] ??= await __loaders[locale]();',
+				'}',
+				'export function __hasLocaleMessages(locale) {',
+				'	return locale in __loaded;',
+				'}'
+			].join('\n');
+		}
+	};
+}
+
 export default defineConfig(({ command }) => ({
 	plugins: [
 		// v46: compiles messages/{en,hu}.json into typed message functions under
@@ -147,6 +227,7 @@ export default defineConfig(({ command }) => ({
 			// every file is rewritten on each compile.
 			cleanOutdir: false
 		}),
+		paraglideLocaleSplit(),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.

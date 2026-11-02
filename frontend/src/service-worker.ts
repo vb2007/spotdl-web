@@ -18,7 +18,12 @@ const sw = self as unknown as ServiceWorkerGlobalScope;
 const CACHE = `shell-${version}`;
 // Content-hashed build files can come from the HTTP cache (they're immutable); the rest is
 // asked for afresh. The legacy `.woff` fonts are left out: every browser this serves uses woff2.
-const IMMUTABLE = build.filter((path) => !path.endsWith('.woff'));
+// v67 (U8): each language's messages (`messages-<locale>.<hash>.js`, vite.config.ts) are left out
+// too, so a visit downloads only its own language; the one a page loads is kept when it's fetched
+// (below), so the installed app still opens offline in the language it was last used in.
+const MESSAGES = /\/messages-[a-z]+\.[\w-]+\.js$/;
+const IMMUTABLE = build.filter((path) => !path.endsWith('.woff') && !MESSAGES.test(path));
+const LAZY = new Set(build.filter((path) => MESSAGES.test(path)));
 const FRESH = [...files, ...prerendered];
 // Under `vite dev` there is no build (`build` is empty) and `version` is fixed for the dev
 // server's life: static files are left to the network there, so an edited one shows at once.
@@ -79,6 +84,18 @@ sw.addEventListener('fetch', (event) => {
 	if (ASSETS.has(url.pathname)) {
 		event.respondWith(
 			(async () => (await (await caches.open(CACHE)).match(url.pathname)) ?? fetch(request))()
+		);
+	} else if (LAZY.has(url.pathname)) {
+		// v67 (U8): a language's messages, kept once fetched (immutable: the name carries the hash).
+		event.respondWith(
+			(async () => {
+				const cache = await caches.open(CACHE);
+				const cached = await cache.match(url.pathname);
+				if (cached) return cached;
+				const answer = await fetch(request);
+				if (answer.ok) await cache.put(url.pathname, answer.clone());
+				return answer;
+			})()
 		);
 	}
 });

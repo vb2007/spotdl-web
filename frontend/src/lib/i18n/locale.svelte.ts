@@ -1,4 +1,5 @@
 import { baseLocale, isLocale, overwriteGetLocale, type Locale } from '$lib/paraglide/runtime';
+import { hasLocaleMessages, loadLocaleMessages } from 'virtual:locale-messages';
 
 /** v46: which language the interface speaks (owner's rule, PR #68):
  *
@@ -38,6 +39,16 @@ let current = $state<Locale>(resolveLocale(null));
 overwriteGetLocale(() => current);
 syncDocumentLang();
 
+/* v67 (U8): each language's messages are a chunk of their own, downloaded only when the page
+ * speaks it (vite.config.ts's `paraglideLocaleSplit`). A language is switched to only once its
+ * messages are here, so nothing renders in a language that hasn't arrived. Nothing loads until
+ * `+layout.ts` applies the session's language (signed out: the browser's) and awaits
+ * `localeReady()`, before any route renders: a user whose saved language isn't the browser's
+ * downloads only the saved one. */
+let ready: Promise<void> = Promise.resolve();
+// The newest switch asked for: a slower, older load never lands over it.
+let latest = 0;
+
 /** Reactive: reading `locale.current` in a template or `$derived` tracks it. */
 export const locale = {
 	get current(): Locale {
@@ -45,9 +56,32 @@ export const locale = {
 	}
 };
 
-export function applyLocale(next: Locale): void {
-	current = next;
-	syncDocumentLang();
+/** Switches to `next` once its messages are here: at once when they already are. The returned
+ * promise (also `localeReady()`) settles when the switch has happened. */
+export function applyLocale(next: Locale): Promise<void> {
+	const request = ++latest;
+	if (hasLocaleMessages(next)) {
+		current = next;
+		syncDocumentLang();
+		ready = Promise.resolve();
+		return ready;
+	}
+	ready = loadLocaleMessages(next).then(
+		() => {
+			if (request !== latest) return;
+			current = next;
+			syncDocumentLang();
+		},
+		// Couldn't download it (offline, a deploy replacing the build): stay in the language
+		// already on screen, whose messages are here.
+		() => {}
+	);
+	return ready;
+}
+
+/** Settles once the language last asked for is on screen (or couldn't be loaded). */
+export function localeReady(): Promise<void> {
+	return ready;
 }
 
 // The signed-in user's saved language, `null` for automatic (and whenever signed out): what
@@ -62,9 +96,9 @@ export const languagePreference = {
 
 /** A session's saved language (or `null`: automatic, or signed out), applied: remembered for
  * /account and resolved into the language the page speaks. */
-export function applyLanguagePreference(saved: string | null | undefined): void {
+export function applyLanguagePreference(saved: string | null | undefined): Promise<void> {
 	savedLanguage = saved && isLocale(saved) ? saved : null;
-	applyLocale(resolveLocale(savedLanguage));
+	return applyLocale(resolveLocale(savedLanguage));
 }
 
 function syncDocumentLang() {
