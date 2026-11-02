@@ -882,7 +882,7 @@ here.
     `routers/jobs.py`); the key create's re-check (`routers/account_keys.py`); "check now" refused
     for a removed owner (`routers/jobs.py`, a `job_not_reexpandable` reason); the session-ended path
     and its reason (`+layout.svelte` beyond the nav, `+layout.ts`, `lib/session.ts`,
-    `lib/stores/sessionEnded.ts`, `app.d.ts`, `routes/login/+page.svelte`), with the `access_removed`
+    `lib/stores/sessionEnded.ts`, `app.d.ts`, `routes/login/+page.svelte`; `services/sessions.py`'s `touch=False`), with the `access_removed`
     401 a removed session's cookie gets (live review round 1; never to the extension, whose v53
     fallback knows only `not_authenticated`), and every cookie request re-checking the allowlist
     (live review round 2: a row deleted outside `/users` otherwise left its session working); the error codes (`lib/i18n/errors.ts`, `i18n.test.ts`);

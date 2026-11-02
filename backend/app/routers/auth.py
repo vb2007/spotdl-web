@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -77,7 +78,17 @@ def require_session(
     if not allowlist.is_allowed(db, user.email):
         db.rollback()
         raise _off_the_allowlist(request)
-    session.last_seen_at = datetime.now(timezone.utc)
+    # A conditional UPDATE, not an ORM write: a removal (or a logout) that deleted the session
+    # meanwhile matches no row, and that's a 401, never a StaleDataError 500 (review round 9).
+    touched = db.execute(
+        update(UserSession)
+        .where(UserSession.id == session.id)
+        .values(last_seen_at=datetime.now(timezone.utc))
+        .execution_options(synchronize_session=False)
+    ).rowcount
+    if not touched:
+        db.rollback()
+        raise _no_session(db, request, request.cookies.get(COOKIE_NAME))
     db.commit()
     return user
 
