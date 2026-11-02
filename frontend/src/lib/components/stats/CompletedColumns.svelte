@@ -3,13 +3,17 @@
 	import { axisTickEvery, bucketLabel } from '$lib/stats';
 	import { counted, formatNumber } from '$lib/i18n/format';
 	import * as m from '$lib/paraglide/messages';
+	import { stepCrosshair } from './crosshair';
 
 	// v66: a user's completed tracks per bucket: one series, so no legend (the block's heading
 	// names it), in the settled colour (DESIGN.md: completed = settled), on the failure
 	// recorder's time axis and crosshair so the two strips read alike. The drawing is an image
 	// whose alternative is the summary in its label and the table below it; the table is the
 	// keyboard's way in, as on the recorder.
-	let { stats }: { stats: MyStats } = $props();
+	// v67: `plain` (a non-admin) gets FailureChannels' wider phone name column, so a bucket stays
+	// at the same x in both charts.
+	let { stats, plain = false }: { stats: MyStats; plain?: boolean } = $props();
+	const uid = $props.id();
 
 	const counts = $derived(stats.completed.counts);
 	const buckets = $derived(stats.completed.buckets);
@@ -48,6 +52,21 @@
 	// A window switch can leave the pointer past the end of a shorter window.
 	const shown = $derived(hovered !== null && hovered < n ? hovered : null);
 
+	// v67 (U10): the crosshair by keyboard, as on the recorder.
+	function onKeydown(event: KeyboardEvent) {
+		const next = stepCrosshair(event, shown, n);
+		if (next === undefined) return;
+		event.preventDefault();
+		event.stopPropagation();
+		hovered = next;
+	}
+
+	const reading = $derived(
+		shown === null
+			? ''
+			: `${bucketLabel(stats, buckets[shown], true)}: ${formatNumber(counts[shown])} ${m.stats_legend_completed()}`
+	);
+
 	function height(count: number): string {
 		if (count === 0 || peak === 0) return '0';
 		// A single track stays visible next to a tall column.
@@ -67,15 +86,24 @@
 	</p>
 
 	{#if peak > 0}
+		<!-- v67 (U10): focusable; the arrows move the crosshair, the live region after it reads it. -->
+		<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 		<div
 			class="chart"
+			class:plain
 			style:--n={n}
 			role="img"
 			aria-label={summary}
+			aria-describedby="{uid}-keys"
+			tabindex="0"
 			onpointermove={onPointerMove}
 			onpointerleave={() => (hovered = null)}
+			onkeydown={onKeydown}
+			onblur={() => (hovered = null)}
 		>
-			<span class="name mono"><span class="key"></span>{m.stats_legend_completed()}</span>
+			<span class="name mono" title={m.stats_legend_completed()}
+				><span class="key"></span><span class="name-text">{m.stats_legend_completed()}</span></span
+			>
 			<span class="strip">
 				{#each counts as count, i (i)}
 					<span class="cell" class:hover={shown === i}>
@@ -109,6 +137,10 @@
 				{/if}
 			</span>
 		</div>
+		<p class="sr-only" id="{uid}-keys">
+			{unit === 'hour' ? m.stats_chart_keys_hour() : m.stats_chart_keys_day()}
+		</p>
+		<p class="sr-only" aria-live="polite">{reading}</p>
 
 		<details class="as-table">
 			<summary>{m.stats_show_as_table()}</summary>
@@ -180,10 +212,20 @@
 		gap: var(--space-2);
 		font-size: var(--fs-meta);
 		color: var(--text-muted);
+		min-width: 0;
+		line-height: 1.2;
+	}
+
+	/* v67 (U14): the ellipsis needs a box of its own (on the flex container it never applied). */
+	.name-text {
+		min-width: 0;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		line-height: 1.2;
+	}
+
+	.chart:focus-visible {
+		outline-offset: var(--space-2);
 	}
 
 	.key {
@@ -365,8 +407,21 @@
 			column-gap: var(--space-2);
 		}
 
+		/* FailureChannels' translated-label column, so the two charts' buckets line up. */
+		.chart.plain {
+			--name-col: 7rem;
+		}
+
 		.tick.minor {
 			visibility: hidden;
+		}
+	}
+
+	/* v67: the disclosure is a control: a finger's height on touch, as on the recorder (v47,
+	   F32; this copy of its style had missed the rule). */
+	@media (pointer: coarse) {
+		.as-table summary {
+			padding-block: 0.75rem;
 		}
 	}
 

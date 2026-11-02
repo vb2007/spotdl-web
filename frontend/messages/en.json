@@ -1351,5 +1351,11 @@
 				"countPlural=*": "{n} bytes"
 			}
 		}
-	]
+	],
+	"stats_class_audio_provider": "YouTube refused",
+	"stats_class_no_output": "no file produced",
+	"stats_class_other": "other error",
+	"stats_chart_keys_hour": "Left and right arrows read the chart hour by hour; Home and End jump to its ends.",
+	"stats_chart_keys_day": "Left and right arrows read the chart day by day; Home and End jump to its ends.",
+	"kbd_chart_step": "Read a chart bucket by bucket (on a focused chart)"
 }

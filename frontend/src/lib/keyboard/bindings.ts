@@ -282,6 +282,16 @@ export const BINDINGS: Binding[] = [
 		group: 'queue',
 		routes: DASHBOARD,
 		adminOnly: true
+	},
+	// v67 (U10): a focused stats chart's crosshair. Handled by the chart itself
+	// (components/stats/crosshair.ts), listed here so the help overlay shows it.
+	{
+		id: 'chart-step',
+		keys: [{ key: 'ArrowRight' }, { key: 'ArrowLeft' }, { key: 'Home' }, { key: 'End' }],
+		label: m.kbd_chart_step,
+		group: 'list',
+		routes: ['/stats'],
+		native: true
 	}
 ];
 

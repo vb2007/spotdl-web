@@ -1277,5 +1277,11 @@
 				"*": "{n} bájt"
 			}
 		}
-	]
+	],
+	"stats_class_audio_provider": "a YouTube elutasította",
+	"stats_class_no_output": "nem lett fájl",
+	"stats_class_other": "egyéb hiba",
+	"stats_chart_keys_hour": "A bal és jobb nyíllal óránként olvashatod a diagramot; a Home és az End a két végére ugrik.",
+	"stats_chart_keys_day": "A bal és jobb nyíllal naponként olvashatod a diagramot; a Home és az End a két végére ugrik.",
+	"kbd_chart_step": "Diagram olvasása oszlopról oszlopra (a kijelölt diagramon)"
 }

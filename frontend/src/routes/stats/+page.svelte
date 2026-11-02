@@ -328,9 +328,9 @@
 										>
 									</p>
 								</div>
-								<p class="quiet">{m.stats_rate_definition()}</p>
+								<p class="quiet rate-definition">{m.stats_rate_definition()}</p>
 								<!-- With no attempts it would only repeat the line below (review round 2). -->
-								<CompletedColumns stats={mine} />
+								<CompletedColumns stats={mine} plain={!isAdmin} />
 							{:else}
 								<p class="quiet">{m.stats_mine_no_attempts()}</p>
 							{/if}
@@ -380,7 +380,7 @@
 									{m.stats_failures_by_type_heading()}
 								</h3>
 							</div>
-							<FailureChannels stats={mine} />
+							<FailureChannels stats={mine} plain={!isAdmin} />
 						</section>
 					{/if}
 				</section>
@@ -670,7 +670,8 @@
 	}
 
 	/* v47: a definition is a sentence, read at a sentence's measure (it ran ~103 characters). */
-	#rate-definition {
+	#rate-definition,
+	.rate-definition {
 		max-width: 68ch;
 	}
 
