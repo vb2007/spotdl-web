@@ -2,7 +2,8 @@
 	import { queue } from '$lib/stores/queue';
 	import TrackRow from '$lib/components/TrackRow.svelte';
 	import { tick } from 'svelte';
-	import { focusRowEl, itemOf, kbList, rowAt, rowItemById } from '$lib/keyboard/lists';
+	import { focusRowEl, itemOf, kbList, rowAt, rowById, rowItemById } from '$lib/keyboard/lists';
+	import { ListWindow } from '$lib/listWindow.svelte';
 	import { keepFocus } from '$lib/stores/confirm';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
@@ -33,6 +34,11 @@
 
 	const { expanded } = queue;
 	let state = $derived($expanded[jobId]);
+	// v68 (U4): above 200 loaded tracks, a window of them ($lib/listWindow.svelte.ts).
+	const tracksWindow = new ListWindow({
+		items: () => state?.items ?? [],
+		key: (track) => track.id
+	});
 
 	// v45: "load more tracks" from the keyboard (Enter on it, or End/Shift+G on the last
 	// track, which clicks it) moves focus to the first track it loaded. A pointer press leaves
@@ -60,7 +66,8 @@
 		const items = $expanded[jobId]?.items ?? [];
 		const appended = items.slice(0, known.size).every((t) => known.has(t.id));
 		const fresh = appended ? items.find((t) => !known.has(t.id)) : undefined;
-		if (fresh) focusRowEl(document.querySelector<HTMLElement>(`[data-kb-row="${fresh.id}"]`));
+		// v68: rendered first if the list is windowed.
+		if (fresh) focusRowEl(rowById(fresh.id));
 	}
 </script>
 
@@ -107,8 +114,10 @@
 				// Tracks that don't come back (their re-read failed): the job itself.
 				fallback: () => (state?.loading ? null : rowItemById(jobId))
 			})}
+			style={tracksWindow.style}
+			{@attach tracksWindow.attach}
 		>
-			{#each state.items as track (track.id)}
+			{#each tracksWindow.rendered as track (track.id)}
 				<TrackRow {track} {jobId} {isAdmin} {elsewhere} {jobCancelled} />
 			{/each}
 		</ul>

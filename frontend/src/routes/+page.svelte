@@ -17,7 +17,8 @@
 	import JobRow from '$lib/components/JobRow.svelte';
 	import TrackRow from '$lib/components/TrackRow.svelte';
 	import { registerHandlers } from '$lib/keyboard/registry';
-	import { collapseFocused, focusRowEl, kbList, listHandlers } from '$lib/keyboard/lists';
+	import { collapseFocused, focusRowEl, kbList, listHandlers, rowById } from '$lib/keyboard/lists';
+	import { ListWindow } from '$lib/listWindow.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText, textLang } from '$lib/i18n/errors';
 	import { counted, formatNumber } from '$lib/i18n/format';
@@ -207,9 +208,8 @@
 				document.getElementById('queue-heading')?.focus();
 			return true;
 		}
-		const row = fresh
-			? document.querySelector<HTMLElement>(`[data-kb-row="${CSS.escape(fresh.id)}"]`)
-			: null;
+		// v68: rendered first if the list is windowed.
+		const row = fresh ? rowById(fresh.id) : null;
 		if (!focusRowEl(row)) document.getElementById('queue-heading')?.focus();
 		return true;
 	}
@@ -276,6 +276,18 @@
 	let trackGroups = $derived(
 		$filters.scope === 'tracks' ? groupTracksByJob($page.items as LiveTrackWithJob[]) : []
 	);
+
+	// v68 (U4): above 200 rows each list renders a window of them ($lib/listWindow.svelte.ts).
+	const jobsWindow = new ListWindow<Job>({
+		items: () => ($filters.scope === 'jobs' ? ($page.items as Job[]) : []),
+		key: (job) => job.id
+	});
+	// The tracks scope windows by job group; its rows (and its threshold) are the tracks.
+	const groupsWindow = new ListWindow({
+		items: () => trackGroups,
+		key: (group) => group.job.id,
+		rowIds: (group) => group.tracks.map((track) => track.id)
+	});
 
 	let url = $state('');
 	// v47: a phone's field shows the short placeholder (the long one was cut mid-phrase at 390).
@@ -725,7 +737,7 @@
 
 	/** A notification's click: the job's row, if this page lists it. */
 	function showJob(jobId: string) {
-		const row = document.querySelector<HTMLElement>(`[data-kb-row="${CSS.escape(jobId)}"]`);
+		const row = rowById(jobId);
 		if (row !== null && focusRowEl(row)) row.scrollIntoView({ block: 'center' });
 	}
 </script>
@@ -892,12 +904,15 @@
 				</div>
 			{:else if $filters.scope === 'jobs'}
 				<!-- v45: each list is one Tab stop (roving tabindex, lib/keyboard/lists.ts). -->
+				<!-- v68: above 200 rows, a window of them (the rest is the list's padding). -->
 				<ul
 					class="job-list"
 					aria-label={m.dashboard_list_jobs()}
+					style={jobsWindow.style}
 					{@attach kbList('jobs', { fallback: listFallback })}
+					{@attach jobsWindow.attach}
 				>
-					{#each $page.items as item (item.id)}
+					{#each jobsWindow.rendered as item (item.id)}
 						<JobRow
 							job={item as Job}
 							{view}
@@ -910,9 +925,11 @@
 				<ul
 					class="job-list"
 					aria-label={m.dashboard_list_tracks()}
+					style={groupsWindow.style}
 					{@attach kbList('tracks', { fallback: listFallback })}
+					{@attach groupsWindow.attach}
 				>
-					{#each trackGroups as group (group.job.id)}
+					{#each groupsWindow.rendered as group (group.job.id)}
 						<li class="track-group" aria-labelledby="group-title-{group.job.id}">
 							<!-- v41: the job row's grid, minus the chevron -- its type sits in the badge
 							     column and its title over the track titles below (F02). -->
