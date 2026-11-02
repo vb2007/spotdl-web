@@ -1910,13 +1910,18 @@ function createQueueStore() {
 
 	async function applyEvent(event: StreamEvent): Promise<void> {
 		// v62 (F3): the stream is delivering again, so what failed before is asked for again.
-		if (event.type !== 'library.progress') scheduleRetries();
+		if (event.type !== 'library.progress' && event.type !== 'session.revoked') scheduleRetries();
 		if (event.type === 'track.state') {
 			applyTrackEvent(event);
 		} else if (event.type === 'job.state') {
 			await applyJobEvent(event);
 		} else if (event.type === 'job.status') {
 			applyJobStatusEvent(event);
+		} else if (event.type === 'session.revoked') {
+			// v69 (revoke block): this user's address was taken off the allowlist. The layout's
+			// session-ended path signs the tab out (and the other tabs with it), saying why; it
+			// resets this store once the page is gone, as it does for any 401.
+			api.accessRemoved();
 		}
 		// 'library.progress' (v28) has nothing to do with the job/track queue this store
 		// manages -- the /library page reads it directly off its own EventSource.

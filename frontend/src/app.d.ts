@@ -8,6 +8,8 @@ declare global {
 		interface PageState {
 			/** v47: `/login` reached because the session ended mid-page (a 401), so it says why. */
 			sessionEnded?: boolean;
+			/** v69: and it ended because the admin removed this address from the allowlist. */
+			accessRemoved?: boolean;
 			/** v54: `/`'s admin view this history entry was left in, so a Back restores it. */
 			view?: 'mine' | 'all' | 'others';
 			/** v65: `/share`'s link was queued from this history entry (with the answer's hint), so a

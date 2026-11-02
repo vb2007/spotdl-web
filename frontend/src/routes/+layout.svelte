@@ -24,7 +24,7 @@
 	import * as api from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { link as streamLink } from '$lib/stores/link';
-	import { onSessionMessage, setLeavingSession } from '$lib/session';
+	import { announceSession, onSessionMessage, setLeavingSession } from '$lib/session';
 	import { loginFor } from '$lib/nextPath';
 	import {
 		cancelChord,
@@ -67,7 +67,7 @@
 	// are offered to the admin only; a non-admin reaches them only by typing the path (v43).
 	$effect(() => {
 		const go =
-			(path: '/' | '/settings' | '/library' | '/account' | '/stats', admin = false) =>
+			(path: '/' | '/settings' | '/library' | '/account' | '/stats' | '/users', admin = false) =>
 			() => {
 				if (admin && !isAdmin) return false;
 				goto(resolve(path));
@@ -84,7 +84,9 @@
 						'go-settings': go('/settings', true),
 						'go-library': go('/library', true),
 						'go-account': go('/account'),
-						'go-stats': go('/stats')
+						'go-stats': go('/stats'),
+						// v69: the login allowlist, the admin's only.
+						'go-users': go('/users', true)
 					}
 				: {})
 		});
@@ -98,22 +100,30 @@
 	let ending = false;
 	// v65: a share open when the session ends comes back to itself after the next sign-in, as a
 	// share opened signed out does (`+layout.ts`). Its query from `location` (v54).
-	async function toLoginAfterEnd(): Promise<void> {
+	// v69: `accessRemoved` -- the admin took this address off the allowlist; /login says so.
+	async function toLoginAfterEnd(accessRemoved = false): Promise<void> {
+		const state = accessRemoved ? { sessionEnded: true, accessRemoved } : { sessionEnded: true };
 		if (page.url.pathname === resolve('/share')) {
 			// Replacing, as the signed-out redirect does: the share comes back in this same entry,
 			// so nothing behind it is a second, still-armed copy of it (review round 7).
 			// eslint-disable-next-line svelte/no-navigation-without-resolve -- /login plus a next that safeNext checks on arrival
 			await goto(loginFor('/share' + window.location.search), {
 				replaceState: true,
-				state: { sessionEnded: true }
+				state
 			});
 		} else {
-			await goto(resolve('/login'), { state: { sessionEnded: true } });
+			await goto(resolve('/login'), { state });
 		}
 	}
 	$effect(() =>
 		api.onUnauthorized(async () => {
-			if (ending || page.url.pathname === resolve('/login')) return;
+			// v69: a reason left for a tab already on /login would outlive its 401: drop it. One
+			// arriving while this handler runs (`ending`) is read below, once the 401 is confirmed.
+			if (page.url.pathname === resolve('/login')) {
+				api.takeEndReason();
+				return;
+			}
+			if (ending) return;
 			ending = true;
 			try {
 				// v47: a 401 can be stale (a request sent before a sign-in in another tab, or
@@ -128,15 +138,20 @@
 						setLeavingSession(true);
 						window.location.reload();
 					}
+					api.takeEndReason();
 					return;
 				} catch {
 					// A 401 confirms it; any other failure can't tell, and the request's 401 stands.
 				}
+				const reason = api.takeEndReason();
 				if (api.isSigningOut() || page.url.pathname === resolve('/login')) return;
+				// v69: the session is gone for every tab (they share the cookie): they follow at once
+				// (v62's push), saying why when this tab knows (the stream's `session.revoked`).
+				announceSession(reason ? { type: 'logout', reason } : { type: 'logout' });
 				// v62 (F6): a page's unsaved-edits guard lets this through: nothing can be saved now.
 				setLeavingSession(true);
 				try {
-					await toLoginAfterEnd();
+					await toLoginAfterEnd(reason === 'access_removed');
 				} finally {
 					setLeavingSession(false);
 				}
@@ -160,7 +175,7 @@
 				if (mine === null || page.url.pathname === resolve('/login')) return;
 				setLeavingSession(true);
 				try {
-					await toLoginAfterEnd();
+					await toLoginAfterEnd(message.reason === 'access_removed');
 				} finally {
 					setLeavingSession(false);
 				}

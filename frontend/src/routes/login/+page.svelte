@@ -33,12 +33,17 @@
 	// Its line is held from the first paint whenever it applies, so the sentence arriving (or
 	// an error clearing it) never moves the fields under a finger.
 	const showEnded = page.state.sessionEnded === true || sessionEnded;
+	// v69: the admin removed this address (the stream said so, here or in another tab).
+	const accessRemoved = page.state.accessRemoved === true;
 	onMount(() => {
 		if (!showEnded) return;
 		// Read once: cleared from this history entry, so Back to it later (after a deliberate
 		// sign-out) doesn't say the session ended.
 		if (page.state.sessionEnded) replaceState('', {});
-		const timer = setTimeout(() => (endedText = m.login_session_ended()), 250);
+		const timer = setTimeout(
+			() => (endedText = accessRemoved ? m.login_access_removed() : m.login_session_ended()),
+			250
+		);
 		return () => clearTimeout(timer);
 	});
 	// v47: which field the form's own check found empty, for aria-invalid.
