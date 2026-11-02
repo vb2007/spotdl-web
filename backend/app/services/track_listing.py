@@ -92,12 +92,12 @@ def list_tracks(
         stmt = stmt.where(or_(search.track_matches(q), Job.source_url.ilike(f"%{q}%")))
 
     if job_status_tokens:
-        owner_jobs = select(Job.id, Job.state)
+        owner_jobs = select(Job.id, Job.state, Job.held_at)
         owner_cond = owner_condition(Job.user_id, view, user_id)
         if owner_cond is not None:
             owner_jobs = owner_jobs.where(owner_cond)
         agg = rollup.aggregate_jobs(owner_jobs.subquery())
-        lifecycle_expr = rollup.lifecycle_case(agg.c.state, agg.c.active_n, agg.c.waiting_n)
+        lifecycle_expr = rollup.lifecycle_case(agg.c.state, agg.c.active_n, agg.c.waiting_n, agg.c.held_at)
         outcome_raw = rollup.outcome_case(agg.c.partial_n)
         status_cond = rollup.status_where(lifecycle_expr, outcome_raw, set(job_status_tokens))
         stmt = stmt.join(agg, agg.c.id == Track.job_id)

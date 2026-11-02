@@ -128,7 +128,7 @@ def _swap_statuses(db: Session, ids: list[uuid.UUID], created: bool) -> list[tup
     # In id order, so two publishers locking overlapping sets never wait on each other in a
     # cycle. Only job rows are locked here, never a track.
     rows = db.execute(
-        select(Job.id, Job.user_id, Job.state, Job.archived_at)
+        select(Job.id, Job.user_id, Job.state, Job.archived_at, Job.held_at)
         .where(Job.id.in_(ids))
         .order_by(Job.id)
         .with_for_update(key_share=True)
@@ -136,7 +136,10 @@ def _swap_statuses(db: Session, ids: list[uuid.UUID], created: bool) -> list[tup
     if not rows:
         return []
     counts = track_counts_by_job(db, [row.id for row in rows])
-    statuses = {row.id: derive_rollup(row.state, counts.get(row.id, {})).key for row in rows}
+    statuses = {
+        row.id: derive_rollup(row.state, counts.get(row.id, {}), held=row.held_at is not None).key
+        for row in rows
+    }
 
     pipe = _get_client().pipeline(transaction=False)
     for row in rows:

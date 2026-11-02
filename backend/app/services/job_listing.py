@@ -79,6 +79,8 @@ def list_jobs(
         Job.watch_interval_hours,
         Job.last_expanded_at,
         Job.next_expand_at,
+        # v69: the `held` lifecycle.
+        Job.held_at,
         User.email.label("owner_email"),
         User.username.label("owner_username"),
     ).join(User, Job.user_id == User.id)
@@ -101,8 +103,8 @@ def list_jobs(
     # counts_by_status: grouped over `agg` directly, before the status filter below is
     # applied -- fresh expression objects, since the same CASE built for one statement
     # can't be reused unmodified in a second, independent one.
-    count_lifecycle = rollup.lifecycle_case(agg.c.state, agg.c.active_n, agg.c.waiting_n)
-    count_outcome = rollup.outcome_case_for_display(agg.c.state, agg.c.active_n, agg.c.waiting_n, agg.c.partial_n)
+    count_lifecycle = rollup.lifecycle_case(agg.c.state, agg.c.active_n, agg.c.waiting_n, agg.c.held_at)
+    count_outcome = rollup.outcome_case_for_display(agg.c.state, agg.c.active_n, agg.c.waiting_n, agg.c.partial_n, agg.c.held_at)
     counts_rows = db.execute(
         select(count_lifecycle.label("lifecycle"), count_outcome.label("outcome"), func.count().label("n"))
         .select_from(agg)
@@ -110,10 +112,10 @@ def list_jobs(
     ).all()
     counts_by_status = {rollup.status_key(row.lifecycle, row.outcome): row.n for row in counts_rows}
 
-    lifecycle_expr = rollup.lifecycle_case(agg.c.state, agg.c.active_n, agg.c.waiting_n)
+    lifecycle_expr = rollup.lifecycle_case(agg.c.state, agg.c.active_n, agg.c.waiting_n, agg.c.held_at)
     outcome_raw = rollup.outcome_case(agg.c.partial_n)
-    outcome_disp = rollup.outcome_case_for_display(agg.c.state, agg.c.active_n, agg.c.waiting_n, agg.c.partial_n)
-    rank_expr = rollup.rank_case(agg.c.state, agg.c.active_n, agg.c.waiting_n, agg.c.partial_n)
+    outcome_disp = rollup.outcome_case_for_display(agg.c.state, agg.c.active_n, agg.c.waiting_n, agg.c.partial_n, agg.c.held_at)
+    rank_expr = rollup.rank_case(agg.c.state, agg.c.active_n, agg.c.waiting_n, agg.c.partial_n, agg.c.held_at)
     title_expr = rollup.job_title_expr(agg.c.source_url, agg.c.id)
 
     filtered = select(

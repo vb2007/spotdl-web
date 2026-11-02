@@ -113,6 +113,43 @@ def _hold(
     job_status.publish_change(db, track.job_id)
 
 
+def _job_held(db: Session, job_id: uuid.UUID) -> bool:
+    """v69: whether the track's job is held (its owner's address was removed before it
+    started), read under `FOR SHARE` on the job row, held until this transaction ends. The
+    removal locks the owner's job rows `FOR UPDATE` before it decides which are started
+    (services/allowlist.py), so the two serialize: a removal that committed first is seen here,
+    and one that comes later waits for this transaction and then sees its track started."""
+    held_at = db.execute(
+        select(Job.held_at).where(Job.id == job_id).with_for_update(read=True)
+    ).scalar_one_or_none()
+    return held_at is not None
+
+
+def _back_to_pending(db: Session, track_id: uuid.UUID, entry_state: TrackState, entry_attempt: int, when: str) -> None:
+    """v69: the job is held, so this message attempts nothing: its track goes back to `pending`
+    with no schedule (beat dispatches only a due one), and adding the owner's address again
+    enqueues it (allowlist.add). No attempt row, no breaker feed, no event: nothing happened to
+    the track, and a held job's rollup is `held` whatever its tracks say. Conditional on this
+    invocation's claim, as every gate write is (v55, E4/E5): a cancel meanwhile stays."""
+    moved = db.execute(
+        update(Track)
+        .where(
+            Track.id == track_id,
+            Track.state == entry_state,
+            ~attempts.recorded_since(track_id, entry_attempt),
+        )
+        .values(state=TrackState.PENDING, scheduled_at=None)
+        .execution_options(synchronize_session=False)
+    ).rowcount
+    db.commit()
+    logger.info(
+        "download_track: track %s's job is held (owner removed) %s; %s",
+        track_id,
+        when,
+        "back to pending, not attempted" if moved else "the track moved on meanwhile, left as it is",
+    )
+
+
 def _give_up_claim(db: Session, track: Track, attempt_started_at: datetime, when: str) -> None:
     """This invocation lost the track to a cancel or a reclaim (v55, E4/E5) and exits without
     downloading. A cancel gets its `cancelled` row as before; a reclaim already recorded its
@@ -252,6 +289,14 @@ def download_track(track_id: str) -> None:
         entry_state = track.state
         entry_attempt = attempts.latest_attempt_number(db, track.id)
 
+        # v69: the hold gate. A job whose owner's address was removed before it started is
+        # held: a message already in the broker (or one beat sends after the stale sweep put a
+        # still-queued track back to `waiting`) drains here without an attempt. A plain read;
+        # the claim below re-reads it under the job's row lock.
+        if db.execute(select(Job.held_at).where(Job.id == track.job_id)).scalar_one_or_none() is not None:
+            _back_to_pending(db, track.id, entry_state, entry_attempt, "before dispatch")
+            return
+
         # Covers the race where this task was already enqueued just before the breaker
         # tripped (or the worker was paused) — dispatch_due_tracks is the primary gate and
         # normally won't enqueue in this state at all.
@@ -297,6 +342,11 @@ def download_track(track_id: str) -> None:
             )
             return
         if existing_path is not None:
+            # v69: a dedup result starts a job too, so it's decided under the same lock as the
+            # `downloading` claim.
+            if _job_held(db, track.job_id):
+                _back_to_pending(db, track.id, entry_state, entry_attempt, "before its duplicate resolved")
+                return
             if not _lock_if_still_owned(db, track, entry_state, entry_attempt):
                 _give_up_claim(db, track, attempt_started_at, "before its duplicate resolved")
                 return
@@ -420,6 +470,12 @@ def download_track(track_id: str) -> None:
         output_bitrate = output_settings.default_bitrate
         output_template = output_settings.output_template
         track_meta = track_song_meta(song_json)
+        # v69: held since the gate above? Read under the job's row lock, in the transaction
+        # that moves the track to `downloading`, so a removal can't hold the job between this
+        # check and that commit (it waits on the lock, then finds the job started).
+        if _job_held(db, job_id):
+            _back_to_pending(db, track_uuid, entry_state, entry_attempt, "before its download started")
+            return
         claimed = db.execute(
             update(Track)
             .where(

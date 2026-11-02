@@ -41,7 +41,23 @@ def _dispatch_due(db, job: Job, track_ids: list[uuid.UUID]) -> None:
     cancelled or downloaded meanwhile."""
     now = datetime.now(timezone.utc)
     lease = now + DISPATCH_LEASE
-    _lock_job(db, job)
+    if _lock_job_held(db, job):
+        # v69: the owner's address was removed before this job started. Nothing is sent, and
+        # no marker is left for beat either: the tracks stay `pending` until the address is
+        # added again (allowlist.add enqueues them then).
+        db.execute(
+            update(Track)
+            .where(Track.id.in_(track_ids), Track.state == TrackState.PENDING)
+            .values(scheduled_at=None)
+            .execution_options(synchronize_session=False)
+        )
+        db.commit()
+        logger.info(
+            "expand_job: job %s is held (owner removed); its %d track(s) stay pending, nothing enqueued",
+            job.id,
+            len(track_ids),
+        )
+        return
     claimed = set(
         db.execute(
             update(Track)
@@ -88,6 +104,15 @@ def _lock_job(db, job: Job) -> None:
     takes it before its own, so the two serialize instead of locking the same track rows in
     different orders (a deadlock)."""
     db.execute(select(Job.id).where(Job.id == job.id).with_for_update())
+
+
+def _lock_job_held(db, job: Job) -> bool:
+    """`_lock_job`, and whether the job is held (v69), read under that lock: a removal locks the
+    owner's job rows before it holds any, so it lands either before this read or after this
+    run's claim commits (and then finds those tracks pending, the job unstarted, and holds it:
+    download_track's gate drains the messages)."""
+    held_at = db.execute(select(Job.held_at).where(Job.id == job.id).with_for_update()).scalar_one_or_none()
+    return held_at is not None
 
 
 def _set_marker(db, job: Job, track_ids: list[uuid.UUID], lease: datetime, marker: datetime | None) -> None:
@@ -267,17 +292,20 @@ def expand_job(job_id: str, reexpand: bool = False, marker: str | None = None) -
             # write a no-op if the row moved on while we were running, and db.refresh
             # reads the row's real current state afterward rather than trusting the
             # `job` object loaded at task start.
-            result = db.execute(
+            # v69: RETURNING the job's hold, read under the row lock this UPDATE takes.
+            expanded = db.execute(
                 update(Job)
                 .where(Job.id == job.id, Job.state == JobState.EXPANDING)
                 .values(state=JobState.EXPANDED)
-            )
-            if result.rowcount == 1:
+                .returning(Job.held_at)
+            ).all()
+            if len(expanded) == 1 and expanded[0].held_at is None:
                 # Due only once the job is really EXPANDED: a job cancelled mid-expansion
                 # commits its tracks unmarked (they're cancelled just below), so beat can't
-                # send one in between.
+                # send one in between. v69: a held job's tracks stay unmarked too: it finishes
+                # expanding and enqueues nothing.
                 _mark_due(tracks, datetime.now(timezone.utc))
-            if result.rowcount == 0:
+            if not expanded:
                 db.refresh(job)
                 already_has_tracks = (
                     db.query(Track.id).filter(Track.job_id == job.id).first() is not None

@@ -37,8 +37,13 @@ _PARTIAL_STATES = (TrackState.LOOKUP_FAILED, TrackState.CANCELLED)
 # still in flight or stuck-in-the-retry-ladder first (needs the least action but the
 # most attention), then done-but-incomplete, then cleanly done, then the two dead ends
 # last since neither needs anything further from anyone.
+#
+# v69: `held` (the owner's address was removed before the job started; nothing of it runs until
+# the address is added again) sits right after `expanding`: it needs the admin's attention
+# before anything in flight does.
 STATUS_ORDER: list[tuple[str, str | None]] = [
     ("expanding", None),
+    ("held", None),
     ("active", None),
     ("waiting", None),
     ("settled", "partial"),
@@ -79,7 +84,11 @@ class Rollup:
         return STATUS_RANK[(self.lifecycle, self.outcome)]
 
 
-def derive_rollup(job_state: JobState, counts: dict[str, int]) -> Rollup:
+def derive_rollup(job_state: JobState, counts: dict[str, int], *, held: bool = False) -> Rollup:
+    """`held` (v69): the job's `held_at` is set. It wins over every lifecycle but `failed` and
+    `cancelled`, as `lifecycle_case` has it."""
+    if held and job_state not in (JobState.FAILED, JobState.CANCELLED):
+        return Rollup("held", None)
     if job_state == JobState.EXPANDING:
         return Rollup("expanding", None)
     if job_state == JobState.FAILED:
@@ -147,8 +156,28 @@ def aggregate_jobs(base_jobs_subq):
     )
 
 
-def lifecycle_case(job_state_col: ColumnElement, active_n: ColumnElement, waiting_n: ColumnElement) -> ColumnElement:
+def _held(job_state_col: ColumnElement, held_at: ColumnElement | None):
+    """v69: the `held` branch, first in every CASE below; nothing for a caller that passes no
+    `held_at` (archive.py, which looks only for `settled`/`failed`/`cancelled`, and a held job's
+    tracks are still to run)."""
+    if held_at is None:
+        return ()
+    return (
+        (
+            and_(held_at.is_not(None), job_state_col.not_in((JobState.FAILED, JobState.CANCELLED))),
+            "held",
+        ),
+    )
+
+
+def lifecycle_case(
+    job_state_col: ColumnElement,
+    active_n: ColumnElement,
+    waiting_n: ColumnElement,
+    held_at: ColumnElement | None = None,
+) -> ColumnElement:
     return case(
+        *_held(job_state_col, held_at),
         (job_state_col == JobState.EXPANDING, "expanding"),
         (job_state_col == JobState.FAILED, "failed"),
         (job_state_col == JobState.CANCELLED, "cancelled"),
@@ -166,10 +195,17 @@ def outcome_case(partial_n: ColumnElement) -> ColumnElement:
     return case((partial_n > 0, "partial"), else_="complete")
 
 
-def outcome_case_for_display(job_state_col: ColumnElement, active_n: ColumnElement, waiting_n: ColumnElement, partial_n: ColumnElement) -> ColumnElement:
+def outcome_case_for_display(
+    job_state_col: ColumnElement,
+    active_n: ColumnElement,
+    waiting_n: ColumnElement,
+    partial_n: ColumnElement,
+    held_at: ColumnElement | None = None,
+) -> ColumnElement:
     return case(
         (
             case(
+                *((condition, False) for condition, _ in _held(job_state_col, held_at)),
                 (job_state_col == JobState.EXPANDING, False),
                 (job_state_col == JobState.FAILED, False),
                 (job_state_col == JobState.CANCELLED, False),
@@ -183,8 +219,15 @@ def outcome_case_for_display(job_state_col: ColumnElement, active_n: ColumnEleme
     )
 
 
-def rank_case(job_state_col: ColumnElement, active_n: ColumnElement, waiting_n: ColumnElement, partial_n: ColumnElement) -> ColumnElement:
+def rank_case(
+    job_state_col: ColumnElement,
+    active_n: ColumnElement,
+    waiting_n: ColumnElement,
+    partial_n: ColumnElement,
+    held_at: ColumnElement | None = None,
+) -> ColumnElement:
     return case(
+        *((condition, STATUS_RANK[("held", None)]) for condition, _ in _held(job_state_col, held_at)),
         (job_state_col == JobState.EXPANDING, STATUS_RANK[("expanding", None)]),
         (job_state_col == JobState.FAILED, STATUS_RANK[("failed", None)]),
         (job_state_col == JobState.CANCELLED, STATUS_RANK[("cancelled", None)]),
