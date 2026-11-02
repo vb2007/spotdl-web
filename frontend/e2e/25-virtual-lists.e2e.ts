@@ -896,7 +896,7 @@ test('rows archived above the view leave the reading position where it was', asy
 					?.dataset.kbRow ?? null
 		);
 	await page.evaluate(() => window.scrollTo(0, 0));
-	let id: string | null = null;
+	let id: string | null;
 	for (let step = 0; (id = await id331()) === null; step++) {
 		expect(step).toBeLessThan(300);
 		await page.evaluate(() => window.scrollBy(0, window.innerHeight));
