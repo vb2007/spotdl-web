@@ -135,7 +135,10 @@ export function parkVirtualFixture(): void {
 		`
 import sys
 from sqlalchemy import text
+from app.config import get_settings
 from app.db import SessionLocal
+if get_settings().spotdl_env != "dev":
+    sys.exit("v68 fixture: refusing a stack that isn't SPOTDL_ENV=dev")
 db = SessionLocal()
 user = "(select id from users where email = :e)"
 db.execute(text(f"""

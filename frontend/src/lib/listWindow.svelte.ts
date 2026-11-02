@@ -107,6 +107,17 @@ export interface ListWindowOptions<T> {
 /** Every attached window by its list element, so an outer one can tell a nested one's row. */
 const windows = new Map<HTMLElement, ListWindow<unknown>>();
 
+/** The rows holding the view: the first window row in view and the next few after it (so one
+ * of them is still there when the first is removed), each with where it should stay, and the
+ * page's scroll then. */
+interface Anchor {
+	rows: { el: Element; top: number }[];
+	scrollY: number;
+}
+
+/** How many rows in view an anchor follows. */
+const ANCHOR_ROWS = 3;
+
 interface Slice {
 	/** Item indices in render order: the window, with kept rows before and after it. */
 	indices: number[];
@@ -147,7 +158,10 @@ export class ListWindow<T> {
 	#resize: ResizeObserver | null = null;
 	#focusKey: string | null = null;
 	/** The row holding the view, where it was, and the page's scroll then. */
-	#anchor: { el: Element; top: number; scrollY: number } | null = null;
+	#anchor: Anchor | null = null;
+	/** Where this window's own last correction left the page (its scroll event isn't the
+	 * user's, so it doesn't re-take the anchor). */
+	#ownScroll: number | null = null;
 	/** The nested window holding the view instead (an open job's tracks filling it). */
 	#delegate: ListWindow<unknown> | null = null;
 	#annotated = false;
@@ -176,7 +190,6 @@ export class ListWindow<T> {
 		});
 	}
 
-	/** Whether the list renders a window (above the threshold) rather than every row. */
 	/** How many keyboard rows the items hold (the threshold counts these, not items). */
 	readonly #rows = $derived.by(() => {
 		let rows = 0;
@@ -184,6 +197,7 @@ export class ListWindow<T> {
 		return rows;
 	});
 
+	/** Whether the list renders a window (above the threshold) rather than every row. */
 	readonly active = $derived.by(() => this.#rows > this.#threshold);
 
 	/** Half way to the threshold: every row is still rendered, but heights, the anchor and the
@@ -287,7 +301,13 @@ export class ListWindow<T> {
 		const onScroll = () => {
 			// The page moved: a held row has been scrolled to (or away from) by now.
 			this.#hold = null;
-			this.#capture();
+			// The scroll this window's own correction made: the anchor keeps its targets (the
+			// browser rounds a scrollBy to whole pixels, and re-taking the anchor there lost the
+			// fraction each time: a quarter pixel a removed row, 10px over 40).
+			const own = this.#ownScroll !== null && Math.abs(window.scrollY - this.#ownScroll) < 1;
+			this.#ownScroll = null;
+			// Only a list near or above the threshold ever uses its anchor.
+			if (this.#near && !own) this.#capture();
 			this.#readView();
 		};
 		const onFocusIn = (event: FocusEvent) => {
@@ -413,9 +433,12 @@ export class ListWindow<T> {
 				for (let c = 0; c < children.length; c++) {
 					const key = this.#key(items[c]);
 					this.#keys.set(children[c], key);
-					if (this.#measurable(children[c], key, lastKey)) {
+					// Rows not measured yet only: this runs on every patch (a new items array), and
+					// a 150-row list re-measured whole each time is a layout a patch didn't need.
+					const sizeKey = this.#sizeKey(items[c]);
+					if (!this.#heights.has(sizeKey) && this.#measurable(children[c], key, lastKey)) {
 						const height = children[c].getBoundingClientRect().height;
-						changed = this.#record(this.#sizeKey(items[c]), height) || changed;
+						changed = this.#record(sizeKey, height) || changed;
 					}
 				}
 				if (changed) this.#estimatePerRow();
@@ -569,24 +592,40 @@ export class ListWindow<T> {
 			if (box.bottom > 0) {
 				// An open row holding a windowed list of its own: that list holds the view.
 				for (const [inner, nested] of windows) {
-					if (inner !== list && nested.active && el.contains(inner)) {
+					// Only if that list has a row of its own in view (not while the view shows the
+					// job's header above its tracks, or its "load more" below them): else this row
+					// holds the view itself.
+					if (inner !== list && nested.active && el.contains(inner) && nested.probe()) {
 						this.#delegate = nested;
 						return;
 					}
 				}
-				this.#anchor = { el, top: box.top, scrollY: window.scrollY };
+				const rows = [{ el, top: box.top }];
+				for (let n = c + 1; n < end && rows.length < ANCHOR_ROWS; n++) {
+					const next = children[n].getBoundingClientRect();
+					if (next.top >= window.innerHeight) break;
+					rows.push({ el: children[n], top: next.top });
+				}
+				this.#anchor = { rows, scrollY: window.scrollY };
 				return;
 			}
 		}
 	}
 
-	/** Puts the anchor row back where it was (rows above it measured, or padding changed). */
 	/** Holds the view for an outer window whose row this list fills (it changed above it). */
 	hold(): void {
 		this.#correct();
 		this.#readView();
 	}
 
+	/** Takes this list's anchor (for an outer window deciding whether to hand it the hold);
+	 * whether it has one, of its own or delegated in turn. */
+	probe(): boolean {
+		this.#capture();
+		return this.#anchor !== null || this.#delegate !== null;
+	}
+
+	/** Puts the anchor row back where it was (rows above it measured, or padding changed). */
 	#correct(): void {
 		const delegate = this.#delegate;
 		if (!this.#anchor && delegate) {
@@ -598,9 +637,21 @@ export class ListWindow<T> {
 		// Something scrolled the page since the anchor was taken (a focus() scrolling its row
 		// into view, before its scroll event): that scroll is the user's place now, so the
 		// anchor is taken again rather than restored over it.
-		if (anchor && Math.abs(window.scrollY - anchor.scrollY) < 1 && anchor.el.isConnected) {
-			const delta = anchor.el.getBoundingClientRect().top - anchor.top;
-			if (Math.abs(delta) >= 1) window.scrollBy({ top: delta, behavior: 'instant' });
+		// The first of its rows still in the list (the first itself can be the one removed).
+		const row = anchor?.rows.find((r) => r.el.isConnected);
+		if (anchor && row && Math.abs(window.scrollY - anchor.scrollY) < 1) {
+			const delta = row.el.getBoundingClientRect().top - row.top;
+			if (Math.abs(delta) >= 1) {
+				window.scrollBy({ top: delta, behavior: 'instant' });
+				this.#ownScroll = window.scrollY;
+			}
+			// The targets stay (the fraction the browser rounded away is made up next time); only
+			// the rows still there are kept.
+			this.#anchor = {
+				rows: anchor.rows.filter((r) => r.el.isConnected),
+				scrollY: window.scrollY
+			};
+			return;
 		}
 		this.#capture();
 	}

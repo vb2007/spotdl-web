@@ -7931,6 +7931,14 @@ independently-found production bug from the same conversation)
   `showRow` (`lib/keyboard/lists`): the whole row when it fits the view (the button alone ends
   flush on the edge, its focus ring cut), else its button centered (an open job is taller than
   the view, and `nearest` on the row shows its bottom).
+- **The browser rounds a `scrollBy` to whole pixels.** One live removal per archived job, each
+  corrected: re-taking the anchor after the window's own correction lost the rounded fraction
+  every time (a quarter pixel a 51.25px row, 10px over 40 rows; more at DPR 3). The anchor keeps
+  its targets across its own corrections (the scroll event of its own `scrollBy` doesn't re-take
+  it), and follows three rows in view, so removing the first still leaves one to hold.
+- **A nested window gets the hold only if it has a row in view.** An outer list whose row in view
+  holds an active inner list hands the correction to it; while the view shows that job's header
+  or footer, the inner list has no anchor, so the outer row holds it itself.
 - **A synthetic `button.click()` has `event.detail === 0`**, which the dashboard's "load more"
   treats as the keyboard's (focus to the first new row, the view with it). A real pointer click
   focuses the button, and Chromium then holds the *button* in place (main does the same). A spec

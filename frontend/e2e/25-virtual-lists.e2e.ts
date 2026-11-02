@@ -749,15 +749,20 @@ test('crossing the threshold keeps the focused row, focused, and the view still'
 	// moves no focus): the first window must keep row 3.
 	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
 	await page.waitForTimeout(300);
-	const y = await page.evaluate(() => window.scrollY);
+	// The row the user reads: the last loaded one, in view at the bottom.
+	const lastId = await page
+		.locator('[data-kb-list="jobs"] > li')
+		.last()
+		.getAttribute('data-kb-row');
+	const reading = page.locator(`[data-kb-row="${lastId}"]`);
+	const readingTop = () => reading.evaluate((el) => el.getBoundingClientRect().top);
+	const y = await readingTop();
 	await loadMoreButton(page).dispatchEvent('click', { detail: 1 });
 	await expect.poll(() => loadedRows(page, JOBS)).toBe(250);
 	await expect(page.locator('[data-kb-list="jobs"]')).toHaveAttribute('style', /padding-top/);
 	await page.waitForTimeout(500);
 	expect(await focusedRow(page), 'focus stays on row 3').toBe(focused);
-	expect(Math.abs((await page.evaluate(() => window.scrollY)) - y), 'the view stays').toBeLessThan(
-		2
-	);
+	expect(Math.abs((await readingTop()) - y), 'the view stays').toBeLessThan(2);
 	expect(errors).toEqual([]);
 });
 
@@ -863,5 +868,62 @@ test("an open job's tracks hold their place when a job above them is archived", 
 	const after = await top();
 	test.info().annotations.push({ type: 'nested', description: `track 200: ${before} -> ${after}` });
 	expect(Math.abs(after! - before), 'track 200 stays put').toBeLessThan(2);
+	expect(errors).toEqual([]);
+});
+
+test('rows archived above the view leave the reading position where it was', async ({
+	page,
+	baseURL
+}) => {
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await loadUntil(page, JOBS, 400);
+	// Row 330 at 300px, then 40 rows far above it archived from outside the page: one live
+	// removal each, every one corrected (the browser rounds each scroll to whole pixels; the
+	// fraction used to add up, 10px over 40 rows on desktop).
+	const api = await request.newContext({
+		baseURL,
+		extraHTTPHeaders: { cookie: `SPOTDL_SESSION=${fixture.token}` }
+	});
+	const listed = (await (await api.get('/api/jobs?limit=200')).json()) as {
+		items: { id: string }[];
+	};
+	const id331 = () =>
+		page.evaluate(
+			() =>
+				document.querySelector<HTMLElement>('[data-kb-list="jobs"] > li[aria-posinset="331"]')
+					?.dataset.kbRow ?? null
+		);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	let id: string | null = null;
+	for (let step = 0; (id = await id331()) === null; step++) {
+		expect(step).toBeLessThan(300);
+		await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+		await page.waitForTimeout(50);
+	}
+	const row = page.locator(`[data-kb-row="${id}"]`);
+	await row.evaluate((el) => window.scrollBy(0, el.getBoundingClientRect().top - 300));
+	await page.waitForTimeout(500);
+	const top = () => row.evaluate((el) => el.getBoundingClientRect().top);
+	const before = await top();
+	const ids = listed.items.slice(50, 90).map((job) => job.id);
+	expect((await api.post('/api/jobs/archive', { data: { job_ids: ids } })).status()).toBeLessThan(
+		300
+	);
+	await api.dispose();
+	await expect(page.locator(`[data-kb-row="${ids[ids.length - 1]}"]`)).toHaveCount(0);
+	await expect
+		.poll(
+			async () =>
+				await page.locator('[data-kb-list="jobs"] > li').first().getAttribute('aria-setsize')
+		)
+		.toBe(String(FIXTURE_JOBS - ids.length));
+	await page.waitForTimeout(1_000);
+	const after = await top();
+	test
+		.info()
+		.annotations.push({ type: 'archive-above', description: `row 330: ${before} -> ${after}` });
+	expect(Math.abs(after - before), 'the reading row stays').toBeLessThan(2);
 	expect(errors).toEqual([]);
 });
