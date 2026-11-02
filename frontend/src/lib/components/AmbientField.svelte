@@ -296,13 +296,44 @@
 			resume = -1;
 		}
 
+		/** A position inside the viewport, or null (outside it, or a browser's 0,0 for "nowhere"). */
+		function inside(x: number, y: number): { x: number; y: number } | null {
+			if (x === 0 && y === 0) return null;
+			return x >= 0 && y >= 0 && x <= innerWidth && y <= innerHeight ? { x, y } : null;
+		}
+
 		function onPointerMove(event: PointerEvent) {
 			// A touch on a hybrid device still fires pointermove; the field never chases a tap.
 			if (event.pointerType === 'touch') return;
 			dragging = false;
-			pointer = { x: event.clientX, y: event.clientY };
+			// A button held down keeps its moves coming from outside the window (implicit capture).
+			pointer = inside(event.clientX, event.clientY);
 			aim();
 			wake();
+		}
+
+		/** v67 (U11): a drag or a press that ended. Released outside the window, no pointerout
+		 * or move follows it (a drag's pointerout was skipped above), so the glow stayed stranded
+		 * where the drag left the page: aim at the release point, or home if it was outside. */
+		function release(x: number, y: number) {
+			dragging = false;
+			pointer = inside(x, y);
+			aim();
+			wake();
+		}
+
+		function onDragEnd(event: DragEvent) {
+			release(event.clientX, event.clientY);
+		}
+
+		function onPointerUp(event: PointerEvent) {
+			if (event.pointerType === 'touch') return;
+			if (dragging || !inside(event.clientX, event.clientY)) release(event.clientX, event.clientY);
+		}
+
+		/** The window lost focus (a drop into another application, a switch away): home. */
+		function onBlur() {
+			release(-1, -1);
 		}
 
 		function onPointerOut(event: PointerEvent) {
@@ -336,10 +367,16 @@
 				window.addEventListener('pointermove', onPointerMove, { passive: true });
 				window.addEventListener('pointerout', onPointerOut, { passive: true });
 				window.addEventListener('pointercancel', onPointerCancel, { passive: true });
+				window.addEventListener('pointerup', onPointerUp, { passive: true });
+				window.addEventListener('dragend', onDragEnd, { passive: true });
+				window.addEventListener('blur', onBlur);
 			} else {
 				window.removeEventListener('pointermove', onPointerMove);
 				window.removeEventListener('pointerout', onPointerOut);
 				window.removeEventListener('pointercancel', onPointerCancel);
+				window.removeEventListener('pointerup', onPointerUp);
+				window.removeEventListener('dragend', onDragEnd);
+				window.removeEventListener('blur', onBlur);
 				pointer = null;
 				dragging = false;
 				targetX = targetY = 0;
@@ -364,6 +401,9 @@
 			window.removeEventListener('pointermove', onPointerMove);
 			window.removeEventListener('pointerout', onPointerOut);
 			window.removeEventListener('pointercancel', onPointerCancel);
+			window.removeEventListener('pointerup', onPointerUp);
+			window.removeEventListener('dragend', onDragEnd);
+			window.removeEventListener('blur', onBlur);
 		};
 	});
 </script>
