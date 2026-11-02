@@ -20,6 +20,9 @@
 	let connectButton: HTMLButtonElement | undefined = $state();
 
 	let emailInput: HTMLInputElement | undefined = $state();
+	// v67: a share opened signed out (v65) comes back here with `next=/share…`: say it's waiting,
+	// or the person coming from the share sheet takes it for lost.
+	const forShare = (safeNext(page.url.searchParams.get('next')) ?? '').startsWith('/share');
 	// v47: the session ended under this tab, found by a request's 401 (page state) or by the
 	// layout on a navigation (the module flag).
 	const sessionEnded = consumeSessionEnded();
@@ -159,6 +162,9 @@
 			<h1 class="mono">{m.login_heading()}</h1>
 			<!-- v43 (F31): which account this wants. -->
 			<p class="hint">{m.login_hint()}</p>
+			{#if forShare}
+				<p class="hint">{m.login_share_waiting()}</p>
+			{/if}
 			<!-- v47: arrived here because the session ended mid-page (a 401), not by signing out. -->
 			<p class="ended" class:reserved={showEnded} role="status">
 				{errorMessage ? '' : endedText}

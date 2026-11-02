@@ -65,6 +65,8 @@
 	// v62 (F6): with every preference saved on choice (F7), only a typed value not yet
 	// committed is unsaved: retention's days, or a key's name not yet created.
 	let keyNameTyped = $state(false);
+	// v67: a just-created API key still on screen, not yet copied (it's never shown again).
+	let keyUncopied = $state(false);
 	// A choice already being saved isn't unsaved (review round 3). Within the app, a valid number
 	// typed and not yet committed is committed on the way out (leaving the field does that
 	// anyway, and the guard's own question would: live review), so only what can't be saved is
@@ -78,6 +80,7 @@
 		(unloading) =>
 			(dirty && !saving && (unloading || !retentionSaveable())) ||
 			keyNameTyped ||
+			keyUncopied ||
 			keyboardError !== null ||
 			languageError !== null ||
 			clockError !== null ||
@@ -711,7 +714,10 @@
 		</section>
 
 		<!-- v53: keys for the browser extension (create, list, revoke). -->
-		<ApiKeys onnametyped={(typed) => (keyNameTyped = typed)} />
+		<ApiKeys
+			onnametyped={(typed) => (keyNameTyped = typed)}
+			onuncopied={(uncopied) => (keyUncopied = uncopied)}
+		/>
 
 		<!-- v65: install the app (Chromium's offer, or how on Firefox Android and iOS). -->
 		<InstallApp />

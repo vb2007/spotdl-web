@@ -24,7 +24,13 @@
 
 	// v62 (F6): whether a key's name is typed and not yet created, for /account's unsaved-edits
 	// guard.
-	let { onnametyped }: { onnametyped?: (typed: boolean) => void } = $props();
+	// v67: `onuncopied` tells /account a just-created key is on screen and not yet copied, so
+	// leaving the page asks first (the key is never shown again).
+	let {
+		onnametyped,
+		onuncopied
+	}: { onnametyped?: (typed: boolean) => void; onuncopied?: (uncopied: boolean) => void } =
+		$props();
 
 	let keys = $state<api.ApiKey[] | null>(null);
 	let maxActive = $state(10);
@@ -135,7 +141,27 @@
 		}
 	}
 
+	$effect(() => {
+		onuncopied?.(fresh !== null && copied !== 'yes');
+	});
+
 	async function dismissFresh() {
+		// v67: closed before a copy, the key is gone for good: ask first.
+		if (fresh && copied !== 'yes') {
+			const shown = fresh;
+			const close = await confirmAction({
+				title: m.account_keys_close_title(),
+				subject: shown.label,
+				body: m.account_keys_close_body(),
+				confirmLabel: m.account_keys_close_confirm(),
+				cancelLabel: m.account_keys_close_keep()
+			});
+			if (!close) {
+				if (fresh === shown) await keepFocus(document.getElementById('api-key-fresh'));
+				return;
+			}
+			if (fresh !== shown) return;
+		}
 		fresh = null;
 		copied = null;
 		await tick();

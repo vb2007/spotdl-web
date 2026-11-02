@@ -432,6 +432,15 @@ RISK: a short link needs a server round-trip before there is anything to read.
 		color: var(--text-primary);
 	}
 
+	/* v67: a finger's height on touch, as every other control (it was 20px tall). */
+	@media (pointer: coarse) {
+		.quiet-link {
+			display: inline-flex;
+			align-items: center;
+			min-height: 2.75rem;
+		}
+	}
+
 	/* The look-up in progress: a quiet line, not news. */
 	.outcome.pending {
 		font-size: var(--fs-detail);
