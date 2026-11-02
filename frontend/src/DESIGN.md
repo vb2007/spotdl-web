@@ -1397,6 +1397,17 @@ Sans, the time mono). Hungarian runs longer: v46 and v47 checked every route at 
 auto` on rows was tried and rejected: its paint containment clips the focus ring (§2 Focus, never
    suppressed) and the timeline's absolute-time popups. Virtualizing the list is the real fix and is
    out of polish scope; rows load by cursor page, so only an account that loads everything pays it.
+   **Closed 2026-11-02 (v68, U4):** above 200 loaded rows the job list, the tracks scope (by job
+   group) and an open job's tracks render only a window of rows around the viewport
+   (`lib/listWindow.svelte.ts`); the rest is the list's own padding. On the nginx build a fully
+   loaded 1600-job log went from 24,299 elements and 47.6 MB of heap to 689 and 6.2 MB, and a
+   scroll through it from 66.7 ms median frames to 16.7 ms. At or below 200 rows the markup is
+   exactly what it was. The rows keep their focus ring and popups (nothing is clipped or
+   contained); the focused row, the list's current row and any open row stay rendered outside
+   the window; every rendered row carries `aria-setsize`/`aria-posinset`.
+   **Accepted consequence:** the browser's find-in-page (Ctrl+F) only finds rows in the window.
+   The app's own search (`/` or `f`) is the way to find a row in a long log: it searches the
+   whole log server-side, not just the loaded pages.
 
 ## 9. Sidecar
 

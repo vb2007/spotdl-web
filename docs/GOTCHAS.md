@@ -950,6 +950,14 @@ needed" claim — rather than silently deleted.
   bar needs `scroll-padding-top` on the root or Tab focus lands under it (WCAG 2.4.11) → *v67*
 - A `native` binding (handled by the focused element) may share a chord with a dispatched one;
   the registry never matches it → *v67*
+- A windowed list (`lib/listWindow.svelte.ts`, above 200 rows) has rows that aren't in the DOM:
+  find a row by id through `rowById` (`lib/keyboard/lists`), never `querySelector`, and never
+  measure the window's last child (`:last-child` drops its border; measuring it spun forever) → *v68*
+- A windowed list's estimate for unmeasured rows must be stable (a per-row median), and the
+  scroll anchor only a window row in view: a moving mean, or anchoring on a kept row outside the
+  window, made the hand-made anchoring chase the page to the top → *v68*
+- A class's `$effect` reads its items even while the list isn't mounted: between a scope switch
+  and its reload the tracks scope's groups would be built from jobs. Gate it on the mount → *v68*
 
 **Browser extension (`extension/`)**
 - Spotify's DOM: rows `tracklist-row`, headers `action-bar-row` inside `album-page`/`artist-page`/
@@ -1270,6 +1278,12 @@ needed" claim — rather than silently deleted.
 - Spec 07 counts every job the user ever owned, archived included, as the user's own text: a
   manual check that queues the *admin's* seed track (Get Lucky) as the user breaks it for good
   on that database. Spot-check with the user's own ledger tracks → *v65*
+- CDP's `Accessibility.getPartialAXTree` has no `posinset`/`setsize` properties: assert the
+  attributes and the node's role and parent there; the computed values are in Chromium's own
+  tree (`chrome://accessibility`) → *v68*
+- 1600 jobs are exactly 32 pages, and the cursor doesn't know it's the end: a 33rd "load more"
+  returns nothing, and `main` then focuses the queue's heading (scrolling to the top) after the
+  button is gone. A spec that loads everything waits for that before it scrolls → *v68*
 
 **CI**
 - The `pytest` job's Postgres is a service container the runner pulls with the shared
@@ -1363,6 +1377,9 @@ needed" claim — rather than silently deleted.
   needs a rendered frame: set `startTime`, and pin a hidden tab's position yourself → *v48*
 - Outside a frame Chrome's `document.timeline.currentTime` is a 60Hz-grid estimate; read a
   glide's position at a frame's own timestamp, and probe without a logger rAF → *v48*
+- A fully loaded 1600-job log on the nginx build: 24,299 elements, 47.6 MB heap, scroll frames
+  p50 66.7 ms before the window; 689, 6.2 MB, p50 16.7 ms after. Padding changes on a list are
+  a scroll-anchoring suppression trigger, so the window anchors by hand → *v68*
 
 **Reference (not a gotcha)**
 - Upstream `vb2007.hu-api` endpoint shapes, token scheme, and the two constraints they impose →
@@ -7872,3 +7889,37 @@ independently-found production bug from the same conversation)
   input saying the visible word matched nothing. Names now start with the visible text: "előre:
   {title}".
 
+### v68 log-virtualization gotchas (learned windowing the job and track lists, U4)
+
+- **Windowed, the list's rows are its padding.** `ListWindow` renders the rows near the viewport
+  and sets the unrendered rows' height as the `<ul>`'s inline `padding-top`/`padding-bottom`, so
+  the list keeps its own element, scoped class and `ul > li` semantics. Below the threshold it
+  sets no `style` and no attribute at all: the markup (normalized for digits) is byte-identical to
+  `main`'s on the dev server and on the nginx build.
+- **CSS Scroll Anchoring suppresses itself on a padding change** of an ancestor of the anchor node,
+  so the browser won't hold the view when the window moves. `ListWindow` holds the first window
+  row in view itself (`#capture`/`#correct`). Two ways that went wrong: anchoring on a *kept* row
+  outside the window (it moves with the window's edge; after a jump to mid-list it pulled the page
+  back to the top), and a mean-height estimate (one 400-track group among single tracks skewed it;
+  each row measured shifted every unmeasured row, and the correction chased that up the page).
+  The estimate is a per-row median that moves only on a 25% drift, scaled by an item's row count.
+- **`:last-child` styles move the window.** Job and track rows drop their bottom border as the
+  last child; the window's last rendered row measured 1px short, which moved the window, which
+  changed the last child: `effect_update_depth_exceeded`. The last rendered row is measured only
+  when it's the list's real last item, and height changes past eight a frame wait for the next.
+- **Heights are keyed by item and row count.** A tracks-scope group grows when a later page
+  brings more of its tracks, whether it's rendered or not.
+- **Kept rendered outside the window:** the focused row, the list's current roving row (so Tab
+  lands on the remembered row, and the help overlay's and dialogs' "focus back by id" find it),
+  and any open row (a track's detail is `TrackRow`'s own `$state`: unmounted, it would close).
+  They sit just past the window's edge, out of view; their `aria-posinset` is their real place.
+- **No `flushSync` inside an effect.** `rowIn`/`rowById` render a row synchronously; a list's
+  attachment runs inside an effect, so its first `settle` passes `reveal = false` and the
+  microtask's settle (outside the effect) may reveal.
+- **The tracks scope windows by job group** (its threshold counts tracks). A single huge group
+  (one 400-track playlist loaded whole) renders all its loaded tracks while any of it is in view;
+  an open job's track list is windowed by track.
+- **The fixture is its own account** (`e2e/support/virtual.ts`, `v68fixture@example.com`, a
+  session minted in the stack's database), its log dated two years back and archived after the
+  spec, so the suite's two identities keep plain lists and the admin's all-users view doesn't page
+  through it.
