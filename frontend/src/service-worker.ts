@@ -50,6 +50,18 @@ sw.addEventListener('install', (event) => {
 					if (locale) held.add(locale);
 				}
 			}
+			// Nothing held yet (the first update from a build before v67, whose cache had one
+			// chunk for every language): the browser's language, as the page resolves it signed out.
+			if (held.size === 0) {
+				const languages = sw.navigator.languages ?? [sw.navigator.language];
+				const locales = new Set(
+					[...LAZY].map((path) => /\/messages-([a-z]+)\./.exec(path)?.[1] ?? '')
+				);
+				const browser = languages
+					.map((tag) => tag.toLowerCase().split('-')[0])
+					.find((primary) => locales.has(primary));
+				held.add(browser ?? 'en');
+			}
 			await cache.addAll(
 				[...LAZY].filter((path) => held.has(/\/messages-([a-z]+)\./.exec(path)?.[1] ?? ''))
 			);
@@ -120,7 +132,8 @@ sw.addEventListener('fetch', (event) => {
 				const cached = await cache.match(url.pathname);
 				if (cached) return cached;
 				const answer = await fetch(request);
-				if (answer.ok) await cache.put(url.pathname, answer.clone());
+				// Keeping it is a bonus: a failed write (storage full) never fails the download.
+				if (answer.ok) event.waitUntil(cache.put(url.pathname, answer.clone()).catch(() => {}));
 				return answer;
 			})()
 		);

@@ -87,12 +87,14 @@
 	guardUnsavedEdits(
 		(unloading) => unsavedEdits(unloading) || keyUncopied,
 		// v67: an uncopied new key is lost for good, not an unsaved change: its own question,
-		// when it's the only thing to lose (with other edits too, the generic one covers both).
+		// which also says so when other unsaved edits would go with it.
 		() =>
-			keyUncopied && !unsavedEdits(false)
+			keyUncopied
 				? {
 						title: m.account_keys_leave_title(),
-						body: m.account_keys_close_body(),
+						body: unsavedEdits(false)
+							? `${m.account_keys_close_body()} ${m.account_keys_leave_also()}`
+							: m.account_keys_close_body(),
 						confirmLabel: m.account_keys_leave_confirm(),
 						cancelLabel: m.account_keys_close_keep()
 					}

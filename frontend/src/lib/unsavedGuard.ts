@@ -4,6 +4,15 @@ import { confirmAction } from '$lib/stores/confirm';
 import { leavingSession } from '$lib/session';
 import * as m from '$lib/paraglide/messages';
 
+/** v67: a page's own question for what it guards (an uncopied API key isn't an "unsaved change"),
+ * or `null` for the generic one. */
+export interface LeaveQuestion {
+	title: string;
+	body: string;
+	confirmLabel: string;
+	cancelLabel: string;
+}
+
 /** v62 (F6): asks before a page with unsaved edits is left. Call it during a page's component
  * init with what "unsaved" means there, told whether the page is unloading (/settings: a
  * section differs from what was loaded; /account: see its own note).
@@ -15,15 +24,6 @@ import * as m from '$lib/paraglide/messages';
  *   (`beforeunload`; SvelteKit's `cancel()` of an unloading navigation asks the same).
  * - Leaving because the session ended or changed (another tab's sign-out, a 401) is never
  *   held: nothing typed here can be saved by this session any more. */
-/** v67: a page's own question for what it guards (an uncopied API key isn't an "unsaved change"),
- * or `null` for the generic one. */
-export interface LeaveQuestion {
-	title: string;
-	body: string;
-	confirmLabel: string;
-	cancelLabel: string;
-}
-
 export function guardUnsavedEdits(
 	isDirty: (unloading: boolean) => boolean,
 	question?: () => LeaveQuestion | null
