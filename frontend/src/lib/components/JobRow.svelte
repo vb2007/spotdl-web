@@ -44,7 +44,14 @@
 	};
 
 	let statusToken = $derived(api.statusKey(job.status));
-	let badgeLabel = $derived(jobStatusLabel(statusToken));
+	// v67 (U6): a one-track job that ended "partial" only because its track wasn't found has
+	// nothing done: its badge says "not found", not "done — partial".
+	let oneNotFound = $derived(
+		statusToken === 'settled:partial' &&
+			(job.track_counts.lookup_failed ?? 0) === 1 &&
+			Object.values(job.track_counts).reduce((sum, count) => sum + (count ?? 0), 0) === 1
+	);
+	let badgeLabel = $derived(oneNotFound ? m.state_lookup_failed() : jobStatusLabel(statusToken));
 	// v42 (F28): red is for a real gap. A job that is partial only because its owner
 	// cancelled tracks has nothing missing they didn't choose, so it reads muted.
 	// v47 (F04/F05, DESIGN.md §2): amber says something is receiving right now. An active job
@@ -77,7 +84,7 @@
 		if ((c.pending ?? 0) + (c.queued ?? 0) + (c.downloading ?? 0) === 1)
 			return statusToken === 'active';
 		if ((c.waiting ?? 0) === 1) return statusToken === 'waiting';
-		return false;
+		return oneNotFound;
 	});
 	// v46: what kind of link the job is, in words (the API's own value is a machine key).
 	const SOURCE_TYPE_LABEL: Record<JobSourceType, () => string> = {

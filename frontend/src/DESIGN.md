@@ -243,7 +243,7 @@ second colour vocabulary for a new component — map any new state onto one of t
 > leaves the viewer's own events out: there the page asks (on resync and on its 5s worker poll)
 > whether the viewer has a download of their own receiving. The Waterfall's edge stays neutral
 > there: it marks a lane on the panel, and that view shows none of the viewer's. For the same reason
-> its idle line can read "no signal here — worker busy elsewhere" while the field is warm: true of
+> its idle line can read "quiet here — the worker is busy elsewhere" (v67's copy) while the field is warm: true of
 > the panel, whose view leaves the viewer's own download out (accepted, no new copy). This closes
 > §8.3.
 
@@ -519,8 +519,10 @@ The full idle panel stays (owner's choice over a one-line strip). Its status lin
 is receiving, in priority order: **link lost — reconnecting** (this page's SSE stream is down, so
 nothing else on the panel can be trusted), **tuning in…** (not yet connected), **receiver paused**,
 **holding · resumes in …** (the breaker; a countdown, plus "a deliberate pause after repeated rate
-limits; waiting tracks keep their place"), **no signal here — worker busy elsewhere**, and **no
-signal — nothing downloading**. It never says "idle" while the breaker holds. The noise floor only
+limits; waiting tracks keep their place"), **quiet here — the worker is busy elsewhere**, and
+**quiet — nothing downloading** (v67, U6: "no signal" read as a fault beside a healthy "linked", and
+it also opened the could-not-read errors; those now say only "couldn't read this album"). It never
+says "idle" while the breaker holds. The noise floor only
 moves while the receiver is listening (or tuning in, before the stream first opens): held, paused or
 with the link lost it lies flat. A countdown never sits inside a live region: the panel has one
 `sr-only` status region holding a fixed sentence per state ("Downloads holding until 23:20",
@@ -554,8 +556,8 @@ backoff of up to 30s.
 global `--concurrency=1` means the Waterfall is idle-for-this-session far more often than not —
 someone else's download, not a stall. The temptation is to reuse `--signal` for "something, out
 there, is alive," but that would spend the one committed live-signal colour on a condition that
-isn't live _for this viewer_; the border stays neutral and only the status word swaps to "no signal
-here — worker busy elsewhere", in `--text-dim`, never amber. `--signal` is reserved for _this
+isn't live _for this viewer_; the border stays neutral and only the status word swaps to "quiet
+here — the worker is busy elsewhere", in `--text-dim`, never amber. `--signal` is reserved for _this
 session's own_ active track, full stop, not "the global worker."
 
 ### Ambient field (`AmbientField.svelte`, v40)
@@ -677,8 +679,9 @@ settled; waiting → waiting; lookup_failed → fail; cancelled → idle.
 The words are the state-filter chips' words (v41, 2026-10-14, F21, owner's call): pending, queued,
 downloading, completed, waiting, not found, duplicate, cancelled, so a state reads the same on a
 chip and on a row and no label truncates in the state column (F13). The in-world voice stays on
-idents and moments. In Hungarian (v46, 2026-10-18): sorban áll, indulásra kész, letöltés alatt,
-letöltve, várakozik, nem található, már megvan, megszakítva. History: v20 renamed `lookup_failed`'s
+idents and moments. In Hungarian (v46, 2026-10-18): sorban áll, mindjárt indul, letöltés alatt,
+letöltve, várakozik, nem található, már megvan, megszakítva (v67, U6: queued was "indulásra kész",
+whose "kész" read as "done"). History: v20 renamed `lookup_failed`'s
 copy from "no signal — given up" to "no signal — not found", because the state was never "given up"
 (it is terminal and never auto-retried); v41 then dropped the in-world phrases for the chip words.
 
@@ -692,7 +695,10 @@ The job-level counterpart, over `statusKey()` (`expanding`, `active`, `waiting`,
 `settled:partial`, `settled:complete`, `cancelled`, `failed`), same five classes. Labels come from
 `lib/i18n/labels.ts`'s `jobStatusLabel` (Hungarian: hangolás, aktív, várakozik, kész — részben,
 kész, megszakítva, sikertelen) and are shared between the filter chips and the row badge, so the two
-can't drift: "done — partial" for `settled:partial`, never "failed" or "partial" alone.
+can't drift: "done — partial" for `settled:partial`, never "failed" or "partial" alone. One
+exception on the row (v67, U6): a one-track job partial only because its track wasn't found has
+nothing done, so its badge says the track's own "not found" (red), with no count line; its chip
+stays "done — partial", the category it counts in.
 
 - `expanding` and `active` map to `cond-live` **only while receiving** (§2 v47): expanding, or ≥1
   track downloading, with the link live. Otherwise they read `cond-idle`. Expanding is live for the
