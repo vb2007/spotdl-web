@@ -7499,6 +7499,7 @@ independently-found production bug from the same conversation)
   (`watch.schedule_next`, before the read), and a read error only logs; a monthly watch hit by one transient error is next
   checked a month later. A sooner retry would need a backoff that a dead link can't turn into
   hourly Spotify traffic; not built.
+
 ### v64 job-export gotchas (learned building the streamed zip and the M3U)
 
 - **`api` couldn't read a single file.** Until v64 only nginx served audio (`X-Accel-Redirect`,
@@ -7635,9 +7636,9 @@ independently-found production bug from the same conversation)
 - **Every value the export reads from `song_json` or the title is coerced.** A non-string
   `list_name` (the job title), a non-object `song_json` and a `duration` too big for a float
   (`math.isfinite(10**400)` raises `OverflowError`) each made the whole job's export answer 500.
+  Bidi controls (U+202E) are stripped from entry names.
   *(Live review round 8: a non-object `song_json` on the job's **first** track still fails it,
   in `rollup.derive_job_title`, which `GET /api/jobs/{id}` shares: pre-existing, outside v64.)*
   The ledger re-read is chunked (10,000 ids per query): Postgres takes at most 65,535 bound
   parameters in one statement.
-  Bidi controls (U+202E) are stripped from entry names.
 
