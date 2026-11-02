@@ -32,11 +32,12 @@
  *   the window, which moved the edge (an endless re-render).
  * - Scroll anchoring by hand: padding changes suppress the browser's own anchoring (CSS Scroll
  *   Anchoring's suppression triggers), so the first row in view is held in place after every
- *   render and resize, the way the browser holds a plain list. The browser's own stays on: with
- *   the list opted out (`overflow-anchor: none`) it anchored on the next thing in view, the
- *   "load more" button below, and moved the view by the whole new page. A correction is skipped
- *   when the page was scrolled since the anchor was taken (a focus() bringing its row into view,
- *   or the browser's own anchoring): that scroll is the place now.
+ *   render and resize, the way the browser holds a plain list. While a window is active the
+ *   page's own anchoring is off (`overflow-anchor: none` on the root): on the rows it moved the
+ *   view during the very render being corrected, and with only the list opted out it anchored
+ *   on the "load more" button below. A correction is skipped when something else scrolled since
+ *   the anchor was taken: a scroll event not the window's own, or (for a render) a scrollY
+ *   already changed before the render reached the DOM (`$effect.pre`).
  * - Kept rendered outside the window: the row holding focus, the list's current (roving) row,
  *   and any open row (a track's detail is the row's own state, lost if it unmounted). They sit
  *   just past the window's edge, out of view, in their own place in the padding.
@@ -114,7 +115,26 @@ const windows = new Map<HTMLElement, ListWindow<unknown>>();
  * page's scroll then. */
 interface Anchor {
 	rows: { el: Element; top: number }[];
+	/** The window's count of scrolls not its own (`#scrolled`) when taken: one since makes it
+	 * stale. A count, not the page's scrollY: the browser's own anchoring moves scrollY during
+	 * the very render being corrected (its scroll event comes later), and a scrollY guard then
+	 * refused the correction (an open job far above archived: the view lost by 2,000px). */
+	scrolled: number;
+	/** The page's scrollY then: a change since that no scroll event has told of yet (the user's
+	 * scrollBy, a jump) makes it stale too. The browser's own anchoring, which also moves scrollY
+	 * during a render, is off while a window is active (`optOut`). */
 	scrollY: number;
+}
+
+/** Windows active right now: while any is, the page's own scroll anchoring is off. Two
+ * anchorings on one page fought: on the list's rows it moved the view during the render being
+ * corrected (an open job far above archived: the view lost by 2,000px); with only the list opted
+ * out it anchored on the "load more" button below instead (the view moved by a whole page). */
+let activeWindows = 0;
+
+function optOut(on: boolean): void {
+	activeWindows += on ? 1 : -1;
+	document.documentElement.style.overflowAnchor = activeWindows > 0 ? 'none' : '';
 }
 
 /** How many rows in view an anchor follows at most: all of them on any screen, so a batch
@@ -165,6 +185,8 @@ export class ListWindow<T> {
 	/** Where this window's own last correction left the page (its scroll event isn't the
 	 * user's, so it doesn't re-take the anchor). */
 	#ownScroll: number | null = null;
+	/** scrollY before the render being handled (`$effect.pre`), or null. */
+	#preY: number | null = null;
 	/** The anchor as this frame's first render found it (`#holdFrame`). */
 	#frameAnchor: Anchor | null = null;
 	/** A near list's anchor is waiting for the next frame. */
@@ -174,6 +196,8 @@ export class ListWindow<T> {
 	/** The nested window holding the view instead (an open job's tracks filling it). */
 	#delegate: ListWindow<unknown> | null = null;
 	#annotated = false;
+	/** This window counts in `activeWindows`. */
+	#optedOut = false;
 	#lastSlice: Slice | null = null;
 	/** Height changes taken this frame: past a budget, the rest wait for the next frame, so no
 	 * feedback between measuring and rendering can ever spin. */
@@ -243,9 +267,16 @@ export class ListWindow<T> {
 
 	readonly #slice = $derived.by((): Slice | null => {
 		if (!this.active) return (this.#lastSlice = null);
+		// The page's scroll as this render begins, before it reaches the DOM (the slice is worked
+		// out during the render): a change the render itself makes (removing an open job moved
+		// scrollY by 100px) is corrected through, while a scroll before it (the user's, its event
+		// not yet in) makes the anchor stale. A plain field: an $effect.pre reading the same
+		// deriveds looped (effect_update_depth_exceeded).
+		this.#preY = window.scrollY;
 		const offsets = this.#offsets;
 		const n = offsets.length - 1;
-		const { top, height } = this.#view;
+		const { height } = this.#view;
+		const top = this.#anchoredTop(offsets) ?? this.#view.top;
 		let [start, end] = rangeOf(offsets, top - OVERSCAN_PX, top + height + OVERSCAN_PX);
 		const hold = this.#hold;
 		if (hold !== null && hold < n && (hold < start || hold >= end)) {
@@ -326,7 +357,12 @@ export class ListWindow<T> {
 		const onWindowBlur = () => {
 			returning = document.activeElement;
 		};
-		const onFocusIn = (event: FocusEvent) => {
+		// Event handlers and the keyboard module's callbacks read this window's reactive state; a
+		// focus() or a settle inside some other attachment's effect runs them synchronously, and
+		// untracked they'd make that effect depend on this list (re-running it on every patch).
+		const onFocusIn = (event: FocusEvent) => untrack(() => focusIn(event));
+		const onFocusOut = (event: FocusEvent) => untrack(() => focusOut(event));
+		const focusIn = (event: FocusEvent) => {
 			this.#focusKey = this.#childKey(event.target as Node);
 			this.#updatePins();
 			const back = returning !== null && event.target === returning;
@@ -348,7 +384,7 @@ export class ListWindow<T> {
 				});
 			}
 		};
-		const onFocusOut = (event: FocusEvent) => {
+		const focusOut = (event: FocusEvent) => {
 			const to = event.relatedTarget as Node | null;
 			// Focus gone elsewhere. A row removed with focus inside has no `relatedTarget`, and
 			// its key leaves the items anyway.
@@ -372,14 +408,24 @@ export class ListWindow<T> {
 		this.#resize = new ResizeObserver((entries) => this.#onResize(entries));
 		windows.set(list, this as ListWindow<unknown>);
 		const unregister = registerVirtual(list, {
-			ids: () => this.#allRowIds,
-			reveal: (id) => this.reveal(id),
+			ids: () => untrack(() => this.#allRowIds),
+			reveal: (id) => untrack(() => this.reveal(id)),
 			// The list's current row moved (a removed row's neighbour): keep that one rendered.
-			changed: () => this.#updatePins()
+			changed: () => untrack(() => this.#updatePins()),
+			// A focus() or a row scrolled into view moved the page: that is the place now.
+			moved: () =>
+				untrack(() => {
+					this.#scrolled++;
+					if (this.#near) this.#capture();
+				})
 		});
 		this.#readView();
 		return () => {
 			unregister();
+			if (this.#optedOut) {
+				this.#optedOut = false;
+				optOut(false);
+			}
 			if (windows.get(list) === (this as ListWindow<unknown>)) windows.delete(list);
 			window.removeEventListener('scroll', onScroll);
 			window.removeEventListener('blur', onWindowBlur);
@@ -417,6 +463,28 @@ export class ListWindow<T> {
 		return shown;
 	}
 
+	/** An anchor nothing but this window has moved the page since. */
+	#fresh(anchor: Anchor): boolean {
+		return anchor.scrolled === this.#scrolled && Math.abs(window.scrollY - anchor.scrollY) < 1;
+	}
+
+	/** The view's top in the list's coordinates as the anchor puts it: where its row now is in
+	 * the list, less where it is held in the view. Null without a valid anchor (none, or the
+	 * page scrolled by something else since). The window is placed from this rather than from the
+	 * last scroll position: when rows above change (an open job far above archived, 14,000px
+	 * gone), the old position names rows far past the overscan, the rows read unmount, and the
+	 * correction has nothing left to hold. Not tracked: the anchor isn't state. */
+	#anchoredTop(offsets: number[]): number | null {
+		const anchor = this.#anchor;
+		if (!anchor || !this.#fresh(anchor)) return null;
+		for (const row of anchor.rows) {
+			const key = this.#keys.get(row.el);
+			const at = key === undefined ? undefined : this.#index.byKey.get(key);
+			if (at !== undefined) return offsets[at] - row.top;
+		}
+		return null;
+	}
+
 	/** Whether a rendered row (a child of the list) is one of the window's own, not a kept row
 	 * outside it. Below the threshold every row is. */
 	#isWindowRow(el: Element): boolean {
@@ -445,13 +513,17 @@ export class ListWindow<T> {
 			// The render that turned the window off (rows removed above the view, the list back to
 			// 200) also dropped the padding, which the browser's anchoring ignores: hold the view.
 			const leaving = this.#annotated;
+			if (this.#optedOut) {
+				this.#optedOut = false;
+				optOut(false);
+			}
 			if (leaving) {
 				for (const el of children) {
 					el.removeAttribute('aria-setsize');
 					el.removeAttribute('aria-posinset');
 				}
 				this.#annotated = false;
-				this.#correct();
+				this.#correct(true);
 			}
 			// Nearing the threshold, every row is rendered: their heights are learned now, so
 			// the first window has its rows' real places (with 56px guesses, crossing 200 moved
@@ -495,6 +567,10 @@ export class ListWindow<T> {
 		const items = this.#items();
 		// Mid-update (a row's component not mounted yet): the next render catches up.
 		if (!slice || children.length !== slice.indices.length) return;
+		if (!this.#optedOut) {
+			this.#optedOut = true;
+			optOut(true);
+		}
 		this.#annotated = true;
 		const size = String(Math.max(items.length, this.#total() ?? 0));
 		const lastKey = items.length ? this.#key(items[items.length - 1]) : null;
@@ -527,7 +603,7 @@ export class ListWindow<T> {
 		if (changed) this.#remeasured();
 		this.#updatePins();
 		this.#holdFrame();
-		this.#correct();
+		this.#correct(true);
 		this.#readView();
 	}
 
@@ -547,12 +623,7 @@ export class ListWindow<T> {
 			const now = this.#anchor;
 			// Only while the page moved by this window's corrections alone since (a focus()
 			// scrolling a restored neighbour into view is the place now).
-			if (
-				!this.#list ||
-				!now ||
-				scrolled !== this.#scrolled ||
-				Math.abs(window.scrollY - now.scrollY) >= 1
-			) {
+			if (!this.#list || !now || scrolled !== this.#scrolled || !this.#fresh(now)) {
 				return;
 			}
 			const row = start.rows.find((r) => r.el.isConnected && this.#isWindowRow(r.el));
@@ -574,6 +645,7 @@ export class ListWindow<T> {
 										(row.el.getBoundingClientRect().top - row.top)
 								}
 					),
+				scrolled: this.#scrolled,
 				scrollY: window.scrollY
 			};
 			this.#readView();
@@ -709,7 +781,7 @@ export class ListWindow<T> {
 					if (next.top >= window.innerHeight) break;
 					rows.push({ el: children[n], top: next.top });
 				}
-				this.#anchor = { rows, scrollY: window.scrollY };
+				this.#anchor = { rows, scrolled: this.#scrolled, scrollY: window.scrollY };
 				return;
 			}
 		}
@@ -729,7 +801,7 @@ export class ListWindow<T> {
 		const kept = this.#anchor;
 		if (
 			kept &&
-			Math.abs(window.scrollY - kept.scrollY) < 1 &&
+			this.#fresh(kept) &&
 			kept.rows.some((r) => r.el.isConnected && this.#isWindowRow(r.el))
 		) {
 			return true;
@@ -739,7 +811,10 @@ export class ListWindow<T> {
 	}
 
 	/** Puts the anchor row back where it was (rows above it measured, or padding changed). */
-	#correct(): void {
+	/** `rendered`: called for a render of this list (its own changes may have moved scrollY). */
+	#correct(rendered = false): void {
+		const pre = this.#preY;
+		this.#preY = null;
 		const delegate = this.#delegate;
 		if (!this.#anchor && delegate) {
 			delegate.hold();
@@ -755,7 +830,11 @@ export class ListWindow<T> {
 		// jump, and following it would throw the page there).
 		const live = (el: Element) => el.isConnected && this.#isWindowRow(el);
 		const row = anchor?.rows.find((r) => live(r.el));
-		if (anchor && row && Math.abs(window.scrollY - anchor.scrollY) < 1) {
+		const fresh = (a: Anchor) =>
+			rendered && pre !== null
+				? a.scrolled === this.#scrolled && Math.abs(pre - a.scrollY) < 1
+				: this.#fresh(a);
+		if (anchor && row && fresh(anchor)) {
 			const delta = row.el.getBoundingClientRect().top - row.top;
 			if (Math.abs(delta) >= 1) {
 				window.scrollBy({ top: delta, behavior: 'instant' });
@@ -769,6 +848,7 @@ export class ListWindow<T> {
 				rows: anchor.rows
 					.filter((r) => live(r.el))
 					.map((r) => (r === row ? r : { el: r.el, top: r.el.getBoundingClientRect().top - off })),
+				scrolled: this.#scrolled,
 				scrollY: window.scrollY
 			};
 			return;

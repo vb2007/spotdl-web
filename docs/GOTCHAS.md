@@ -7925,7 +7925,13 @@ independently-found production bug from the same conversation)
   an open job's track list is windowed by track.
 - **Don't opt the windowed list out of the browser's scroll anchoring** (`overflow-anchor:
   none`): Chromium then anchors on the next thing in view, the "load more" button below the list,
-  and keeps *it* in place, moving the view by the whole new page. With the list's rows eligible
+  and keeps *it* in place, moving the view by the whole new page. *(Corrected 2026-11-02, same slice: the
+  page's own anchoring is now off altogether while a window is active (`overflow-anchor: none` on
+  the root, set and restored by the windows): on the rows it moved scrollY during the very render
+  being corrected, an open job far above archived lost the view by 2,000px. The guard against
+  another scroll checks the scroll counter and, for a render, scrollY read in `$effect.pre`
+  before the render reached the DOM, so a scroll the render itself causes is corrected through
+  and a user's scroll whose event hasn't come yet is not undone.)* With the list's rows eligible
   it anchors on the row in view, as on a plain list. The hand-made correction is skipped when the
   page scrolled since its anchor was taken: a `focus()` scrolling the restored neighbour into view
   (before its scroll event) was being undone by the next render's correction.

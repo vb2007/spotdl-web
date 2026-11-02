@@ -1405,7 +1405,10 @@ auto` on rows was tried and rejected: its paint containment clips the focus ring
    the longest 33 ms). At or below 200 rows the markup is
    exactly what it was. The rows keep their focus ring and popups (nothing is clipped or
    contained); the focused row, the list's current row and any open row stay rendered outside
-   the window; every rendered row carries `aria-setsize`/`aria-posinset`.
+   the window; every rendered row carries `aria-setsize`/`aria-posinset`. The tracks scope
+   windows by job group: one group of hundreds of loaded tracks (a big playlist) renders all of
+   them while any of it is in view, and its group carries the position, its tracks their place in
+   the group; an open job's own track list is windowed by track.
    **Accepted consequence:** the browser's find-in-page (Ctrl+F) only finds rows in the window.
    The app's own search (`/` or `f`) is the way to find a row in a long log: it searches the
    whole log server-side, not just the loaded pages.

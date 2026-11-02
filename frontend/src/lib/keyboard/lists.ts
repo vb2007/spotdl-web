@@ -130,6 +130,14 @@ export interface VirtualRows {
 	reveal(id: string): HTMLElement | null;
 	/** The list's current row changed (so the window can keep it rendered). */
 	changed?(): void;
+	/** The page was scrolled by a focus() or a row brought into view (the windows' anchors are
+	 * taken again: correcting back to the old ones would undo it before its scroll event). */
+	moved?(): void;
+}
+
+/** Tells every windowed list the page moved under a focus or a reveal. */
+function pageMoved(): void {
+	for (const rows of virtuals.values()) rows.moved?.();
 }
 
 const virtuals = new Map<HTMLElement, VirtualRows>();
@@ -248,7 +256,9 @@ function applyTabOrder(list: HTMLElement): void {
 function focusRow(row: HTMLElement | undefined | null, opts?: FocusOptions): boolean {
 	const item = row ? itemOf(row) : null;
 	if (!item) return false;
+	const y = window.scrollY;
 	item.focus(opts);
+	if (window.scrollY !== y) pageMoved();
 	return true;
 }
 
@@ -479,6 +489,12 @@ export function move(row: HTMLElement, to: number | 'first' | 'last'): boolean {
  * button alone would sit flush on the edge, the ring cut), else (an open job taller than the
  * view) its own button, centered. */
 export function showRow(row: HTMLElement): void {
+	const y = window.scrollY;
+	scrollRowIn(row);
+	if (window.scrollY !== y) pageMoved();
+}
+
+function scrollRowIn(row: HTMLElement): void {
 	const item = itemOf(row);
 	const box = row.getBoundingClientRect();
 	if (item && box.height > window.innerHeight) {

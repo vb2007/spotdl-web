@@ -891,21 +891,27 @@ test('rows archived above the view leave the reading position where it was', asy
 	const listed = (await (await api.get('/api/jobs?limit=200')).json()) as {
 		items: { id: string }[];
 	};
-	const id331 = () =>
-		page.evaluate(
-			() =>
-				document.querySelector<HTMLElement>('[data-kb-list="jobs"] > li[aria-posinset="331"]')
-					?.dataset.kbRow ?? null
-		);
+	// Down a screen at a time until row 331 is rendered, then (in the same step, before the
+	// window can move on) brought to 300px.
+	const bring331 = () =>
+		page.evaluate(() => {
+			const el = document.querySelector<HTMLElement>(
+				'[data-kb-list="jobs"] > li[aria-posinset="331"]'
+			);
+			if (!el) {
+				window.scrollBy(0, window.innerHeight);
+				return null;
+			}
+			window.scrollBy(0, el.getBoundingClientRect().top - 300);
+			return el.dataset.kbRow!;
+		});
 	await page.evaluate(() => window.scrollTo(0, 0));
 	let id: string | null;
-	for (let step = 0; (id = await id331()) === null; step++) {
+	for (let step = 0; (id = await bring331()) === null; step++) {
 		expect(step).toBeLessThan(300);
-		await page.evaluate(() => window.scrollBy(0, window.innerHeight));
 		await page.waitForTimeout(50);
 	}
 	const row = page.locator(`[data-kb-row="${id}"]`);
-	await row.evaluate((el) => window.scrollBy(0, el.getBoundingClientRect().top - 300));
 	await page.waitForTimeout(500);
 	const top = () => row.evaluate((el) => el.getBoundingClientRect().top);
 	const before = await top();
