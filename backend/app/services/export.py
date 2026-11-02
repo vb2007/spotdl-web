@@ -24,6 +24,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+import zipstream.ng as zipstream_ng
 from zipstream import ZIP_STORED, ZipStream
 
 from app.db import SessionLocal
@@ -325,9 +326,13 @@ def _is_utf8(text: str) -> bool:
     return True
 
 
+_BIDI = re.compile(r"[\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+
+
 def _m3u_label(label: str) -> str:
-    # One line per entry: a newline in a title would end the #EXTINF line early.
-    return " ".join(label.splitlines())
+    # One line per entry: a newline in a title would end the #EXTINF line early. And no bidi
+    # controls, which reorder how the rest of the line displays (as in entry names).
+    return _BIDI.sub("", " ".join(label.splitlines()))
 
 
 def m3u_text(plan: ExportPlan, *, absolute: bool = False) -> str:
@@ -484,11 +489,44 @@ def _file_bytes(entry: ExportFile):
             raise ExportFileChanged(f"{entry.arcname}: shrank during the stream")
 
 
+class _Zip64ConsistentInfo(zipstream_ng.ZipStreamInfo):
+    """An entry whose local header starts past the zip64 limit (2^31 - 1) is zip64 throughout:
+    zip64 local header and a 24-byte data descriptor, as its central directory record already
+    is (zipstream-ng 1.9.3 gave that record a zip64 offset field but kept the 32-bit local
+    header and 16-byte descriptor). Info-ZIP's unzip sizes a data descriptor from the central
+    record, so it computed an 8-byte overlap with the next entry and refused every export over
+    2 GiB as a "possible zip bomb" (7z, bsdtar and Python read it fine)."""
+
+    def _file_data(self, iterable=None, force_zip64=False):
+        return super()._file_data(
+            iterable, force_zip64=force_zip64 or self.header_offset > zipstream_ng.ZIP64_LIMIT
+        )
+
+
+# zipstream-ng builds its entry records by this module-level name inside a private method, so
+# the subclass is installed there; the export is its only user in the app, and a test pins the
+# version this was written against.
+zipstream_ng.ZipStreamInfo = _Zip64ConsistentInfo
+
+
 class _ExportZip(ZipStream):
     """zipstream-ng (pinned 1.9.3) gives an entry added from bytes or an iterable the mode
     `0600`, which Info-ZIP's unzip restores as is: a media server reading the extracted folder
     as another user couldn't open a file. Every file entry is `0644` in the central directory,
     written last, so it's set just before."""
+
+    def _add_size_from_file(self, arcname, size):
+        """The up-front length (Content-Length) counts what _Zip64ConsistentInfo writes: an entry
+        starting past the zip64 limit gains the local zip64 extra (20 bytes) and the longer
+        descriptor (+8), unless its size alone already made it zip64."""
+        with self._size_lock:
+            offset = self._size_prog[1]
+        super()._add_size_from_file(arcname, size)
+        by_size = size * zipstream_ng.ZIP64_ESTIMATE_FACTOR > zipstream_ng.ZIP64_LIMIT
+        if arcname[-1] != "/" and offset > zipstream_ng.ZIP64_LIMIT and not by_size:
+            with self._size_lock:
+                num_files, files_size, cdfh_size = self._size_prog
+                self._size_prog = (num_files, files_size + 20 + 8, cdfh_size)
 
     def _gen_archive_footer(self):
         for zinfo in self._filelist:

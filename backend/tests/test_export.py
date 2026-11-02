@@ -422,6 +422,26 @@ def test_admin_reads_and_overrides_the_export_settings(admin_client, monkeypatch
     assert untouched.json() == cleared.json()
 
 
+@pytest.mark.parametrize("value", [True, "7", 2.5])
+def test_export_settings_take_only_whole_numbers(value, admin_client, db_session):
+    response = admin_client.patch("/api/settings/export", json={"export_max_files": value})
+
+    assert response.status_code == 422
+
+
+def test_bidi_controls_dont_reach_the_playlist_or_missing_txt(authenticated_client, db_session, owner, roots):
+    downloads, _library = roots
+    job = _job(db_session, owner)
+    _track(db_session, job, 1, path=_file(downloads, "1.opus"), name="evil\u202eSUPO", list_name="T\u202eitle")
+    _track(db_session, job, 2, state=TrackState.WAITING, name="gone\u202eSUPO")
+
+    archive = _zip(authenticated_client.get(f"/api/jobs/{job.id}/export.zip"))
+    text = archive.read("MISSING.txt").decode() + archive.read("T_itle.m3u8").decode()
+
+    assert "\u202e" not in text
+    assert "evilSUPO" in text and "goneSUPO" in text
+
+
 @pytest.mark.parametrize(
     "field, value", [("export_max_files", 0), ("export_max_files", 65_001), ("export_max_gb", 0), ("export_max_gb", 10_001)]
 )
@@ -780,6 +800,63 @@ def test_the_ledger_re_read_is_chunked_under_postgres_parameter_limit(db_session
     paths = export._current_paths([f"{job.id}-{n}" for n in range(1, 6)] + ["nope"])
 
     assert sorted(paths) == sorted(f"{job.id}-{n}" for n in range(1, 6))
+
+
+def test_zipstream_is_the_version_the_zip64_fix_was_written_against():
+    """_Zip64ConsistentInfo replaces a module-level name in zipstream-ng and relies on its private
+    `_file_data`/`_add_size_from_file`: a new version must be re-checked before it's pinned."""
+    from importlib.metadata import version
+
+    assert version("zipstream-ng") == "1.9.3"
+
+
+def _sparse_copy(chunks, path):
+    """Streams the archive to `path`, seeking over all-zero chunks so a sparse test file costs
+    no disk."""
+    zero = bytes(1024 * 1024)
+    with open(path, "wb") as out:
+        for chunk in chunks:
+            if chunk == zero[: len(chunk)]:
+                out.seek(len(chunk), os.SEEK_CUR)
+            else:
+                out.write(chunk)
+        out.truncate()
+
+
+def test_every_entry_past_2_gib_is_zip64_throughout(db_session, make_user, roots, tmp_path):
+    """Info-ZIP's unzip sizes a data descriptor from the central directory record: an entry with
+    a zip64 record but a 16-byte descriptor read as overlapping the next entry, and every export
+    over 2 GiB was refused as a "possible zip bomb" (live review round 9)."""
+    import struct
+
+    downloads, _library = roots
+    job = _job(db_session, make_user("owner@example.com"))
+    for number, size in enumerate((1_900 * 1024 * 1024, 300 * 1024 * 1024, 1024, 1024), start=1):
+        path = downloads / f"{number}.opus"
+        with path.open("wb") as handle:
+            handle.truncate(size)
+        _track(db_session, job, number, path=path)
+    archive = export.build_zip(export.plan_export(db_session, job.id, "The Album"))
+    declared = len(archive)
+    target = tmp_path / "big.zip"
+    _sparse_copy(export.iter_chunks(archive), target)
+
+    assert target.stat().st_size == declared
+    z = zipfile.ZipFile(target)
+    infos = z.infolist()
+    with target.open("rb") as raw:
+        for index, info in enumerate(infos):
+            raw.seek(info.header_offset)
+            fields = struct.unpack("<IHHHHHIIIHH", raw.read(30))
+            name_len, extra_len = fields[9], fields[10]
+            raw.seek(name_len, os.SEEK_CUR)
+            local_zip64 = b"\x01\x00" in raw.read(extra_len)[:2]
+            data_end = info.header_offset + 30 + name_len + extra_len + info.compress_size
+            following = infos[index + 1].header_offset if index + 1 < len(infos) else z.start_dir
+            central_zip64 = struct.unpack("<H", info.extra[:2])[0] == 1 if info.extra else False
+            assert following - data_end == (24 if central_zip64 else 16), info.filename
+            assert local_zip64 == central_zip64, info.filename
+    assert any(struct.unpack("<H", i.extra[:2])[0] == 1 for i in infos if i.extra)
 
 
 def test_a_zip_over_4_gib_has_the_length_it_declares(db_session, make_user, roots):

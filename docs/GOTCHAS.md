@@ -7575,6 +7575,8 @@ independently-found production bug from the same conversation)
   it then writes (`__len__` tests `>` the limit, the footer `>=`), so its Content-Length would be
   76 bytes short. The files limit is capped at 65,000 (env and settings). Above 4 GiB the count
   holds: a sparse 4.5 GiB test streams exactly the declared length.
+  *(Live review round 9: the length held, but Info-ZIP couldn't extract it, see the zip64 entry
+  below.)*
 - **A file can move between the plan's read and its stat too.** The rows are read, the
   transaction ends, then each file is stat'ed: a sweep in between left a moved file in
   `MISSING.txt`. The misses get one batched ledger re-read after the stats (one query, its own
@@ -7646,4 +7648,21 @@ independently-found production bug from the same conversation)
   in `rollup.derive_job_title`, which `GET /api/jobs/{id}` shares: pre-existing, outside v64.)*
   The ledger re-read is chunked (10,000 ids per query): Postgres takes at most 65,535 bound
   parameters in one statement.
+- **Every export over 2 GiB failed in Info-ZIP's `unzip`** (live review round 9): "invalid zip
+  file with overlapped components (possible zip bomb)", while 7z, bsdtar and Python read it.
+  zipstream-ng 1.9.3 gives an entry whose header starts past 2^31 - 1 a zip64 *central* record
+  (for the offset) but a 32-bit local header and a 16-byte data descriptor, and Info-ZIP's
+  zip-bomb check (CVE-2019-13232) sizes the descriptor from the central record: 24 bytes, an
+  8-byte overlap with the next entry. `_Zip64ConsistentInfo` makes such an entry zip64
+  throughout (installed over zipstream's module-level name, which a private method uses; a test
+  pins 1.9.3) and `_ExportZip._add_size_from_file` counts the 28 extra bytes. Proven with
+  `unzip -t`, 7z, bsdtar and Python on 2.3, 2.1 (the 1.05 estimate window), 3 and 6 GB archives,
+  each streaming exactly its `Content-Length`; under 2 GiB nothing changes. The test checks the
+  property Info-ZIP relies on (zip64 central record ⇔ zip64 local header ⇔ 24-byte descriptor),
+  and fails against the original classes. *Check archives over the format's limits with Info-ZIP
+  too: it is stricter than every other reader here.*
+- **Zip entry times are UTC wall time** (the container's zone; a DOS time has no zone), so an
+  extracted file is dated an hour off in CET. They're the export's time anyway (documented).
+- **The strip stays hidden after a probe finds no file**, until the row is reopened or its
+  counts move, even if the files come back meanwhile. Accepted.
 

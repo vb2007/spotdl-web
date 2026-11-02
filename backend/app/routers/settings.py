@@ -1,7 +1,7 @@
 from typing import Literal
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, StrictBool
+from pydantic import BaseModel, StrictBool, StrictInt
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -233,8 +233,9 @@ def update_alert_settings(
 # EXPORT_MAX_GB); `null` clears it. Upper bounds keep a value inside the Integer column
 # and sane: an export is one streamed response, never a backup tool.
 class UpdateExportSettingsRequest(BaseModel):
-    export_max_files: int | None = None
-    export_max_gb: int | None = None
+    # Strict: `true` or "7" isn't a limit (lax coercion stored `true` as 1).
+    export_max_files: StrictInt | None = None
+    export_max_gb: StrictInt | None = None
 
 
 _EXPORT_BOUNDS = {
