@@ -7586,6 +7586,11 @@ independently-found production bug from the same conversation)
   never given back. Several MB per concurrent aborted stream, far more than one at a time; the
   production limit is 768M. Not reproduced as a Python-level leak; `MALLOC_ARENA_MAX` would be
   the env/compose dial.)*
+  *(2026-11-02, owner's decision: `api` runs with `MALLOC_ARENA_MAX=2` (base compose, so dev,
+  slot and prod alike; checked with `docker compose config`). The same load, 3 rounds of 45
+  concurrent aborted downloads on a fresh `api`: 236 → 543 → 745 → 832 MB without it,
+  236 → 368 → 378 → 392 MB with it. A single 1.2 GB export still streams at ~700 MB/s through
+  nginx, and four concurrent ones finish in 2–4 s.)*
 - **nginx's `send_timeout` (60 s) cut off a paused download.** `location /api/` only raised
   `proxy_read_timeout`/`proxy_send_timeout`, which time the upstream side. It's 3600 s now; a
   reader paused 75 s gets the whole 1.2 GB. There's no `Range` support, so a download can't
