@@ -46,6 +46,10 @@ services:
     volumes:
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic
+      # v64: the zip export reads the same real files worker-dl writes; these replace the base
+      # file's named volumes at the same targets (a list merges by target).
+      - ./downloads:/downloads:ro
+      - ./test-library:/mnt/raid1/media/music:ro
     # `command:` fully replaces rather than merges (same as `build:`, unlike list keys
     # such as `volumes:`/`ports:` — see CLAUDE.md's v01 gotcha) — the base file's
     # `--log-config logging.json` (v12) must be repeated here too, or dev silently loses

@@ -35,6 +35,8 @@ ADMIN_ROUTES: dict[tuple[str, str], int] = {
     ("PATCH", "/api/settings/library"): 403,
     ("GET", "/api/settings/alerts"): 403,
     ("PATCH", "/api/settings/alerts"): 403,
+    ("GET", "/api/settings/export"): 403,
+    ("PATCH", "/api/settings/export"): 403,
     ("GET", "/api/library/sort/status"): 403,
     ("POST", "/api/library/sort"): 403,
     ("POST", "/api/library/sort/cancel"): 403,

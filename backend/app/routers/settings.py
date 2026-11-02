@@ -1,7 +1,7 @@
 from typing import Literal
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, StrictBool
+from pydantic import BaseModel, StrictBool, StrictInt
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -227,6 +227,63 @@ def update_alert_settings(
     row = app_settings.update_alert_settings(db, **fields)
     db.commit()
     return _alert_settings_to_dict(row)
+
+
+# v64: the job export's limits. Each is an override of its env default (EXPORT_MAX_FILES,
+# EXPORT_MAX_GB); `null` clears it. Upper bounds keep a value inside the Integer column
+# and sane: an export is one streamed response, never a backup tool.
+class UpdateExportSettingsRequest(BaseModel):
+    # Strict: `true` or "7" isn't a limit (lax coercion stored `true` as 1).
+    export_max_files: StrictInt | None = None
+    export_max_gb: StrictInt | None = None
+
+
+_EXPORT_BOUNDS = {
+    # Under 65,535 entries with the playlist and MISSING.txt: zipstream-ng (1.9.3) counts a
+    # 65,535-entry archive's length without the zip64 end records it then writes.
+    "export_max_files": (1, 65_000),
+    "export_max_gb": (1, 10_000),
+}
+
+
+def _export_settings_to_dict(row: AppSettings) -> dict:
+    env = get_settings()
+    return {
+        "export_max_files": row.export_max_files,
+        "export_max_gb": row.export_max_gb,
+        "default_max_files": env.export_max_files,
+        "default_max_gb": env.export_max_gb,
+    }
+
+
+@router.get("/export")
+def get_export_settings(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> dict:
+    row = app_settings.get_export_settings(db)
+    db.commit()
+    return _export_settings_to_dict(row)
+
+
+@router.patch("/export")
+def update_export_settings(
+    payload: UpdateExportSettingsRequest,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> dict:
+    fields = payload.model_dump(exclude_unset=True)
+    for key, (minimum, maximum) in _EXPORT_BOUNDS.items():
+        if fields.get(key) is not None and not minimum <= fields[key] <= maximum:
+            raise ApiError(
+                400,
+                "setting_out_of_range",
+                f"{key} must be between {minimum} and {maximum}",
+                {"field": key, "min": minimum, "max": maximum},
+            )
+    row = app_settings.update_export_settings(db, **fields)
+    db.commit()
+    return _export_settings_to_dict(row)
 
 
 @router.post("/alerts/test")

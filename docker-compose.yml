@@ -70,6 +70,17 @@ services:
     # run beside the owner's; unset, it's today's 8000 (dev and production alike).
     ports:
       - "127.0.0.1:${API_PORT:-8000}:8000"
+    # v64: read-only, so a job's zip export (app/routers/export.py) can check which files exist
+    # and stream them. `:ro` for the same reason as worker-dl's library mount: api never writes
+    # either volume (single-track downloads still go through nginx's X-Accel-Redirect).
+    volumes:
+      - downloads:/downloads:ro
+      - library:/mnt/raid1/media/music:ro
+    # v64: glibc's malloc keeps an arena per thread and gives little of it back; under many
+    # concurrent zip streams (each read in the threadpool) the worker's RSS climbed past the prod
+    # 768M limit and stayed there (45 aborted downloads x3: 236 -> 832 MB). Two arenas bound it.
+    environment:
+      MALLOC_ARENA_MAX: "2"
     healthcheck:
       # python:3.12-slim has neither curl nor wget; urllib is stdlib. urlopen raises
       # HTTPError on a non-2xx response (the 503 branch health.py returns when a

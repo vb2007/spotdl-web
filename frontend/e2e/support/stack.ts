@@ -395,7 +395,7 @@ export { RUN_FILE, SEED_FILE };
 
 /** Runs a Python snippet inside a backend service: by default `worker-meta`, which has the app
  * code, the dev database and both file roots (`/downloads` and the library) mounted -- `api`
- * mounts neither. */
+ * mounts them read-only since v64, for the job export. */
 export function stackPython(
 	code: string,
 	args: string[] = [],
