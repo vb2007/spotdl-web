@@ -523,3 +523,25 @@ def test_a_row_deleted_outside_users_refuses_the_live_session_too(client, sessio
         assert (response.status_code, response.json()["code"]) == (401, "access_removed"), path
     from_extension = client.get("/api/auth/me", cookies=cookie, headers={"X-Spotdl-Client": "extension/1.0.2"})
     assert from_extension.json()["code"] == "not_authenticated"
+
+
+def test_a_refused_request_never_extends_an_off_list_session(client, session_cookie, db_session):
+    """Review round 7: the `last_seen_at` touch is kept only once the allowlist check passed."""
+    from datetime import datetime, timedelta, timezone
+
+    cookie = session_cookie("allowed@example.com")
+    session = db_session.query(UserSession).filter(UserSession.token == cookie["SPOTDL_SESSION"]).one()
+    old = datetime.now(timezone.utc) - timedelta(days=3)
+    session.last_seen_at = old
+    db_session.query(AllowedEmail).filter(AllowedEmail.email == "allowed@example.com").delete()
+    db_session.commit()
+    for path in ("/api/jobs", "/api/auth/me"):
+        assert client.get(path, cookies=cookie).status_code == 401
+    db_session.expire_all()
+    assert db_session.get(UserSession, session.id).last_seen_at == old
+    # And an allowed one still is extended.
+    db_session.add(AllowedEmail(email="allowed@example.com"))
+    db_session.commit()
+    assert client.get("/api/jobs", cookies=cookie).status_code == 200
+    db_session.expire_all()
+    assert db_session.get(UserSession, session.id).last_seen_at > old

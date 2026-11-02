@@ -46,7 +46,9 @@ def current_session(request: Request, db: Session = Depends(get_db)) -> UserSess
     if session is None:
         raise _no_session(db, request, token)
 
-    db.commit()
+    # v69: not committed here: `require_session` commits the `last_seen_at` touch only once the
+    # allowlist check passed, so a refused request never keeps an off-list session alive (review
+    # round 7). `logout` commits its own delete.
     return session
 
 
@@ -72,7 +74,9 @@ def require_session(
         # session), but "not authenticated" is the correct response either way.
         raise ApiError(401, "not_authenticated", "Not authenticated")
     if not allowlist.is_allowed(db, user.email):
+        db.rollback()
         raise _off_the_allowlist(request)
+    db.commit()
     return user
 
 
@@ -122,11 +126,13 @@ def require_session_or_api_key(request: Request, db: Session = Depends(get_db)) 
     if token is not None:
         session = get_valid_session(db, token)
         if session is not None:
-            db.commit()
             user = db.get(User, session.user_id)
             if user is not None:
                 if not allowlist.is_allowed(db, user.email):
+                    # The touch isn't kept: a refused request never extends an off-list session.
+                    db.rollback()
                     raise _off_the_allowlist(request)
+                db.commit()
                 return Principal(user)
 
     bearer = _bearer_token(request)

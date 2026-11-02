@@ -120,6 +120,15 @@ fi
 # the easy-to-make mistake (reusing an admin identity for both B and ADMIN) with a clear
 # message instead of a confusing "FAIL" that's actually a test-setup error, not a real leak.
 ME_B="$(curl -sS "$BASE_URL/api/auth/me" -H "Cookie: SPOTDL_SESSION=$TOKEN_B")"
+# v69: a positive control: B must really be signed in (a minted token whose address isn't on the
+# allowlist answers 401, and every "B saw nothing" check below would then pass for nothing).
+case "$ME_B" in
+  *'"email":'*) ;;
+  *)
+    echo "B isn't signed in (GET /api/auth/me answered: $ME_B) -- B's address must be allowed on /users (v69)" >&2
+    exit 1
+    ;;
+esac
 case "$ME_B" in
   *'"is_admin":true'*)
     echo "B (${SPOTDL_WEB_USER_B_EMAIL:-via SPOTDL_WEB_USER_B_TOKEN}) is admin -- the all_users=true check below would trivially pass for the wrong reason. Use a genuine non-admin identity for B." >&2

@@ -107,6 +107,9 @@ from app.services.users import get_or_create_user
 from app.services.sessions import create_session
 db = SessionLocal()
 user = get_or_create_user(db, 'second@example.com')
+# v69: every cookie request re-checks the allowlist, so the address needs its row too.
+from app.models import AllowedEmail
+db.merge(AllowedEmail(email=user.email))
 session = create_session(db, user.id)
 db.commit()
 print(session.token)
