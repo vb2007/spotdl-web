@@ -199,7 +199,7 @@ test.describe('as the admin', () => {
 				exact: true
 			})
 		).toBeFocused();
-		// v64: an open job with files starts with its export strip, both actions reachable. The
+		// v64: then the export strip of an open job with files, both actions reachable. The
 		// strip comes with its own HEAD, apart from the track list: wait for it before Tab.
 		await expect(
 			jobRow(page, admin.title).getByRole('button', {

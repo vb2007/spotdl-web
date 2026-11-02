@@ -48,7 +48,7 @@ with zipfile.ZipFile(sys.argv[1]) as z:
 	return JSON.parse(out);
 }
 
-// Spec 21 (v64). An open job's "download all (zip)" saves a zip whose every audio entry is,
+// Spec 22 (v64). An open job's "download all (zip)" saves a zip whose every audio entry is,
 // byte for byte, the file the server holds for it, next to the job's playlist.
 test('a job zip holds every present file byte for byte, plus its playlist', async ({ page }) => {
 	const { admin } = readSeed();

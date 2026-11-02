@@ -463,7 +463,9 @@
 			});
 	}
 	$effect(() => {
-		// Read on opening and on every change of the settled count; nothing while closed.
+		// Read on opening and on every change of the settled count or of the track total (a
+		// re-expansion's new tracks); nothing while closed.
+		void totalTracks;
 		if (!isOpen || settledTracks === 0) {
 			exportRead++;
 			exportAgain = false;
