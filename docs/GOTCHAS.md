@@ -7907,6 +7907,9 @@ independently-found production bug from the same conversation)
   last child; the window's last rendered row measured 1px short, which moved the window, which
   changed the last child: `effect_update_depth_exceeded`. The last rendered row is measured only
   when it's the list's real last item, and height changes past eight a frame wait for the next.
+  *(Corrected 2026-11-02, same slice: skipping that row outright kept an open job's height after
+  it collapsed whenever it was the window's last child (taller than view plus overscan), and the
+  window stayed blank for thousands of pixels. It is measured, ignoring changes under 2.5px.)*
 - **Heights are keyed by item and row count.** A tracks-scope group grows when a later page
   brings more of its tracks, whether it's rendered or not.
 - **Kept rendered outside the window:** the focused row, the list's current roving row (so Tab
@@ -7935,7 +7938,8 @@ independently-found production bug from the same conversation)
   corrected: re-taking the anchor after the window's own correction lost the rounded fraction
   every time (a quarter pixel a 51.25px row, 10px over 40 rows; more at DPR 3). The anchor keeps
   its targets across its own corrections (the scroll event of its own `scrollBy` doesn't re-take
-  it), and follows three rows in view, so removing the first still leaves one to hold.
+  it), and follows every window row in view, so a batch removing the first few still leaves one
+  to hold (with three, removing three at the top of the view moved it by their height).
 - **A nested window gets the hold only if it has a row in view.** An outer list whose row in view
   holds an active inner list hands the correction to it; while the view shows that job's header
   or footer, the inner list has no anchor, so the outer row holds it itself.

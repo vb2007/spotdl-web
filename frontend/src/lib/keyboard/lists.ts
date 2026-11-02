@@ -531,7 +531,10 @@ export function focusNested(row: Element): boolean {
 /** The button of the row with this id, wherever it is mounted now (a remounted row is a new
  * element), or null. */
 export function rowItemById(id: string): HTMLElement | null {
-	const row = rowById(id);
+	// v68: a plain lookup, never a reveal: callers build a focus fallback with it eagerly, before
+	// knowing focus is lost, and a reveal scrolls. A kept row found here (a stand-in at its
+	// window's edge) is moved to its real place by its window once it actually takes focus.
+	const row = document.querySelector<HTMLElement>(`[data-kb-row="${CSS.escape(id)}"]`);
 	return row ? itemOf(row) : null;
 }
 

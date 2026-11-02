@@ -115,8 +115,9 @@ interface Anchor {
 	scrollY: number;
 }
 
-/** How many rows in view an anchor follows. */
-const ANCHOR_ROWS = 3;
+/** How many rows in view an anchor follows at most: all of them on any screen, so a batch
+ * removing the first few in view still leaves one to hold. */
+const ANCHOR_ROWS = 40;
 
 interface Slice {
 	/** Item indices in render order: the window, with kept rows before and after it. */
@@ -310,9 +311,18 @@ export class ListWindow<T> {
 			if (this.#near && !own) this.#capture();
 			this.#readView();
 		};
+		// The element that held focus when the browser window lost it: its focus coming back with
+		// the window (alt-tab, the address bar) is no move, and must not pull the view to it.
+		let returning: EventTarget | null = null;
+		const onWindowBlur = () => {
+			returning = document.activeElement;
+		};
 		const onFocusIn = (event: FocusEvent) => {
 			this.#focusKey = this.#childKey(event.target as Node);
 			this.#updatePins();
+			const back = returning !== null && event.target === returning;
+			returning = null;
+			if (back) return;
 			// Focus reached a kept row at its stand-in place (Tab, a dialog or the help overlay
 			// putting it back): the window moves to the row's real place. In a microtask, since a
 			// `focus()` called from an effect lands here too, where flushSync isn't allowed.
@@ -339,6 +349,7 @@ export class ListWindow<T> {
 			}
 		};
 		window.addEventListener('scroll', onScroll, { passive: true });
+		window.addEventListener('blur', onWindowBlur);
 		window.addEventListener('resize', onScroll, { passive: true });
 		list.addEventListener('focusin', onFocusIn);
 		list.addEventListener('focusout', onFocusOut);
@@ -358,6 +369,7 @@ export class ListWindow<T> {
 			unregister();
 			if (windows.get(list) === (this as ListWindow<unknown>)) windows.delete(list);
 			window.removeEventListener('scroll', onScroll);
+			window.removeEventListener('blur', onWindowBlur);
 			window.removeEventListener('resize', onScroll);
 			list.removeEventListener('focusin', onFocusIn);
 			list.removeEventListener('focusout', onFocusOut);
@@ -390,6 +402,15 @@ export class ListWindow<T> {
 		const shown = find();
 		if (shown) showRow(shown);
 		return shown;
+	}
+
+	/** Whether a rendered row (a child of the list) is one of the window's own, not a kept row
+	 * outside it. Below the threshold every row is. */
+	#isWindowRow(el: Element): boolean {
+		if (!this.active) return true;
+		const key = this.#keys.get(el);
+		const at = key === undefined ? undefined : this.#index.byKey.get(key);
+		return at !== undefined && this.#inWindow(at);
 	}
 
 	/** Whether item `index` is in the window proper (not a kept row outside it). */
@@ -436,9 +457,10 @@ export class ListWindow<T> {
 					// Rows not measured yet only: this runs on every patch (a new items array), and
 					// a 150-row list re-measured whole each time is a layout a patch didn't need.
 					const sizeKey = this.#sizeKey(items[c]);
-					if (!this.#heights.has(sizeKey) && this.#measurable(children[c], key, lastKey)) {
+					if (!this.#heights.has(sizeKey)) {
 						const height = children[c].getBoundingClientRect().height;
-						changed = this.#record(sizeKey, height) || changed;
+						changed =
+							this.#record(sizeKey, height, this.#tolerance(children[c], key, lastKey)) || changed;
 					}
 				}
 				if (changed) this.#estimatePerRow();
@@ -475,9 +497,8 @@ export class ListWindow<T> {
 				this.#observed.add(el);
 				this.#resize?.observe(el);
 			}
-			if (this.#measurable(el, key, lastKey)) {
-				changed = this.#record(sizeKey, el.getBoundingClientRect().height) || changed;
-			}
+			const height = el.getBoundingClientRect().height;
+			changed = this.#record(sizeKey, height, this.#tolerance(el, key, lastKey)) || changed;
 		}
 		for (const el of this.#observed) {
 			if (!seen.has(el)) {
@@ -499,9 +520,9 @@ export class ListWindow<T> {
 			const key = this.#keys.get(entry.target);
 			const sizeKey = this.#sizeKeys.get(entry.target);
 			if (key === undefined || sizeKey === undefined || !entry.target.isConnected) continue;
-			if (!this.#measurable(entry.target, key, lastKey)) continue;
+			const tolerance = this.#tolerance(entry.target, key, lastKey);
 			const height = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
-			changed = this.#record(sizeKey, height) || changed;
+			changed = this.#record(sizeKey, height, tolerance) || changed;
 		}
 		if (changed) this.#remeasured();
 		this.#correct();
@@ -513,16 +534,19 @@ export class ListWindow<T> {
 		return `${this.#key(item)}\u0000${this.#rowIds(item).length}`;
 	}
 
-	/** A rendered row's height is its own unless it's the last element shown without being the
-	 * list's last item (`:last-child` styles it differently there). */
-	#measurable(el: Element, key: string, lastKey: string | null): boolean {
-		return el !== this.#list?.lastElementChild || key === lastKey;
+	/** How far a measured height may differ from the known one before it's taken. The last
+	 * element shown, when it isn't the list's last item, is styled by `:last-child` (no bottom
+	 * border): a pixel or two there is that, not the row (taking it moved the window, which moved
+	 * the last child, forever). A real change there (an open job collapsing: skipping that row
+	 * outright kept its open height, and the window blank) is taken. */
+	#tolerance(el: Element, key: string, lastKey: string | null): number {
+		return el === this.#list?.lastElementChild && key !== lastKey ? 2.5 : 0.5;
 	}
 
-	#record(key: string, height: number): boolean {
+	#record(key: string, height: number, tolerance = 0.5): boolean {
 		if (height <= 0) return false;
 		const known = this.#heights.get(key);
-		if (known !== undefined && Math.abs(known - height) < 0.5) return false;
+		if (known !== undefined && Math.abs(known - height) < tolerance) return false;
 		this.#heights.set(key, height);
 		return true;
 	}
@@ -621,6 +645,16 @@ export class ListWindow<T> {
 	/** Takes this list's anchor (for an outer window deciding whether to hand it the hold);
 	 * whether it has one, of its own or delegated in turn. */
 	probe(): boolean {
+		// An anchor still valid (nothing scrolled since) is kept, with the fraction its own
+		// corrections carry: re-taking it on every outer pass lost that, as before.
+		const kept = this.#anchor;
+		if (
+			kept &&
+			Math.abs(window.scrollY - kept.scrollY) < 1 &&
+			kept.rows.some((r) => r.el.isConnected && this.#isWindowRow(r.el))
+		) {
+			return true;
+		}
 		this.#capture();
 		return this.#anchor !== null || this.#delegate !== null;
 	}
@@ -637,18 +671,25 @@ export class ListWindow<T> {
 		// Something scrolled the page since the anchor was taken (a focus() scrolling its row
 		// into view, before its scroll event): that scroll is the user's place now, so the
 		// anchor is taken again rather than restored over it.
-		// The first of its rows still in the list (the first itself can be the one removed).
-		const row = anchor?.rows.find((r) => r.el.isConnected);
+		// The first of its rows still in the window (the first itself can be the one removed; one
+		// still connected may since have become a kept stand-in at the window's edge, after a
+		// jump, and following it would throw the page there).
+		const live = (el: Element) => el.isConnected && this.#isWindowRow(el);
+		const row = anchor?.rows.find((r) => live(r.el));
 		if (anchor && row && Math.abs(window.scrollY - anchor.scrollY) < 1) {
 			const delta = row.el.getBoundingClientRect().top - row.top;
 			if (Math.abs(delta) >= 1) {
 				window.scrollBy({ top: delta, behavior: 'instant' });
 				this.#ownScroll = window.scrollY;
 			}
-			// The targets stay (the fraction the browser rounded away is made up next time); only
-			// the rows still there are kept.
+			// The first row's target stays (the fraction the browser rounded away is made up next
+			// time); the others' follow the page as it is now, relative to it (one of them may
+			// have changed size, an open row, without anything scrolling).
+			const off = row.el.getBoundingClientRect().top - row.top;
 			this.#anchor = {
-				rows: anchor.rows.filter((r) => r.el.isConnected),
+				rows: anchor.rows
+					.filter((r) => live(r.el))
+					.map((r) => (r === row ? r : { el: r.el, top: r.el.getBoundingClientRect().top - off })),
 				scrollY: window.scrollY
 			};
 			return;

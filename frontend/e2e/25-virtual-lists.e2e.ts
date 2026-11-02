@@ -927,3 +927,109 @@ test('rows archived above the view leave the reading position where it was', asy
 	expect(Math.abs(after - before), 'the reading row stays').toBeLessThan(2);
 	expect(errors).toEqual([]);
 });
+
+test('focus coming back with the browser window leaves the view where it is', async ({ page }) => {
+	desktopOnly();
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await loadUntil(page, JOBS, 600);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	for (let row = 1; row <= 5; row++) await page.keyboard.press('j');
+	expect(await posinsetOfFocus(page)).toBe(5);
+	// Read far below it with the wheel; row 5 keeps focus as a stand-in at the window's edge.
+	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight * 0.6));
+	await expect.poll(async () => (await windowOf(page)).min).toBeGreaterThan(300);
+	const y = await page.evaluate(() => window.scrollY);
+	// The browser window loses focus and gets it back (alt-tab): Chromium fires blur on the
+	// window, then focus/focusin on the element that had it. Dispatched here as it fires them.
+	await page.evaluate(() => {
+		window.dispatchEvent(new Event('blur'));
+		const el = document.activeElement!;
+		window.dispatchEvent(new Event('focus'));
+		el.dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+	});
+	await page.waitForTimeout(500);
+	expect(await page.evaluate(() => window.scrollY), 'the view stays').toBe(y);
+	// A focusin that isn't the window's return (Tab, a dialog giving focus back) still shows the
+	// row at its real place.
+	await page.evaluate(() =>
+		document.activeElement!.dispatchEvent(new FocusEvent('focusin', { bubbles: true }))
+	);
+	await expect.poll(() => focusInView(page)).toBe(true);
+	expect(errors).toEqual([]);
+});
+
+test('a tall open job collapsed leaves no blank stretch in the window', async ({ page }) => {
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await loadUntil(page, JOBS, 400);
+	await page.evaluate(() => window.scrollTo(0, 0));
+	const toggle = jobToggle(page, fixtureTitle(BIG_AT));
+	await toggle.click();
+	const list = `job-tracks:${fixture.bigJobId}`;
+	const more = page.locator(`[data-kb-row="${fixture.bigJobId}"] [data-kb-load-more]`);
+	await expect(page.locator(`[data-kb-list="${list}"] > li`).first()).toBeVisible();
+	while ((await more.count()) > 0) {
+		const before = await loadedRows(page, list);
+		await more.click();
+		await expect
+			.poll(async () => (await more.count()) === 0 || (await loadedRows(page, list)) > before)
+			.toBe(true);
+	}
+	// Open, the playlist's row is far taller than the view; collapsed, it's one row again.
+	await page.evaluate(() => window.scrollTo(0, 0));
+	await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+	for (const y of [1500, 4000, 9000, 15000]) {
+		await page.evaluate((to) => window.scrollTo(0, to), y);
+		await page.waitForTimeout(500);
+		const shown = await page.evaluate(() => {
+			const probe = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+			return probe?.closest('[data-kb-list="jobs"] > li')?.getAttribute('aria-posinset') ?? null;
+		});
+		expect(shown, `a row in the middle of the view at y=${y}`).not.toBeNull();
+	}
+	expect(errors).toEqual([]);
+});
+
+test('a batch archiving the first rows in view leaves the next row where it was', async ({
+	page,
+	baseURL
+}) => {
+	desktopOnly();
+	test.setTimeout(240_000);
+	const errors = collectErrors(page);
+	await openDashboard(page);
+	await loadUntil(page, JOBS, 400);
+	await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight * 0.75));
+	await page.waitForTimeout(500);
+	// The first five rows in view archived in one call; the sixth is the one read.
+	const inView = await page.evaluate(() =>
+		[...document.querySelectorAll<HTMLElement>('[data-kb-list="jobs"] > li')]
+			.filter((r) => {
+				const box = r.getBoundingClientRect();
+				return box.bottom > 0 && box.top < window.innerHeight;
+			})
+			.map((r) => r.dataset.kbRow!)
+	);
+	expect(inView.length).toBeGreaterThan(8);
+	const gone = inView.slice(0, 5);
+	const reading = page.locator(`[data-kb-row="${inView[5]}"]`);
+	const before = await reading.evaluate((el) => el.getBoundingClientRect().top);
+	const api = await request.newContext({
+		baseURL,
+		extraHTTPHeaders: { cookie: `SPOTDL_SESSION=${fixture.token}` }
+	});
+	expect((await api.post('/api/jobs/archive', { data: { job_ids: gone } })).status()).toBeLessThan(
+		300
+	);
+	await api.dispose();
+	for (const id of gone) await expect(page.locator(`[data-kb-row="${id}"]`)).toHaveCount(0);
+	await page.waitForTimeout(800);
+	const after = await reading.evaluate((el) => el.getBoundingClientRect().top);
+	test.info().annotations.push({ type: 'batch', description: `next row: ${before} -> ${after}` });
+	expect(Math.abs(after - before), 'the next row stays').toBeLessThan(2);
+	expect(errors).toEqual([]);
+});
