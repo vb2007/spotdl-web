@@ -7822,7 +7822,11 @@ independently-found production bug from the same conversation)
   hash could leave a stale immutable file importing a chunk the deploy removed (self review, round
   1). Every deploy is a new ~20 KB file. The service worker recognizes `messages-<locale>.<hash>.js`
   by name, leaves both out of its install precache, keeps the one a page fetches (on a first visit,
-  from the HTTP cache at activation), and on an update re-fetches the languages the old cache held.
+  from the HTTP cache at activation), and on an update re-fetches the page's language: the page
+  tells the worker each time it switches (a `postMessage` kept in a `spotdl-locale` cache that
+  outlives builds), else the ones the old cache held; only the first update from a pre-v67 build
+  (an old shell with no language chunk) falls back to the browser's (self review, round 4: keying
+  on everything held, or on "nothing held" on a fresh install, re-downloaded both languages).
   Offline, the app opens in a language it holds: the session's if it has it, else any it has
   (`applyLocale` falls back when nothing is loaded; self review, round 2).
 - **Nothing may read a message before its language is loaded.** A message read with nothing

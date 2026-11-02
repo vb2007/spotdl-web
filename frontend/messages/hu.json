@@ -14,7 +14,7 @@
 	"status_cancelled": "megszakítva",
 	"status_failed": "sikertelen",
 	"state_pending": "sorban áll",
-	"state_queued": "mindjárt indul",
+	"state_queued": "besorolva",
 	"state_downloading": "letöltés alatt",
 	"state_completed": "letöltve",
 	"state_waiting": "várakozik",

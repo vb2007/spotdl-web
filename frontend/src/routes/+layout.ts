@@ -8,8 +8,10 @@ import {
 	applyClock,
 	applyLanguagePreference,
 	applyLocale,
+	languagePreference,
 	locale,
-	localeReady
+	localeReady,
+	resolveLocale
 } from '$lib/i18n/locale.svelte';
 import { hasLocaleMessages } from 'virtual:locale-messages';
 import { loginFor, safeNext } from '$lib/nextPath';
@@ -97,11 +99,13 @@ export const load: LayoutLoad = async ({ url }) => {
 		localeAppliedFor = identity;
 		applyLanguagePreference(session?.language);
 		applyClock(session?.clock);
-	} else if (!hasLocaleMessages(locale.current)) {
-		// v67 (U8): a language whose messages never arrived (every language failed, the page
-		// showing keys) is tried again on a later load, so the network coming back brings the
-		// words back. Only when this load applied none: a fresh apply is the newest request.
-		applyLocale(locale.current);
+	} else {
+		// v67 (U8): the session's language, if it never arrived (every download failed or timed
+		// out, the page showing keys or a fallback) is tried again on a later load, so the
+		// network coming back brings it back. Only when this load applied none: a fresh apply is
+		// the newest request.
+		const wanted = resolveLocale(languagePreference.current);
+		if (wanted !== locale.current || !hasLocaleMessages(wanted)) applyLocale(wanted);
 	}
 	// v67 (U8): the language's messages are downloaded on demand; no route renders before they're
 	// here (an unreachable reload keeps the language, and messages, already on screen).

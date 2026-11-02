@@ -66,11 +66,18 @@ export const locale = {
 // navigation waits on it for ever.
 const LOAD_TIMEOUT_MS = 15_000;
 
-function load(locale: Locale): Promise<boolean> {
+/** Whether `locale` loaded in time; `late` runs if it arrives after the timeout after all. */
+function load(locale: Locale, late?: () => void): Promise<boolean> {
+	const attempt = loadLocaleMessages(locale);
 	return Promise.race([
-		loadLocaleMessages(locale).then(() => true),
+		attempt.then(() => true),
 		new Promise<boolean>((resolve) => setTimeout(() => resolve(false), LOAD_TIMEOUT_MS))
-	]).catch(() => false);
+	])
+		.catch(() => false)
+		.then((loaded) => {
+			if (!loaded && late) attempt.then(late, () => {});
+			return loaded;
+		});
 }
 
 /** Switches to `next` once its messages are here: at once when they already are. The returned
@@ -92,7 +99,8 @@ export function applyLocale(next: Locale): Promise<boolean> {
 		current = locale;
 		syncDocumentLang();
 	};
-	const switched = load(next).then(async (loaded) => {
+	// A download that times out but arrives later still switches, if nothing newer was asked.
+	const switched = load(next, () => show(next)).then(async (loaded) => {
 		if (loaded) {
 			show(next);
 			return true;
@@ -135,6 +143,9 @@ export function applyLanguagePreference(saved: string | null | undefined): Promi
 
 function syncDocumentLang() {
 	if (typeof document !== 'undefined') document.documentElement.lang = current;
+	// v67 (U8): the installed app's worker keeps this language for the next build.
+	if (typeof navigator !== 'undefined')
+		navigator.serviceWorker?.controller?.postMessage({ type: 'locale', locale: current });
 }
 
 /** Each language in its own name, so it's findable by someone who can't read the current

@@ -13,8 +13,10 @@ export function stepCrosshair(
 		// From nothing picked, either arrow starts on the newest bucket: the value the chart (a
 		// slider) reports while nothing is picked, so a first arrow never moves the other way.
 		case 'ArrowRight':
+		case 'ArrowUp':
 			return current === null ? n - 1 : Math.min(n - 1, current + 1);
 		case 'ArrowLeft':
+		case 'ArrowDown':
 			return current === null ? n - 1 : Math.max(0, current - 1);
 		case 'Home':
 			return 0;

@@ -287,7 +287,7 @@ export const BINDINGS: Binding[] = [
 	// (components/stats/crosshair.ts), listed here so the help overlay shows it.
 	{
 		id: 'chart-step',
-		keys: [{ key: 'ArrowRight' }, { key: 'ArrowLeft' }],
+		keys: [{ key: 'ArrowRight' }, { key: 'ArrowLeft' }, { key: 'ArrowUp' }, { key: 'ArrowDown' }],
 		label: m.kbd_chart_step,
 		group: 'global',
 		routes: ['/stats'],

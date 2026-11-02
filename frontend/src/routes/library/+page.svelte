@@ -19,6 +19,13 @@
 	let cancelling = $state(false);
 	let error = $state('');
 	let loadError = $state('');
+	// v67 (U9): when set, loadError is the server's answer to a retry at this time, shown inside
+	// library_retry_failed's sentence (kept apart so ErrorSentence can mark it).
+	let retriedAt = $state<string | null>(null);
+	const loadSentence = (error: string) =>
+		m.library_load_failed({
+			error: retriedAt === null ? error : m.library_retry_failed({ error, time: retriedAt })
+		});
 	// v43 (F20): the stream can drop mid-sweep; say so instead of freezing the counts.
 	let linkDown = $state(false);
 
@@ -145,6 +152,7 @@
 		if (progressEvents !== seen) return;
 		run = status;
 		loadError = '';
+		retriedAt = null;
 		reportPending = false;
 		reportError = '';
 	}
@@ -358,6 +366,7 @@
 		if (!isAdmin) return;
 		loadStatus().catch((err) => {
 			loadError = errorText(err);
+			retriedAt = null;
 		});
 		api
 			.getLibrarySettings()
@@ -429,7 +438,7 @@
 				     (the visible block below is inserted with its text, which often isn't). -->
 				<p class="sr-only" role="alert">
 					{#if run === null && loadError}<ErrorSentence
-							sentence={(e) => m.library_load_failed({ error: e })}
+							sentence={loadSentence}
 							error={loadError}
 						/>{/if}
 				</p>
@@ -437,23 +446,20 @@
 				{#if run === null}
 					{#if loadError}
 						<p class="form-error">
-							<ErrorSentence
-								sentence={(e) => m.library_load_failed({ error: e })}
-								error={loadError}
-							/>
+							<ErrorSentence sentence={loadSentence} error={loadError} />
 							<button
 								type="button"
 								class="btn small"
 								onclick={() =>
 									loadStatus()
 										.catch((err) => {
-											loadError =
-												err instanceof api.ApiError
-													? m.library_retry_failed({
-															error: apiErrorText(err),
-															time: formatTime(new Date())
-														})
-													: m.library_retry_unreachable({ time: formatTime(new Date()) });
+											if (err instanceof api.ApiError) {
+												loadError = apiErrorText(err);
+												retriedAt = formatTime(new Date());
+											} else {
+												loadError = m.library_retry_unreachable({ time: formatTime(new Date()) });
+												retriedAt = null;
+											}
 										})
 										// v47: on success this button goes with its block; focus goes to the
 										// section's heading rather than <body>.

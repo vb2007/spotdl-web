@@ -682,9 +682,10 @@ settled; waiting → waiting; lookup_failed → fail; cancelled → idle.
 The words are the state-filter chips' words (v41, 2026-10-14, F21, owner's call): pending, queued,
 downloading, completed, waiting, not found, duplicate, cancelled, so a state reads the same on a
 chip and on a row and no label truncates in the state column (F13). The in-world voice stays on
-idents and moments. In Hungarian (v46, 2026-10-18): sorban áll, mindjárt indul, letöltés alatt,
+idents and moments. In Hungarian (v46, 2026-10-18): sorban áll, besorolva, letöltés alatt,
 letöltve, várakozik, nem található, már megvan, megszakítva (v67, U6: queued was "indulásra kész",
-whose "kész" read as "done"). History: v20 renamed `lookup_failed`'s
+whose "kész" read as "done"; not "mindjárt indul" either: a queued track may wait hours behind the
+one download at a time). History: v20 renamed `lookup_failed`'s
 copy from "no signal — given up" to "no signal — not found", because the state was never "given up"
 (it is terminal and never auto-retried); v41 then dropped the in-world phrases for the chip words.
 
@@ -1123,7 +1124,7 @@ checks are for categorical palettes and don't apply to status colours.
   are `CanvasText`.
 - **By keyboard (v67, U10)**: each chart (`FailureChannels`, `CompletedColumns`) is a
   `role="slider"` over its buckets (role description "chart"/"diagram", the summary as its label),
-  a Tab stop: ← → step its crosshair a bucket at a time, Home/End jump to its ends, Esc clears it.
+  a Tab stop: ← → (and ↑ ↓, as a slider's keys) step its crosshair a bucket at a time, Home/End jump to its ends, Esc clears it.
   The reading ("09:00–10:00: 3 audio_provider, 1 no_output, breaker clear") is its
   `aria-valuetext`, announced as it moves, also in a screen reader's browse mode, where an image
   would have kept the arrows. A tap shows the reading too and keeps it until the next. The keys
@@ -1275,7 +1276,7 @@ is adopted at sign-in. `<html lang>` follows it, and a switch re-renders in plac
 page speaks it: before any route renders, `+layout.ts` awaits the session's language (the browser's
 signed out), and a switch on `/account` changes the page once the other language has arrived. The
 service worker leaves both out of its install precache, keeps the one a page fetched and, on an
-update, re-fetches the ones it held, so the installed app opens offline in a language it holds (the
+update, re-fetches the page's language (the page tells it which), so the installed app opens offline in a language it holds (the
 session's when it has it; with nothing loaded, the page falls back to any language that loads). One language is ~19.6 KB gzipped
 (en; hu ~21.2 KB) instead of both in one 41.5 KB chunk on every page.
 
