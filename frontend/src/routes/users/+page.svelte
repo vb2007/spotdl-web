@@ -27,12 +27,27 @@
 	let email = $state('');
 	let adding = $state(false);
 	let fieldError = $state<Shown>(null);
+	// The add's outcome stays in its own panel, by the field focus returns to (critique); the
+	// list's panel reports removals.
+	let addError = $state<Shown>(null);
+	let addStatus = $state<Shown>(null);
 	let error = $state<Shown>(null);
 	let status = $state<Shown>(null);
 	let busy = $state<Record<string, boolean>>({});
 
 	// Codes about the typed address itself: said under the field, like the local check.
 	const FIELD_CODES = new Set(['invalid_email', 'email_already_allowed']);
+
+	/** The backend's minimal check (services/allowlist.py `validate_email`), answered before any
+	 * request: one `@`, something before it, a dot inside the domain, no whitespace. The backend
+	 * stays the real check. */
+	function looksLikeEmail(value: string): boolean {
+		if (value.length > 254 || /\s/.test(value)) return false;
+		const parts = value.split('@');
+		if (parts.length !== 2 || !parts[0]) return false;
+		const domain = parts[1];
+		return domain.includes('.') && !domain.startsWith('.') && !domain.endsWith('.');
+	}
 
 	function load(): Promise<void> {
 		loadError = null;
@@ -62,11 +77,11 @@
 	async function onAdd(event: SubmitEvent) {
 		event.preventDefault();
 		fieldError = null;
-		error = null;
-		status = null;
+		addError = null;
+		addStatus = null;
 		const typed = email.trim();
-		if (!typed) {
-			fieldError = () => m.users_email_required();
+		if (!typed || !looksLikeEmail(typed.toLowerCase())) {
+			fieldError = typed ? () => m.error_invalid_email() : () => m.users_email_required();
 			await tick();
 			await focusField();
 			return;
@@ -77,7 +92,7 @@
 			const added = await api.addAllowedEmail(typed);
 			if (queue.getResetCount() !== resets) return;
 			email = '';
-			status =
+			addStatus =
 				added.resumed_jobs > 0
 					? () => m.users_added_resumed({ email: added.email, ...counted(added.resumed_jobs) })
 					: () => m.users_added({ email: added.email });
@@ -86,7 +101,7 @@
 			if (err instanceof api.ApiError && err.code && FIELD_CODES.has(err.code)) {
 				fieldError = () => errorText(err);
 			} else {
-				error = () => errorText(err);
+				addError = () => errorText(err);
 			}
 		} finally {
 			adding = false;
@@ -143,7 +158,7 @@
 				<h2 id="users-add-heading" class="label">{m.users_add_heading()}</h2>
 				<form class="add" onsubmit={onAdd} novalidate>
 					<div class="form-field">
-						<label class="sr-only" for="users-add-email">{m.users_add_label()}</label>
+						<label class="label" for="users-add-email">{m.users_add_label()}</label>
 						<div class="add-row">
 							<input
 								id="users-add-email"
@@ -168,6 +183,8 @@
 						<p id="users-add-hint" class="field-hint">{m.users_add_hint()}</p>
 					</div>
 				</form>
+				<p class="save-state" role="status">{addStatus?.()}</p>
+				<p class="form-error" role="alert">{addError?.()}</p>
 			</section>
 
 			<section class="panel section" aria-labelledby="users-list-heading">
@@ -199,7 +216,8 @@
 						{#each rows as row (row.email)}
 							<li class="user-row" class:admin={row.is_admin_email}>
 								<span class="name">
-									<span class="who">{row.username ?? row.email}</span>
+									<!-- An address is mono wherever it shows; a name is Sans. -->
+									<span class="who" class:mono={!row.username}>{row.username ?? row.email}</span>
 									{#if row.is_admin_email}
 										<span class="badge">{m.users_admin_badge()}</span>
 									{/if}

@@ -1368,7 +1368,7 @@
 	"users_add_heading": "Add an address",
 	"users_add_label": "E-mail address",
 	"users_add_placeholder": "someone@example.com",
-	"users_add_hint": "They sign in with their vb2007.hu account, as soon as the address is added. The app sends no invitation: tell them yourself.",
+	"users_add_hint": "Each person signs in with their own vb2007.hu account, as soon as their address is added. The app sends no invitation: tell them yourself.",
 	"users_add_button": "add",
 	"users_adding": "adding…",
 	"users_added": "Added {email}. They can sign in now.",
