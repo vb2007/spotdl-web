@@ -209,8 +209,8 @@ Dark-only (`color-scheme: dark`); no light theme exists or is planned.
 `--text-primary` (v42, 2026-10-15, F09/A2).
 
 A destructive control's outline at rest (clear log, a job's cancel, cancel track, `.btn.danger`) is
-`--fail-edge` (3.87 / 3.32 / 3.17 on `--bg-0/1/2`), never `--fail-dim` (1.5:1; v42, 2026-10-15,
-F09/A2).
+`--fail-edge` (3.87 / 3.32 / 3.17 on `--bg-0/1/2`), never a dim red fill tone (the old `--fail-dim`,
+1.5:1; v42, 2026-10-15, F09/A2).
 
 State toggles were removed in v43 (2026-10-16, F30): a proxy's state is a word ("switched on" in
 `--settled`, "switched off" in `--text-muted`) beside a plain `.btn` naming the action, and a
@@ -247,10 +247,11 @@ second colour vocabulary for a new component — map any new state onto one of t
 > the panel, whose view leaves the viewer's own download out (accepted, no new copy). This closes
 > §8.3.
 
-`--signal-ink` (`#2a1c05`, a dark ink for text on an amber fill) and `--fail-dim` (`#5c2f30`) are
-defined in `:root` but consumed nowhere as of v47: nothing sets text on amber, and the controls that
-once edged in `--fail-dim` moved to `--fail-edge` (v42) or became words (v43). They stay in the
-sidecar; a new use must still fit the rules above.
+**Removed 2026-11-02 (v67, U7):** `--signal-ink` (`#2a1c05`, a dark ink for text on an amber fill)
+and `--fail-dim` (`#5c2f30`) were defined in `:root` but consumed nowhere since v47: nothing sets
+text on amber, and the controls once edged in `--fail-dim` moved to `--fail-edge` (v42) or became
+words (v43). They're gone from `app.css` and the sidecar; a future need adds a token back under
+the rules above.
 
 > **v41 (2026-10-14, F03/F14):** inside the expanded track, red marks only a terminal verdict. A
 > failed attempt the ladder will retry reads in the waiting blue, `last_error` is not painted red,
@@ -380,9 +381,11 @@ section labels, idents. Reuse it rather than inventing a second all-caps convent
 
 ## 4. Spacing scale
 
-4px base, `--space-1` through `--space-8` (values in the frontmatter and `app.css`): 4, 8, 12, 16,
-24, 32, 48, 64px at the default 16px. `--space-8` is used once (the "Can't reach the server"
-screen's top padding, `routes/+layout.svelte`); `--space-7` is defined and unused, reserved.
+4px base, `--space-1` through `--space-6` and `--space-8` (values in the frontmatter and
+`app.css`): 4, 8, 12, 16, 24, 32 and 64px at the default 16px. `--space-8` is used once (the "Can't
+reach the server" screen's top padding, `routes/+layout.svelte`). The scale skips 7: the unused
+48px `--space-7` was removed in v67 (U7, 2026-11-02), and `--space-8` kept its name rather than
+renumber its one use.
 
 **Rule**: every gap/padding value in every component reads from this scale (the row-grid tokens
 below derive from it). Don't introduce a bespoke pixel gap.
@@ -1317,8 +1320,8 @@ auto` on rows was tried and rejected: its paint containment clips the focus ring
 ## 9. Sidecar
 
 The machine-readable token mirror lives at `frontend/src/design-tokens.json`, kept in exact sync
-with `app.css`'s `:root` block (every custom property, the same values, including the unused
-`--signal-ink`, `--fail-dim` and `--space-7`). It also carries what the frontmatter can't: motion
+with `app.css`'s `:root` block (every custom property, the same values; v67 removed the three that
+were never used, `--signal-ink`, `--fail-dim` and `--space-7`). It also carries what the frontmatter can't: motion
 tokens, the em breakpoints (literals in media queries, not custom properties), the row grid and the
 state → condition maps. If a token's value changes in `app.css`, update the sidecar and this file's
 frontmatter in the same commit; if a token is added or removed, do the same here in §2/§3/§4/§5.

@@ -28,9 +28,7 @@
 			"meaning": "live only: something receiving right now with /'s link live; never permanent chrome or decoration (v47: a job row is amber only while one of its tracks downloads or it is expanding, and nothing is amber while the link is down)",
 			"signal": "#ffb02e",
 			"signal-dim": "#7a5a1e",
-			"signal-ink": "#2a1c05",
-			"signal-glow": "rgba(255, 176, 46, 0.35)",
-			"note": "signal-ink is defined but consumed nowhere as of v47"
+			"signal-glow": "rgba(255, 176, 46, 0.35)"
 		},
 		"settled": {
 			"meaning": "completed / no longer needs attention",
@@ -45,9 +43,8 @@
 		"fail": {
 			"meaning": "terminal failure only — never used for waiting/backoff",
 			"fail": "#e5595c",
-			"fail-dim": "#5c2f30",
 			"fail-edge": "#b05154",
-			"note": "v42: fail-edge is a destructive control outline at rest (>=3:1); fail-dim is defined but consumed nowhere as of v47 (never a control's only edge)"
+			"note": "v42: fail-edge is a destructive control outline at rest (>=3:1). v67 removed the unused fail-dim"
 		},
 		"overlay": {
 			"backdrop": "rgba(5, 6, 7, 0.72)",
@@ -90,9 +87,8 @@
 		"space-4": "1rem",
 		"space-5": "1.5rem",
 		"space-6": "2rem",
-		"space-7": "3rem",
 		"space-8": "4rem",
-		"note": "space-7 is defined and unused; space-8 is used once (the unreachable-server screen, routes/+layout.svelte)"
+		"note": "v67 removed the unused space-7 (the scale skips from space-6 to space-8); space-8 is used once (the unreachable-server screen, routes/+layout.svelte)"
 	},
 	"rowGrid": {
 		"row-pad-x": "var(--space-4)",
