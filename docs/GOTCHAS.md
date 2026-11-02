@@ -7817,10 +7817,14 @@ independently-found production bug from the same conversation)
   suite, which imports the compiled files under Playwright's loader, not Vite.
 - **SvelteKit enforces `chunkFileNames`** (`_app/immutable/chunks/[hash].js`), so a chunk can't be
   named through the config. `this.emitFile({ type: 'chunk', id, fileName })` in `buildStart` names
-  it exactly; the hash in the name is the message JSON's own, so a changed text is a new immutable
-  file. The service worker recognizes `messages-<locale>.<hash>.js` by name, leaves both out of
-  its install precache and keeps the one a page fetches (offline, the app opens in the language it
-  was last used in; never used offline before, it has no messages to show).
+  it exactly. The hash covers the message JSON *and the build* (`Date.now()`): the chunk's content
+  also depends on the toolchain and on a content-hashed shared chunk it imports, so a JSON-only
+  hash could leave a stale immutable file importing a chunk the deploy removed (self review, round
+  1). Every deploy is a new ~20 KB file. The service worker recognizes `messages-<locale>.<hash>.js`
+  by name, leaves both out of its install precache, keeps the one a page fetches (on a first visit,
+  from the HTTP cache at activation), and on an update re-fetches the languages the old cache held.
+  Offline, the app opens in a language it holds: the session's if it has it, else any it has
+  (`applyLocale` falls back when nothing is loaded; self review, round 2).
 - **Nothing may read a message before its language is loaded.** A message read with nothing
   loaded throws (`Cannot read properties of undefined`): the audit's scratch build of the first
   prototype rendered a blank page. `+layout.ts` awaits `localeReady()` after applying the session's

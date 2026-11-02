@@ -20,7 +20,7 @@ const CACHE = `shell-${version}`;
 // asked for afresh. The legacy `.woff` fonts are left out: every browser this serves uses woff2.
 // v67 (U8): each language's messages (`messages-<locale>.<hash>.js`, vite.config.ts) are left out
 // too, so a visit downloads only its own language; the one a page loads is kept when it's fetched
-// (below), so the installed app still opens offline in the language it was last used in.
+// (below), so the installed app still opens offline in a language it holds.
 const MESSAGES = /\/messages-[a-z]+\.[\w-]+\.js$/;
 const IMMUTABLE = build.filter((path) => !path.endsWith('.woff') && !MESSAGES.test(path));
 const LAZY = new Set(build.filter((path) => MESSAGES.test(path)));

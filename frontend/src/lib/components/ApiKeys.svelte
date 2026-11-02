@@ -71,6 +71,8 @@
 
 	async function onCreate(event: SubmitEvent) {
 		event.preventDefault();
+		// v67: a new key replaces the one on screen; one not copied yet is lost for good, so ask.
+		if (fresh && copied !== 'yes' && !(await closeUncopied(fresh))) return;
 		labelError = null;
 		error = null;
 		status = null;
@@ -145,23 +147,22 @@
 		onuncopied?.(fresh !== null && copied !== 'yes');
 	});
 
+	/** v67: asks before an uncopied key goes for good; false (focus back on the key) if kept. */
+	async function closeUncopied(shown: NonNullable<typeof fresh>): Promise<boolean> {
+		const close = await confirmAction({
+			title: m.account_keys_close_title(),
+			subject: shown.label,
+			body: m.account_keys_close_body(),
+			confirmLabel: m.account_keys_close_confirm(),
+			cancelLabel: m.account_keys_close_keep()
+		});
+		if (!close && fresh === shown) await keepFocus(document.getElementById('api-key-fresh'));
+		return close && fresh === shown;
+	}
+
 	async function dismissFresh() {
 		// v67: closed before a copy, the key is gone for good: ask first.
-		if (fresh && copied !== 'yes') {
-			const shown = fresh;
-			const close = await confirmAction({
-				title: m.account_keys_close_title(),
-				subject: shown.label,
-				body: m.account_keys_close_body(),
-				confirmLabel: m.account_keys_close_confirm(),
-				cancelLabel: m.account_keys_close_keep()
-			});
-			if (!close) {
-				if (fresh === shown) await keepFocus(document.getElementById('api-key-fresh'));
-				return;
-			}
-			if (fresh !== shown) return;
-		}
+		if (fresh && copied !== 'yes' && !(await closeUncopied(fresh))) return;
 		fresh = null;
 		copied = null;
 		await tick();
@@ -336,7 +337,7 @@
 		class="form-error"
 		class:sr-only={keys === null && loadError !== null}
 		role="alert"
-		lang={textLang(error?.())}
+		lang={keys === null && loadError !== null ? undefined : textLang(error?.())}
 	>
 		{keys === null && loadError !== null ? loadError() : error?.()}
 	</p>

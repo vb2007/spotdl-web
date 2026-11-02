@@ -183,17 +183,24 @@ function paraglideLocaleSplit(): Plugin {
 		transform(code, id) {
 			if (testing || id !== index) return;
 			const keys = [...code.matchAll(/^export const (\w+) = /gm)].map((match) => match[1]);
-			if (keys.length === 0) this.error(`paraglide-locale-split: no messages found in ${id}`);
+			const exports = code.match(/^export /gm)?.length ?? 0;
+			// Every export must be a message this rewrite keeps: another form (an aliased key, a
+			// re-export) would silently vanish from `m`.
+			if (keys.length === 0 || exports !== keys.length)
+				this.error(
+					`paraglide-locale-split: ${keys.length} messages but ${exports} exports in ${id}`
+				);
 			const [base, ...others] = MESSAGE_LOCALES;
 			return [
 				'import { getLocale, experimentalStaticLocale } from "../runtime.js";',
 				`const __loaded = {};`,
 				// The asked-for language, else the base one, else whichever is loaded: a message
-				// read before its language arrived shows in another rather than throwing.
+				// read before its language arrived shows in another rather than throwing; with
+				// nothing loaded at all (every language failed to download), its key.
 				'const __msg = (key) => (inputs, options = {}) => {',
 				'	const locale = experimentalStaticLocale ?? options.locale ?? getLocale();',
 				`	const messages = __loaded[locale] ?? __loaded.${base} ?? ${others.map((l) => `__loaded.${l}`).join(' ?? ')};`,
-				'	return messages[key](inputs);',
+				'	return messages ? messages[key](inputs) : key;',
 				'};',
 				...keys.map(
 					(key) => `export const ${key} = /* @__PURE__ */ __msg(${JSON.stringify(key)});`

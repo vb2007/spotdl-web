@@ -76,18 +76,20 @@
 	const retentionSaveable = () => error === null && (neverArchive || !daysInvalid());
 	// A switch whose save failed shows its saved value again, with the failure: the choice isn't
 	// saved, so leaving asks too (live review round 2).
+	// Every reason to ask but the uncopied key (whose loss gets its own question, below).
+	const unsavedEdits = (unloading: boolean) =>
+		(dirty && !saving && (unloading || !retentionSaveable())) ||
+		keyNameTyped ||
+		keyboardError !== null ||
+		(languageError !== null && !languageLoadFailed) ||
+		clockError !== null ||
+		notifyError !== null;
 	guardUnsavedEdits(
-		(unloading) =>
-			(dirty && !saving && (unloading || !retentionSaveable())) ||
-			keyNameTyped ||
-			keyUncopied ||
-			keyboardError !== null ||
-			languageError !== null ||
-			clockError !== null ||
-			notifyError !== null,
-		// v67: an uncopied new key is lost for good, not an unsaved change: its own question.
+		(unloading) => unsavedEdits(unloading) || keyUncopied,
+		// v67: an uncopied new key is lost for good, not an unsaved change: its own question,
+		// when it's the only thing to lose (with other edits too, the generic one covers both).
 		() =>
-			keyUncopied
+			keyUncopied && !unsavedEdits(false)
 				? {
 						title: m.account_keys_leave_title(),
 						body: m.account_keys_close_body(),
@@ -297,6 +299,8 @@
 	// switch it applies once the server has it; the page then re-renders in place.
 	let languageSaving = $state(false);
 	let languageError = $state<Shown>(null);
+	// v67: saved, but its messages couldn't be downloaded: said, but nothing is unsaved.
+	let languageLoadFailed = $state(false);
 	let languageSavedAt = $state<Date | null>(null);
 
 	async function saveLanguage(next: Locale | null) {
@@ -305,6 +309,7 @@
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		languageSaving = true;
 		languageError = null;
+		languageLoadFailed = false;
 		// A sign-out (or another identity) while the save is in flight resets the store; the
 		// late answer must not then set the signed-out page's language (v42's late-write guard).
 		const resets = queue.getResetCount();
@@ -316,7 +321,10 @@
 			const switched = await applyLanguagePreference(saved.language);
 			if (queue.getResetCount() !== resets) return;
 			if (switched) languageSavedAt = new Date();
-			else languageError = () => m.account_language_load_failed();
+			else {
+				languageLoadFailed = true;
+				languageError = () => m.account_language_load_failed();
+			}
 		} catch (err) {
 			languageError = () => errorText(err);
 		} finally {
@@ -574,7 +582,7 @@
 					class="form-error"
 					class:sr-only={saved === null && loadError !== null}
 					role="alert"
-					lang={textLang(error?.())}
+					lang={saved === null && loadError !== null ? undefined : textLang(error?.())}
 				>
 					{saved === null && loadError !== null ? loadError() : error?.()}
 				</p>

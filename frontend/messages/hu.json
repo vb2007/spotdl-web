@@ -1108,7 +1108,7 @@
 	"account_keys_close_body": "Többé nem jelenik meg. Másolat nélkül a bővítmény nem tudja használni: vissza kellene vonnod, és újat létrehoznod.",
 	"account_keys_close_confirm": "bezárás másolás nélkül",
 	"account_keys_close_keep": "maradjon látható",
-	"account_keys_leave_confirm": "elmegyek másolás nélkül",
+	"account_keys_leave_confirm": "kilépés másolás nélkül",
 	"account_language_load_failed": "Elmentve, de ez az oldal nem tudta betölteni azt a nyelvet. Töltsd újra, hogy lásd.",
 	"account_keys_leave_title": "Másolás nélkül mész el?",
 	"account_keys_copy_failed": "Nem sikerült másolni; jelöld ki a kulcsot, és másold ki magad.",
@@ -1282,6 +1282,6 @@
 	"stats_chart_unread_day": "nincs kiválasztott nap",
 	"stats_chart_unread_hour": "nincs kiválasztott óra",
 	"stats_chart_role": "diagram",
-	"kbd_chart_step": "Diagram olvasása óránként vagy naponként (a kijelölt diagramon)",
+	"kbd_chart_step": "Diagram olvasása óránként vagy naponként (a fókuszban lévő diagramon)",
 	"kbd_chart_ends": "Ugrás a diagram első vagy utolsó órájára, napjára"
 }

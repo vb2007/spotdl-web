@@ -1,4 +1,10 @@
-import { baseLocale, isLocale, overwriteGetLocale, type Locale } from '$lib/paraglide/runtime';
+import {
+	baseLocale,
+	isLocale,
+	locales,
+	overwriteGetLocale,
+	type Locale
+} from '$lib/paraglide/runtime';
 import { hasLocaleMessages, loadLocaleMessages } from 'virtual:locale-messages';
 
 /** v46: which language the interface speaks (owner's rule, PR #68):
@@ -56,10 +62,23 @@ export const locale = {
 	}
 };
 
+// A language download that hangs (a stalled mobile connection) counts as failed, so no
+// navigation waits on it for ever.
+const LOAD_TIMEOUT_MS = 15_000;
+
+function load(locale: Locale): Promise<boolean> {
+	return Promise.race([
+		loadLocaleMessages(locale).then(() => true),
+		new Promise<boolean>((resolve) => setTimeout(() => resolve(false), LOAD_TIMEOUT_MS))
+	]).catch(() => false);
+}
+
 /** Switches to `next` once its messages are here: at once when they already are. The returned
  * promise (`localeReady()` waits on the same switch) settles once it has happened, `true`, or
  * once it couldn't, `false`: the language couldn't be downloaded (offline, a deploy replacing
- * the build), and the page stays in the one on screen, whose messages are here. */
+ * the build), and the page stays in the one on screen, whose messages are here. With none on
+ * screen yet (a first load offline whose language the service worker doesn't hold), the first
+ * language that does load is shown instead: a page always has a language to speak. */
 export function applyLocale(next: Locale): Promise<boolean> {
 	const request = ++latest;
 	if (hasLocaleMessages(next)) {
@@ -68,16 +87,26 @@ export function applyLocale(next: Locale): Promise<boolean> {
 		ready = Promise.resolve();
 		return Promise.resolve(true);
 	}
-	const switched = loadLocaleMessages(next).then(
-		() => {
-			if (request === latest) {
-				current = next;
-				syncDocumentLang();
-			}
+	const show = (locale: Locale) => {
+		if (request !== latest) return;
+		current = locale;
+		syncDocumentLang();
+	};
+	const switched = load(next).then(async (loaded) => {
+		if (loaded) {
+			show(next);
 			return true;
-		},
-		() => false
-	);
+		}
+		if (!locales.some((locale) => hasLocaleMessages(locale))) {
+			for (const other of locales) {
+				if (other !== next && (await load(other))) {
+					show(other);
+					break;
+				}
+			}
+		}
+		return false;
+	});
 	ready = switched.then(() => undefined);
 	return switched;
 }

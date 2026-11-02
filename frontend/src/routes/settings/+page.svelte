@@ -980,7 +980,7 @@
 						class="form-error"
 						class:sr-only={outputSettings === null}
 						role="alert"
-						lang={textLang(outputError)}
+						lang={outputSettings !== null ? textLang(outputError) : undefined}
 					>
 						{outputSettings !== null
 							? outputError
@@ -1095,7 +1095,7 @@
 						class="form-error"
 						class:sr-only={librarySettings === null}
 						role="alert"
-						lang={textLang(libraryError)}
+						lang={librarySettings !== null ? textLang(libraryError) : undefined}
 					>
 						{librarySettings !== null
 							? libraryError
@@ -1223,7 +1223,7 @@
 						class="form-error"
 						class:sr-only={alertSettings === null}
 						role="alert"
-						lang={textLang(alertError)}
+						lang={alertSettings !== null ? textLang(alertError) : undefined}
 					>
 						{alertSettings !== null
 							? alertError

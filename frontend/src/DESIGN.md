@@ -1274,8 +1274,9 @@ is adopted at sign-in. `<html lang>` follows it, and a switch re-renders in plac
 (`messages-<locale>.<hash>.js`, vite.config.ts's `paraglideLocaleSplit`), downloaded only when the
 page speaks it: before any route renders, `+layout.ts` awaits the session's language (the browser's
 signed out), and a switch on `/account` changes the page once the other language has arrived. The
-service worker leaves both out of its install precache and keeps the one a page fetched, so the
-installed app opens offline in the language it was last used in. One language is ~19.6 KB gzipped
+service worker leaves both out of its install precache, keeps the one a page fetched and, on an
+update, re-fetches the ones it held, so the installed app opens offline in a language it holds (the
+session's when it has it; with nothing loaded, the page falls back to any language that loads). One language is ~19.6 KB gzipped
 (en; hu ~21.2 KB) instead of both in one 41.5 KB chunk on every page.
 
 **The switches** are on `/account` only, in Preferences, each a `.choice-group` saved to the profile
