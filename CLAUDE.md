@@ -229,8 +229,8 @@ any ──> cancelled
 
 ### Job rollup status (v2) — two derived axes, never one stored flag
 
-**Lifecycle**: `expanding` · `held` (v69: `jobs.held_at` set, owner removed before it started; wins over all but
-`failed`/`cancelled`) · `failed` (expansion errored, zero tracks) · `cancelled` · `active` (≥1 track
+**Lifecycle**: `expanding` · `held` (v69: `held_at` set, owner removed before it started; wins while it's expanding or has
+a track to run, never over `failed`/`cancelled`) · `failed` (expansion errored, zero tracks) · `cancelled` · `active` (≥1 track
 `pending`/`queued`/`downloading`) · `waiting` (no active, ≥1 `waiting`) · `settled` (all terminal). **Outcome**, only once
 `settled`: `complete` (all `completed`/`skipped_duplicate`) vs `partial` (≥1 `lookup_failed`/`cancelled`): a 10-track album
 with 1 `LookupError` is "Done — 9 of 10", never "failed" or a bare green tick. Both axes are derived in SQL, never stored.

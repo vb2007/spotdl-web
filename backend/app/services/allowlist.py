@@ -16,8 +16,10 @@ the safety net when that publish is lost. Their jobs and files stay, and so does
 row: adding the address again (`add`) restores the same account and resumes the held jobs.
 
 **Started vs held.** A job has started when one of its tracks is `downloading`, `completed`,
-`skipped_duplicate` or `lookup_failed`, or has `attempt_count > 0`: it has had an attempt or a
-dedup result. A started job runs to the end, retry ladder and all, so no album or artist is left
+`skipped_duplicate` or `lookup_failed`, or has `attempt_count > 0` or `attempts_made > 0`: it has
+had an attempt (a reclaimed or cancelled run included) or a dedup result. Only a job with
+something to run is held (expanding, or a track still to download), and its lifecycle reads `held`
+only while that's still so (services/rollup.py). A started job runs to the end, retry ladder and all, so no album or artist is left
 half-archived. One that hasn't is held, and `download_track` attempts none of its tracks. The
 removal locks the user's job rows (`FOR UPDATE`) before deciding, and `download_track` reads
 `held_at` under `FOR SHARE` in the transaction that moves a track to `downloading`, so the two
@@ -208,8 +210,9 @@ def remove(db: Session, email: str) -> Removal:
     )
     if user_id is not None:
         events.publish_control(user_id, events.CONTROL_REVOKED)
-        # Their rollup moved to `held` (the admin's "others" view shows it).
-        job_status.publish_changes(db, removal.held_job_ids)
+        # Their rollup moved to `held` (the admin's "others" view shows it): the chips move on
+        # `job.status`, and an open row re-reads itself on `job.state` (review round 4).
+        _announce_jobs(db, user_id, removal.held_job_ids)
     return removal
 
 
@@ -298,9 +301,22 @@ def add(db: Session, email: str, by: User) -> Addition:
     )
     if claimed:
         addition.enqueued = _send_resumed(db, claimed, lease)
-    if addition.resumed_job_ids:
-        job_status.publish_changes(db, addition.resumed_job_ids)
+    if user_id is not None:
+        _announce_jobs(db, user_id, addition.resumed_job_ids)
     return addition
+
+
+def _announce_jobs(db: Session, user_id: uuid.UUID, job_ids: list[uuid.UUID]) -> None:
+    """After a hold or a resume: each job's `job.state` (one publish per job, no query), so a
+    row an admin has open re-reads its status, then the status moves for the chips."""
+    if not job_ids:
+        return
+    states = dict(db.execute(select(Job.id, Job.state).where(Job.id.in_(job_ids))).all())
+    db.commit()
+    for job_id in job_ids:
+        if job_id in states:
+            events.publish_job_event(user_id, job_id, states[job_id].value)
+    job_status.publish_changes(db, job_ids)
 
 
 def _due_case(track_ids: list[uuid.UUID], at: datetime):

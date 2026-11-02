@@ -50,6 +50,7 @@
 	"error_reexpand_running": "Ezt a feladatot már ellenőrzi új számokért.",
 	"error_job_not_reexpandable": "Csak olyan feladatot lehet új számokért ellenőrizni, amelynek a linkjét már beolvasta.",
 	"error_job_not_reexpandable_search": "Keresést nem lehet új számokért ellenőrizni, csak linkként beküldött feladatot.",
+	"error_job_not_reexpandable_owner_removed": "A tulajdonos címét eltávolították, így nincs mit ellenőrizni: előbb add hozzá újra a felhasználók oldalon.",
 	"error_job_not_watchable_type": "Csak lejátszási listát vagy előadót lehet figyelni.",
 	"error_job_not_watchable": "Csak olyan feladatot lehet figyelni, amelynek a linkjét már beolvasta, és nincs archiválva.",
 	"error_watch_interval_invalid": "Két ellenőrzés között {min}–{max} óra telhet el.",

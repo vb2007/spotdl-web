@@ -78,7 +78,9 @@ const BY_CODE: Record<string, (params: Params) => string> = {
 	job_not_reexpandable: (p) =>
 		p.reason === 'source_type'
 			? m.error_job_not_reexpandable_search()
-			: m.error_job_not_reexpandable(),
+			: p.reason === 'owner_removed'
+				? m.error_job_not_reexpandable_owner_removed()
+				: m.error_job_not_reexpandable(),
 	job_not_watchable: (p) =>
 		p.reason === 'source_type' ? m.error_job_not_watchable_type() : m.error_job_not_watchable(),
 	watch_interval_invalid: (p) =>

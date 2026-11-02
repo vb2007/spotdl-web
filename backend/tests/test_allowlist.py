@@ -410,3 +410,37 @@ def test_a_key_create_rechecks_the_allowlist(authenticated_client, db_session):
     response = authenticated_client.post("/api/account/api-keys", json={"label": "late"})
     assert response.status_code == 401
     assert db_session.query(ApiKey).count() == 0
+
+
+def test_check_now_on_a_removed_owners_job_is_refused(admin_client, db_session, make_user, monkeypatch):
+    """Review round 4: it answered 202 and stamped "checked now", and the run then added nothing."""
+    from app.models import Job, JobSourceType, JobState
+    from app.services import watch
+
+    owner = make_user("gone@example.com")
+    job = Job(user_id=owner.id, source_url="https://open.spotify.com/playlist/x", source_type=JobSourceType.PLAYLIST, state=JobState.EXPANDED)
+    db_session.add(job)
+    db_session.commit()
+    monkeypatch.setattr(watch, "claim_run", lambda job_id: (_ for _ in ()).throw(AssertionError("claimed")))
+    response = admin_client.post(f"/api/jobs/{job.id}/reexpand")
+    assert response.status_code == 409
+    assert response.json()["code"] == "job_not_reexpandable"
+    assert response.json()["params"] == {"reason": "owner_removed"}
+    assert db_session.get(Job, job.id).last_expanded_at is None
+
+
+def test_a_removal_announces_each_held_job(admin_client, db_session, make_user, monkeypatch):
+    """Review round 4: an admin's open row re-reads its status on `job.state`."""
+    from app.models import Job, JobSourceType, JobState, Track, TrackState
+    from app.services import events
+
+    sent = []
+    monkeypatch.setattr(events, "publish_job_event", lambda user_id, job_id, state, **kw: sent.append((user_id, job_id, state)))
+    user = make_user("allowed@example.com")
+    job = Job(user_id=user.id, source_url="https://open.spotify.com/album/x", source_type=JobSourceType.ALBUM, state=JobState.EXPANDED)
+    db_session.add(job)
+    db_session.flush()
+    db_session.add(Track(job_id=job.id, spotify_track_id="t1", song_json={}, state=TrackState.QUEUED))
+    db_session.commit()
+    assert admin_client.delete("/api/admin/allowlist/allowed@example.com").status_code == 204
+    assert sent == [(user.id, job.id, "expanded")]

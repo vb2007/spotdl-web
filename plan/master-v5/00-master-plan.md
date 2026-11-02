@@ -877,3 +877,12 @@ here.
     `+layout.svelte` (which holds the session-ended path the revocation reuses); the e2e spec is
     `25-user-access.e2e.ts`, since Playwright here runs `*.e2e.ts` only. A held job keeps the admin's
     cancel in `JobRow.svelte` (the plan's "the admin can still cancel it").
+  - **Other files beyond "Files owned", each needed by a task:** the `held` rollup's callers
+    (`services/{job_listing,track_listing,job_status,serializers,stats}.py`, cancel's 409 in
+    `routers/jobs.py`); the key create's re-check (`routers/account_keys.py`); "check now" refused
+    for a removed owner (`routers/jobs.py`, a `job_not_reexpandable` reason); the session-ended path
+    and its reason (`+layout.svelte` beyond the nav, `lib/session.ts`, `app.d.ts`,
+    `routes/login/+page.svelte`); the error codes (`lib/i18n/errors.ts`, `i18n.test.ts`);
+    `AdminOnlyNotice.svelte` (the non-admin's `/users`); docstrings (`models/user.py`); and the tests
+    the table and the stream changed (`conftest.py`, `test_admin_gating.py`, `test_api_keys.py`,
+    `test_config.py`, `test_extension_jobs.py`, `test_stream.py`, `test_watch_jobs.py`).
