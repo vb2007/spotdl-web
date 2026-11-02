@@ -884,7 +884,8 @@ here.
     and its reason (`+layout.svelte` beyond the nav, `+layout.ts`, `lib/session.ts`,
     `lib/stores/sessionEnded.ts`, `app.d.ts`, `routes/login/+page.svelte`), with the `access_removed`
     401 a removed session's cookie gets (live review round 1; never to the extension, whose v53
-    fallback knows only `not_authenticated`); the error codes (`lib/i18n/errors.ts`, `i18n.test.ts`);
+    fallback knows only `not_authenticated`), and every cookie request re-checking the allowlist
+    (live review round 2: a row deleted outside `/users` otherwise left its session working); the error codes (`lib/i18n/errors.ts`, `i18n.test.ts`);
     `AdminOnlyNotice.svelte` (the non-admin's `/users`); docstrings (`models/user.py`); and the tests
     the table and the stream changed (`conftest.py`, `test_admin_gating.py`, `test_api_keys.py`,
     `test_config.py`, `test_extension_jobs.py`, `test_stream.py`, `test_watch_jobs.py`).

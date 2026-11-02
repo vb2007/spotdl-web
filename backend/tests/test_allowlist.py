@@ -422,8 +422,10 @@ def test_a_job_create_rechecks_the_allowlist(authenticated_client, db_session):
     db_session.query(AllowedEmail).filter(AllowedEmail.email == "allowed@example.com").delete()
     db_session.flush()
     response = authenticated_client.post("/api/jobs", json={"url": "some search text"})
+    # The cookie's own check refuses it first now (live review round 2); create's locked re-check
+    # is what closes the race with a removal committing after that check.
     assert response.status_code == 401
-    assert response.json()["code"] == "not_authenticated"
+    assert response.json()["code"] == "access_removed"
 
 
 def test_removing_an_unstorable_address_is_404(admin_client):
@@ -508,3 +510,16 @@ def test_access_removed_ends_once_the_address_is_back_and_never_reaches_the_exte
     assert (from_extension.status_code, from_extension.json()["code"]) == (401, "not_authenticated")
     assert client.post("/api/admin/allowlist", json={"email": "allowed@example.com"}, cookies=admin).status_code == 201
     assert client.get("/api/auth/me", cookies=cookie).json()["code"] == "not_authenticated"
+
+
+def test_a_row_deleted_outside_users_refuses_the_live_session_too(client, session_cookie, db_session):
+    """Live review round 2: a row deleted by hand ends no session; every cookie request (and the
+    stream) now refuses it like a removal, so the page doesn't reconnect its stream forever."""
+    cookie = session_cookie("allowed@example.com")
+    db_session.query(AllowedEmail).filter(AllowedEmail.email == "allowed@example.com").delete()
+    db_session.commit()
+    for path in ("/api/auth/me", "/api/jobs", "/api/stream"):
+        response = client.get(path, cookies=cookie)
+        assert (response.status_code, response.json()["code"]) == (401, "access_removed"), path
+    from_extension = client.get("/api/auth/me", cookies=cookie, headers={"X-Spotdl-Client": "extension/1.0.2"})
+    assert from_extension.json()["code"] == "not_authenticated"

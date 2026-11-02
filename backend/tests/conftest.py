@@ -143,7 +143,7 @@ from sqlalchemy.pool import NullPool
 import concurrency
 from app.db import Base, engine, get_db
 from app.main import app
-from app.models import User
+from app.models import AllowedEmail, User
 from app.routers import auth as auth_router
 from app.services.sessions import create_session
 
@@ -485,6 +485,9 @@ def session_cookie(db_session, make_user):
 
     def _make(email: str, *, is_admin: bool = False) -> dict[str, str]:
         user = make_user(email, is_admin=is_admin)
+        # v69: a session stands for a signed-in user, who is on the allowlist (every cookie
+        # request re-checks it).
+        db_session.merge(AllowedEmail(email=user.email))
         session = create_session(db_session, user.id)
         db_session.commit()
         return {"SPOTDL_SESSION": session.token}

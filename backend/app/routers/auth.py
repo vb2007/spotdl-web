@@ -50,8 +50,17 @@ def current_session(request: Request, db: Session = Depends(get_db)) -> UserSess
     return session
 
 
+def _off_the_allowlist(request: Request) -> ApiError:
+    """v69: a live session whose address is off the allowlist (its row deleted outside /users,
+    which ends no session): refused like a removed one, so the session can't outlive its access
+    and the page's stream doesn't reconnect into it forever (live review round 2)."""
+    if request.headers.get("x-spotdl-client", "").startswith("extension"):
+        return ApiError(401, "not_authenticated", "Not authenticated")
+    return ApiError(401, "access_removed", "Your access was removed")
+
+
 def require_session(
-    session: UserSession = Depends(current_session), db: Session = Depends(get_db)
+    request: Request, session: UserSession = Depends(current_session), db: Session = Depends(get_db)
 ) -> User:
     """Every owner-scoped route depends on this, not `current_session` directly --
     `session.user_id` is only ever a means to reach the `User` that actually carries
@@ -62,6 +71,8 @@ def require_session(
         # isn't set up, so this would mean a row was deleted out from under a live
         # session), but "not authenticated" is the correct response either way.
         raise ApiError(401, "not_authenticated", "Not authenticated")
+    if not allowlist.is_allowed(db, user.email):
+        raise _off_the_allowlist(request)
     return user
 
 
@@ -114,6 +125,8 @@ def require_session_or_api_key(request: Request, db: Session = Depends(get_db)) 
             db.commit()
             user = db.get(User, session.user_id)
             if user is not None:
+                if not allowlist.is_allowed(db, user.email):
+                    raise _off_the_allowlist(request)
                 return Principal(user)
 
     bearer = _bearer_token(request)
@@ -161,6 +174,8 @@ def require_session_for_streaming(request: Request) -> User:
         user = db.get(User, session.user_id)
         if user is None:
             raise ApiError(401, "not_authenticated", "Not authenticated")
+        if not allowlist.is_allowed(db, user.email):
+            raise _off_the_allowlist(request)
         db.commit()
         # Re-touch *after* commit, while the session is still open -- `expire_on_commit`
         # (the sessionmaker default) marks attributes stale on commit, and reading them

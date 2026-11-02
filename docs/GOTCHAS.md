@@ -8046,3 +8046,10 @@ independently-found production bug from the same conversation)
   second removal holds it again and the next re-add sends it once more. The extra messages are
   no-ops at the worker (the gate re-pends a held one; a finished one is ignored), and a single
   re-add still sends each track once; only the broker grows, by one message per track per cycle.
+- **The allowlist is checked on every cookie request, not only at login** (live review round 2).
+  `require_session`, the cookie half of `require_session_or_api_key` and the stream's auth read it
+  (one primary-key lookup; none for `ADMIN_EMAIL`). Without it a row deleted outside `/users` (by
+  hand: no session ended, no publish) left the session working while the stream's re-check said
+  `revoked`, and the dashboard reconnected into that every ~18s forever. A test that mints a session
+  must put its user on the list (conftest's `session_cookie` does); list endpoints' query counts rose
+  by one.
