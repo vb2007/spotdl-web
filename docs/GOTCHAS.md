@@ -938,6 +938,18 @@ needed" claim — rather than silently deleted.
 - On a first (full) page load SvelteKit's `reset_focus` runs after `onMount` and focuses an
   `[autofocus]` element, else `<body>`: a page focusing its action in `onMount` loses it on the
   production build, though `vite dev` (slower to mount) hides it. Mark the action `autofocus` → *v65*
+- Paraglide's index imports every language statically, so both ship on every page; v67 rewrites
+  it into on-demand dispatchers (vite.config.ts) and names each language's chunk itself, since
+  SvelteKit enforces `chunkFileNames` → *v67*
+- A per-language message chunk must be loaded before any message is read: `+layout.ts` awaits
+  `localeReady()`, and the first language is loaded lazily, never at module init → *v67*
+- `text-overflow: ellipsis` on a flex container never applies to its bare text (an anonymous flex
+  item): wrap the text in its own box (`/stats`' channel names, "audio_prov") → *v67*
+- A chart read by arrow keys is a `role="slider"` with the reading as `aria-valuetext`, not a
+  focusable `role="img"` (a screen reader in browse mode keeps the arrows), and a sticky in-page
+  bar needs `scroll-padding-top` on the root or Tab focus lands under it (WCAG 2.4.11) → *v67*
+- A `native` binding (handled by the focused element) may share a chord with a dispatched one;
+  the registry never matches it → *v67*
 
 **Browser extension (`extension/`)**
 - Spotify's DOM: rows `tracklist-row`, headers `action-bar-row` inside `album-page`/`artist-page`/
@@ -7792,3 +7804,71 @@ independently-found production bug from the same conversation)
   `onclick`: the worker's `notificationclick` focuses an open tab (the dashboard first) and posts
   `{type: 'job-notification-click', jobId}`, which the page hands to the same row-focus handler;
   the job id rides in the notification's `data`. With no tab open it opens `/`.
+
+### v67 ui-debt gotchas (learned closing U2–U14 and auditing the v5 surfaces)
+
+- **Paraglide 2's `locale-modules` output still ships every language on every page.** Its
+  `messages/_index.js` imports `./en.js` and `./hu.js` statically, so the bundler put both, plus
+  the per-message dispatchers, in one 152 KB (41.5 KB gzipped) chunk. `paraglideLocaleSplit`
+  (vite.config.ts) rewrites that index (it reads the `export const <key> =` lines and fails the
+  build if there are none: Paraglide is pinned) into one-line dispatchers over modules imported on
+  demand, and `virtual:locale-messages` exposes `loadLocaleMessages`/`hasLocaleMessages`. vitest
+  keeps Paraglide's own index (every language loaded, the loader a no-op), and so does the e2e
+  suite, which imports the compiled files under Playwright's loader, not Vite.
+- **SvelteKit enforces `chunkFileNames`** (`_app/immutable/chunks/[hash].js`), so a chunk can't be
+  named through the config. `this.emitFile({ type: 'chunk', id, fileName })` in `buildStart` names
+  it exactly. The hash covers the message JSON *and the build* (`Date.now()`): the chunk's content
+  also depends on the toolchain and on a content-hashed shared chunk it imports, so a JSON-only
+  hash could leave a stale immutable file importing a chunk the deploy removed (self review, round
+  1). Every deploy is a new ~20 KB file. The service worker recognizes `messages-<locale>.<hash>.js`
+  by name, leaves both out of its install precache, keeps the one a page fetches (on a first visit,
+  from the HTTP cache at activation), and on an update re-fetches the page's language: the page
+  tells the worker each time it switches (a `postMessage` kept in a `spotdl-locale` cache that
+  outlives builds), else the ones the old cache held; only the first update from a pre-v67 build
+  (an old shell with no language chunk) falls back to the browser's (self review, round 4: keying
+  on everything held, or on "nothing held" on a fresh install, re-downloaded both languages).
+  Offline, the app opens in a language it holds: the session's if it has it, else any it has
+  (`applyLocale` falls back when nothing is loaded; self review, round 2).
+- **Nothing may read a message before its language is loaded.** A message read with nothing
+  loaded throws (`Cannot read properties of undefined`): the audit's scratch build of the first
+  prototype rendered a blank page. `+layout.ts` awaits `localeReady()` after applying the session's
+  language, and `locale.svelte.ts` loads nothing at module init: a signed-in user whose saved
+  language isn't the browser's would otherwise download both. `applyLocale` switches only once the
+  language is here, and the newest request wins over a slower older one. *(Corrected 2026-11-02,
+  v67's later review rounds: a message read with nothing loaded now returns its key instead of
+  throwing; with nothing loaded the page falls back to any language that loads; a failed import
+  is retried under a new URL, since a browser keeps a failed `import()` of a URL failed for the
+  page's life; a load that times out at 15s still switches if it lands, unless something newer
+  was asked.)*
+- **`text-overflow: ellipsis` on a flex container never applies to its text.** `/stats`' channel
+  names were `display: flex` (key swatch + text) with the ellipsis on the container: the bare text
+  is an anonymous flex item, so "audio_provider" was hard-cut to "audio_prov". The computed style
+  still reports `ellipsis`; only a box of its own around the text (`min-width: 0`) draws it.
+- **A focusable chart's readout must sit beside the `role="img"`, not in it.** An image's children
+  are presentational, so a live region inside it is never announced; v67's `aria-live` paragraph is
+  the chart's sibling. *(Corrected 2026-11-02, v67, after its audit: a focusable `img` read by
+  arrow keys is unreachable in a screen reader's browse mode, which keeps the arrows for its own
+  cursor. The charts are now `role="slider"` (role description "chart") with the reading as
+  `aria-valuetext`, which every screen reader announces as it changes; the live region is gone.)* Arrow keys on a focused chart are the chart's own (`stepCrosshair`,
+  `stopPropagation`), listed in the help overlay as a `native` binding; the duplicate-chord test
+  now skips `native` bindings, which the registry never dispatches (`←`/`→` are also the
+  dashboard's expand/collapse).
+- **A sticky in-page bar hides Tab focus unless the root scroller knows it.** `/settings`' phone
+  section bar sticks at `top: 0`; focusing a field scrolls it into view under the bar (WCAG 2.4.11)
+  unless the page sets `scroll-padding-top`. It's set on `html:has(nav.settings-index)`, so it
+  applies only while that page is mounted (a component's `:global(html)` rule outlives the page in
+  an SPA).
+- **A synthetic drag sequence reproduces the stranded glow; Playwright's mouse can't leave the
+  viewport.** `pointercancel` on `window`, a `pointerout` with `relatedTarget: null`, then
+  `dragend` at a point outside the viewport (spec 25). On the baseline build the glow stayed at
+  its last offset; since v67 `dragend`/`pointerup` aim it at the release point and `blur` sends it
+  home.
+- **Data an impeccable review leans on dies with the e2e suite.** The suite's global setup cancels
+  and archives the e2e identities' in-flight jobs, and on a slot the e2e identities are the only
+  ones (`v5s<slot>admin/user`). Take screenshots and run the reviewers on a visual fixture first,
+  then run the suite; re-seeding a fixture after it needs its old rows removed first.
+- **A Hungarian label in a Hungarian name can't be "contained" by inflection.** The old job-row
+  names ("{title} előresorolása" for the visible "előre") failed WCAG 2.5.3 outright: speech
+  input saying the visible word matched nothing. Names now start with the visible text: "előre:
+  {title}".
+

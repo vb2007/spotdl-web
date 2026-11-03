@@ -85,6 +85,7 @@
 	"login_ident_receiver": "SIGNAL RECEIVER",
 	"login_heading": "TUNE IN",
 	"login_hint": "Sign in with your vb2007.hu account. Access is by invitation.",
+	"login_share_waiting": "Sign in to queue what you shared: it’s waiting for you.",
 	"login_session_ended": "Your session ended. Sign in again.",
 	"login_email": "Email",
 	"login_password": "Password",
@@ -224,6 +225,8 @@
 	"job_progress_label": "Track progress: {breakdown}",
 	"job_cancel_title": "Cancel this job?",
 	"job_cancel_body": "Its tracks that haven't downloaded yet are cancelled; one downloading right now finishes but stays cancelled. Tracks not found stay as they are, and files already downloaded stay. This can't be undone, but the link can be submitted again.",
+	"job_cancel_title_other": "Cancel {owner}’s job?",
+	"job_cancel_body_other": "Its tracks that haven't downloaded yet are cancelled; one downloading right now finishes but stays cancelled. Tracks not found stay as they are, and files already downloaded stay. This can't be undone; {owner} gets it back by submitting the link again.",
 	"job_cancel_confirm": "cancel job",
 	"job_cancel_keep": "keep job",
 	"job_notice_not_cancelled": "Not cancelled: nothing in it is still to come.",
@@ -234,18 +237,18 @@
 	"job_notice_archive_failed": "Could not archive this job.",
 	"job_notice_unarchive_failed": "Could not unarchive this job.",
 	"job_priority": "priority",
-	"job_priority_of": "priority of {title}",
+	"job_priority_of": "priority: {title}",
 	"job_bump": "bump",
-	"job_bump_label": "bump {title} to the front",
+	"job_bump_label": "bump: {title}",
 	"job_cancel": "cancel",
-	"job_cancel_label": "cancel {title}",
+	"job_cancel_label": "cancel: {title}",
 	"job_archive": "archive",
-	"job_archive_label": "archive {title}",
+	"job_archive_label": "archive: {title}",
 	"job_archived": "archived",
 	"job_unarchive": "unarchive",
-	"job_unarchive_label": "unarchive {title}",
+	"job_unarchive_label": "unarchive: {title}",
 	"job_watch": "watch",
-	"job_watch_of": "watch {title} for new tracks",
+	"job_watch_of": "watch: {title}",
 	"job_watch_off": "not watched",
 	"job_watch_daily": "daily",
 	"job_watch_weekly": "weekly",
@@ -264,7 +267,7 @@
 		}
 	],
 	"job_check_now": "check now",
-	"job_check_now_label": "check {title} for new tracks now",
+	"job_check_now_label": "check now: {title}",
 	"job_retry_failed": [
 		{
 			"declarations": ["input count", "local countPlural = count: plural", "input n"],
@@ -275,16 +278,7 @@
 			}
 		}
 	],
-	"job_retry_failed_label": [
-		{
-			"declarations": ["input count", "local countPlural = count: plural", "input n"],
-			"selectors": ["countPlural"],
-			"match": {
-				"countPlural=one": "retry {title}’s waiting track now",
-				"countPlural=*": "retry {title}’s {n} waiting tracks now"
-			}
-		}
-	],
+	"job_retry_failed_label": "retry waiting ({n}): {title}",
 	"job_retry_not_found": [
 		{
 			"declarations": ["input count", "local countPlural = count: plural", "input n"],
@@ -295,16 +289,7 @@
 			}
 		}
 	],
-	"job_retry_not_found_label": [
-		{
-			"declarations": ["input count", "local countPlural = count: plural", "input n"],
-			"selectors": ["countPlural"],
-			"match": {
-				"countPlural=one": "retry {title}’s not-found track",
-				"countPlural=*": "retry {title}’s {n} not-found tracks"
-			}
-		}
-	],
+	"job_retry_not_found_label": "retry not found ({n}): {title}",
 	"job_retry_not_found_title": "Retry the tracks not found?",
 	"job_retry_not_found_body": [
 		{
@@ -378,9 +363,9 @@
 	"job_export_label": "export {title}",
 	"job_export_files": "files: {count} of {total}",
 	"job_export_zip": "download all (zip)",
-	"job_export_zip_label": "download all (zip) of {title}",
+	"job_export_zip_label": "download all (zip): {title}",
 	"job_export_playlist": "playlist (.m3u8)",
-	"job_export_playlist_label": "playlist (.m3u8) of {title}",
+	"job_export_playlist_label": "playlist (.m3u8): {title}",
 	"job_export_preparing": "preparing…",
 	"job_notice_export_failed": "Could not download this job’s files.",
 	"job_notice_export_nothing": "No file of this job is on disk any more.",
@@ -428,8 +413,8 @@
 	"waterfall_reconnecting": "link lost — reconnecting",
 	"waterfall_reconnecting_note": "This page catches up by itself once the link is back.",
 	"waterfall_connecting": "tuning in…",
-	"waterfall_busy": "no signal here — worker busy elsewhere",
-	"waterfall_clear": "no signal — nothing downloading",
+	"waterfall_busy": "quiet here — the worker is busy elsewhere",
+	"waterfall_clear": "quiet — nothing downloading",
 	"waterfall_unknown_title": "Unknown title",
 	"waterfall_unknown_artist": "Unknown artist",
 	"waterfall_progress_unknown": "progress not read yet",
@@ -439,11 +424,11 @@
 	"incoming_source_artist": "artist",
 	"incoming_source_search": "search",
 	"incoming_tuning": "tuning in {source}",
-	"incoming_unreadable_track": "no signal — could not read this track",
-	"incoming_unreadable_album": "no signal — could not read this album",
-	"incoming_unreadable_playlist": "no signal — could not read this playlist",
-	"incoming_unreadable_artist": "no signal — could not read this artist",
-	"incoming_unreadable_search": "no signal — could not read this search",
+	"incoming_unreadable_track": "couldn’t read this track",
+	"incoming_unreadable_album": "couldn’t read this album",
+	"incoming_unreadable_playlist": "couldn’t read this playlist",
+	"incoming_unreadable_artist": "couldn’t read this artist",
+	"incoming_unreadable_search": "couldn’t read this search",
 	"incoming_unreadable_hint": "Check that the link opens in Spotify, then try again.",
 	"incoming_cancel_failed": "Could not cancel this job.",
 	"incoming_cancel_moved": "{message} It has moved into the queue below; cancel it there.",
@@ -1016,6 +1001,7 @@
 	"stats_legend_failed": "failed, retried",
 	"stats_legend_not_found": "not found",
 	"stats_rate_definition": "Success is completed ÷ (completed + failed). Not found is a verdict on the track, not the route, so it's counted apart.",
+	"stats_mine_rate_definition": "Success is completed ÷ (completed + failed). Not found is a verdict on the track, so it's counted apart.",
 	"stats_no_attempts": "No download attempts in this window.",
 	"stats_col_route": "Route",
 	"stats_col_attempts": "Attempts",
@@ -1184,6 +1170,14 @@
 	"account_keys_new_label": "Key",
 	"account_keys_copy": "copy",
 	"account_keys_copied": "copied",
+	"account_keys_close_title": "Close the key without copying it?",
+	"account_keys_close_body": "It isn't shown again. Without a copy, the extension can't use it: you'd revoke it and create another.",
+	"account_keys_close_confirm": "close without copying",
+	"account_keys_close_keep": "keep it shown",
+	"account_keys_leave_confirm": "leave without copying",
+	"account_keys_leave_also": "Your other unsaved changes here go too.",
+	"account_language_load_failed": "Saved, but this page couldn’t load that language. Reload to see it.",
+	"account_keys_leave_title": "Leave without copying your new key?",
 	"account_keys_copy_failed": "Couldn't copy; select the key and copy it yourself.",
 	"account_keys_done": "done",
 	"account_keys_list_label": "Your keys",
@@ -1248,6 +1242,8 @@
 	"install_hint_ios": "On iPhone and iPad, install it with Safari's Share button, then Add to Home Screen. Sharing into the app works with Chrome on Android.",
 	"install_hint_firefox": "In Firefox, install it from the menu (⋮), then Add app to Home screen. Sharing into the app works with Chrome on Android.",
 	"install_version": "Offline copy, build: {version}",
+	"install_heading_installed": "The app",
+	"install_version_built": "Offline copy from {date}",
 	"error_url_not_spotify": "Only open.spotify.com track, album, artist or playlist links can be queued from here.",
 	"error_short_link_unresolved": "That Spotify short link doesn't lead to a track, album, artist or playlist (it may have expired).",
 	"error_short_link_unavailable": "Spotify's short link service didn't answer. Try again in a moment.",
@@ -1351,5 +1347,15 @@
 				"countPlural=*": "{n} bytes"
 			}
 		}
-	]
+	],
+	"stats_class_audio_provider": "YouTube refused",
+	"stats_class_no_output": "no file produced",
+	"stats_class_other": "other error",
+	"stats_chart_keys_hour": "The arrow keys read the chart hour by hour; Home and End jump to its ends; Esc clears the reading.",
+	"stats_chart_keys_day": "The arrow keys read the chart day by day; Home and End jump to its ends; Esc clears the reading.",
+	"stats_chart_unread_day": "no day picked",
+	"stats_chart_unread_hour": "no hour picked",
+	"stats_chart_role": "chart",
+	"kbd_chart_step": "Read a chart hour by hour or day by day (on a focused chart)",
+	"kbd_chart_ends": "Jump to a chart’s first or last hour or day"
 }

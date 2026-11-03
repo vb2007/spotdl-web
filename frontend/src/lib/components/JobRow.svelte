@@ -9,7 +9,7 @@
 	import { kbRow, rowItemById } from '$lib/keyboard/lists';
 	import type { Job, JobLifecycle, JobSourceType } from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 	import { counted, formatDateTime, formatNumber, keepReadings } from '$lib/i18n/format';
 	import { jobStatusLabel } from '$lib/i18n/labels';
 
@@ -44,7 +44,14 @@
 	};
 
 	let statusToken = $derived(api.statusKey(job.status));
-	let badgeLabel = $derived(jobStatusLabel(statusToken));
+	// v67 (U6): a one-track job that ended "partial" only because its track wasn't found has
+	// nothing done: its badge says "not found", not "done — partial".
+	let oneNotFound = $derived(
+		statusToken === 'settled:partial' &&
+			(job.track_counts.lookup_failed ?? 0) === 1 &&
+			Object.values(job.track_counts).reduce((sum, count) => sum + (count ?? 0), 0) === 1
+	);
+	let badgeLabel = $derived(oneNotFound ? m.state_lookup_failed() : jobStatusLabel(statusToken));
 	// v42 (F28): red is for a real gap. A job that is partial only because its owner
 	// cancelled tracks has nothing missing they didn't choose, so it reads muted.
 	// v47 (F04/F05, DESIGN.md §2): amber says something is receiving right now. An active job
@@ -77,7 +84,7 @@
 		if ((c.pending ?? 0) + (c.queued ?? 0) + (c.downloading ?? 0) === 1)
 			return statusToken === 'active';
 		if ((c.waiting ?? 0) === 1) return statusToken === 'waiting';
-		return false;
+		return oneNotFound;
 	});
 	// v46: what kind of link the job is, in words (the API's own value is a machine key).
 	const SOURCE_TYPE_LABEL: Record<JobSourceType, () => string> = {
@@ -169,11 +176,14 @@
 
 	async function handleCancelFlow() {
 		const session = queue.getResetCount();
+		// v67: another user's job (the admin's all/others views) names its owner, and only they
+		// can submit its link again.
+		const owner = api.displayName(job.owner_username, job.owner_email);
 		const confirmed = await confirmAction({
-			title: m.job_cancel_title(),
+			title: own ? m.job_cancel_title() : m.job_cancel_title_other({ owner }),
 			subject: job.title,
 			subjectIsAddress: titleIsUrl,
-			body: m.job_cancel_body(),
+			body: own ? m.job_cancel_body() : m.job_cancel_body_other({ owner }),
 			confirmLabel: m.job_cancel_confirm(),
 			cancelLabel: m.job_cancel_keep()
 		});
@@ -638,98 +648,108 @@
 			{/if}
 		</div>
 
+		<!-- v67: the actions in groups, recover · source · operator · keep, with the one destructive
+		     action set apart at the end (as on a track row). On a phone a closed row shows none
+		     of them (U5): opening it does, and the row's keys still act on it. -->
 		<div class="row-actions">
-			<!-- v47 (owner's call): priority and bump are the admin's. The queue's order is shared,
-			     operator detail (v39 outcome 3); a non-admin's in-flight job offers cancel only. -->
-			{#if showInFlight && isAdmin}
-				<label class="priority mono">
-					{m.job_priority()}
-					<input
-						type="number"
-						class="priority-input"
-						value={job.priority}
-						aria-label={m.job_priority_of({ title: job.title })}
-						onchange={(e) => handlePriority(e.currentTarget.value)}
-						onkeydown={(e) => {
-							// v45: Esc backs out of the field (the registry then closes the row):
-							// a half-typed value is put back first, so leaving doesn't save it.
-							if (e.key === 'Escape') e.currentTarget.value = String(job.priority);
-						}}
-					/>
-				</label>
-				<button
-					type="button"
-					class="action"
-					aria-label={m.job_bump_label({ title: job.title })}
-					onclick={handleBump}>{m.job_bump()}</button
-				>
-			{/if}
-			{#if showInFlight}
-				<button
-					type="button"
-					class="action danger"
-					aria-label={m.job_cancel_label({ title: job.title })}
-					onclick={handleCancel}>{m.job_cancel()}</button
-				>
-			{/if}
 			<!-- v63: watch, "check now" and "retry failed", while the row is open. -->
 			{#if isOpen}
-				{#if showRetryFailed}
-					<button
-						type="button"
-						class="action"
-						aria-label={m.job_retry_failed_label({ ...counted(waitingCount), title: job.title })}
-						onclick={() => handleRetryFailed()}>{m.job_retry_failed(counted(waitingCount))}</button
-					>
+				{#if showRetryFailed || showRetryNotFound}
+					<span class="action-group">
+						{#if showRetryFailed}
+							<button
+								type="button"
+								class="action"
+								aria-label={m.job_retry_failed_label({
+									...counted(waitingCount),
+									title: job.title
+								})}
+								onclick={() => handleRetryFailed()}
+								>{m.job_retry_failed(counted(waitingCount))}</button
+							>
+						{/if}
+						{#if showRetryNotFound}
+							<button
+								bind:this={retryNotFoundButton}
+								type="button"
+								class="action"
+								aria-label={m.job_retry_not_found_label({
+									...counted(notFoundCount),
+									title: job.title
+								})}
+								onclick={handleRetryNotFound}
+								>{m.job_retry_not_found(counted(notFoundCount))}</button
+							>
+						{/if}
+					</span>
 				{/if}
-				{#if showRetryNotFound}
-					<button
-						bind:this={retryNotFoundButton}
-						type="button"
-						class="action"
-						aria-label={m.job_retry_not_found_label({
-							...counted(notFoundCount),
-							title: job.title
-						})}
-						onclick={handleRetryNotFound}>{m.job_retry_not_found(counted(notFoundCount))}</button
-					>
-				{/if}
-				{#if checkable}
-					<button
-						type="button"
-						class="action"
-						aria-label={m.job_check_now_label({ title: job.title })}
-						onclick={handleCheckNow}>{m.job_check_now()}</button
-					>
-				{/if}
-				{#if showWatch}
-					<label class="watch mono">
-						{m.job_watch()}
-						<select
-							bind:this={watchSelect}
-							class="watch-select"
-							aria-label={m.job_watch_of({ title: job.title })}
-							value={job.watch_interval_hours === null ? '' : String(job.watch_interval_hours)}
-							onchange={(e) => {
-								const value = e.currentTarget.value;
-								handleWatch(value === '' ? null : Number(value));
-							}}
-						>
-							<option value="">{m.job_watch_off()}</option>
-							{#if actionable || watched}
-								{#each watchOptions as hours (hours)}
-									<option
-										value={String(hours)}
-										disabled={!actionable && hours !== job.watch_interval_hours}
-										>{intervalLabel(hours)}</option
-									>
-								{/each}
-							{/if}
-						</select>
-					</label>
+				{#if checkable || showWatch}
+					<span class="action-group">
+						{#if checkable}
+							<button
+								type="button"
+								class="action"
+								aria-label={m.job_check_now_label({ title: job.title })}
+								onclick={handleCheckNow}>{m.job_check_now()}</button
+							>
+						{/if}
+						{#if showWatch}
+							<label class="watch mono">
+								{m.job_watch()}
+								<select
+									bind:this={watchSelect}
+									class="watch-select"
+									aria-label={m.job_watch_of({ title: job.title })}
+									value={job.watch_interval_hours === null ? '' : String(job.watch_interval_hours)}
+									onchange={(e) => {
+										const value = e.currentTarget.value;
+										handleWatch(value === '' ? null : Number(value));
+									}}
+								>
+									<option value="">{m.job_watch_off()}</option>
+									{#if actionable || watched}
+										{#each watchOptions as hours (hours)}
+											<option
+												value={String(hours)}
+												disabled={!actionable && hours !== job.watch_interval_hours}
+												>{intervalLabel(hours)}</option
+											>
+										{/each}
+									{/if}
+								</select>
+							</label>
+						{/if}
+					</span>
 				{/if}
 			{/if}
 			<!-- end v63 -->
+			<!-- v47 (owner's call): priority and bump are the admin's. The queue's order is shared,
+			     operator detail (v39 outcome 3); a non-admin's in-flight job offers cancel only. -->
+			{#if showInFlight && isAdmin}
+				<span class="action-group">
+					<label class="priority mono">
+						{m.job_priority()}
+						<input
+							type="number"
+							class="priority-input"
+							value={job.priority}
+							aria-label={m.job_priority_of({ title: job.title })}
+							onchange={(e) => handlePriority(e.currentTarget.value)}
+							onkeydown={(e) => {
+								// v45: Esc backs out of the field (the registry then closes the row):
+								// a half-typed value is put back first, so leaving doesn't save it.
+								if (e.key === 'Escape') e.currentTarget.value = String(job.priority);
+							}}
+						/>
+					</label>
+					<button
+						type="button"
+						class="action"
+						aria-label={m.job_bump_label({ title: job.title })}
+						onclick={handleBump}>{m.job_bump()}</button
+					>
+				</span>
+			{/if}
 			{#if showArchive}
 				<button
 					type="button"
@@ -747,10 +767,23 @@
 					onclick={handleUnarchive}>{m.job_unarchive()}</button
 				>
 			{/if}
+			{#if showInFlight}
+				<button
+					type="button"
+					class="action danger apart"
+					aria-label={m.job_cancel_label({ title: job.title })}
+					onclick={handleCancel}>{m.job_cancel()}</button
+				>
+			{/if}
 		</div>
 	</div>
 
-	<p class="notice" class:failed={failedRowNotices.has(`job:${job.id}`)} role="status">
+	<p
+		class="notice"
+		class:failed={failedRowNotices.has(`job:${job.id}`)}
+		role="status"
+		lang={textLang(rowNotices.get(`job:${job.id}`))}
+	>
 		{rowNotices.get(`job:${job.id}`) ?? ''}
 	</p>
 
@@ -930,15 +963,23 @@
 		color: var(--text-muted);
 	}
 
+	/* v67: in the all/others views the owner is the cue that a row is someone else's (§2, v54),
+	   so when the tags run short the type gives way first (a Hungarian "LEJÁTSZÁSI LISTA" left
+	   the owner 7px, "v…"); the owner keeps up to ten characters, the type four, each within its
+   share of the tags (an owner too long for the box ends in an ellipsis, never cut mid-letter). */
 	.source-type {
-		flex-shrink: 0;
+		flex-shrink: 4;
+		min-width: min(4ch, 30%);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 		color: var(--text-muted);
 		font-size: var(--fs-label);
 		text-transform: uppercase;
 	}
 
 	.owner {
-		min-width: 0;
+		min-width: min(10ch, 65%);
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
@@ -992,7 +1033,24 @@
 		align-items: center;
 		justify-content: flex-end;
 		flex-wrap: wrap;
+		/* v67: groups sit further apart than the actions within one, and so do wrapped lines. */
+		gap: var(--space-3) var(--space-4);
+	}
+
+	.action-group {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
 		gap: var(--space-2);
+	}
+
+	/* v67: the destructive action set apart at the end of an open row's line on the wide screen
+	   (closed, the actions already sit at the row's end). Narrower, where the line wraps, it
+	   follows the last group: pushed to the far end it was an orphan on a line of its own. */
+	@media (min-width: 60.0625em) {
+		.row.open .action.apart {
+			margin-inline-start: auto;
+		}
 	}
 
 	/* v63: open, the actions drop under the title, as the tablet band's always do (the bands
@@ -1222,6 +1280,17 @@
 		.row-actions {
 			grid-column: 2;
 			grid-row: auto;
+		}
+
+		/* v67 (U5): a closed phone row is its title, state and bar; its actions are on the
+		   open row (an archived row still says it's archived). */
+		.row:not(.open) .row-actions .action,
+		.row:not(.open) .row-actions .action-group {
+			display: none;
+		}
+
+		.row:not(.open) .row-actions:not(:has(.archived-tag)) {
+			display: none;
 		}
 		/* v64: the count on a line of its own, then the two actions side by side, sharing the
 		   width (a long label, Hungarian's, wraps inside its button instead of pushing the

@@ -209,8 +209,8 @@ Dark-only (`color-scheme: dark`); no light theme exists or is planned.
 `--text-primary` (v42, 2026-10-15, F09/A2).
 
 A destructive control's outline at rest (clear log, a job's cancel, cancel track, `.btn.danger`) is
-`--fail-edge` (3.87 / 3.32 / 3.17 on `--bg-0/1/2`), never `--fail-dim` (1.5:1; v42, 2026-10-15,
-F09/A2).
+`--fail-edge` (3.87 / 3.32 / 3.17 on `--bg-0/1/2`), never a dim red fill tone (the old `--fail-dim`,
+1.5:1; v42, 2026-10-15, F09/A2).
 
 State toggles were removed in v43 (2026-10-16, F30): a proxy's state is a word ("switched on" in
 `--settled`, "switched off" in `--text-muted`) beside a plain `.btn` naming the action, and a
@@ -243,14 +243,15 @@ second colour vocabulary for a new component — map any new state onto one of t
 > leaves the viewer's own events out: there the page asks (on resync and on its 5s worker poll)
 > whether the viewer has a download of their own receiving. The Waterfall's edge stays neutral
 > there: it marks a lane on the panel, and that view shows none of the viewer's. For the same reason
-> its idle line can read "no signal here — worker busy elsewhere" while the field is warm: true of
+> its idle line can read "quiet here — the worker is busy elsewhere" (v67's copy) while the field is warm: true of
 > the panel, whose view leaves the viewer's own download out (accepted, no new copy). This closes
 > §8.3.
 
-`--signal-ink` (`#2a1c05`, a dark ink for text on an amber fill) and `--fail-dim` (`#5c2f30`) are
-defined in `:root` but consumed nowhere as of v47: nothing sets text on amber, and the controls that
-once edged in `--fail-dim` moved to `--fail-edge` (v42) or became words (v43). They stay in the
-sidecar; a new use must still fit the rules above.
+**Removed 2026-11-02 (v67, U7):** `--signal-ink` (`#2a1c05`, a dark ink for text on an amber fill)
+and `--fail-dim` (`#5c2f30`) were defined in `:root` but consumed nowhere since v47: nothing sets
+text on amber, and the controls once edged in `--fail-dim` moved to `--fail-edge` (v42) or became
+words (v43). They're gone from `app.css` and the sidecar; a future need adds a token back under
+the rules above.
 
 > **v41 (2026-10-14, F03/F14):** inside the expanded track, red marks only a terminal verdict. A
 > failed attempt the ladder will retry reads in the waiting blue, `last_error` is not painted red,
@@ -380,9 +381,11 @@ section labels, idents. Reuse it rather than inventing a second all-caps convent
 
 ## 4. Spacing scale
 
-4px base, `--space-1` through `--space-8` (values in the frontmatter and `app.css`): 4, 8, 12, 16,
-24, 32, 48, 64px at the default 16px. `--space-8` is used once (the "Can't reach the server"
-screen's top padding, `routes/+layout.svelte`); `--space-7` is defined and unused, reserved.
+4px base, `--space-1` through `--space-6` and `--space-8` (values in the frontmatter and
+`app.css`): 4, 8, 12, 16, 24, 32 and 64px at the default 16px. `--space-8` is used once (the "Can't
+reach the server" screen's top padding, `routes/+layout.svelte`). The scale skips 7: the unused
+48px `--space-7` was removed in v67 (U7, 2026-11-02), and `--space-8` kept its name rather than
+renumber its one use.
 
 **Rule**: every gap/padding value in every component reads from this scale (the row-grid tokens
 below derive from it). Don't introduce a bespoke pixel gap.
@@ -516,8 +519,10 @@ The full idle panel stays (owner's choice over a one-line strip). Its status lin
 is receiving, in priority order: **link lost — reconnecting** (this page's SSE stream is down, so
 nothing else on the panel can be trusted), **tuning in…** (not yet connected), **receiver paused**,
 **holding · resumes in …** (the breaker; a countdown, plus "a deliberate pause after repeated rate
-limits; waiting tracks keep their place"), **no signal here — worker busy elsewhere**, and **no
-signal — nothing downloading**. It never says "idle" while the breaker holds. The noise floor only
+limits; waiting tracks keep their place"), **quiet here — the worker is busy elsewhere**, and
+**quiet — nothing downloading** (v67, U6: "no signal" read as a fault beside a healthy "linked", and
+it also opened the could-not-read errors; those now say only "couldn't read this album"). It never
+says "idle" while the breaker holds. The noise floor only
 moves while the receiver is listening (or tuning in, before the stream first opens): held, paused or
 with the link lost it lies flat. A countdown never sits inside a live region: the panel has one
 `sr-only` status region holding a fixed sentence per state ("Downloads holding until 23:20",
@@ -551,8 +556,8 @@ backoff of up to 30s.
 global `--concurrency=1` means the Waterfall is idle-for-this-session far more often than not —
 someone else's download, not a stall. The temptation is to reuse `--signal` for "something, out
 there, is alive," but that would spend the one committed live-signal colour on a condition that
-isn't live _for this viewer_; the border stays neutral and only the status word swaps to "no signal
-here — worker busy elsewhere", in `--text-dim`, never amber. `--signal` is reserved for _this
+isn't live _for this viewer_; the border stays neutral and only the status word swaps to "quiet
+here — the worker is busy elsewhere", in `--text-dim`, never amber. `--signal` is reserved for _this
 session's own_ active track, full stop, not "the global worker."
 
 ### Ambient field (`AmbientField.svelte`, v40)
@@ -579,7 +584,10 @@ had snapped by then. Screencasts match v40's path within about 1px, and between
 `linear()` samples a long glide can drift up to ~0.09% of its distance. A
 browser without `linear()` (Safari before 17.2) keeps the loop to the 0.5px snap. When the pointer
 leaves the window it drifts back home; a native drag (which cancels the pointer and fires the same
-window-leave event) does not count as leaving. A touch-type `pointermove` is ignored, so it never
+window-leave event) does not count as leaving. Since v67 (U11) a drag or a held press that ends
+outside the window, which sends no further pointer event, brings it home too: `dragend` and
+`pointerup` aim it at the release point (home when that's outside the viewport, or the browser's
+0,0 "nowhere"), and the window losing focus (a drop into another application) sends it home. A touch-type `pointermove` is ignored, so it never
 chases a tap. Nothing reads layout: the viewport size comes from a `ResizeObserver`. While it can
 move, `.glow` carries `will-change: transform`, so its gradient rasterizes once. While moving, each
 frame costs one 1-element style update and a commit, with no layout and no repaint: the same
@@ -674,8 +682,10 @@ settled; waiting → waiting; lookup_failed → fail; cancelled → idle.
 The words are the state-filter chips' words (v41, 2026-10-14, F21, owner's call): pending, queued,
 downloading, completed, waiting, not found, duplicate, cancelled, so a state reads the same on a
 chip and on a row and no label truncates in the state column (F13). The in-world voice stays on
-idents and moments. In Hungarian (v46, 2026-10-18): sorban áll, indulásra kész, letöltés alatt,
-letöltve, várakozik, nem található, már megvan, megszakítva. History: v20 renamed `lookup_failed`'s
+idents and moments. In Hungarian (v46, 2026-10-18): sorban áll, sorra vár, letöltés alatt,
+letöltve, várakozik, nem található, már megvan, megszakítva (v67, U6: queued was "indulásra kész",
+whose "kész" read as "done"; not "mindjárt indul" either: a queued track may wait hours behind the
+one download at a time). History: v20 renamed `lookup_failed`'s
 copy from "no signal — given up" to "no signal — not found", because the state was never "given up"
 (it is terminal and never auto-retried); v41 then dropped the in-world phrases for the chip words.
 
@@ -689,7 +699,10 @@ The job-level counterpart, over `statusKey()` (`expanding`, `active`, `waiting`,
 `settled:partial`, `settled:complete`, `cancelled`, `failed`), same five classes. Labels come from
 `lib/i18n/labels.ts`'s `jobStatusLabel` (Hungarian: hangolás, aktív, várakozik, kész — részben,
 kész, megszakítva, sikertelen) and are shared between the filter chips and the row badge, so the two
-can't drift: "done — partial" for `settled:partial`, never "failed" or "partial" alone.
+can't drift: "done — partial" for `settled:partial`, never "failed" or "partial" alone. One
+exception on the row (v67, U6): a one-track job partial only because its track wasn't found has
+nothing done, so its badge says the track's own "not found" (red), with no count line; its chip
+stays "done — partial", the category it counts in.
 
 - `expanding` and `active` map to `cond-live` **only while receiving** (§2 v47): expanding, or ≥1
   track downloading, with the link live. Otherwise they read `cond-idle`. Expanding is live for the
@@ -800,6 +813,13 @@ keystroke would otherwise fire a real paginated request. Sans per §3's content-
 search term is user-authored text, not a system/meta value, even inside the instrument-panel control
 bar.
 
+### Tracks scope groups (v41; v67)
+
+The tracks scope groups rows under their job's header (type, title, owner in the all/others
+views). **Since v67 (U3) a row doesn't repeat what its header carries**: a one-track job's row
+leaves its title out (it stays the row's screen-reader name), and a row whose album is the group's
+title leaves the album out of its "artist · album".
+
 ### Scope switches (jobs / tracks; mine / all users, admin-only)
 
 Each is one segmented control (v42) rather than loose chips: `role="group"`, `aria-pressed`
@@ -874,6 +894,15 @@ sits on the row grid (§4), and the open job's tracks hang off a 1px rail in its
 indented by `--row-nest`, on the panel's own surface rather than v20's darker `--bg-0` well (v41,
 2026-10-14, F02).
 
+**The open row's actions (v67, 2026-11-02)** come in groups, each a tight cluster with wider space
+between groups: recover (retry waiting, retry not found) · source (check now, watch) · operator
+(the admin's priority and bump) · keep (archive / unarchive), then **cancel set apart at the end of
+the line**, as a track row sets its destructive action apart. Every action's accessible name starts
+with its visible text ("retry waiting (1): Kind of Blue", hu "várakozók újra (1): …"; WCAG 2.5.3,
+which the old verb-plus-title names failed outright in Hungarian). In the admin's all/others views,
+cancelling another user's job names whose it is ("Cancel v5s1user's job?") and says they get it
+back by submitting the link again.
+
 Above its tracks, after the row's actions and notice, an open job with at least one file shows its
 **export strip** (v64, 2026-10-30): a mono reading ("files: 12 of 14", hu "14 fájlból 12": the
 files on disk, from the export's own HEAD when the job opens) and two plain row actions, "download
@@ -913,7 +942,12 @@ toggles and time pins too (they were WCAG 2.5.8's 24px).
 
 A phone job row is grid rows (v41, 2026-10-14): chevron · badge · type (and owner) on the first
 line, the title on the second (two lines, v47), then the bar with its breakdown and the actions, all
-on the column the nested tracks indent to. A phone track row is state, title, then "artist · album"
+on the column the nested tracks indent to. **Since v67 (U5, owner's choice) a closed phone row
+carries no actions**: it is title, state and bar, and opening it shows its actions (an archived row
+keeps its "archived" tag). The row's keys (`a`, `x`, `b`…) still act on the focused row. Where the
+tags run short (Hungarian's "LEJÁTSZÁSI LISTA" at 320px), the type gives way before the owner, which
+keeps up to ten characters and the type up to four, each within its share of the tag line (an owner
+too long for it ends in an ellipsis): in the all/others views it's the cue that a row is someone else's. A phone track row is state, title, then "artist · album"
 as one muted line (wrapping to two, v47), with the chevron at the right.
 
 **Rejected designs worth restating so they aren't re-attempted** (from v09's `QueueTable`):
@@ -1022,8 +1056,13 @@ The form vocabulary lives in `app.css` so the routes can't drift:
 
 `/settings` is one page of five `.panel` sections (worker, output, library, alerts, proxies) with an
 anchor index: a sticky column at desktop width that marks the section being read (a `--text-muted`
-rail, never amber; Worker is marked at the top of the page, v47), a wrapping row of links below. No
-sub-routes, so no nginx change (F19). A section whose first read failed says so with its own retry
+rail, never amber; Worker is marked at the top of the page, v47). Below 1024px (v67, U2) it is a
+one-line bar that sticks to the top of the window, on `--bg-0` over a `--line` rule, scrolls
+sideways when its links don't fit, keeps the current section's link in view, and underlines it
+(`--text-muted`); anchors and Tab focus land below it (`scroll-padding-top` while the bar is on the
+page, WCAG 2.4.11). Every section stays open, so every setting stays a Tab stop. On phones from
+360px the short numeric fields (zip limits, alert thresholds) sit two to a row with their unit under
+the field, and toggle rows are tighter. No sub-routes, so no nginx change (F19). A section whose first read failed says so with its own retry
 (v47; it took a full reload before). Alerts are two groups, "Send an alert when" (each category with
 a one-line description) and "Thresholds" (numbers with their units, inputs ending on one line
 whatever the unit's length); their legends are group headings, not one more `.label` (v47).
@@ -1084,6 +1123,21 @@ checks are for categorical palettes and don't apply to status colours.
   readout reads every channel at once. The drawing is `role="img"` with a summary label, plus a
   "show as a table" `<details>`. Phones hide every other axis tick. Under `forced-colors` the marks
   are `CanvasText`.
+- **By keyboard (v67, U10)**: each chart (`FailureChannels`, `CompletedColumns`) is a
+  `role="slider"` over its buckets (role description "chart"/"diagram", the summary as its label),
+  a Tab stop: ← → (and ↑ ↓, as a slider's keys) step its crosshair a bucket at a time, Home/End jump to its ends, Esc clears it.
+  The reading ("09:00–10:00: 3 audio_provider, 1 no_output, breaker clear") is its
+  `aria-valuetext`, announced as it moves, also in a screen reader's browse mode, where an image
+  would have kept the arrows. A tap shows the reading too and keeps it until the next. The keys
+  are listed under "Anywhere" in the help overlay on `/stats` (`chart-step`, `chart-ends`, handled
+  by the chart itself).
+- **Channel names (v67, U14)**: each name is a box of its own, so a long one ends in an ellipsis
+  (on the flex container the ellipsis never applied: "audio_prov"), with the full name in its
+  `title`, the readout and the table. Owner's decision: a non-admin reads **translated** classes
+  ("YouTube refused" / "YouTube elutasította", "no file produced", "other error"), in Sans, with a
+  wider phone name column (6.5rem, on both charts so their buckets stay aligned; a longer name
+  ends in an ellipsis rather than squeezing the time axis); the admin keeps the
+  machine names (`audio_provider`), in mono and marked `lang="en"`.
 - On a phone each table row becomes a stacked reading (route + rate, then the bar, units spelled out).
 - ~~A non-admin gets `AdminOnlyNotice` with its `reason` prop and the page makes no request.~~
   Since v66 a non-admin gets their own downloads (below) and never an admin request.
@@ -1219,6 +1273,15 @@ of its languages that is `hu` or `en`, else English. Signed in, a language the u
 sees Hungarian on `/login` and English once signed in. Nothing is stored in the browser and nothing
 is adopted at sign-in. `<html lang>` follows it, and a switch re-renders in place (no reload).
 
+**One language per visit (v67, U8).** Each language's messages are a chunk of their own
+(`messages-<locale>.<hash>.js`, vite.config.ts's `paraglideLocaleSplit`), downloaded only when the
+page speaks it: before any route renders, `+layout.ts` awaits the session's language (the browser's
+signed out), and a switch on `/account` changes the page once the other language has arrived. The
+service worker leaves both out of its install precache, keeps the one a page fetched and, on an
+update, re-fetches the page's language (the page tells it which), so the installed app opens offline in a language it holds (the
+session's when it has it; with nothing loaded, the page falls back to any language that loads). One language is ~19.6 KB gzipped
+(en; hu ~21.2 KB) instead of both in one 41.5 KB chunk on every page.
+
 **The switches** are on `/account` only, in Preferences, each a `.choice-group` saved to the profile
 the moment the server has it, with the shortcut switch's `role="status"` save line. **Language** is
 automatic / Magyar / English: each language in its own name and marked with its own `lang` (Magyar
@@ -1263,6 +1326,17 @@ Sans, the time mono). Hungarian runs longer: v46 and v47 checked every route at 
 - Text scaling (WCAG 1.4.4): sizes are rem tokens and width breakpoints are em (§6), so the layout
   follows the user's text size as well as the window (v47).
 - Language of parts (WCAG 3.1.2): raw English text on a Hungarian page carries `lang="en"` (v47).
+  v67 (U9) added the rest whose language is known: an error the server answered with no code we
+  translate (`errors.ts`' `textLang()`, on every element that shows such an error whole, and through
+  `ErrorSentence.svelte` on the error inside a translated sentence, "Couldn't read the stats: …",
+  which marks only the fragment), and the admin's machine names for failure classes on `/stats`.
+  Not marked, deliberately: **track, artist and album metadata** (a Hungarian, Japanese or English
+  title is all the same field, and Spotify doesn't say which; a wrong `lang` is worse than none,
+  since it switches the screen reader's voice to the wrong language); text in an attribute (a
+  chart's summary label and value text can't carry a `lang`); and a sentence built as a string
+  before it's shown ("clear log"'s failure, the masthead's disconnect failure, a Matrix send's
+  reason, a row notice joining an error to other text), which would need restructuring to mark
+  (a code-less error is a backend bug in itself: every user-facing error has a code).
 - Forced colours: progress meters, job bars and `/stats`' charts keep their own colours under
   `forced-colors: active` (v44 for `/stats`, v47 for the rest).
 - **Landmarks and outline on `/` (v42, F29):** `header` (banner) → `nav[aria-label=Account]` →
@@ -1274,9 +1348,10 @@ Sans, the time mono). Hungarian runs longer: v46 and v47 checked every route at 
   page's one `h1` and `h2` sections, each `section` labelled by its heading. `/settings` adds
   `nav[aria-label="Settings sections"]` (`aria-current="location"` on the section being read).
 - **`/stats` (v44):** `main#main` → one `h1`, `h2` per plate, `h3` per block, each labelled by its
-  heading. The window switch is `role="group"` + `aria-pressed`. The crosshair is pointer-only, so
-  the recorder's `role="img"` label and its "show as a table" view are the keyboard and screen-reader
-  path to the same numbers.
+  heading. The window switch is `role="group"` + `aria-pressed`. Since v67 (U10) each chart is a
+  `role="slider"` (role description "chart") whose arrows move the crosshair and whose value text is
+  the reading; its summary label and its "show as a table" view stay the full alternative (until
+  v67 the crosshair was pointer-only, and they were the only path).
 - **Keyboard (v45):** every action is reachable without the mouse (§6 "Keyboard"). A route change
   moves focus to the new page's `h1`; SvelteKit's route announcer reads its title. Rows announce
   their name (what the row shows) and `aria-expanded`. Any new interactive element must be
@@ -1305,10 +1380,19 @@ Sans, the time mono). Hungarian runs longer: v46 and v47 checked every route at 
 4. **(v47, 2026-10-19) `/settings` is about 4000px tall on a phone.** Five sections of real forms in
    one page (§6 Secondary pages, F19's no-sub-routes choice); the anchor index is the way through.
    Not split in v47 (no new surfaces in a polish slice).
+   **Closed 2026-11-02 (v67, U2):** below 1024px the index is a one-line bar that sticks to the top
+   of the window and follows the section being read, so the way through is always one tap away; on
+   phones the paired numeric fields sit two to a row and toggle rows are tighter (390px: 3185 → 3042
+   en, 3409 → 3299 hu, measured with no proxies; 320px: 3530 → 3443). Still one page, every section
+   open (owner's choice over collapsible sections, so nothing hides behind a click). See §6
+   Secondary pages.
 5. **(v47, 2026-10-19) The tracks scope repeats titles.** A single-track job's title appears in its
    group header and again on its one row, and an album's name is repeated on each of its rows'
    "artist · album" line. Known redundancy; folding it changes the group-header model, which is
    beyond polish.
+   **Closed 2026-11-02 (v67, U3):** the header carries the title, the rows don't repeat it: a
+   one-track job's row leaves its title out (kept as its screen-reader name), and an album's rows
+   leave the album out. See §6 Tracks scope groups.
 6. **(v47, 2026-10-19) A fully loaded 1600-row log is about 28k DOM nodes.** `content-visibility:
 auto` on rows was tried and rejected: its paint containment clips the focus ring (§2 Focus, never
    suppressed) and the timeline's absolute-time popups. Virtualizing the list is the real fix and is
@@ -1317,8 +1401,8 @@ auto` on rows was tried and rejected: its paint containment clips the focus ring
 ## 9. Sidecar
 
 The machine-readable token mirror lives at `frontend/src/design-tokens.json`, kept in exact sync
-with `app.css`'s `:root` block (every custom property, the same values, including the unused
-`--signal-ink`, `--fail-dim` and `--space-7`). It also carries what the frontmatter can't: motion
+with `app.css`'s `:root` block (every custom property, the same values; v67 removed the three that
+were never used, `--signal-ink`, `--fail-dim` and `--space-7`). It also carries what the frontmatter can't: motion
 tokens, the em breakpoints (literals in media queries, not custom properties), the row grid and the
 state → condition maps. If a token's value changes in `app.css`, update the sidecar and this file's
 frontmatter in the same commit; if a token is added or removed, do the same here in §2/§3/§4/§5.

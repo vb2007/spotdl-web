@@ -16,13 +16,13 @@ test('a hard reload still shows an incoming item', async ({ page }) => {
 
 		const incoming = page.getByRole('list', { name: 'Incoming submissions' });
 		const item = incoming.getByRole('listitem').filter({ hasText: url });
-		await expect(item).toContainText('no signal — could not read this track', {
+		await expect(item).toContainText('couldn’t read this track', {
 			timeout: 60_000
 		});
 
 		await page.reload();
 		await expect(page.getByText('Loading…')).toHaveCount(0);
-		await expect(item).toContainText('no signal — could not read this track');
+		await expect(item).toContainText('couldn’t read this track');
 
 		await item.getByRole('button', { name: 'dismiss' }).click();
 		await expect(item).toHaveCount(0);

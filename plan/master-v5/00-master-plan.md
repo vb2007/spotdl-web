@@ -810,3 +810,42 @@ here.
   - **`/stats` for the admin** lands on everyone's (owner's choice); "mine" is one press away in
     the title row and `?scope=mine` keeps it across a reload. "My stats" uses the library |
     window split (owner's choice of the two layouts offered).
+
+- **2026-11-02, v67: the owner's choices, and the surface-audit fixes the owner folded in.**
+  - **U14:** a non-admin reads translated failure classes ("YouTube refused" / "YouTube
+    elutasította", "no file produced", "other error"); the admin keeps the machine names
+    everywhere, marked `lang="en"`.
+  - **U2:** a sticky one-line section bar on phones and tablets (over collapsible sections), plus
+    denser forms; every section stays open.
+  - **U5:** a closed phone job row carries no actions; opening it shows them (over a row overflow
+    menu). The row's keys still act on the focused row.
+  - **U13** didn't reproduce: 0px horizontal overflow at 320 in every admin view, en and hu, rows
+    open (v42/v47 had already fixed it). Re-verified, nothing changed.
+  - **Inserted from the v5 surface critique and audit (owner's pick, refinement scope):**
+    - job-row action names start with their visible text (WCAG 2.5.3, failing outright in
+      Hungarian);
+    - the owner tag no longer collapses to "v…" in the all/others views;
+    - CompletedColumns' "show as a table" and `/share`'s "not now" get 44px on touch;
+    - the user scope's rate definition gets its 68ch measure;
+    - cancelling another user's job names the owner, with an admin variant of the body;
+    - the open job row's actions are grouped, with cancel set apart at the end;
+    - closing or leaving an uncopied fresh API key asks first;
+    - the install build reads as a date, and the installed state is headed "The app";
+    - a signed-out share's login page says the share is waiting.
+
+    The rest of the critique and audit findings are in the PR's "Found, not fixed".
+  - **Files outside "Files owned", each a small delimited edit:**
+    - U8: `routes/+layout.ts` awaits the language's messages before any route renders;
+      `service-worker.ts` precaches neither language, keeps the one a page fetches, and on an
+      update re-fetches the page's language; `lib/i18n/locale.svelte.ts` switches language only
+      once its messages are there; `lib/i18n/locale-messages.d.ts` (new) types the plugin's
+      module.
+    - U9: `lib/i18n/errors.ts` (`textLang`, with its unit test), a new
+      `lib/components/ErrorSentence.svelte` (the error inside a translated sentence), and small
+      `lang`/`ErrorSentence` edits in `ApiKeys.svelte`, `WorkerStatus.svelte`, `IncomingJobs.svelte`
+      and `routes/+page.svelte`'s submit error (not its list rendering, which is v68's).
+    - U10: `lib/keyboard/bindings.ts` (`chart-step`, `chart-ends`) and its test.
+    - The owner's surface-audit picks: `ApiKeys.svelte`, `InstallApp.svelte`,
+      `lib/unsavedGuard.ts` (an optional question) and `routes/login/+page.svelte`.
+    - e2e: a new spec 25, plus specs 1, 5, 8, 12, 13, 14 and 18 following the new copy, names
+      and phone rows.

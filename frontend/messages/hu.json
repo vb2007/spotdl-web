@@ -14,7 +14,7 @@
 	"status_cancelled": "megszakítva",
 	"status_failed": "sikertelen",
 	"state_pending": "sorban áll",
-	"state_queued": "indulásra kész",
+	"state_queued": "sorra vár",
 	"state_downloading": "letöltés alatt",
 	"state_completed": "letöltve",
 	"state_waiting": "várakozik",
@@ -85,6 +85,7 @@
 	"login_ident_receiver": "JELVEVŐ",
 	"login_heading": "HANGOLÁS",
 	"login_hint": "Jelentkezz be a vb2007.hu-fiókoddal. Belépni csak meghívással lehet.",
+	"login_share_waiting": "Jelentkezz be, és sorba teheted, amit megosztottál: megvár.",
 	"login_session_ended": "A munkameneted véget ért. Jelentkezz be újra.",
 	"login_email": "E-mail",
 	"login_password": "Jelszó",
@@ -223,6 +224,8 @@
 	"job_progress_label": "A számok állása: {breakdown}",
 	"job_cancel_title": "Megszakítod ezt a feladatot?",
 	"job_cancel_body": "A még le nem töltött számai megszakadnak; amelyik épp letöltés alatt áll, befejeződik, de megszakítva marad. A nem talált számok és a már letöltött fájlok megmaradnak. Ez nem vonható vissza, de a linket újra beküldheted.",
+	"job_cancel_title_other": "Megszakítod {owner} feladatát?",
+	"job_cancel_body_other": "A még le nem töltött számai megszakadnak; amelyik épp letöltés alatt áll, befejeződik, de megszakítva marad. A nem talált számok és a már letöltött fájlok megmaradnak. Ez nem vonható vissza; {owner} a link újbóli beküldésével kaphatja vissza.",
 	"job_cancel_confirm": "feladat megszakítása",
 	"job_cancel_keep": "feladat megtartása",
 	"job_notice_not_cancelled": "Nincs megszakítva: már nincs benne semmi hátra.",
@@ -233,18 +236,18 @@
 	"job_notice_archive_failed": "Nem sikerült archiválni ezt a feladatot.",
 	"job_notice_unarchive_failed": "Nem sikerült visszahozni ezt a feladatot.",
 	"job_priority": "prioritás",
-	"job_priority_of": "{title} prioritása",
+	"job_priority_of": "prioritás: {title}",
 	"job_bump": "előre",
-	"job_bump_label": "{title} előresorolása",
+	"job_bump_label": "előre: {title}",
 	"job_cancel": "megszakítás",
-	"job_cancel_label": "{title} megszakítása",
+	"job_cancel_label": "megszakítás: {title}",
 	"job_archive": "archiválás",
-	"job_archive_label": "{title} archiválása",
+	"job_archive_label": "archiválás: {title}",
 	"job_archived": "archivált",
 	"job_unarchive": "visszahozás",
-	"job_unarchive_label": "{title} visszahozása",
+	"job_unarchive_label": "visszahozás: {title}",
 	"job_watch": "figyelés",
-	"job_watch_of": "{title} figyelése új számokért",
+	"job_watch_of": "figyelés: {title}",
 	"job_watch_off": "nincs figyelve",
 	"job_watch_daily": "naponta",
 	"job_watch_weekly": "hetente",
@@ -262,7 +265,7 @@
 		}
 	],
 	"job_check_now": "ellenőrzés most",
-	"job_check_now_label": "{title} ellenőrzése új számokért most",
+	"job_check_now_label": "ellenőrzés most: {title}",
 	"job_retry_failed": [
 		{
 			"declarations": ["input count", "input n"],
@@ -272,15 +275,7 @@
 			}
 		}
 	],
-	"job_retry_failed_label": [
-		{
-			"declarations": ["input count", "input n"],
-			"selectors": [],
-			"match": {
-				"*": "{title} {n} várakozó számának újrapróbálása most"
-			}
-		}
-	],
+	"job_retry_failed_label": "várakozók újra ({n}): {title}",
 	"job_retry_not_found": [
 		{
 			"declarations": ["input count", "input n"],
@@ -290,15 +285,7 @@
 			}
 		}
 	],
-	"job_retry_not_found_label": [
-		{
-			"declarations": ["input count", "input n"],
-			"selectors": [],
-			"match": {
-				"*": "{title} {n} nem talált számának újrapróbálása"
-			}
-		}
-	],
+	"job_retry_not_found_label": "nem talált számok újra ({n}): {title}",
 	"job_retry_not_found_title": "Újrapróbálod a nem talált számokat?",
 	"job_retry_not_found_body": [
 		{
@@ -366,9 +353,9 @@
 	"job_export_label": "{title} exportálása",
 	"job_export_files": "{total} fájlból {count}",
 	"job_export_zip": "összes letöltése (zip)",
-	"job_export_zip_label": "{title}: összes letöltése (zip)",
+	"job_export_zip_label": "összes letöltése (zip): {title}",
 	"job_export_playlist": "lejátszási lista (.m3u8)",
-	"job_export_playlist_label": "{title}: lejátszási lista (.m3u8)",
+	"job_export_playlist_label": "lejátszási lista (.m3u8): {title}",
 	"job_export_preparing": "előkészítés…",
 	"job_notice_export_failed": "Nem sikerült letölteni ennek a feladatnak a fájljait.",
 	"job_notice_export_nothing": "Ennek a feladatnak már egyetlen fájlja sincs meg.",
@@ -415,8 +402,8 @@
 	"waterfall_reconnecting": "megszakadt a kapcsolat — újrakapcsolódás",
 	"waterfall_reconnecting_note": "Az oldal magától frissül, amint visszatér a kapcsolat.",
 	"waterfall_connecting": "hangolás…",
-	"waterfall_busy": "itt nincs jel — a letöltő máshol dolgozik",
-	"waterfall_clear": "nincs jel — semmi sem töltődik le",
+	"waterfall_busy": "itt csend — a letöltő máshol dolgozik",
+	"waterfall_clear": "csend — semmi sem töltődik le",
 	"waterfall_unknown_title": "Ismeretlen cím",
 	"waterfall_unknown_artist": "Ismeretlen előadó",
 	"waterfall_progress_unknown": "a haladás még nem ismert",
@@ -426,11 +413,11 @@
 	"incoming_source_artist": "előadó",
 	"incoming_source_search": "keresés",
 	"incoming_tuning": "hangolás: {source}",
-	"incoming_unreadable_track": "nincs jel — ezt a számot nem sikerült beolvasni",
-	"incoming_unreadable_album": "nincs jel — ezt az albumot nem sikerült beolvasni",
-	"incoming_unreadable_playlist": "nincs jel — ezt a lejátszási listát nem sikerült beolvasni",
-	"incoming_unreadable_artist": "nincs jel — ezt az előadót nem sikerült beolvasni",
-	"incoming_unreadable_search": "nincs jel — ezt a keresést nem sikerült beolvasni",
+	"incoming_unreadable_track": "ezt a számot nem sikerült beolvasni",
+	"incoming_unreadable_album": "ezt az albumot nem sikerült beolvasni",
+	"incoming_unreadable_playlist": "ezt a lejátszási listát nem sikerült beolvasni",
+	"incoming_unreadable_artist": "ezt az előadót nem sikerült beolvasni",
+	"incoming_unreadable_search": "ezt a keresést nem sikerült beolvasni",
 	"incoming_unreadable_hint": "Nézd meg, hogy a link megnyílik-e a Spotifyban, aztán próbáld újra.",
 	"incoming_cancel_failed": "Nem sikerült megszakítani ezt a feladatot.",
 	"incoming_cancel_moved": "{message} Átkerült a lenti várólistába; ott szakítsd meg.",
@@ -955,6 +942,7 @@
 	"stats_legend_failed": "sikertelen, újrapróbálva",
 	"stats_legend_not_found": "nem található",
 	"stats_rate_definition": "Siker = letöltve ÷ (letöltve + sikertelen). A „nem található” a számról mond ítéletet, nem az útvonalról, ezért külön számít.",
+	"stats_mine_rate_definition": "Siker = letöltve ÷ (letöltve + sikertelen). A „nem található” a számról mond ítéletet, ezért külön számít.",
 	"stats_no_attempts": "Ebben az időablakban nem volt letöltési próbálkozás.",
 	"stats_col_route": "Útvonal",
 	"stats_col_attempts": "Próbálkozások",
@@ -1117,6 +1105,14 @@
 	"account_keys_new_label": "Kulcs",
 	"account_keys_copy": "másolás",
 	"account_keys_copied": "kimásolva",
+	"account_keys_close_title": "Bezárod a kulcsot másolás nélkül?",
+	"account_keys_close_body": "Többé nem jelenik meg. Másolat nélkül a bővítmény nem tudja használni: vissza kellene vonnod, és újat létrehoznod.",
+	"account_keys_close_confirm": "bezárás másolás nélkül",
+	"account_keys_close_keep": "maradjon látható",
+	"account_keys_leave_confirm": "oldal elhagyása másolás nélkül",
+	"account_keys_leave_also": "Az itteni többi nem mentett módosításod is elvész.",
+	"account_language_load_failed": "Elmentve, de ez az oldal nem tudta betölteni azt a nyelvet. Töltsd újra, hogy lásd.",
+	"account_keys_leave_title": "Másolás nélkül mész el?",
 	"account_keys_copy_failed": "Nem sikerült másolni; jelöld ki a kulcsot, és másold ki magad.",
 	"account_keys_done": "kész",
 	"account_keys_list_label": "Kulcsaid",
@@ -1129,7 +1125,7 @@
 	"account_keys_last_used": "utoljára használva: {when}",
 	"account_keys_never_used": "még nem használták",
 	"account_keys_revoke": "visszavonás",
-	"account_keys_revoke_named": "{label} visszavonása",
+	"account_keys_revoke_named": "visszavonás: {label}",
 	"account_keys_revoke_title": "Visszavonod ezt a kulcsot?",
 	"account_keys_revoke_body": "Ami használja, azonnal leáll vele. Visszavont kulcs nem hozható vissza; hozz létre helyette újat.",
 	"account_keys_revoke_confirm": "kulcs visszavonása",
@@ -1180,6 +1176,8 @@
 	"install_hint_ios": "iPhone-on és iPaden a Safari Megosztás gombjával telepítheted, aztán: Főképernyőhöz adás. Az alkalmazásba megosztani Androidon, Chrome-mal lehet.",
 	"install_hint_firefox": "Firefoxban a menüből (⋮) telepítheted, aztán: Alkalmazás hozzáadása a kezdőképernyőhöz. Az alkalmazásba megosztani Androidon, Chrome-mal lehet.",
 	"install_version": "Offline másolat, build: {version}",
+	"install_heading_installed": "Az alkalmazás",
+	"install_version_built": "Offline másolat: {date}",
 	"error_url_not_spotify": "Innen csak open.spotify.com szám-, album-, előadó- vagy lejátszásilista-linket lehet sorba tenni.",
 	"error_short_link_unresolved": "Ez a Spotify rövid link nem számhoz, albumhoz, előadóhoz vagy lejátszási listához vezet (lehet, hogy lejárt).",
 	"error_short_link_unavailable": "A Spotify rövidlink-szolgáltatása nem válaszolt. Próbáld újra egy kicsit később.",
@@ -1277,5 +1275,15 @@
 				"*": "{n} bájt"
 			}
 		}
-	]
+	],
+	"stats_class_audio_provider": "YouTube elutasította",
+	"stats_class_no_output": "nem lett fájl",
+	"stats_class_other": "egyéb hiba",
+	"stats_chart_keys_hour": "A nyílbillentyűkkel óránként olvashatod a diagramot; a Home és az End a két végére ugrik; az Esc törli a leolvasást.",
+	"stats_chart_keys_day": "A nyílbillentyűkkel naponként olvashatod a diagramot; a Home és az End a két végére ugrik; az Esc törli a leolvasást.",
+	"stats_chart_unread_day": "nincs kiválasztott nap",
+	"stats_chart_unread_hour": "nincs kiválasztott óra",
+	"stats_chart_role": "diagram",
+	"kbd_chart_step": "Diagram olvasása óránként vagy naponként (a fókuszban lévő diagramon)",
+	"kbd_chart_ends": "Ugrás a diagram első vagy utolsó órájára, napjára"
 }

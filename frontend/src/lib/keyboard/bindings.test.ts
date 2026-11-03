@@ -48,11 +48,12 @@ describe('binding table', () => {
 
 	it('gives no two bindings the same chord', () => {
 		// The registry takes the first match whatever the route, so a chord is one binding's
-		// everywhere, even on routes where it does nothing.
+		// everywhere, even on routes where it does nothing. A native binding is never matched
+		// (the browser or the focused element handles it; v67's chart-step), so it can't clash.
 		const key = (c: { binding: { prefix?: string }; chord: { key: string; shift?: boolean } }) =>
 			`${c.binding.prefix ?? ''}|${c.chord.key}|${c.chord.shift ? 'S' : ''}`;
 		const seen = new Map<string, string>();
-		for (const c of chords) {
+		for (const c of chords.filter((c) => !c.binding.native)) {
 			const clash = seen.get(key(c));
 			expect(clash === undefined || clash === c.binding.id, `${c.binding.id} vs ${clash}`).toBe(
 				true

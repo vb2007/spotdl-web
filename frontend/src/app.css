@@ -49,7 +49,6 @@
 	/* Signal (the one committed accent — live/active) */
 	--signal: #ffb02e;
 	--signal-dim: #7a5a1e;
-	--signal-ink: #2a1c05;
 	--signal-glow: rgba(255, 176, 46, 0.35);
 
 	/* Settled (completed, no longer needs attention) */
@@ -62,9 +61,7 @@
 
 	/* Failure (sparing — terminal states only) */
 	--fail: #e5595c;
-	--fail-dim: #5c2f30;
-	/* v42: a destructive control's outline at rest, >=3:1 on --bg-0/1/2 (3.87/3.32/3.17);
-	   --fail-dim (1.5:1) is a fill and segment tone, never a control's only edge. */
+	/* v42: a destructive control's outline at rest, >=3:1 on --bg-0/1/2 (3.87/3.32/3.17). */
 	--fail-edge: #b05154;
 
 	/* v47: the dimmed (never blurred) page behind a modal: the confirmation and the help. */
@@ -105,7 +102,6 @@
 	--space-4: 1rem;
 	--space-5: 1.5rem;
 	--space-6: 2rem;
-	--space-7: 3rem;
 	--space-8: 4rem;
 
 	/* Row grid (v41): the one set of columns JobRow, TrackRow, their expanded detail and the

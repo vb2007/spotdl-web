@@ -4,7 +4,17 @@ import { queue } from '$lib/stores/queue';
 import * as notifications from '$lib/notifications';
 import { consumeSessionEnded, markSessionEnded } from '$lib/stores/sessionEnded';
 import { shortcutsEnabled } from '$lib/keyboard/registry';
-import { applyClock, applyLanguagePreference } from '$lib/i18n/locale.svelte';
+import {
+	applyClock,
+	applyLanguagePreference,
+	applyLocale,
+	languagePreference,
+	locale,
+	localeReady,
+	resolveLocale
+} from '$lib/i18n/locale.svelte';
+import { hasLocaleMessages } from 'virtual:locale-messages';
+import { locales } from '$lib/paraglide/runtime';
 import { loginFor, safeNext } from '$lib/nextPath';
 import type { LayoutLoad } from './$types';
 
@@ -90,6 +100,21 @@ export const load: LayoutLoad = async ({ url }) => {
 		localeAppliedFor = identity;
 		applyLanguagePreference(session?.language);
 		applyClock(session?.clock);
+		// v67 (U8): the language's messages are downloaded on demand; no route renders before
+		// they're here.
+		await localeReady();
+	} else {
+		// v67 (U8): the session's language, if it never arrived (every download failed or timed
+		// out, the page showing keys or a fallback), is tried again on a later load, in the
+		// background: it switches when it lands, and the navigation never waits on it. Only
+		// when this load applied none: a fresh apply is the newest request. With a language on
+		// screen there is nothing to wait for (an unreachable reload keeps it).
+		const wanted = resolveLocale(languagePreference.current);
+		if (wanted !== locale.current || !hasLocaleMessages(wanted))
+			// With no language at all (the page showing keys) there is nothing better to show:
+			// this navigation waits for it, so the route renders in it.
+			applyLocale(wanted, { background: locales.some((one) => hasLocaleMessages(one)) });
+		await localeReady();
 	}
 	if (session !== null && onLoginPage) {
 		// v65: signed in already (another tab), so straight on to where the login was for.

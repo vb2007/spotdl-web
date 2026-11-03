@@ -33,8 +33,8 @@ test.describe('admin', () => {
 		for (const route of ['direct · IPv4', 'direct · IPv6', 'proxy']) {
 			await expect(routes.getByRole('rowheader', { name: route, exact: true })).toBeVisible();
 		}
-		// The recorder is an image whose alternative is its label and its table.
-		const recorder = panel.getByRole('img', { name: /^(Failures by type|No failures)/ });
+		// The recorder is a slider (v67, a "chart") whose alternative is its label and its table.
+		const recorder = panel.getByRole('slider', { name: /^(Failures by type|No failures)/ });
 		await expect(recorder).toHaveAttribute('aria-label', /breaker/i);
 		await panel.getByText('show as a table').click();
 		await expect(panel.getByRole('columnheader', { name: 'Hour' })).toBeVisible();

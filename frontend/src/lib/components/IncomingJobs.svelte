@@ -8,7 +8,7 @@
 	import type { Job } from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import { counted } from '$lib/i18n/format';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 
 	/** `view`: the admin's scope. In `all` and `others` (v54) rows can be someone else's --
 	 * they then carry their owner, and "try again" (which submits as *this* session) is
@@ -365,7 +365,7 @@
 			>
 		</span>
 		{#if errorFor(job)}
-			<span class="error" role="alert">{errorFor(job)}</span>
+			<span class="error" role="alert" lang={textLang(errorFor(job))}>{errorFor(job)}</span>
 		{/if}
 	</li>
 {/snippet}
@@ -411,7 +411,7 @@
 						>
 					</span>
 					{#if errorFor(job)}
-						<span class="error" role="alert">{errorFor(job)}</span>
+						<span class="error" role="alert" lang={textLang(errorFor(job))}>{errorFor(job)}</span>
 					{/if}
 				</li>
 			{/each}

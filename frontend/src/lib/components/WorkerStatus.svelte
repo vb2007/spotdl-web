@@ -1,11 +1,12 @@
 <script lang="ts">
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { onMount, tick, untrack } from 'svelte';
 	import * as api from '$lib/api';
 	import { worker } from '$lib/stores/worker';
 	import { confirmAction, keepFocus } from '$lib/stores/confirm';
 	import Countdown from '$lib/components/Countdown.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { apiErrorText, errorText } from '$lib/i18n/errors';
+	import { apiErrorText, errorText, textLang } from '$lib/i18n/errors';
 	import { formatClock } from '$lib/i18n/format';
 
 	// The admin's worker controls on /settings (v25). Rendered for the admin only (v43,
@@ -212,7 +213,9 @@
 
 	{#if $status === null}
 		{#if readError}
-			<p class="form-error">{m.worker_read_failed({ error: readError })}</p>
+			<p class="form-error">
+				<ErrorSentence sentence={(e) => m.worker_read_failed({ error: e })} error={readError} />
+			</p>
 		{:else}
 			<p class="state cond-idle">{m.worker_reading()}</p>
 		{/if}
@@ -284,13 +287,15 @@
 	{/if}
 
 	{#if $status !== null && readError}
-		<p class="note">{m.worker_refresh_failed({ error: readError })}</p>
+		<p class="note">
+			<ErrorSentence sentence={(e) => m.worker_refresh_failed({ error: e })} error={readError} />
+		</p>
 	{/if}
 	<p class="note" role="status">{note}</p>
 	<!-- A read failure is said to assistive technology too (the visible lines above are not
 	     live regions); fixed text, so a failing poll isn't re-announced every 5s. -->
 	<p class="sr-only" role="alert">{readError ? m.worker_read_failed_alert() : ''}</p>
-	<p class="form-error" role="alert">{error}</p>
+	<p class="form-error" role="alert" lang={textLang(error)}>{error}</p>
 </div>
 
 <style>

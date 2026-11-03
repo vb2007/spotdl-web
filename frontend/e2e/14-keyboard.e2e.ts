@@ -531,7 +531,12 @@ test.describe('as the admin', () => {
 			const priority = page.getByLabel(t(m.job_priority_of, { title: retryJob.title }), {
 				exact: true
 			});
-			await page.keyboard.press('Tab');
+			// v67: the open row's actions come in groups (recover · source · operator): Tab
+			// passes its retry and check-now buttons before the priority field.
+			for (let i = 0; i < 6; i++) {
+				await page.keyboard.press('Tab');
+				if (await priority.evaluate((el) => el === document.activeElement)) break;
+			}
 			await expect(priority).toBeFocused();
 			const typedFrom = await priority.inputValue();
 			await page.keyboard.type('jx?');

@@ -177,11 +177,13 @@ test('job cancel and cancel track ask first', async ({ page, baseURL }, testInfo
 		);
 
 		await openDashboard(page);
+		// v67 (U5): a closed phone row carries no actions; its cancel is on the open row.
+		if (testInfo.project.name === 'mobile') await jobToggle(page, cancelJob.title).click();
 
-		// Job cancel: the row's own "cancel <title>".
+		// Job cancel: the row's own "cancel: <title>".
 		const jobGuard: Guarded = {
 			trigger: jobRow(page, cancelJob.title).getByRole('button', {
-				name: `cancel ${cancelJob.title}`,
+				name: `cancel: ${cancelJob.title}`,
 				exact: true
 			}),
 			title: 'Cancel this job?',

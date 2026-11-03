@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { untrack } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import * as api from '$lib/api';
@@ -21,7 +22,7 @@
 		summarizeVia
 	} from '$lib/attempts';
 	import * as m from '$lib/paraglide/messages';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 	import { counted, formatDateTime, formatNumber } from '$lib/i18n/format';
 	import { trackStateLabel } from '$lib/i18n/labels';
 	import type { TrackAttempt, TrackAttemptOutcome, TrackState } from '$lib/api';
@@ -47,6 +48,18 @@
 
 	let expanded = $state(false);
 	const detailId = $derived(`track-detail-${track.id}`);
+
+	// v67 (U3): in the tracks scope a row sits under its job's group header, which carries the
+	// job's title (a track row there comes with its job's summary). A one-track job's row doesn't
+	// show the title again (it stays in the row's name, for a screen reader), and a row whose
+	// album is the group's own doesn't repeat it either.
+	const group = $derived('job' in track ? (track as api.TrackWithJob).job : null);
+	const sameName = (a: string | null, b: string) =>
+		a !== null && a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
+	const titleInHeader = $derived(
+		group !== null && group.source_type === 'track' && sameName(track.title, group.title)
+	);
+	const albumInHeader = $derived(group !== null && sameName(track.album, group.title));
 
 	const { status: workerStatus } = worker;
 
@@ -525,6 +538,7 @@
 		bind:this={rowButton}
 		type="button"
 		class="row"
+		class:title-in-header={titleInHeader}
 		data-kb-item
 		onclick={toggleExpanded}
 		aria-expanded={expanded}
@@ -537,14 +551,22 @@
 					>&nbsp;{track.progress}%</span
 				>{/if}</span
 		>
-		<span class="cell title" title={track.title ?? undefined}
-			>{track.title ?? m.track_unknown_title()}</span
-		>
+		{#if titleInHeader}
+			<span class="cell title in-header"><span class="sr-only">{track.title}</span></span>
+		{:else}
+			<span class="cell title" title={track.title ?? undefined}
+				>{track.title ?? m.track_unknown_title()}</span
+			>
+		{/if}
 		<span class="meta">
 			<span class="cell artist" title={track.artists?.join(', ')}
 				>{track.artists?.join(', ') ?? '—'}</span
 			>
-			<span class="cell album" title={track.album ?? undefined}>{track.album ?? '—'}</span>
+			{#if albumInHeader}
+				<span class="cell album in-header" aria-hidden="true"></span>
+			{:else}
+				<span class="cell album" title={track.album ?? undefined}>{track.album ?? '—'}</span>
+			{/if}
 		</span>
 		<span class="chevron" aria-hidden="true"></span>
 	</button>
@@ -627,7 +649,12 @@
 					{/if}
 				</div>
 			{/if}
-			<p class="notice" class:failed={failedRowNotices.has(`track:${track.id}`)} role="status">
+			<p
+				class="notice"
+				class:failed={failedRowNotices.has(`track:${track.id}`)}
+				role="status"
+				lang={textLang(rowNotices.get(`track:${track.id}`))}
+			>
 				{rowNotices.get(`track:${track.id}`) ?? ''}
 			</p>
 
@@ -636,13 +663,18 @@
 					{#if attemptsError && attemptsLoadedFor !== null}
 						<!-- A failed re-read never hides the history already loaded. -->
 						<p class="history-status history-error">
-							{m.track_history_refresh_failed({ error: attemptsError })}
+							<ErrorSentence
+								sentence={(e) => m.track_history_refresh_failed({ error: e })}
+								error={attemptsError}
+							/>
 						</p>
 					{/if}
 					{#if attemptsLoading && attemptsLoadedFor === null}
 						<p class="history-status">{m.track_history_loading()}</p>
 					{:else if attemptsError && attemptsLoadedFor === null}
-						<p class="history-status history-error">{attemptsError}</p>
+						<p class="history-status history-error" lang={textLang(attemptsError)}>
+							{attemptsError}
+						</p>
 					{:else if attempts.length === 0}
 						<p class="history-status">{m.track_history_empty()}</p>
 					{:else}
@@ -662,7 +694,8 @@
 											<span class="outcome {outcomeCond(head)}"
 												>{ATTEMPT_OUTCOME_LABEL[head.outcome]()}</span
 											>
-											{#if head.error_type}<span class="class">{head.error_type}</span>{/if}
+											{#if head.error_type}<span class="class" lang="en">{head.error_type}</span
+												>{/if}
 											<span class="via"
 												>{rows > 1 ? summarizeVia(group.attempts) : attemptVia(head)}</span
 											>
@@ -751,6 +784,7 @@
 		class="notice collapsed"
 		class:failed={collapsedNotice !== '' && failedRowNotices.has(`track:${track.id}`)}
 		role="status"
+		lang={textLang(collapsedNotice)}
 	>
 		{collapsedNotice}
 	</p>
@@ -825,6 +859,20 @@
 	.cell.album {
 		color: var(--text-muted);
 		font-size: var(--fs-detail);
+	}
+
+	/* v67 (U3): a title the group header carries is only the row's screen-reader text: no cell
+	   of its own (its sr-only text is out of flow), and on the wide grid the artist takes the
+	   title's column too, so the row reads from where every other row's title starts and the
+	   album stays in the album column. */
+	.cell.title.in-header {
+		display: contents;
+	}
+
+	@media (min-width: 60.0625em) {
+		.row.title-in-header .cell.artist {
+			grid-column: 2 / span 2;
+		}
 	}
 
 	/* v47: level with the title's first line, not the middle of a wrapped title. */
@@ -1352,6 +1400,13 @@
 
 		.meta .cell.album::before {
 			content: ' · ';
+		}
+
+		/* v67 (U3): an album its group header already carries takes no room in the line (and
+		   no " · "). A title its header carries is only its screen-reader text, so its cell
+		   collapses by itself (never display:none, which would drop that text too). */
+		.cell.album.in-header {
+			display: none;
 		}
 	}
 

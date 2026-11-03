@@ -1,4 +1,5 @@
-import { createReadStream } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { createReadStream, readFileSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import adapter from '@sveltejs/adapter-static';
@@ -126,6 +127,124 @@ function watchCompiledMessages(): Plugin {
 	};
 }
 
+/** v67 (U8): each language's messages in a chunk of its own, and only the page's language
+ * downloaded. Paraglide's index (`messages/_index.js`) imports every language statically, so
+ * both shipped in one chunk on every route. This plugin rewrites the index into thin dispatchers
+ * over modules loaded on demand (`virtual:locale-messages`, which `lib/i18n/locale.svelte.ts`
+ * awaits before a language is shown), and names each language's chunk
+ * `messages-<locale>.<hash>.js` so the service worker can leave them out of its precache (it
+ * keeps the one the page loads). Paraglide is pinned (package.json): the rewrite reads its index's
+ * `export const <key> =` lines and fails the build if it finds none. vitest keeps Paraglide's
+ * own index, every language loaded. */
+const MESSAGE_LOCALES = ['en', 'hu'] as const;
+const LOCALE_MESSAGES = 'virtual:locale-messages';
+
+function paraglideLocaleSplit(): Plugin {
+	const dir = path.resolve('src/lib/paraglide/messages');
+	const index = path.join(dir, '_index.js');
+	const testing = Boolean(process.env.VITEST);
+	let clientBuild = false;
+	// Each language's chunk as served (client build), for a retry by URL (below).
+	const served: Partial<Record<(typeof MESSAGE_LOCALES)[number], string>> = {};
+	return {
+		name: 'paraglide-locale-split',
+		configResolved(config) {
+			clientBuild = config.command === 'build' && !config.build.ssr;
+		},
+		buildStart() {
+			if (!clientBuild) return;
+			// SvelteKit names chunks by hash alone; an emitted chunk keeps the name given here, so
+			// the name must change whenever the chunk can: nginx serves `_app/immutable` for a
+			// year. Its content depends on more than the message file (the toolchain, and the
+			// content-hashed shared chunk it imports, which other code can change), so the hash
+			// covers the message file and this build: a deploy is a new file (~20 KB once), never
+			// a stale one importing a chunk the deploy removed.
+			const build = String(Date.now());
+			for (const locale of MESSAGE_LOCALES) {
+				const hash = createHash('sha256')
+					.update(readFileSync(path.resolve(`messages/${locale}.json`)))
+					.update(build)
+					.digest('base64url')
+					.slice(0, 10);
+				this.emitFile({
+					type: 'chunk',
+					id: path.join(dir, `${locale}.js`),
+					fileName: (served[locale] = `_app/immutable/chunks/messages-${locale}.${hash}.js`)
+				});
+			}
+		},
+		resolveId(id) {
+			return id === LOCALE_MESSAGES ? `\0${LOCALE_MESSAGES}` : undefined;
+		},
+		load(id) {
+			if (id !== `\0${LOCALE_MESSAGES}`) return;
+			if (testing)
+				return 'export async function loadLocaleMessages() {}\nexport const hasLocaleMessages = () => true;';
+			return `export { __loadLocaleMessages as loadLocaleMessages, __hasLocaleMessages as hasLocaleMessages } from ${JSON.stringify(index)};`;
+		},
+		transform(code, id) {
+			if (testing || id !== index) return;
+			const keys = [...code.matchAll(/^export const (\w+) = /gm)].map((match) => match[1]);
+			const exports = code.match(/^export /gm)?.length ?? 0;
+			// Every export must be a message this rewrite keeps: another form (an aliased key, a
+			// re-export) would silently vanish from `m`.
+			if (keys.length === 0 || exports !== keys.length)
+				this.error(
+					`paraglide-locale-split: ${keys.length} messages but ${exports} exports in ${id}`
+				);
+			const [base, ...others] = MESSAGE_LOCALES;
+			return [
+				'import { getLocale, experimentalStaticLocale } from "../runtime.js";',
+				`const __loaded = {};`,
+				// The asked-for language, else the base one, else whichever is loaded: a message
+				// read before its language arrived shows in another rather than throwing; with
+				// nothing loaded at all (every language failed to download), its key.
+				'const __msg = (key) => (inputs, options = {}) => {',
+				'	const locale = experimentalStaticLocale ?? options.locale ?? getLocale();',
+				`	const messages = __loaded[locale] ?? __loaded.${base} ?? ${others.map((l) => `__loaded.${l}`).join(' ?? ')};`,
+				'	return messages ? messages[key](inputs) : key;',
+				'};',
+				...keys.map(
+					(key) => `export const ${key} = /* @__PURE__ */ __msg(${JSON.stringify(key)});`
+				),
+				// The first try is a plain import (the bundler resolves it to the chunk). A browser
+				// keeps a failed import of a URL failed for the page's life, so a retry (after a
+				// failed or timed-out download) imports the same file under a new URL.
+				'const __tries = {};',
+				'const __retryUrl = {',
+				...MESSAGE_LOCALES.map(
+					(l) =>
+						`	${l}: ${served[l] ? JSON.stringify('/' + served[l]) : `new URL("./${l}.js", import.meta.url).href`},`
+				),
+				'};',
+				'const __loaders = {',
+				...MESSAGE_LOCALES.map(
+					(l) =>
+						`	${l}: (n) => n ? import(/* @vite-ignore */ __retryUrl.${l} + "?retry=" + n) : import("./${l}.js"),`
+				),
+				'};',
+				// One download per language at a time: a second ask while one is in flight shares it.
+				'const __pending = {};',
+				'export function __loadLocaleMessages(locale) {',
+				'	if (__loaded[locale]) return Promise.resolve();',
+				'	return (__pending[locale] ??= (async () => {',
+				'		const n = __tries[locale] ?? 0;',
+				'		__tries[locale] = n + 1;',
+				'		try {',
+				'			__loaded[locale] = await __loaders[locale](n);',
+				'		} finally {',
+				'			delete __pending[locale];',
+				'		}',
+				'	})());',
+				'}',
+				'export function __hasLocaleMessages(locale) {',
+				'	return locale in __loaded;',
+				'}'
+			].join('\n');
+		}
+	};
+}
+
 export default defineConfig(({ command }) => ({
 	plugins: [
 		// v46: compiles messages/{en,hu}.json into typed message functions under
@@ -147,6 +266,7 @@ export default defineConfig(({ command }) => ({
 			// every file is rewritten on each compile.
 			cleanOutdir: false
 		}),
+		paraglideLocaleSplit(),
 		sveltekit({
 			compilerOptions: {
 				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.

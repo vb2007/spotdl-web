@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
@@ -6,7 +7,7 @@
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
 	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { apiErrorText, errorText } from '$lib/i18n/errors';
+	import { apiErrorText, errorText, textLang } from '$lib/i18n/errors';
 	import { counted, formatDateTime, formatNumber, formatTime } from '$lib/i18n/format';
 
 	let { data } = $props();
@@ -18,6 +19,13 @@
 	let cancelling = $state(false);
 	let error = $state('');
 	let loadError = $state('');
+	// v67 (U9): when set, loadError is the server's answer to a retry at this time, shown inside
+	// library_retry_failed's sentence (kept apart so ErrorSentence can mark it).
+	let retriedAt = $state<string | null>(null);
+	const loadSentence = (error: string) =>
+		m.library_load_failed({
+			error: retriedAt === null ? error : m.library_retry_failed({ error, time: retriedAt })
+		});
 	// v43 (F20): the stream can drop mid-sweep; say so instead of freezing the counts.
 	let linkDown = $state(false);
 
@@ -144,6 +152,7 @@
 		if (progressEvents !== seen) return;
 		run = status;
 		loadError = '';
+		retriedAt = null;
 		reportPending = false;
 		reportError = '';
 	}
@@ -357,6 +366,7 @@
 		if (!isAdmin) return;
 		loadStatus().catch((err) => {
 			loadError = errorText(err);
+			retriedAt = null;
 		});
 		api
 			.getLibrarySettings()
@@ -421,30 +431,35 @@
 					</div>
 				</header>
 				<!-- One alert line for the page: a start that failed, or a report that couldn't be read. -->
-				<p class="form-error" role="alert">{error || reportError}</p>
+				<p class="form-error" role="alert" lang={textLang(error || reportError)}>
+					{error || reportError}
+				</p>
 				<!-- v47: the first load failure is announced here, a region present from the start
 				     (the visible block below is inserted with its text, which often isn't). -->
 				<p class="sr-only" role="alert">
-					{run === null && loadError ? m.library_load_failed({ error: loadError }) : ''}
+					{#if run === null && loadError}<ErrorSentence
+							sentence={loadSentence}
+							error={loadError}
+						/>{/if}
 				</p>
 
 				{#if run === null}
 					{#if loadError}
 						<p class="form-error">
-							{m.library_load_failed({ error: loadError })}
+							<ErrorSentence sentence={loadSentence} error={loadError} />
 							<button
 								type="button"
 								class="btn small"
 								onclick={() =>
 									loadStatus()
 										.catch((err) => {
-											loadError =
-												err instanceof api.ApiError
-													? m.library_retry_failed({
-															error: apiErrorText(err),
-															time: formatTime(new Date())
-														})
-													: m.library_retry_unreachable({ time: formatTime(new Date()) });
+											if (err instanceof api.ApiError) {
+												loadError = apiErrorText(err);
+												retriedAt = formatTime(new Date());
+											} else {
+												loadError = m.library_retry_unreachable({ time: formatTime(new Date()) });
+												retriedAt = null;
+											}
 										})
 										// v47: on success this button goes with its block; focus goes to the
 										// section's heading rather than <body>.

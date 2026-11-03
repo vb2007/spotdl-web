@@ -9,6 +9,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import * as m from '$lib/paraglide/messages';
+	import { formatDateTime } from '$lib/i18n/format';
 	import {
 		installHint,
 		installPrompt,
@@ -23,6 +24,8 @@
 	let justInstalled = $state(false);
 	let hint = $state<'ios' | 'firefox' | null>(null);
 	let version = $state<string | null>(null);
+	// v67: SvelteKit's default build version is the build's time in epoch milliseconds.
+	const builtAt = $derived(version !== null && /^\d{12,}$/.test(version) ? Number(version) : null);
 	let prompting = $state(false);
 	// The section stays once the install was tried, so focus (on its heading) isn't dropped
 	// when a dismissed offer takes the button away.
@@ -67,7 +70,7 @@
 {#if installed || offered || tried || hint !== null}
 	<section class="panel section" aria-labelledby="install-heading">
 		<h2 id="install-heading" class="label" tabindex="-1" bind:this={heading}>
-			{m.install_heading()}
+			{installed ? m.install_heading_installed() : m.install_heading()}
 		</h2>
 		{#if installed}
 			<p class="hint">{m.install_running()}</p>
@@ -94,7 +97,11 @@
 			<p class="save-state saved" role="status">{justInstalled ? m.install_done() : ''}</p>
 		{/if}
 		{#if version}
-			<p class="version mono">{m.install_version({ version })}</p>
+			<p class="version">
+				{builtAt !== null
+					? m.install_version_built({ date: formatDateTime(builtAt) })
+					: m.install_version({ version })}
+			</p>
 		{/if}
 	</section>
 {/if}

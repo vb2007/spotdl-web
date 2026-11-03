@@ -14,6 +14,7 @@
 	} from '$lib/stats';
 	import { counted, formatNumber } from '$lib/i18n/format';
 	import * as m from '$lib/paraglide/messages';
+	import { stepCrosshair } from './crosshair';
 
 	// v44: a multi-channel chart recorder. One channel per failure class that occurred, all on
 	// one shared y-scale (so channels compare) and one time axis, with the breaker's holds as
@@ -23,8 +24,27 @@
 	// v66: a user's own stats (`/stats`'s "mine") carry no breaker: it holds everyone's downloads,
 	// not theirs. Without one the recorder has no breaker channel, line or column, and draws
 	// nothing at all when nothing failed (the scale line says so).
-	let { stats }: { stats: RecordedWindow } = $props();
+	// v67 (U14, owner's decision): `plain` (a non-admin) reads each failure class as a translated
+	// label; the admin keeps the machine names (`audio_provider`), marked as English.
+	let { stats, plain = false }: { stats: RecordedWindow; plain?: boolean } = $props();
 	const hasBreaker = $derived(stats.breaker !== undefined);
+	const uid = $props.id();
+
+	const PLAIN_LABELS: Record<string, () => string> = {
+		audio_provider: m.stats_class_audio_provider,
+		no_output: m.stats_class_no_output,
+		other: m.stats_class_other
+	};
+
+	/** A failure class as this viewer reads it. */
+	function classLabel(errorType: string): string {
+		return (plain ? PLAIN_LABELS[errorType]?.() : undefined) ?? errorTypeLabel(errorType);
+	}
+
+	/** `en` where the label is the machine name itself (WCAG 3.1.2), else inherited. */
+	function classLang(errorType: string): 'en' | undefined {
+		return classLabel(errorType) === errorType ? 'en' : undefined;
+	}
 
 	const n = $derived(stats.failures.buckets.length);
 	const peak = $derived(failurePeak(stats));
@@ -70,7 +90,7 @@
 			const most = Math.max(...series.counts);
 			const at = series.counts.indexOf(most);
 			const values = {
-				type: errorTypeLabel(series.error_type),
+				type: classLabel(series.error_type),
 				total: formatNumber(series.total),
 				most: formatNumber(most),
 				when: bucketLabel(stats, stats.failures.buckets[at], true)
@@ -85,7 +105,7 @@
 		return unit === 'hour' ? m.stats_summary_hour(values) : m.stats_summary_day(values);
 	});
 
-	// Crosshair: the bucket under the pointer, or none.
+	// Crosshair: the bucket under the pointer or stepped to by keyboard (v67, U10), or none.
 	let hovered = $state<number | null>(null);
 	let plot: HTMLElement | undefined = $state();
 
@@ -103,6 +123,29 @@
 	// The pointer may still rest past the end of a shorter window after a keyboard switch
 	// (no pointer event fires): the readout only ever shows a bucket this window has.
 	const shown = $derived(hovered !== null && hovered < n ? hovered : null);
+
+	function onKeydown(event: KeyboardEvent) {
+		const next = stepCrosshair(event, shown, n);
+		if (next === undefined) return;
+		event.preventDefault();
+		event.stopPropagation();
+		hovered = next;
+	}
+
+	// The crosshair's reading in words (U10): the chart's `aria-valuetext`, announced as it moves.
+	const reading = $derived.by(() => {
+		if (shown === null) return '';
+		const parts = stats.failures.series.map(
+			(series) => `${formatNumber(series.counts[shown])} ${classLabel(series.error_type)}`
+		);
+		if (hasBreaker)
+			parts.push(
+				bucketHeld(stats, spans, shown)
+					? m.stats_readout_breaker_held()
+					: m.stats_readout_breaker_clear()
+			);
+		return `${bucketLabel(stats, stats.failures.buckets[shown], true)}: ${parts.join(', ')}`;
+	});
 
 	function height(count: number): string {
 		if (count === 0 || peak === 0) return '0';
@@ -134,19 +177,50 @@
 	</p>
 
 	{#if lastRow > 0}
+		<!-- v67 (U10): a slider over the buckets (a "chart", by its role description): the arrow keys
+		     move the crosshair (stepCrosshair), even in a screen reader's browse mode, and its
+		     reading is the value text, announced as it moves. A tap shows it too. -->
 		<div
 			class="channels"
+			class:plain
 			style:--n={n}
-			role="img"
+			role="slider"
+			aria-roledescription={m.stats_chart_role()}
 			aria-label={summary}
+			aria-describedby="{uid}-keys"
+			aria-orientation="horizontal"
+			aria-valuemin={0}
+			aria-valuemax={n - 1}
+			aria-valuenow={shown ?? n - 1}
+			aria-valuetext={reading ||
+				(unit === 'hour' ? m.stats_chart_unread_hour() : m.stats_chart_unread_day())}
+			tabindex="0"
 			onpointermove={onPointerMove}
-			onpointerleave={() => (hovered = null)}
+			onpointerdown={onPointerMove}
+			onpointerleave={(event) => {
+				// A tap's pointer leaves as soon as it lifts: its reading stays until the next one.
+				if (event.pointerType !== 'touch') hovered = null;
+			}}
+			onkeydown={onKeydown}
+			onblur={(event) => {
+				// Focus into a dialog (the help overlay) comes back here: keep the reading.
+				if (!(event.relatedTarget instanceof Element && event.relatedTarget.closest('dialog')))
+					hovered = null;
+			}}
 		>
 			{#each stats.failures.series as series, row (series.error_type)}
-				<span class="name mono" style:grid-row={row + 1}>
-					<span class="key {errorTypeCondition(series.error_type)}"></span>{errorTypeLabel(
-						series.error_type
-					)}
+				<!-- U14: the label is its own box, so it can end in an ellipsis; the full name stays in
+				     the title, the crosshair readout and the table. -->
+				<span
+					class="name"
+					class:mono={!plain}
+					style:grid-row={row + 1}
+					title={classLabel(series.error_type)}
+				>
+					<span class="key {errorTypeCondition(series.error_type)}"></span><span
+						class="name-text"
+						lang={classLang(series.error_type)}>{classLabel(series.error_type)}</span
+					>
 				</span>
 				<span class="strip" style:grid-row={row + 1}>
 					{#each series.counts as count, i (i)}
@@ -162,8 +236,10 @@
 			{/each}
 
 			{#if hasBreaker}
-				<span class="name mono" style:grid-row={breakerRow}
-					><span class="key key-hold"></span>{m.stats_channel_breaker()}</span
+				<span class="name mono" style:grid-row={breakerRow} title={m.stats_channel_breaker()}
+					><span class="key key-hold"></span><span class="name-text"
+						>{m.stats_channel_breaker()}</span
+					></span
 				>
 				<span class="strip holds" style:grid-row={breakerRow}>
 					{#each spans as span (span.startedAt)}
@@ -180,7 +256,7 @@
 				<span class="total" style:grid-row={breakerRow}></span>
 			{/if}
 
-			<span class="axis" style:grid-row={lastRow + 1}>
+			<span class="axis" class:every-bucket={tickEvery === 1} style:grid-row={lastRow + 1}>
 				{#each stats.failures.buckets as bucket, i (bucket)}
 					<span class="tick" class:minor={(i / tickEvery) % 2 === 1}
 						>{i % tickEvery === 0 ? bucketLabel(stats, bucket) : ''}</span
@@ -202,7 +278,9 @@
 							<span class="row">
 								<span class="line-key {errorTypeCondition(series.error_type)}"></span>
 								<strong class="mono">{formatNumber(series.counts[shown])}</strong>
-								<span class="series">{errorTypeLabel(series.error_type)}</span>
+								<span class="series" lang={classLang(series.error_type)}
+									>{classLabel(series.error_type)}</span
+								>
 							</span>
 						{/each}
 						{#if hasBreaker}
@@ -219,6 +297,9 @@
 				{/if}
 			</span>
 		</div>
+		<p class="sr-only" id="{uid}-keys">
+			{unit === 'hour' ? m.stats_chart_keys_hour() : m.stats_chart_keys_day()}
+		</p>
 	{/if}
 
 	{#if hasBreaker}
@@ -245,7 +326,9 @@
 						<tr>
 							<th scope="col">{unit === 'hour' ? m.stats_col_hour() : m.stats_col_day()}</th>
 							{#each stats.failures.series as series (series.error_type)}
-								<th scope="col" class="mono">{errorTypeLabel(series.error_type)}</th>
+								<th scope="col" class:mono={!plain} lang={classLang(series.error_type)}
+									>{classLabel(series.error_type)}</th
+								>
 							{/each}
 							{#if hasBreaker}<th scope="col">{m.stats_col_breaker()}</th>{/if}
 						</tr>
@@ -321,11 +404,22 @@
 		gap: var(--space-2);
 		font-size: var(--fs-meta);
 		color: var(--text-muted);
+		min-width: 0;
+		align-self: end;
+		line-height: 1.2;
+	}
+
+	/* v67 (U14): the ellipsis needs a box of its own; on the flex container it never applied to
+	   the bare text ("audio_prov" at 390px). */
+	.name-text {
+		min-width: 0;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
-		align-self: end;
-		line-height: 1.2;
+	}
+
+	.channels:focus-visible {
+		outline-offset: var(--space-2);
 	}
 
 	.key {
@@ -556,7 +650,18 @@
 			column-gap: var(--space-2);
 		}
 
+		/* Translated labels are words, longer than the machine names: a wider column. */
+		.channels.plain {
+			--name-col: 6.5rem;
+		}
+
 		.tick.minor {
+			visibility: hidden;
+		}
+
+		/* v67: where every bucket is labelled (the 7-day window), only every fourth: a day's
+		   "31., Szo" is two buckets wide on a phone, so every other one overprinted the next. */
+		.every-bucket .tick:not(:nth-child(4n + 1)) {
 			visibility: hidden;
 		}
 	}
@@ -574,6 +679,7 @@
 		   list-item. */
 		.as-table summary {
 			padding-block: 0.75rem;
+			min-height: 2.75rem;
 		}
 	}
 </style>

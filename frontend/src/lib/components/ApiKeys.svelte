@@ -6,12 +6,13 @@
 	here, with a copy control, until "done" or leaving the page.
 -->
 <script lang="ts">
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { onMount, tick } from 'svelte';
 	import * as api from '$lib/api';
 	import { queue } from '$lib/stores/queue';
 	import { confirmAction, keepFocus, keepFocusOnHeading } from '$lib/stores/confirm';
 	import * as m from '$lib/paraglide/messages';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 	import { formatDateTime, formatNumber } from '$lib/i18n/format';
 
 	// The longest name the backend takes (services/api_keys.py LABEL_MAX_LENGTH), in code
@@ -24,11 +25,19 @@
 
 	// v62 (F6): whether a key's name is typed and not yet created, for /account's unsaved-edits
 	// guard.
-	let { onnametyped }: { onnametyped?: (typed: boolean) => void } = $props();
+	// v67: `onuncopied` tells /account a just-created key is on screen and not yet copied, so
+	// leaving the page asks first (the key is never shown again).
+	let {
+		onnametyped,
+		onuncopied
+	}: { onnametyped?: (typed: boolean) => void; onuncopied?: (uncopied: boolean) => void } =
+		$props();
 
 	let keys = $state<api.ApiKey[] | null>(null);
 	let maxActive = $state(10);
 	let loadError = $state<Shown>(null);
+	// v67 (U9): what failed, so its text is marked inside the sentence (ErrorSentence).
+	let loadFailure = $state<unknown>(null);
 
 	let label = $state('');
 	let creating = $state(false);
@@ -57,6 +66,7 @@
 				maxActive = list.max_active;
 			})
 			.catch((err) => {
+				loadFailure = err;
 				loadError = () => m.account_keys_load_failed({ error: errorText(err) });
 			});
 	}
@@ -65,6 +75,8 @@
 
 	async function onCreate(event: SubmitEvent) {
 		event.preventDefault();
+		// v67: a new key replaces the one on screen; one not copied yet is lost for good, so ask.
+		if (fresh && copied !== 'yes' && !(await closeUncopied(fresh))) return;
 		labelError = null;
 		error = null;
 		status = null;
@@ -135,7 +147,31 @@
 		}
 	}
 
+	$effect(() => {
+		onuncopied?.(fresh !== null && copied !== 'yes');
+	});
+
+	/** v67: asks before an uncopied key goes for good; false (focus back on the key) if kept. */
+	async function closeUncopied(shown: NonNullable<typeof fresh>): Promise<boolean> {
+		const close = await confirmAction({
+			title: m.account_keys_close_title(),
+			subject: shown.label,
+			body: m.account_keys_close_body(),
+			confirmLabel: m.account_keys_close_confirm(),
+			cancelLabel: m.account_keys_close_keep()
+		});
+		if (!close && fresh === shown) {
+			// The dialog hands focus back to what opened it ("done", "create key"); the key is
+			// what's kept, so focus goes there.
+			await tick();
+			document.getElementById('api-key-fresh')?.focus();
+		}
+		return close && fresh === shown;
+	}
+
 	async function dismissFresh() {
+		// v67: closed before a copy, the key is gone for good: ask first.
+		if (fresh && copied !== 'yes' && !(await closeUncopied(fresh))) return;
 		fresh = null;
 		copied = null;
 		await tick();
@@ -203,7 +239,9 @@
 					{creating ? m.account_keys_creating() : m.account_keys_create()}
 				</button>
 			</div>
-			<p id="api-key-label-error" class="field-error" role="alert">{labelError?.()}</p>
+			<p id="api-key-label-error" class="field-error" role="alert" lang={textLang(labelError?.())}>
+				{labelError?.()}
+			</p>
 			<p id="api-key-limit" class="field-hint">{atLimit ? m.account_keys_limit() : ''}</p>
 		</div>
 	</form>
@@ -225,6 +263,7 @@
 						spellcheck="false"
 						autocomplete="off"
 						value={fresh.key}
+						oncopy={() => (copied = 'yes')}
 						aria-describedby="api-key-fresh-hint"
 						onfocus={(event) => event.currentTarget.select()}
 					/>
@@ -247,7 +286,12 @@
 	{#if keys === null}
 		{#if loadError}
 			<div class="load-failed">
-				<p>{loadError()}</p>
+				<p>
+					<ErrorSentence
+						sentence={(e) => m.account_keys_load_failed({ error: e })}
+						error={errorText(loadFailure)}
+					/>
+				</p>
 				<button
 					type="button"
 					class="btn small"
@@ -303,8 +347,16 @@
 		</ul>
 	{/if}
 	<p class="save-state" role="status">{status?.()}</p>
-	<p class="form-error" class:sr-only={keys === null && loadError !== null} role="alert">
-		{keys === null && loadError !== null ? loadError() : error?.()}
+	<p
+		class="form-error"
+		class:sr-only={keys === null && loadError !== null}
+		role="alert"
+		lang={keys === null && loadError !== null ? undefined : textLang(error?.())}
+	>
+		{#if keys === null && loadError !== null}<ErrorSentence
+				sentence={(e) => m.account_keys_load_failed({ error: e })}
+				error={errorText(loadFailure)}
+			/>{:else}{error?.()}{/if}
 	</p>
 </section>
 

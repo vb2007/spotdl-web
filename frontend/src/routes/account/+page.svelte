@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { onMount, tick } from 'svelte';
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -8,7 +9,7 @@
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
 	import { helpOpen, shortcutsEnabled } from '$lib/keyboard/registry';
 	import * as m from '$lib/paraglide/messages';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 	import { clockExample, formatClock, formatNumber } from '$lib/i18n/format';
 	import {
 		applyClock,
@@ -16,6 +17,8 @@
 		clockPreference,
 		detectLocale,
 		languagePreference,
+		locale,
+		resolveLocale,
 		type Clock
 	} from '$lib/i18n/locale.svelte';
 	import type { Locale } from '$lib/paraglide/runtime';
@@ -65,6 +68,8 @@
 	// v62 (F6): with every preference saved on choice (F7), only a typed value not yet
 	// committed is unsaved: retention's days, or a key's name not yet created.
 	let keyNameTyped = $state(false);
+	// v67: a just-created API key still on screen, not yet copied (it's never shown again).
+	let keyUncopied = $state(false);
 	// A choice already being saved isn't unsaved (review round 3). Within the app, a valid number
 	// typed and not yet committed is committed on the way out (leaving the field does that
 	// anyway, and the guard's own question would: live review), so only what can't be saved is
@@ -74,14 +79,29 @@
 	const retentionSaveable = () => error === null && (neverArchive || !daysInvalid());
 	// A switch whose save failed shows its saved value again, with the failure: the choice isn't
 	// saved, so leaving asks too (live review round 2).
+	// Every reason to ask but the uncopied key (whose loss gets its own question, below).
+	const unsavedEdits = (unloading: boolean) =>
+		(dirty && !saving && (unloading || !retentionSaveable())) ||
+		keyNameTyped ||
+		keyboardError !== null ||
+		(languageError !== null && !languageLoadFailed) ||
+		clockError !== null ||
+		notifyError !== null;
 	guardUnsavedEdits(
-		(unloading) =>
-			(dirty && !saving && (unloading || !retentionSaveable())) ||
-			keyNameTyped ||
-			keyboardError !== null ||
-			languageError !== null ||
-			clockError !== null ||
-			notifyError !== null
+		(unloading) => unsavedEdits(unloading) || keyUncopied,
+		// v67: an uncopied new key is lost for good, not an unsaved change: its own question,
+		// which also says so when other unsaved edits would go with it.
+		() =>
+			keyUncopied
+				? {
+						title: m.account_keys_leave_title(),
+						body: unsavedEdits(false)
+							? `${m.account_keys_close_body()} ${m.account_keys_leave_also()}`
+							: m.account_keys_close_body(),
+						confirmLabel: m.account_keys_leave_confirm(),
+						cancelLabel: m.account_keys_close_keep()
+					}
+				: null
 	);
 	// An in-app exit with a save to make (or one under way) waits for it, and leaves only once it
 	// landed: a failure stays here, shown, never on a page that's gone (review round 7).
@@ -118,12 +138,15 @@
 
 	// v47: a failed first read says what failed and can be retried here (it took a reload).
 	let loadError = $state<Shown>(null);
+	// v67 (U9): what failed, so its text is marked inside the sentence (ErrorSentence).
+	let loadFailure = $state<unknown>(null);
 	function loadRetention() {
 		loadError = null;
 		api
 			.getRetentionSettings()
 			.then(syncForm)
 			.catch((err) => {
+				loadFailure = err;
 				loadError = () => m.account_retention_load_failed({ error: errorText(err) });
 			});
 	}
@@ -284,6 +307,17 @@
 	// switch it applies once the server has it; the page then re-renders in place.
 	let languageSaving = $state(false);
 	let languageError = $state<Shown>(null);
+	// v67: saved, but its messages couldn't be downloaded: said, but nothing is unsaved.
+	let languageLoadFailed = $state(false);
+	// A download that timed out may still land (locale.svelte.ts switches to it then): the page
+	// is in the saved language after all, so the failure is no longer true.
+	$effect(() => {
+		if (languageLoadFailed && locale.current === resolveLocale(languagePreference.current)) {
+			languageLoadFailed = false;
+			languageError = null;
+			languageSavedAt = new Date();
+		}
+	});
 	let languageSavedAt = $state<Date | null>(null);
 
 	async function saveLanguage(next: Locale | null) {
@@ -292,14 +326,22 @@
 		const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 		languageSaving = true;
 		languageError = null;
+		languageLoadFailed = false;
 		// A sign-out (or another identity) while the save is in flight resets the store; the
 		// late answer must not then set the signed-out page's language (v42's late-write guard).
 		const resets = queue.getResetCount();
 		try {
 			const saved = await api.updateLanguageSettings(next);
 			if (queue.getResetCount() !== resets) return;
-			applyLanguagePreference(saved.language);
-			languageSavedAt = new Date();
+			// v67 (U8): the language shows once its messages are here; "saved" waits for it, and
+			// a language that couldn't be downloaded says so rather than claiming the switch.
+			const switched = await applyLanguagePreference(saved.language);
+			if (queue.getResetCount() !== resets) return;
+			if (switched) languageSavedAt = new Date();
+			else {
+				languageLoadFailed = true;
+				languageError = () => m.account_language_load_failed();
+			}
 		} catch (err) {
 			languageError = () => errorText(err);
 		} finally {
@@ -477,7 +519,7 @@
 					{loggingOut ? m.account_disconnecting() : m.account_disconnect()}
 				</button>
 			</div>
-			<p class="form-error" role="alert">{logoutError?.()}</p>
+			<p class="form-error" role="alert" lang={textLang(logoutError?.())}>{logoutError?.()}</p>
 		</section>
 
 		<!-- Preferences: one group per setting. v45 added the keyboard-shortcut switch; v46 the
@@ -493,7 +535,12 @@
 					{#if loadError}
 						<!-- Announced by the always-present error line below, not as an inserted alert. -->
 						<div class="load-failed">
-							<p>{loadError()}</p>
+							<p>
+								<ErrorSentence
+									sentence={(e) => m.account_retention_load_failed({ error: e })}
+									error={errorText(loadFailure)}
+								/>
+							</p>
 							<button type="button" class="btn small" onclick={retryRetention}
 								>{m.account_retention_try_again()}</button
 							>
@@ -553,8 +600,16 @@
 									: ''}
 					</p>
 				{/if}
-				<p class="form-error" class:sr-only={saved === null && loadError !== null} role="alert">
-					{saved === null && loadError !== null ? loadError() : error?.()}
+				<p
+					class="form-error"
+					class:sr-only={saved === null && loadError !== null}
+					role="alert"
+					lang={saved === null && loadError !== null ? undefined : textLang(error?.())}
+				>
+					{#if saved === null && loadError !== null}<ErrorSentence
+							sentence={(e) => m.account_retention_load_failed({ error: e })}
+							error={errorText(loadFailure)}
+						/>{:else}{error?.()}{/if}
 				</p>
 			</div>
 
@@ -597,7 +652,9 @@
 							? m.common_saved_at({ time: formatClock(keyboardSavedAt) })
 							: ''}
 				</p>
-				<p class="form-error" role="alert">{keyboardError?.()}</p>
+				<p class="form-error" role="alert" lang={textLang(keyboardError?.())}>
+					{keyboardError?.()}
+				</p>
 			</div>
 
 			<div class="group" role="group" aria-labelledby="language-heading">
@@ -620,7 +677,9 @@
 							? m.common_saved_at({ time: formatClock(languageSavedAt) })
 							: ''}
 				</p>
-				<p class="form-error" role="alert">{languageError?.()}</p>
+				<p class="form-error" role="alert" lang={textLang(languageError?.())}>
+					{languageError?.()}
+				</p>
 			</div>
 
 			<div class="group" role="group" aria-labelledby="clock-heading">
@@ -651,7 +710,9 @@
 							? m.common_saved_at({ time: formatClock(clockSavedAt) })
 							: ''}
 				</p>
-				<p class="form-error" role="alert">{clockError?.()}</p>
+				<p class="form-error" role="alert" lang={textLang(clockError?.())}>
+					{clockError?.()}
+				</p>
 			</div>
 
 			<!-- v66: job notifications (v65's install block is its own). -->
@@ -693,12 +754,17 @@
 							? m.common_saved_at({ time: formatClock(notifySavedAt) })
 							: ''}
 				</p>
-				<p class="form-error" role="alert">{notifyError?.()}</p>
+				<p class="form-error" role="alert" lang={textLang(notifyError?.())}>
+					{notifyError?.()}
+				</p>
 			</div>
 		</section>
 
 		<!-- v53: keys for the browser extension (create, list, revoke). -->
-		<ApiKeys onnametyped={(typed) => (keyNameTyped = typed)} />
+		<ApiKeys
+			onnametyped={(typed) => (keyNameTyped = typed)}
+			onuncopied={(uncopied) => (keyUncopied = uncopied)}
+		/>
 
 		<!-- v65: install the app (Chromium's offer, or how on Firefox Android and iOS). -->
 		<InstallApp />

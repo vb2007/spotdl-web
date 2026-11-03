@@ -33,7 +33,7 @@ test('login, logout, and no first-identity row flashes for the next identity', a
 		failedJobId = (await submitUrl(page, failedUrl)).id;
 		const incoming = page.getByRole('list', { name: 'Incoming submissions' });
 		await expect(incoming.getByText(failedUrl)).toBeVisible();
-		await expect(incoming.getByText(/no signal — could not read/)).toBeVisible({
+		await expect(incoming.getByText(/couldn’t read this/)).toBeVisible({
 			timeout: 60_000
 		});
 

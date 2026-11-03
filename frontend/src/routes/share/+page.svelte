@@ -16,7 +16,7 @@ RISK: a short link needs a server round-trip before there is anything to read.
 	import * as api from '$lib/api';
 	import * as m from '$lib/paraglide/messages';
 	import SubpageHeader from '$lib/components/SubpageHeader.svelte';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 	import { sharedLink, type SpotifyType } from '$lib/shareTarget';
 
 	let { data } = $props();
@@ -305,7 +305,9 @@ RISK: a short link needs a server round-trip before there is anything to read.
 						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					{/if}
 				</div>
-				<p class="form-error" id="share-problem" role="alert">{problem?.() ?? ''}</p>
+				<p class="form-error" id="share-problem" role="alert" lang={textLang(problem?.())}>
+					{problem?.() ?? ''}
+				</p>
 			{/if}
 		</section>
 	</main>
@@ -428,6 +430,15 @@ RISK: a short link needs a server round-trip before there is anything to read.
 	.quiet-link:hover,
 	.quiet-link:focus-visible {
 		color: var(--text-primary);
+	}
+
+	/* v67: a finger's height on touch, as every other control (it was 20px tall). */
+	@media (pointer: coarse) {
+		.quiet-link {
+			display: inline-flex;
+			align-items: center;
+			min-height: 2.75rem;
+		}
 	}
 
 	/* The look-up in progress: a quiet line, not news. */

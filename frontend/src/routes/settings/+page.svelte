@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { onMount, tick } from 'svelte';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
@@ -9,7 +10,7 @@
 	import { guardUnsavedEdits } from '$lib/unsavedGuard';
 	import AdminOnlyNotice from '$lib/components/AdminOnlyNotice.svelte';
 	import * as m from '$lib/paraglide/messages';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 	import { counted, formatClock, formatDateTime, formatNumber } from '$lib/i18n/format';
 
 	let { data } = $props();
@@ -27,6 +28,21 @@
 		{ id: 'proxies', label: m.settings_section_proxies }
 	] as const;
 	let activeSection = $state<string>('worker');
+	// v67 (U2): below 64em the index is a one-line bar along the top that scrolls sideways; the
+	// section being read keeps its link in view (scrolled within the bar, never the page).
+	let indexList: HTMLUListElement | undefined = $state();
+	$effect(() => {
+		const list = indexList;
+		const link = list?.querySelector<HTMLElement>(`a[href="#${activeSection}"]`);
+		if (!list || !link || list.scrollWidth <= list.clientWidth) return;
+		const left = link.offsetLeft - list.offsetLeft;
+		if (left < list.scrollLeft || left + link.offsetWidth > list.scrollLeft + list.clientWidth)
+			list.scrollTo({
+				left: Math.max(0, left - 16),
+				// i18n-ignore: a media query
+				behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+			});
+	});
 
 	// v46: a sentence with inline <code> fragments (env names, file names, templates). The
 	// message marks each with a named placeholder; each is filled with its own numbered
@@ -776,7 +792,7 @@
 	<!-- Not an alert itself: the section's always-present error line announces it (an alert
 	     inserted together with its text often isn't). -->
 	<div class="load-failed">
-		<p>{m.settings_section_load_failed({ error })}</p>
+		<p><ErrorSentence sentence={(e) => m.settings_section_load_failed({ error: e })} {error} /></p>
 		<button type="button" class="btn small" onclick={retry}>{m.settings_proxies_try_again()}</button
 		>
 	</div>
@@ -798,8 +814,8 @@
 		{#if !isAdmin}
 			<AdminOnlyNotice page="settings" />
 		{:else}
-			<nav class="index" aria-label={m.settings_index_label()}>
-				<ul>
+			<nav class="index settings-index" aria-label={m.settings_index_label()}>
+				<ul bind:this={indexList}>
 					{#each SECTIONS as section (section.id)}
 						<li>
 							<a
@@ -900,7 +916,7 @@
 											gb: formatNumber(defaults.default_max_gb)
 										})}
 									</p>
-									<div class="grid">
+									<div class="grid pairs">
 										{#each EXPORT_FIELDS as field (field.key)}
 											<div class="form-field">
 												<label class="label" for={field.key}>{field.label()}</label>
@@ -929,7 +945,11 @@
 													/>
 													<span class="unit" id="{field.key}-unit">{field.unit()}</span>
 												</div>
-												<p id="{field.key}-error" class="field-error">
+												<p
+													id="{field.key}-error"
+													class="field-error"
+													lang={textLang(exportFieldErrors[field.key])}
+												>
 													{exportFieldErrors[field.key] ?? ''}
 												</p>
 											</div>
@@ -938,7 +958,10 @@
 								</fieldset>
 							{:else if exportLoadError}
 								<p class="field-error wide" role="alert">
-									{m.settings_section_load_failed({ error: exportLoadError })}
+									<ErrorSentence
+										sentence={(e) => m.settings_section_load_failed({ error: e })}
+										error={exportLoadError}
+									/>
 								</p>
 							{/if}
 							<!-- end v64 -->
@@ -957,12 +980,16 @@
 							</div>
 						</form>
 					{/if}
-					<p class="form-error" class:sr-only={outputSettings === null} role="alert">
-						{outputSettings !== null
-							? outputError
-							: outputError
-								? m.settings_section_load_failed({ error: outputError })
-								: ''}
+					<p
+						class="form-error"
+						class:sr-only={outputSettings === null}
+						role="alert"
+						lang={outputSettings !== null ? textLang(outputError) : undefined}
+					>
+						{#if outputSettings !== null}{outputError}{:else if outputError}<ErrorSentence
+								sentence={(e) => m.settings_section_load_failed({ error: e })}
+								error={outputError}
+							/>{/if}
 					</p>
 				</section>
 
@@ -997,7 +1024,11 @@
 										aria-invalid={libraryFieldErrors[field.key] ? 'true' : undefined}
 										aria-describedby="{field.key}-error"
 									/>
-									<p id="{field.key}-error" class="field-error">
+									<p
+										id="{field.key}-error"
+										class="field-error"
+										lang={textLang(libraryFieldErrors[field.key])}
+									>
 										{libraryFieldErrors[field.key] ?? ''}
 									</p>
 								</div>
@@ -1040,7 +1071,11 @@
 									aria-invalid={libraryFieldErrors.library_quarantine_dir ? 'true' : undefined}
 									aria-describedby="library_quarantine_dir-error"
 								/>
-								<p id="library_quarantine_dir-error" class="field-error">
+								<p
+									id="library_quarantine_dir-error"
+									class="field-error"
+									lang={textLang(libraryFieldErrors.library_quarantine_dir)}
+								>
 									{libraryFieldErrors.library_quarantine_dir ?? ''}
 								</p>
 							</div>
@@ -1059,12 +1094,16 @@
 							</div>
 						</form>
 					{/if}
-					<p class="form-error" class:sr-only={librarySettings === null} role="alert">
-						{librarySettings !== null
-							? libraryError
-							: libraryError
-								? m.settings_section_load_failed({ error: libraryError })
-								: ''}
+					<p
+						class="form-error"
+						class:sr-only={librarySettings === null}
+						role="alert"
+						lang={librarySettings !== null ? textLang(libraryError) : undefined}
+					>
+						{#if librarySettings !== null}{libraryError}{:else if libraryError}<ErrorSentence
+								sentence={(e) => m.settings_section_load_failed({ error: e })}
+								error={libraryError}
+							/>{/if}
 					</p>
 				</section>
 
@@ -1127,7 +1166,7 @@
 
 							<fieldset class="group">
 								<legend class="group-title">{m.settings_alerts_thresholds()}</legend>
-								<div class="grid">
+								<div class="grid pairs">
 									{#each ALERT_NUMBERS as field (field.key)}
 										<div class="form-field">
 											<label class="label" for={field.key}>{field.label()}</label>
@@ -1147,7 +1186,11 @@
 												/>
 												<span class="unit" id="{field.key}-unit">{field.unit()}</span>
 											</div>
-											<p id="{field.key}-error" class="field-error">
+											<p
+												id="{field.key}-error"
+												class="field-error"
+												lang={textLang(alertFieldErrors[field.key])}
+											>
 												{alertFieldErrors[field.key] ?? ''}
 											</p>
 										</div>
@@ -1178,12 +1221,16 @@
 							<p class="save-state saved" role="status">{alertTestResult}</p>
 						</form>
 					{/if}
-					<p class="form-error" class:sr-only={alertSettings === null} role="alert">
-						{alertSettings !== null
-							? alertError
-							: alertError
-								? m.settings_section_load_failed({ error: alertError })
-								: ''}
+					<p
+						class="form-error"
+						class:sr-only={alertSettings === null}
+						role="alert"
+						lang={alertSettings !== null ? textLang(alertError) : undefined}
+					>
+						{#if alertSettings !== null}{alertError}{:else if alertError}<ErrorSentence
+								sentence={(e) => m.settings_section_load_failed({ error: e })}
+								error={alertError}
+							/>{/if}
 					</p>
 				</section>
 
@@ -1218,7 +1265,14 @@
 							<p id="new-proxy-hint" class="field-hint">
 								{@render coded(proxyFormatHint)}
 							</p>
-							<p id="new-proxy-error" class="field-error" role="alert">{addProxyError}</p>
+							<p
+								id="new-proxy-error"
+								class="field-error"
+								role="alert"
+								lang={textLang(addProxyError)}
+							>
+								{addProxyError}
+							</p>
 						</div>
 					</form>
 
@@ -1228,7 +1282,12 @@
 						<!-- Nothing read: never claim "no proxies" over a failed load. -->
 						<!-- Not an alert itself: the sr-only alert below (present from the start) announces it. -->
 						<div class="load-failed">
-							<p>{m.settings_proxies_load_failed({ error: proxiesLoadError })}</p>
+							<p>
+								<ErrorSentence
+									sentence={(e) => m.settings_proxies_load_failed({ error: e })}
+									error={proxiesLoadError}
+								/>
+							</p>
 							<button
 								type="button"
 								class="btn small"
@@ -1316,7 +1375,7 @@
 							{/each}
 						</ul>
 					{/if}
-					<p class="form-error" role="alert">{proxiesError}</p>
+					<p class="form-error" role="alert" lang={textLang(proxiesError)}>{proxiesError}</p>
 					<p class="sr-only" role="status">{proxiesStatus}</p>
 					<p class="sr-only" role="alert">
 						{proxiesLoadError && proxyList.length === 0
@@ -1339,8 +1398,8 @@
 		gap: var(--space-4);
 	}
 
-	/* Desktop: the index is a sticky column beside the sections. Below 1024px it is a
-	   wrapping row of links above them (no sticky bar eating a phone's height). */
+	/* Desktop: the index is a sticky column beside the sections. Below 1024px it is a one-line
+	   bar along the top (v67, U2: see below). */
 	.main {
 		display: grid;
 		grid-template-columns: 9rem minmax(0, 1fr);
@@ -1617,6 +1676,10 @@
 		color: var(--text-muted);
 	}
 
+	/* v67 (U2): below 1024px the index is a one-line bar that sticks to the top of the window
+	   (it was a wrapping row at the top only, with no way back to it partway down a ~3200px
+	   phone page). It scrolls sideways when the sections don't fit, and the section being read
+	   keeps its link in view (the script above). */
 	@media (max-width: 63.9375em) {
 		.main {
 			grid-template-columns: minmax(0, 1fr);
@@ -1624,14 +1687,35 @@
 		}
 
 		.index {
-			position: static;
+			top: 0;
+			z-index: 2;
+			margin-inline: calc(-1 * var(--space-2));
+			padding-inline: var(--space-2);
+			background: var(--bg-0);
+			border-bottom: 1px solid var(--line);
 		}
 
 		.index ul {
 			flex-direction: row;
-			flex-wrap: wrap;
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			scrollbar-width: none;
 			gap: var(--space-1) var(--space-2);
 			border-left: none;
+		}
+
+		.index li {
+			flex: none;
+		}
+
+		/* An anchor's section, and whatever Tab focuses, scrolls into view below the bar rather
+		   than under it (WCAG 2.4.11); only while this page's bar is on screen. */
+		:global(html:has(nav.settings-index)) {
+			scroll-padding-top: 3.5rem;
+		}
+
+		.section {
+			scroll-margin-top: var(--space-2);
 		}
 
 		.index a {
@@ -1668,6 +1752,11 @@
 			grid-template-columns: minmax(0, 1fr);
 		}
 
+		/* A toggle's name and hint sit tighter; its 44px switch still sets the row's height. */
+		.toggle-row {
+			padding: var(--space-2) 0;
+		}
+
 		.add-row {
 			flex-direction: column;
 		}
@@ -1679,6 +1768,22 @@
 
 		.controls {
 			justify-content: flex-start;
+		}
+	}
+
+	/* v67 (U2): the short numeric fields (zip limits, alert thresholds) two to a row on a phone
+	   wide enough for two (from 360px). The unit goes under its field, so every input in a
+	   column is the column's width (v47's one end x), and a pair's fields stay level when one
+	   label takes two lines. Narrower, they stay one to a row with the unit beside. */
+	@media (min-width: 22.5em) and (max-width: 40em) {
+		.grid.pairs {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			align-items: end;
+		}
+
+		.grid.pairs .with-unit {
+			grid-template-columns: minmax(0, 1fr);
+			gap: var(--space-1);
 		}
 	}
 

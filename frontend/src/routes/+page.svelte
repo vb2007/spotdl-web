@@ -19,7 +19,7 @@
 	import { registerHandlers } from '$lib/keyboard/registry';
 	import { collapseFocused, focusRowEl, kbList, listHandlers } from '$lib/keyboard/lists';
 	import * as m from '$lib/paraglide/messages';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
 	import { counted, formatNumber } from '$lib/i18n/format';
 	import { countLinks, linkIn } from '$lib/submitLink';
 	import * as notifications from '$lib/notifications';
@@ -801,7 +801,13 @@
 					>{submitting ? m.dashboard_submit_sending() : m.dashboard_submit()}</button
 				>
 			</form>
-			<p id="submit-error" class="submit-error" class:notice={submitNotice} role="alert">
+			<p
+				id="submit-error"
+				class="submit-error"
+				class:notice={submitNotice}
+				role="alert"
+				lang={textLang(submitError)}
+			>
 				{submitError}
 			</p>
 		</div>
