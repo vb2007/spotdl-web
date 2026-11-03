@@ -950,6 +950,16 @@ needed" claim — rather than silently deleted.
   bar needs `scroll-padding-top` on the root or Tab focus lands under it (WCAG 2.4.11) → *v67*
 - A `native` binding (handled by the focused element) may share a chord with a dispatched one;
   the registry never matches it → *v67*
+- A windowed list (`lib/listWindow.svelte.ts`, above 200 rows) has rows that aren't in the DOM:
+  find a row by id through `rowById` (`lib/keyboard/lists`), never `querySelector` (a plain lookup
+  works only for the rows a window keeps: the focused, current and open ones). Measure the
+  window's last child ignoring changes under 2.5px: `:last-child` drops its border (taking that
+  spun forever), but skipping it outright kept a collapsed job's open height (a blank window) → *v68*
+- A windowed list's estimate for unmeasured rows must be stable (a per-row median), and the
+  scroll anchor only a window row in view: a moving mean, or anchoring on a kept row outside the
+  window, made the hand-made anchoring chase the page to the top → *v68*
+- A class's `$effect` reads its items even while the list isn't mounted: between a scope switch
+  and its reload the tracks scope's groups would be built from jobs. Gate it on the mount → *v68*
 
 **Browser extension (`extension/`)**
 - Spotify's DOM: rows `tracklist-row`, headers `action-bar-row` inside `album-page`/`artist-page`/
@@ -1270,6 +1280,12 @@ needed" claim — rather than silently deleted.
 - Spec 07 counts every job the user ever owned, archived included, as the user's own text: a
   manual check that queues the *admin's* seed track (Get Lucky) as the user breaks it for good
   on that database. Spot-check with the user's own ledger tracks → *v65*
+- CDP's `Accessibility.getPartialAXTree` has no `posinset`/`setsize` properties: assert the
+  attributes and the node's role and parent there; the computed values are in Chromium's own
+  tree (`chrome://accessibility`) → *v68*
+- 1600 jobs are exactly 32 pages, and the cursor doesn't know it's the end: a 33rd "load more"
+  returns nothing, and `main` then focuses the queue's heading (scrolling to the top) after the
+  button is gone. A spec that loads everything waits for that before it scrolls → *v68*
 
 **CI**
 - The `pytest` job's Postgres is a service container the runner pulls with the shared
@@ -1363,6 +1379,9 @@ needed" claim — rather than silently deleted.
   needs a rendered frame: set `startTime`, and pin a hidden tab's position yourself → *v48*
 - Outside a frame Chrome's `document.timeline.currentTime` is a 60Hz-grid estimate; read a
   glide's position at a frame's own timestamp, and probe without a logger rAF → *v48*
+- A fully loaded 1600-job log on the nginx build: 24,299 elements, 47.6 MB heap, scroll frames
+  p50 66.7 ms before the window; 689, 6.2 MB, p50 16.7 ms after. Padding changes on a list are
+  a scroll-anchoring suppression trigger, so the window anchors by hand → *v68*
 
 **Reference (not a gotcha)**
 - Upstream `vb2007.hu-api` endpoint shapes, token scheme, and the two constraints they impose →
@@ -7872,3 +7891,90 @@ independently-found production bug from the same conversation)
   input saying the visible word matched nothing. Names now start with the visible text: "előre:
   {title}".
 
+### v68 log-virtualization gotchas (learned windowing the job and track lists, U4)
+
+- **Windowed, the list's rows are its padding.** `ListWindow` renders the rows near the viewport
+  and sets the unrendered rows' height as the `<ul>`'s inline `padding-top`/`padding-bottom`, so
+  the list keeps its own element, scoped class and `ul > li` semantics. Below the threshold it
+  sets no `style` and no attribute at all: the markup (normalized for digits) is byte-identical to
+  `main`'s on the dev server and on the nginx build.
+- **CSS Scroll Anchoring suppresses itself on a padding change** of an ancestor of the anchor node,
+  so the browser won't hold the view when the window moves. `ListWindow` holds the first window
+  row in view itself (`#capture`/`#correct`). Two ways that went wrong: anchoring on a *kept* row
+  outside the window (it moves with the window's edge; after a jump to mid-list it pulled the page
+  back to the top), and a mean-height estimate (one 400-track group among single tracks skewed it;
+  each row measured shifted every unmeasured row, and the correction chased that up the page).
+  The estimate is a per-row median that moves only on a 25% drift, scaled by an item's row count.
+- **`:last-child` styles move the window.** Job and track rows drop their bottom border as the
+  last child; the window's last rendered row measured 1px short, which moved the window, which
+  changed the last child: `effect_update_depth_exceeded`. The last rendered row is measured only
+  when it's the list's real last item, and height changes past eight a frame wait for the next.
+  *(Corrected 2026-11-02, same slice: skipping that row outright kept an open job's height after
+  it collapsed whenever it was the window's last child (taller than view plus overscan), and the
+  window stayed blank for thousands of pixels. It is measured, ignoring changes under 2.5px.)*
+- **Heights are keyed by item and row count.** A tracks-scope group grows when a later page
+  brings more of its tracks, whether it's rendered or not.
+- **Kept rendered outside the window:** the focused row, the list's current roving row (so Tab
+  lands on the remembered row, and the help overlay's and dialogs' "focus back by id" find it),
+  and any open row (a track's detail is `TrackRow`'s own `$state`: unmounted, it would close).
+  They sit just past the window's edge, out of view; their `aria-posinset` is their real place.
+- **No `flushSync` inside an effect.** `rowIn`/`rowById` render a row synchronously; a list's
+  attachment runs inside an effect, so its first `settle` passes `reveal = false` and the
+  microtask's settle (outside the effect) may reveal.
+- **The tracks scope windows by job group** (its threshold counts tracks). A single huge group
+  (one 400-track playlist loaded whole) renders all its loaded tracks while any of it is in view;
+  an open job's track list is windowed by track.
+- **Don't opt the windowed list out of the browser's scroll anchoring** (`overflow-anchor:
+  none`): Chromium then anchors on the next thing in view, the "load more" button below the list,
+  and keeps *it* in place, moving the view by the whole new page. *(Corrected 2026-11-02, same slice: an
+  open job far above archived moved scrollY during the very render being corrected, and a
+  scrollY guard refused the correction (the view lost by 2,000px). The guard now checks the
+  scroll counter and, for a render, scrollY read as the slice is worked out, before the render
+  reaches the DOM: a scroll the render itself causes is corrected through, a user's scroll whose
+  event hasn't come yet is not undone. Turning the page's own anchoring off while windowed was
+  tried and dropped: nothing then held layout no window corrects, a plain list around an open
+  job's windowed tracks. An `$effect.pre` reading the same deriveds looped.)* With the list's rows eligible
+  it anchors on the row in view, as on a plain list. The hand-made correction is skipped when the
+  page scrolled since its anchor was taken: a `focus()` scrolling the restored neighbour into view
+  (before its scroll event) was being undone by the next render's correction.
+- **A kept row is a stand-in.** It sits at the window's edge, not at its real place: anything that
+  focuses it (`rowIn`/`rowById`, which always ask the window, and the window's own `focusin`, for
+  Tab and the help overlay) renders the window around it first. Scroll a row into view with
+  `showRow` (`lib/keyboard/lists`): the whole row when it fits the view (the button alone ends
+  flush on the edge, its focus ring cut), else its button centered (an open job is taller than
+  the view, and `nearest` on the row shows its bottom).
+- **The browser rounds a `scrollBy` to whole pixels.** One live removal per archived job, each
+  corrected: re-taking the anchor after the window's own correction lost the rounded fraction
+  every time (a quarter pixel a 51.25px row, 10px over 40 rows; more at DPR 3). The anchor keeps
+  its targets across its own corrections (the scroll event of its own `scrollBy` doesn't re-take
+  it), and follows every window row in view, so a batch removing the first few still leaves one
+  to hold (with three, removing three at the top of the view moved it by their height).
+- **Correct once a frame, not once a render.** An archive of several jobs arrives as one live
+  removal each, a few milliseconds apart and not in the list's order. Corrected render by render,
+  the row held could be one a later removal of the same frame shifted (a batch at the top of the
+  view moved it by rows). Each render is still corrected at once (deferring them all let the
+  window drift off the rows read while 40 unrendered rows above went), and once more in
+  `requestAnimationFrame` (before that frame's layout and paint) against the anchor as the frame
+  began, as Chromium's own anchoring works per frame: the rows after a removed batch stay put
+  (main: same), a single removal mid-view keeps the rows above it (main: same).
+- **Don't forget heights on a resize.** Clearing them on a width change (to re-estimate at the new
+  width) threw the view hundreds of rows away: deep in an open playlist, or across the 900px
+  layout step, the window was rebuilt from estimates before the anchor could hold. The rendered
+  rows re-measure through the ResizeObserver; with heights kept a width change lands where main
+  does (row 697 for 700 at 900px) and inside an open playlist nearer than main.
+- **Below the threshold the ResizeObserver still follows the rows (100–200 band).** Measuring only
+  unknown rows there kept a job's open height after it collapsed, and the first window then
+  started thousands of pixels off; the observer costs nothing until a row changes size, and the
+  anchor is taken once a frame, so a patch forces no layout.
+- **A nested window gets the hold only if it has a row in view.** An outer list whose row in view
+  holds an active inner list hands the correction to it; while the view shows that job's header
+  or footer, the inner list has no anchor, so the outer row holds it itself.
+- **A synthetic `button.click()` has `event.detail === 0`**, which the dashboard's "load more"
+  treats as the keyboard's (focus to the first new row, the view with it). A real pointer click
+  focuses the button, and Chromium then holds the *button* in place (main does the same). A spec
+  simulating "a page arrives while the user reads" dispatches a `click` with `detail: 1` and no
+  focus.
+- **The fixture is its own account** (`e2e/support/virtual.ts`, `v68fixture@example.com`, a
+  session minted in the stack's database), its log dated two years back and archived after the
+  spec, so the suite's two identities keep plain lists and the admin's all-users view doesn't page
+  through it.
