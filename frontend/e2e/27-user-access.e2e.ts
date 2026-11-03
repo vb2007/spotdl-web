@@ -5,7 +5,7 @@ import { describeFocus, tabTo } from './support/keyboard';
 import { ADMIN_STATE, USER_STATE, userIdentity } from './support/stack';
 import { loginViaUi, openDashboard } from './support/ui';
 
-// Spec 25 (v69): who may sign in, managed by the admin on /users. Keyboard-only add and remove;
+// Spec 27 (v69): who may sign in, managed by the admin on /users. Keyboard-only add and remove;
 // the page and its nav entry are absent for a non-admin; and a removed user's open tabs are
 // sent to /login live, saying why. The removal test takes the suite's own user identity off
 // the allowlist, so it puts the address back and saves a fresh session for the specs after it

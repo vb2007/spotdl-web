@@ -875,7 +875,7 @@ here.
     cancels is `settled`).
   - **Placement:** the admin nav links live in `SubpageHeader.svelte` and the dashboard header, not in
     `+layout.svelte` (which holds the session-ended path the revocation reuses); the e2e spec is
-    `25-user-access.e2e.ts`, since Playwright here runs `*.e2e.ts` only. A held job keeps the admin's
+    `27-user-access.e2e.ts` (after v67's 25 and v68's 26), since Playwright here runs `*.e2e.ts` only. A held job keeps the admin's
     cancel in `JobRow.svelte` (the plan's "the admin can still cancel it").
   - **Other files beyond "Files owned", each needed by a task:** the `held` rollup's callers
     (`services/{job_listing,track_listing,job_status,serializers,stats}.py`, cancel's 409 in
