@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { offsetsOf, rangeOf } from './listWindow.svelte';
 
 // v68 (U4): the window's arithmetic. The rendering, measuring and anchoring are covered by the
-// browser suite (e2e/25-virtual-lists.e2e.ts) against the real page.
+// browser suite (e2e/26-virtual-lists.e2e.ts) against the real page.
 
 describe('offsetsOf', () => {
 	it('gives each item its top and the list its height', () => {
