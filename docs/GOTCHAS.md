@@ -8115,8 +8115,10 @@ independently-found production bug from the same conversation)
   all), a second walk with every key carrier at once (`X-Spotdl-Client`, a `moz-extension://`
   origin, `X-Api-Key`, `?key=`), routes serving only HEAD, and an **inventory**: every
   (file, scope, name) in `app/` that names the key machinery at all (`ApiKey`, `api_keys`,
-  `api_key`, `hash`, `_hash`, `authenticate`, `_bearer_token`, the dependency), pinned as a
-  literal. Rounds 1–5 each found an ordinary spelling (an alias, `auth.dep(...)`,
+  `api_key`, `hash`, `_hash`, `authenticate`, `_bearer_token`, the dependency, and every
+  top-level name the key service defines, read from it), import module paths included, plus any
+  call's string argument naming the `api_keys` table or `ApiKey` (raw SQL, `relationship("…")`),
+  pinned as a literal. Rounds 1–5 each found an ordinary spelling (an alias, `auth.dep(...)`,
   `filter_by(hash=)`, `from app import services`, a row's `.hash` compared in a new
   dependency) that a scan *recognising* key reads missed; an inventory needs no recognising,
   since new key code anywhere changes the set. The test then asks for a check and an update.

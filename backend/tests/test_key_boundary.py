@@ -13,6 +13,7 @@ unless it refuses a key, and a route FastAPI's dependency system can't see (a pl
 Moved here from v53's `test_api_keys.py` and widened: v53 walked only `APIRoute`s and tried only
 an admin's key."""
 
+import re
 import uuid
 
 import pytest
@@ -171,16 +172,47 @@ def test_no_router_is_included_with_a_prefix_or_dependencies():
 # keyword), whatever imports it, so a new place touching the machinery can't avoid naming one.
 KEY_NAMES = {"ApiKey", "api_keys", "api_key", "hash", "_hash", "authenticate", "_bearer_token", "require_session_or_api_key"}
 
-# Where `app/` names any of them today, as (file, scope, name). The scope is the enclosing
+
+def _key_names() -> set[str]:
+    """KEY_NAMES plus every top-level name the key service defines (`create_key`, `key_to_dict`,
+    `KEY_PREFIX`, ...), read from the service itself, so a from-import of any of them is seen
+    where it's used (review round 6)."""
+    import ast
+    from pathlib import Path
+
+    import app.services.api_keys as service
+
+    tree = ast.parse(Path(service.__file__).read_text())
+    defined = {n.name for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))}
+    for node in tree.body:
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target] if isinstance(node, ast.AnnAssign) else []
+        defined.update(t.id for t in targets if isinstance(t, ast.Name))
+    return KEY_NAMES | defined
+
+# Where `app/` names any of them (or the key service's own names, `_key_names`) today, as
+# (file, scope, name). The scope is the enclosing
 # function or class, dotted when nested ("<module>" at top level); a definition's decorators,
 # defaults and annotations count as its own.
 KEY_INVENTORY = {
     ('models/__init__.py', '<module>', 'ApiKey'),
+    ('models/__init__.py', '<module>', 'api_key'),
     ('models/api_key.py', 'ApiKey', 'hash'),
     ('routers/account_keys.py', '<module>', 'api_keys'),
+    ('routers/account_keys.py', 'create_api_key', 'ApiKeyLimitReached'),
+    ('routers/account_keys.py', 'create_api_key', 'LABEL_MAX_LENGTH'),
+    ('routers/account_keys.py', 'create_api_key', 'LabelInvalid'),
+    ('routers/account_keys.py', 'create_api_key', 'MAX_ACTIVE_KEYS'),
     ('routers/account_keys.py', 'create_api_key', 'api_keys'),
+    ('routers/account_keys.py', 'create_api_key', 'create_key'),
+    ('routers/account_keys.py', 'create_api_key', 'key_to_dict'),
+    ('routers/account_keys.py', 'create_api_key', 'normalize_label'),
+    ('routers/account_keys.py', 'list_api_keys', 'MAX_ACTIVE_KEYS'),
+    ('routers/account_keys.py', 'list_api_keys', 'active_keys'),
     ('routers/account_keys.py', 'list_api_keys', 'api_keys'),
+    ('routers/account_keys.py', 'list_api_keys', 'key_to_dict'),
     ('routers/account_keys.py', 'revoke_api_key', 'api_keys'),
+    ('routers/account_keys.py', 'revoke_api_key', 'key_to_dict'),
+    ('routers/account_keys.py', 'revoke_api_key', 'revoke_key'),
     ('routers/auth.py', '<module>', 'ApiKey'),
     ('routers/auth.py', '<module>', 'api_keys'),
     ('routers/auth.py', 'Principal', 'ApiKey'),
@@ -198,15 +230,69 @@ KEY_INVENTORY = {
     ('services/allowlist.py', '<module>', 'ApiKey'),
     ('services/allowlist.py', 'remove', 'ApiKey'),
     ('services/api_keys.py', '<module>', 'ApiKey'),
+    ('services/api_keys.py', '<module>', 'KEY_PREFIX'),
+    ('services/api_keys.py', '<module>', 'LABEL_MAX_LENGTH'),
+    ('services/api_keys.py', '<module>', 'LAST_USED_RESOLUTION'),
+    ('services/api_keys.py', '<module>', 'MAX_ACTIVE_KEYS'),
+    ('services/api_keys.py', '<module>', 'MAX_IGNORABLES'),
+    ('services/api_keys.py', '<module>', '_BLANK'),
+    ('services/api_keys.py', '<module>', '_DEFAULT_IGNORABLE'),
+    ('services/api_keys.py', '<module>', '_EMOJI_SELECTORS'),
+    ('services/api_keys.py', '<module>', '_FLAG_PLACEHOLDER'),
+    ('services/api_keys.py', '<module>', '_JOINERS'),
+    ('services/api_keys.py', '<module>', '_JOINING_SCRIPTS'),
+    ('services/api_keys.py', '<module>', '_KEYCAP_BASES'),
+    ('services/api_keys.py', '<module>', '_SKIN_TONES'),
+    ('services/api_keys.py', '<module>', '_SUBDIVISION_FLAG'),
+    ('services/api_keys.py', '<module>', '_VISIBLE_FORMAT'),
+    ('services/api_keys.py', '_allowed_ignorable', '_EMOJI_SELECTORS'),
+    ('services/api_keys.py', '_allowed_ignorable', '_JOINERS'),
+    ('services/api_keys.py', '_allowed_ignorable', '_KEYCAP_BASES'),
+    ('services/api_keys.py', '_allowed_ignorable', '_SKIN_TONES'),
+    ('services/api_keys.py', '_allowed_ignorable', '_emoji_like'),
+    ('services/api_keys.py', '_allowed_ignorable', '_is_cjk'),
+    ('services/api_keys.py', '_allowed_ignorable', '_is_mongolian'),
+    ('services/api_keys.py', '_allowed_ignorable', '_is_virama'),
+    ('services/api_keys.py', '_allowed_ignorable', '_joining_letter'),
+    ('services/api_keys.py', '_generate', 'KEY_PREFIX'),
+    ('services/api_keys.py', '_ignorable', '_DEFAULT_IGNORABLE'),
+    ('services/api_keys.py', '_joining_letter', '_JOINING_SCRIPTS'),
     ('services/api_keys.py', 'active_keys', 'ApiKey'),
     ('services/api_keys.py', 'authenticate', 'ApiKey'),
+    ('services/api_keys.py', 'authenticate', 'LAST_USED_RESOLUTION'),
     ('services/api_keys.py', 'authenticate', '_hash'),
     ('services/api_keys.py', 'authenticate', 'hash'),
+    ('services/api_keys.py', 'authenticate', 'looks_like_key'),
     ('services/api_keys.py', 'create_key', 'ApiKey'),
+    ('services/api_keys.py', 'create_key', 'ApiKeyLimitReached'),
+    ('services/api_keys.py', 'create_key', 'MAX_ACTIVE_KEYS'),
+    ('services/api_keys.py', 'create_key', '_generate'),
     ('services/api_keys.py', 'create_key', '_hash'),
     ('services/api_keys.py', 'create_key', 'hash'),
     ('services/api_keys.py', 'key_to_dict', 'ApiKey'),
+    ('services/api_keys.py', 'looks_like_key', 'KEY_PREFIX'),
+    ('services/api_keys.py', 'normalize_label', 'LABEL_MAX_LENGTH'),
+    ('services/api_keys.py', 'normalize_label', 'LabelInvalid'),
+    ('services/api_keys.py', 'normalize_label', 'MAX_IGNORABLES'),
+    ('services/api_keys.py', 'normalize_label', '_BLANK'),
+    ('services/api_keys.py', 'normalize_label', '_FLAG_PLACEHOLDER'),
+    ('services/api_keys.py', 'normalize_label', '_SUBDIVISION_FLAG'),
+    ('services/api_keys.py', 'normalize_label', '_VISIBLE_FORMAT'),
+    ('services/api_keys.py', 'normalize_label', '_allowed_ignorable'),
+    ('services/api_keys.py', 'normalize_label', '_collapse_spaces'),
+    ('services/api_keys.py', 'normalize_label', '_ignorable'),
     ('services/api_keys.py', 'revoke_key', 'ApiKey'),
+    ('services/job_status.py', '<module>', 'KEY_PREFIX'),
+    ('services/job_status.py', '_key', 'KEY_PREFIX'),
+    ('services/rate_limit.py', '<module>', 'KEY_PREFIX'),
+    ('services/rate_limit.py', '_address_bucket', 'KEY_PREFIX'),
+    ('services/rate_limit.py', '_login_bucket', 'KEY_PREFIX'),
+    ('services/rate_limit.py', 'hit_job_create', 'KEY_PREFIX'),
+    ('services/rate_limit.py', 'hit_link_resolve', 'KEY_PREFIX'),
+    ('services/watch.py', '<module>', 'KEY_PREFIX'),
+    ('services/watch.py', 'claim_run', 'KEY_PREFIX'),
+    ('services/watch.py', 'release_run', 'KEY_PREFIX'),
+    ('services/watch.py', 'start_run', 'KEY_PREFIX'),
 }
 
 
@@ -217,6 +303,8 @@ def _key_inventory() -> set[tuple[str, str, str]]:
     import app as app_package
 
     root = Path(app_package.__file__).parent
+    names = _key_names()
+    table = re.compile(r"\b(api_keys|ApiKey)\b")
     found = set()
 
     def walk(node, rel, scope):
@@ -233,8 +321,17 @@ def _key_inventory() -> set[tuple[str, str, str]]:
                 name = child.arg
             elif isinstance(child, ast.alias):
                 name = child.asname or child.name.split(".")[-1]
-                found.update((rel, scope, part) for part in child.name.split(".") if part in KEY_NAMES)
-            if name in KEY_NAMES:
+                found.update((rel, scope, part) for part in child.name.split(".") if part in names)
+            elif isinstance(child, ast.ImportFrom) and child.module:
+                found.update((rel, scope, part) for part in child.module.split(".") if part in names)
+            elif isinstance(child, ast.Call):
+                # The table or model by name, in SQL or a string reference: text("... api_keys ..."),
+                # table("api_keys"), relationship("ApiKey") (review round 6). Docstrings aren't
+                # call arguments, so they don't count.
+                for arg in [*child.args, *[k.value for k in child.keywords]]:
+                    if isinstance(arg, ast.Constant) and isinstance(arg.value, str) and table.search(arg.value):
+                        found.add((rel, scope, f"string naming {table.search(arg.value).group(1)}"))
+            if name in names:
                 found.add((rel, scope, name))
             walk(child, rel, scope)
 
@@ -270,13 +367,14 @@ def test_every_route_has_a_method_to_test():
         ({"OPTIONS"}, ["OPTIONS"]),
         ({"POST", "OPTIONS"}, ["POST"]),
         ({"GET", "HEAD", "OPTIONS"}, ["GET"]),
+        ({"HEAD", "POST"}, ["HEAD", "POST"]),
+        ({"HEAD", "OPTIONS"}, ["HEAD"]),
     ],
 )
 def test_the_methods_a_route_is_tested_with(methods, tested):
     """HEAD is dropped only beside GET, OPTIONS only beside another method (review round 5:
     nothing in the app serves HEAD alone today, so this pins `_methods` itself)."""
     route = APIRoute("/x", lambda: None, methods=list(methods))
-    route.methods = set(methods)
     assert _methods(route) == tested
 
 
