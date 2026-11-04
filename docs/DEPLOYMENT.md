@@ -698,9 +698,10 @@ cd /mnt/raid1/spotdl-web
 cp .env.example .env
 ```
 
-Fill in `DATABASE_URL`, `REDIS_PASSWORD`/`REDIS_URL`, `SESSION_SECRET`, `ALLOWED_EMAILS`,
-`ADMIN_EMAIL` (v17+ — must also appear in `ALLOWED_EMAILS`, or every backend container
-crash-loops at boot), `FRONTEND_ORIGINS`, `DOWNLOADS_DIR`, `LIBRARY_DIR` (v28 — see the
+Fill in `DATABASE_URL`, `REDIS_PASSWORD`/`REDIS_URL`, `SESSION_SECRET`, `ADMIN_EMAIL` (v17+;
+always allowed to sign in), `ALLOWED_EMAILS` (optional since v69, an import source only: the first
+`migrate` copies it into the allowlist table, see "Adding a second (or third) user" below),
+`FRONTEND_ORIGINS`, `DOWNLOADS_DIR`, `LIBRARY_DIR` (v28 — see the
 "Upgrading" section's §3 for the chown step it needs too), and `CLOUDFLARE_TUNNEL_TOKEN` — see
 the "Upgrading" section above for what each should be for this app's real values, and
 `.env.example`'s own comments for anything not covered there.
@@ -715,22 +716,33 @@ Same command as the "Upgrading" section's step 4 — see there.
 
 ---
 
-## Adding a second (or third) user (v17+)
+## Adding a second (or third) user (v17+; managed in `/users` since v69)
 
 Every allowlisted person gets their own private queue and job history (`jobs.user_id`, enforced
-end to end — see `CLAUDE.md`'s "Master v2 invariants"); adding one is a config change, not a
-migration:
+end to end — see `CLAUDE.md`'s "Master v2 invariants").
 
-```bash
-# On the host, edit .env's ALLOWED_EMAILS to add the new address (comma-separated), then:
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --no-deps api
-```
+**Since v69 the admin manages who may sign in at `/users`** (admin only; `g u`): type the address,
+press Enter, and that person can sign in with their vb2007.hu account on their next attempt. No
+`.env` edit, no restart, no redeploy. The app sends no invitation. Removing an address there signs
+the person out everywhere at once (their open live stream included), revokes their browser-extension
+keys, and holds their jobs that haven't started yet (lifecycle "held: owner removed", visible to the
+admin in the "others" view); jobs already started run to the end. Their `users` row, jobs and files
+stay, and adding the address again restores the same account and resumes the held jobs.
+`ADMIN_EMAIL` is always allowed and can't be removed.
 
-Only `api` needs recreating — it's the sole service that reads `ALLOWED_EMAILS` at request time
-(the login check); `worker-dl`/`worker-meta`/`worker-expand`/`beat` don't, so leaving them running avoids
-interrupting an in-flight download. The new person's `users` row is created automatically on their
-first successful login (`services.users.get_or_create_user`) — nothing to seed by hand. They are
-never admin unless their address also matches `ADMIN_EMAIL`. Confirm with:
+**`ALLOWED_EMAILS` is import-only.** The v69 migration copied it (plus `ADMIN_EMAIL`) into the
+`allowed_emails` table once, on the first `migrate` of that release; after that the app ignores
+it. `api` logs one warning at startup (a count, never the addresses) when the env list holds an
+address the table doesn't: "ALLOWED_EMAILS is ignored since v69, manage users in /users". Keep the
+line until the import has been checked in `/users`, then it may be deleted. **Before a rollback to a
+release older than v69** (a `downgrade` past the v69 migration drops the table): the old releases
+read `ALLOWED_EMAILS` again and refuse to boot unless `ADMIN_EMAIL` is in it, and every address added
+on `/users` since is gone, so put the current list back into `.env` first. A fresh database (a
+new install) imports it the same way on its first `migrate`.
+
+The new person's `users` row is created automatically on their first successful login
+(`services.users.get_or_create_user`) — nothing to seed by hand. They are never admin unless their
+address also matches `ADMIN_EMAIL`. Confirm with:
 
 ```bash
 curl -sS -X POST http://localhost:8000/api/auth/login -H "Content-Type: application/json" \

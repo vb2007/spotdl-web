@@ -849,3 +849,43 @@ here.
       `lib/unsavedGuard.ts` (an optional question) and `routes/login/+page.svelte`.
     - e2e: a new spec 25, plus specs 1, 5, 8, 12, 13, 14 and 18 following the new copy, names
       and phone rows.
+
+- **2026-11-02, v69: what the user-access slice did where its plan and the code differed; the
+  owner's decisions.**
+  - **No held-jobs count on `/users` (owner's decision).** Task 7's "a row with held jobs shows
+    their count" can't occur: a hold exists only while its address is off the allowlist, and
+    adding the address back clears it in the same transaction. The count is gone from the list,
+    the API and the page; held jobs show in the admin's "others" view (lifecycle `held`). Adding an
+    address back still says how many held jobs resume.
+  - **Slot 3's identities (owner's decision).** Slot 3's upstream accounts were lost in v65's
+    cleanup, and `api.vb2007.hu` now refuses to register an address whose domain can't receive mail
+    (every `example.com` one). `scripts/agent_stack.sh` gained `AGENT_ADMIN_EMAIL`, and slot 3 reuses
+    slot 5's saved accounts; the "real-time add" bullet used `v5s1user@example.com`, an existing
+    real-upstream account slot 3 never allowed, instead of a freshly registered one.
+  - **Only a job with work is held.** The plan's hold takes every unstarted, unfinished job; an empty
+    expanded job (an empty watched playlist) or one whose tracks were all cancelled has nothing a
+    hold stops, and held it offered a cancel that answers 409. The hold also needs the job to be
+    `expanding` or to have a `pending`/`queued`/`waiting` track (review round 1).
+  - **Beyond the named paths (review rounds 1-3):** a job create and an API key create re-check the
+    allowlist under the login's `FOR SHARE` (a cascade's Spotify call made a job created during a
+    removal unheld; a key created then outlived the revoke), and a re-expansion already queued when
+    its owner is removed adds nothing (the plan names only beat's selection). "Started" also counts
+    `attempts_made > 0` (a reclaimed or cancelled run tried the network; `attempt_count` misses it),
+    and the `held` lifecycle needs the hold to still stop something (a held job emptied by per-track
+    cancels is `settled`).
+  - **Placement:** the admin nav links live in `SubpageHeader.svelte` and the dashboard header, not in
+    `+layout.svelte` (which holds the session-ended path the revocation reuses); the e2e spec is
+    `27-user-access.e2e.ts` (after v67's 25 and v68's 26), since Playwright here runs `*.e2e.ts` only. A held job keeps the admin's
+    cancel in `JobRow.svelte` (the plan's "the admin can still cancel it").
+  - **Other files beyond "Files owned", each needed by a task:** the `held` rollup's callers
+    (`services/{job_listing,track_listing,job_status,serializers,stats}.py`, cancel's 409 in
+    `routers/jobs.py`); the key create's re-check (`routers/account_keys.py`); "check now" refused
+    for a removed owner (`routers/jobs.py`, a `job_not_reexpandable` reason); the session-ended path
+    and its reason (`+layout.svelte` beyond the nav, `+layout.ts`, `lib/session.ts`,
+    `lib/stores/sessionEnded.ts`, `app.d.ts`, `routes/login/+page.svelte`; `services/sessions.py`'s `touch=False`), with the `access_removed`
+    401 a removed session's cookie gets (live review round 1; never to the extension, whose v53
+    fallback knows only `not_authenticated`), and every cookie request re-checking the allowlist
+    (live review round 2: a row deleted outside `/users` otherwise left its session working); the error codes (`lib/i18n/errors.ts`, `i18n.test.ts`);
+    `AdminOnlyNotice.svelte` (the non-admin's `/users`); docstrings (`models/user.py`); and the tests
+    the table and the stream changed (`conftest.py`, `test_admin_gating.py`, `test_api_keys.py`,
+    `test_config.py`, `test_extension_jobs.py`, `test_jobs.py` (a query-count bound +1 for the per-request allowlist read), `test_stream.py`, `test_watch_jobs.py`); and, after the rebase onto v68, `frontend/e2e/support/virtual.ts`: v68's fixture account goes on the allowlist before its minted session.

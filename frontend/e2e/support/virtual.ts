@@ -101,6 +101,8 @@ db.execute(text("""
                       last_error = null, last_error_type = null
     where job_id = :j
 """), {"j": ids[live_at]})
+# v69: a session works only for an address on the allowlist (every cookie request checks it).
+db.execute(text("insert into allowed_emails (email) values (:e) on conflict do nothing"), {"e": user.email})
 token = create_session(db, user.id).token
 db.commit()
 print(json.dumps({"token": token, "liveJobId": ids[live_at], "bigJobId": ids[big_at]}))

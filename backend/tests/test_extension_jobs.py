@@ -321,7 +321,13 @@ def test_the_m_plus_first_create_is_429_with_retry_after(authenticated_client, l
     assert authenticated_client.post("/api/jobs", json={"url": "search 5"}).status_code == 201
 
 
-def test_create_limit_is_per_user(client, session_cookie, low_limits):
+def test_create_limit_is_per_user(client, session_cookie, low_limits, db_session):
+    from app.models import AllowedEmail
+
+    # v69: a job create re-checks the allowlist (a minted session alone isn't enough).
+    for email in ("a@example.com", "b@example.com"):
+        db_session.merge(AllowedEmail(email=email))
+    db_session.flush()
     a = session_cookie("a@example.com")
     b = session_cookie("b@example.com")
     for i in range(3):
@@ -482,10 +488,15 @@ def test_various_artists_is_never_a_candidate_beside_real_artists(client, user_k
     assert response.json()["source_url"] == f"https://open.spotify.com/artist/{ARTIST_ID}"
 
 
-def test_a_key_stops_working_when_its_user_leaves_the_allowlist(client, user_key, monkeypatch):
-    """Review round 1 (L2): they can't sign in to revoke it, and no one else can see it."""
+def test_a_key_stops_working_when_its_user_leaves_the_allowlist(client, user_key, db_session):
+    """Review round 1 (L2): they can't sign in to revoke it, and no one else can see it. v69:
+    the allowlist is a table; a removal through /users also revokes the keys, and this is the
+    second line for a row deleted any other way."""
+    from app.models import AllowedEmail
+
     assert client.get("/api/auth/me", headers=bearer(user_key)).status_code == 200
-    monkeypatch.setattr(get_settings(), "allowed_emails", ["admin@example.com"])
+    db_session.query(AllowedEmail).filter(AllowedEmail.email == "allowed@example.com").delete()
+    db_session.flush()
     for response in (
         client.get("/api/auth/me", headers=bearer(user_key)),
         client.post("/api/jobs", json={"url": f"https://open.spotify.com/album/{ALBUM_ID}"}, headers=bearer(user_key)),

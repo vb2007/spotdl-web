@@ -101,6 +101,9 @@
 		destroyed = true;
 	});
 	let showInFlight = $derived(IN_FLIGHT_LIFECYCLES.has(job.status.lifecycle));
+	// v69: a held job (its owner was removed before it started) can still be cancelled by the
+	// admin; priority and bump stay off, since nothing of it runs until the owner is back.
+	let showCancel = $derived(showInFlight || job.status.lifecycle === 'held');
 	// v63: a watched job is never archived (owner's decision): stop watching it first.
 	let showArchive = $derived(
 		job.archived_at === null &&
@@ -535,7 +538,7 @@
 	const keys = kbRow({
 		// v64: `d`, the zip, offered only on an open job with files (the export strip).
 		download: () => isOpen && exportFiles > 0 && (handleExport('zip'), true),
-		cancel: () => showInFlight && (handleCancel(), true),
+		cancel: () => showCancel && (handleCancel(), true),
 		archive: () =>
 			showArchive ? (handleArchive(), true) : job.archived_at !== null && (handleUnarchive(), true),
 		bump: () => isAdmin && showInFlight && (handleBump(), true),
@@ -594,7 +597,10 @@
 			onclick={() => queue.toggleExpand(job.id)}
 		>
 			<span class="chevron" aria-hidden="true"></span>
-			<span class="badge-cell"><span class="badge {cond} mono">{badgeLabel}</span></span>
+			<!-- v69: `title` -- a long state ("held: owner removed") is cut to the column. -->
+			<span class="badge-cell"
+				><span class="badge {cond} mono" title={badgeLabel}>{badgeLabel}</span></span
+			>
 			<span class="title" class:address={titleIsUrl} id="job-title-{job.id}" title={job.title}
 				>{job.title}</span
 			>
@@ -767,7 +773,7 @@
 					onclick={handleUnarchive}>{m.job_unarchive()}</button
 				>
 			{/if}
-			{#if showInFlight}
+			{#if showCancel}
 				<button
 					type="button"
 					class="action danger apart"

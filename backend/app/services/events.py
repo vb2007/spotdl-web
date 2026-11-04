@@ -39,6 +39,35 @@ def channel_for(user_id: Any) -> str:
     return f"{CHANNEL_PREFIX}{user_id}"
 
 
+# v69: a user's control channel, for what ends their session rather than what happened to their
+# jobs (`revoked`: their address was taken off the allowlist). Its own prefix, so it can never
+# match ADMIN_CHANNEL_PATTERN: delivered through the admin's pattern subscription, removing
+# someone would log the admin's own tab out. Only that user's own stream subscribes to it, by
+# exact name (routers/stream.py).
+CONTROL_PREFIX = "spotdl:control:"
+CONTROL_REVOKED = "revoked"
+# A dev-only test hook (SPOTDL_ENV=dev): while this Redis key exists, control publishes are
+# dropped, so the stream's heartbeat re-check can be shown to end a removed user's stream alone.
+SUPPRESS_CONTROL_KEY = "spotdl:test:suppress-control"
+
+
+def control_channel_for(user_id: Any) -> str:
+    return f"{CONTROL_PREFIX}{user_id}"
+
+
+def publish_control(user_id: uuid.UUID | str, kind: str) -> None:
+    """Best effort, like every publish: the stream's periodic session re-check is the safety
+    net for a lost one."""
+    try:
+        client = _get_client()
+        if get_settings().spotdl_env == "dev" and client.exists(SUPPRESS_CONTROL_KEY):
+            logger.warning("events.publish_control: suppressed by the dev test hook (%s)", kind)
+            return
+        client.publish(control_channel_for(user_id), json.dumps({"type": kind}))
+    except redis.RedisError:
+        logger.warning("events.publish_control: failed to publish %s", kind, exc_info=True)
+
+
 def _get_client() -> redis.Redis:
     global _client
     if _client is None:

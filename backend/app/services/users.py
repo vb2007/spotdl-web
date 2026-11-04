@@ -1,5 +1,6 @@
-"""User identity (v17) -- ALLOWED_EMAILS decides who may log in at all; this module
-turns a successful login into the `users` row that decides what they own and may do.
+"""User identity (v17) -- the allowlist decides who may log in at all (v69: the
+`allowed_emails` table, services/allowlist.py; before it the ALLOWED_EMAILS env list); this
+module turns a successful login into the `users` row that decides what they own and may do.
 Same get-or-create shape as app/services/app_settings.get_output_settings.
 """
 

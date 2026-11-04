@@ -50,6 +50,7 @@
 	"error_reexpand_running": "Ezt a feladatot már ellenőrzi új számokért.",
 	"error_job_not_reexpandable": "Csak olyan feladatot lehet új számokért ellenőrizni, amelynek a linkjét már beolvasta.",
 	"error_job_not_reexpandable_search": "Keresést nem lehet új számokért ellenőrizni, csak linkként beküldött feladatot.",
+	"error_job_not_reexpandable_owner_removed": "A tulajdonos címét eltávolították, így nincs mit ellenőrizni: előbb add hozzá újra a felhasználók oldalon.",
 	"error_job_not_watchable_type": "Csak lejátszási listát vagy előadót lehet figyelni.",
 	"error_job_not_watchable": "Csak olyan feladatot lehet figyelni, amelynek a linkjét már beolvasta, és nincs archiválva.",
 	"error_watch_interval_invalid": "Két ellenőrzés között {min}–{max} óra telhet el.",
@@ -1285,5 +1286,59 @@
 	"stats_chart_unread_hour": "nincs kiválasztott óra",
 	"stats_chart_role": "diagram",
 	"kbd_chart_step": "Diagram olvasása óránként vagy naponként (a fókuszban lévő diagramon)",
-	"kbd_chart_ends": "Ugrás a diagram első vagy utolsó órájára, napjára"
+	"kbd_chart_ends": "Ugrás a diagram első vagy utolsó órájára, napjára",
+	"status_held": "visszatartva: tulajdonos eltávolítva",
+	"login_access_removed": "A hozzáférésedet eltávolították. Ha szerinted ez tévedés, szólj a rendszergazdának.",
+	"kbd_go_users": "Felhasználók",
+	"nav_users": "felhasználók",
+	"adminonly_body_users": "Azt, hogy ki jelentkezhet be erre a szerverre, a rendszergazda dönti el. A saját beállításaidat a <a>fiókoldaladon</a> találod.",
+	"users_title": "spotdl-web — felhasználók",
+	"users_heading": "Felhasználók",
+	"users_add_heading": "Cím hozzáadása",
+	"users_add_label": "E-mail-cím",
+	"users_add_placeholder": "valaki@example.com",
+	"users_add_hint": "Mindenki a saját vb2007.hu-fiókjával jelentkezik be, amint a címe fölkerült. Az app nem küld meghívót: szólj nekik te.",
+	"users_add_button": "hozzáadás",
+	"users_adding": "hozzáadás folyamatban…",
+	"users_added": "{email} hozzáadva. Most már be tud jelentkezni.",
+	"users_list_heading": "Kik jelentkezhetnek be",
+	"users_loading": "A lista betöltése…",
+	"users_load_failed": "Nem sikerült betölteni a listát: {error}",
+	"users_try_again": "újra",
+	"users_admin_badge": "rendszergazda",
+	"users_admin_note": "mindig beléphet",
+	"users_never_signed_in": "még nem jelentkezett be",
+	"users_last_signed_in": "utoljára belépett: {when}",
+	"users_added_by": "hozzáadta: {who}, {when}",
+	"users_imported": "a régi listából átvéve",
+	"users_remove": "eltávolítás",
+	"users_remove_named": "{email} eltávolítása",
+	"users_remove_title": "Eltávolítod ezt a címet?",
+	"users_remove_body": "Azonnal kijelentkezik mindenhol, és a böngészőbővítmény-kulcsai is leállnak. A már elkezdett letöltések befejeződnek; a még el nem kezdett feladatok visszatartva várnak, amíg a címet újra hozzá nem adod. A feladatai és a fájljai megmaradnak.",
+	"users_remove_confirm": "cím eltávolítása",
+	"users_remove_cancel": "cím megtartása",
+	"users_removed": "{email} eltávolítva.",
+	"users_email_required": "Előbb írj be egy e-mail-címet.",
+	"error_invalid_email": "Ez nem tűnik e-mail-címnek.",
+	"error_email_already_allowed": "Ez a cím már be tud jelentkezni.",
+	"error_cannot_remove_admin": "A rendszergazda saját címe nem távolítható el.",
+	"error_allowed_email_not_found": "Ez a cím már nincs a listán.",
+	"users_count": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "{n} cím"
+			}
+		}
+	],
+	"users_added_resumed": [
+		{
+			"declarations": ["input count", "input n", "input email"],
+			"selectors": [],
+			"match": {
+				"*": "{email} hozzáadva. Most már be tud jelentkezni, és folytatódik {n} visszatartott feladata."
+			}
+		}
+	]
 }

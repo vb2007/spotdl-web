@@ -9,6 +9,8 @@ export function jobStatusLabel(token: string): string {
 	switch (token) {
 		case 'expanding':
 			return m.status_expanding();
+		case 'held':
+			return m.status_held();
 		case 'active':
 			return m.status_active();
 		case 'waiting':

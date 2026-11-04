@@ -15,7 +15,7 @@ from app.db import get_db
 from app.errors import ApiError
 from app.models import User
 from app.routers.auth import require_session
-from app.services import api_keys
+from app.services import allowlist, api_keys
 
 router = APIRouter(prefix="/api/account/api-keys", tags=["account"])
 
@@ -52,6 +52,11 @@ def create_api_key(
             detail,
             {"max": api_keys.LABEL_MAX_LENGTH, "reason": exc.reason},
         ) from None
+    # v69: the owner may still sign in, read now and held `FOR SHARE` until the key commits: a
+    # removal meanwhile waits for it, then revokes it with the user's other keys.
+    if not allowlist.is_allowed(db, user.email, lock=True):
+        db.rollback()
+        raise ApiError(401, "not_authenticated", "Not authenticated")
     try:
         key, raw_key = api_keys.create_key(db, user.id, label)
     except api_keys.ApiKeyLimitReached:

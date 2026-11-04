@@ -25,6 +25,12 @@
 #     job either. With an admin, the admin also creates and cancels a job of its own, and
 #     its view=all capture MUST contain both jobs while its view=others capture MUST contain
 #     A's job and MUST NOT contain the admin's own (others drops the admin's own channel).
+#   - v69, revocation (with an admin and B's email/password; SPOTDL_WEB_SKIP_REVOCATION=1
+#     skips it): B's stream is open, beside the admin's view=all and view=others streams, when
+#     the admin removes B's address from the allowlist. B's stream MUST end on its own, with
+#     its `session.revoked` event, and B's next request MUST be 401; the admin's two streams
+#     MUST stay open and carry no `session.revoked` (the control channel never matches the
+#     admin's pattern). B's address is added back at the end (B's sessions stay ended).
 #
 # Usage (against a running stack, local by default):
 #   SPOTDL_WEB_USER_A_EMAIL=a@example.com SPOTDL_WEB_USER_A_PASSWORD=... \
@@ -34,7 +40,7 @@
 # Env vars:
 #   SPOTDL_WEB_BASE_URL           default: http://127.0.0.1:${API_PORT:-8000} (v50: an agent
 #                                  slot's API port, e.g. API_PORT=8001 for slot 1)
-#   SPOTDL_WEB_USER_A_EMAIL / _PASSWORD   required -- must already be in ALLOWED_EMAILS
+#   SPOTDL_WEB_USER_A_EMAIL / _PASSWORD   required -- must already be allowed to sign in (/users, v69)
 #   SPOTDL_WEB_USER_B_EMAIL / _PASSWORD   a DIFFERENT, non-admin user than A -- required
 #                                          unless SPOTDL_WEB_USER_B_TOKEN is set instead
 #   SPOTDL_WEB_USER_B_TOKEN       alternative to the email/password pair above: an
@@ -95,7 +101,7 @@ login() {
   token="$(grep -i '^set-cookie: SPOTDL_SESSION=' "$headers_file" | head -n1 \
     | sed -E 's/^[Ss]et-[Cc]ookie: SPOTDL_SESSION=([^;]+).*/\1/' | tr -d '\r\n')" || true
   if [ -z "$token" ]; then
-    echo "login failed for $email -- no Set-Cookie in response (check credentials/ALLOWED_EMAILS)" >&2
+    echo "login failed for $email -- no Set-Cookie in response (check credentials, and that the address is allowed on /users)" >&2
     exit 1
   fi
   echo "$token"
@@ -114,6 +120,15 @@ fi
 # the easy-to-make mistake (reusing an admin identity for both B and ADMIN) with a clear
 # message instead of a confusing "FAIL" that's actually a test-setup error, not a real leak.
 ME_B="$(curl -sS "$BASE_URL/api/auth/me" -H "Cookie: SPOTDL_SESSION=$TOKEN_B")"
+# v69: a positive control: B must really be signed in (a minted token whose address isn't on the
+# allowlist answers 401, and every "B saw nothing" check below would then pass for nothing).
+case "$ME_B" in
+  *'"email":'*) ;;
+  *)
+    echo "B isn't signed in (GET /api/auth/me answered: $ME_B) -- B's address must be allowed on /users (v69)" >&2
+    exit 1
+    ;;
+esac
 case "$ME_B" in
   *'"is_admin":true'*)
     echo "B (${SPOTDL_WEB_USER_B_EMAIL:-via SPOTDL_WEB_USER_B_TOKEN}) is admin -- the all_users=true check below would trivially pass for the wrong reason. Use a genuine non-admin identity for B." >&2
@@ -302,6 +317,71 @@ if [ -n "$TOKEN_ADMIN" ]; then
     PASS=false
   else
     echo "PASS: admin's view=others stream contains zero mention of the admin's own job."
+  fi
+fi
+
+# --- v69: revocation -------------------------------------------------------------------------
+if [ -n "$TOKEN_ADMIN" ] && [ -n "${SPOTDL_WEB_USER_B_EMAIL:-}" ] && [ -z "${SPOTDL_WEB_USER_B_TOKEN:-}" ] \
+  && [ "${SPOTDL_WEB_SKIP_REVOCATION:-}" != "1" ]; then
+  echo "Revocation: B's stream open beside the admin's while the admin removes B's address..."
+  REV_B="$WORKDIR/revoke_b.log"
+  REV_ADMIN_ALL="$WORKDIR/revoke_admin_all.log"
+  REV_ADMIN_OTHERS="$WORKDIR/revoke_admin_others.log"
+  B_ADDRESS="$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$SPOTDL_WEB_USER_B_EMAIL")"
+  curl -sS -N --max-time 30 "$BASE_URL/api/stream" -H "Cookie: SPOTDL_SESSION=$TOKEN_B" >"$REV_B" 2>&1 &
+  PID_REV_B=$!
+  curl -sS -N --max-time 30 "$BASE_URL/api/stream?view=all" -H "Cookie: SPOTDL_SESSION=$TOKEN_ADMIN" >"$REV_ADMIN_ALL" 2>&1 &
+  PID_REV_ALL=$!
+  curl -sS -N --max-time 30 "$BASE_URL/api/stream?view=others" -H "Cookie: SPOTDL_SESSION=$TOKEN_ADMIN" >"$REV_ADMIN_OTHERS" 2>&1 &
+  PID_REV_OTHERS=$!
+  sleep 2
+  REMOVED="$(curl -sS -o /dev/null -w '%{http_code}' -X DELETE "$BASE_URL/api/admin/allowlist/$B_ADDRESS" \
+    -H "Cookie: SPOTDL_SESSION=$TOKEN_ADMIN")"
+  sleep 3
+  if [ "$REMOVED" != "204" ]; then
+    echo "FAIL: removing B's address answered $REMOVED, not 204." >&2
+    PASS=false
+  elif kill -0 "$PID_REV_B" 2>/dev/null; then
+    echo "FAIL: B's stream is still open 3s after B's address was removed." >&2
+    PASS=false
+  elif grep -q 'session.revoked' "$REV_B"; then
+    echo "PASS: B's stream ended on its own, with its session.revoked event."
+  else
+    echo "FAIL: B's stream ended without a session.revoked event. Captured bytes:" >&2
+    cat "$REV_B" >&2
+    PASS=false
+  fi
+  ME_B_AFTER="$(curl -sS -o /dev/null -w '%{http_code}' "$BASE_URL/api/auth/me" -H "Cookie: SPOTDL_SESSION=$TOKEN_B")"
+  if [ "$ME_B_AFTER" = "401" ]; then
+    echo "PASS: B's next request is 401."
+  else
+    echo "FAIL: B's next request answered $ME_B_AFTER, not 401." >&2
+    PASS=false
+  fi
+  for pid_capture in "$PID_REV_ALL:$REV_ADMIN_ALL" "$PID_REV_OTHERS:$REV_ADMIN_OTHERS"; do
+    pid="${pid_capture%%:*}"
+    capture="${pid_capture#*:}"
+    name="$(basename "$capture" .log)"
+    if ! kill -0 "$pid" 2>/dev/null; then
+      echo "FAIL: the admin's ${name#revoke_admin_} stream ended when B was removed. Captured bytes:" >&2
+      cat "$capture" >&2
+      PASS=false
+    elif grep -q 'session.revoked' "$capture"; then
+      echo "FAIL: the admin's ${name#revoke_admin_} stream carried B's session.revoked." >&2
+      PASS=false
+    else
+      echo "PASS: the admin's ${name#revoke_admin_} stream stayed open, with no session.revoked."
+    fi
+  done
+  kill "$PID_REV_ALL" "$PID_REV_OTHERS" 2>/dev/null || true
+  READDED="$(curl -sS -o /dev/null -w '%{http_code}' -X POST "$BASE_URL/api/admin/allowlist" \
+    -H "Cookie: SPOTDL_SESSION=$TOKEN_ADMIN" -H "Content-Type: application/json" \
+    -d "{\"email\":\"$SPOTDL_WEB_USER_B_EMAIL\"}")"
+  if [ "$READDED" = "201" ]; then
+    echo "B's address is back on the allowlist."
+  else
+    echo "FAIL: adding B's address back answered $READDED, not 201 -- add it on /users." >&2
+    PASS=false
   fi
 fi
 

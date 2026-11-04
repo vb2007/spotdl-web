@@ -8,10 +8,15 @@
 	// v46: `page` picks the whole sentence (one message per page, so a translation never glues
 	// a subject to a reason): settings and library change shared setup. (v66: /stats is
 	// everyone's now, so its variant is gone.)
-	let { page }: { page: 'settings' | 'library' } = $props();
+	// v69: and /users, who may sign in.
+	let { page }: { page: 'settings' | 'library' | 'users' } = $props();
 
 	const body = $derived(
-		page === 'settings' ? m.adminonly_body_settings() : m.adminonly_body_library()
+		page === 'settings'
+			? m.adminonly_body_settings()
+			: page === 'users'
+				? m.adminonly_body_users()
+				: m.adminonly_body_library()
 	);
 
 	// The account link sits inside the sentence (`<a>…</a>` in the message), where the

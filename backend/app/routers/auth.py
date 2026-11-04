@@ -1,15 +1,16 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
 from app.db import get_db
 from app.errors import ApiError
 from app.models import ApiKey, User, UserSession
-from app.services import api_keys, rate_limit, upstream_auth, user_settings
+from app.services import allowlist, api_keys, rate_limit, upstream_auth, user_settings
 from app.services.sessions import SESSION_IDLE_TIMEOUT, create_session, delete_session, get_valid_session
 from app.services.spotify_urls import storable
 from app.services.users import get_or_create_user
@@ -19,6 +20,18 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 COOKIE_NAME = "SPOTDL_SESSION"
 
 _INVALID_CREDENTIALS = ApiError(401, "invalid_credentials", "Invalid credentials")
+
+
+def _no_session(db: Session, request: Request, token: str | None) -> ApiError:
+    """The 401 for a cookie that names no live session. v69: `access_removed` when a removal
+    ended it and the address is still off the allowlist (services/allowlist.py), so the page can
+    say why; otherwise `not_authenticated`. Never to the browser extension (`X-Spotdl-Client:
+    extension/...`): its cookie-then-key fallback (v53) knows only `not_authenticated` and
+    `api_key_invalid`, and must try its key on a dead cookie (review round 5)."""
+    from_extension = request.headers.get("x-spotdl-client", "").startswith("extension")
+    if not from_extension and allowlist.session_was_revoked(db, token):
+        return ApiError(401, "access_removed", "Your access was removed")
+    return ApiError(401, "not_authenticated", "Not authenticated")
 
 
 class LoginRequest(BaseModel):
@@ -31,16 +44,27 @@ def current_session(request: Request, db: Session = Depends(get_db)) -> UserSess
     if token is None:
         raise ApiError(401, "not_authenticated", "Not authenticated")
 
-    session = get_valid_session(db, token)
+    # v69: no `last_seen_at` touch here: `require_session` writes and commits it in one call, once
+    # the allowlist check passed, so a refused request never keeps an off-list session alive
+    # (review round 7) and the session row's lock never spans two threadpool calls (round 8).
+    # `logout` needs no touch; it commits its own delete.
+    session = get_valid_session(db, token, touch=False)
     if session is None:
-        raise ApiError(401, "not_authenticated", "Not authenticated")
-
-    db.commit()
+        raise _no_session(db, request, token)
     return session
 
 
+def _off_the_allowlist(request: Request) -> ApiError:
+    """v69: a live session whose address is off the allowlist (its row deleted outside /users,
+    which ends no session): refused like a removed one, so the session can't outlive its access
+    and the page's stream doesn't reconnect into it forever (live review round 2)."""
+    if request.headers.get("x-spotdl-client", "").startswith("extension"):
+        return ApiError(401, "not_authenticated", "Not authenticated")
+    return ApiError(401, "access_removed", "Your access was removed")
+
+
 def require_session(
-    session: UserSession = Depends(current_session), db: Session = Depends(get_db)
+    request: Request, session: UserSession = Depends(current_session), db: Session = Depends(get_db)
 ) -> User:
     """Every owner-scoped route depends on this, not `current_session` directly --
     `session.user_id` is only ever a means to reach the `User` that actually carries
@@ -51,6 +75,21 @@ def require_session(
         # isn't set up, so this would mean a row was deleted out from under a live
         # session), but "not authenticated" is the correct response either way.
         raise ApiError(401, "not_authenticated", "Not authenticated")
+    if not allowlist.is_allowed(db, user.email):
+        db.rollback()
+        raise _off_the_allowlist(request)
+    # A conditional UPDATE, not an ORM write: a removal (or a logout) that deleted the session
+    # meanwhile matches no row, and that's a 401, never a StaleDataError 500 (review round 9).
+    touched = db.execute(
+        update(UserSession)
+        .where(UserSession.id == session.id)
+        .values(last_seen_at=datetime.now(timezone.utc))
+        .execution_options(synchronize_session=False)
+    ).rowcount
+    if not touched:
+        db.rollback()
+        raise _no_session(db, request, request.cookies.get(COOKIE_NAME))
+    db.commit()
     return user
 
 
@@ -72,10 +111,6 @@ def require_admin_hidden(user: User = Depends(require_session)) -> User:
         # Deliberately no `code` (v46): it must read exactly like an unknown route's 404.
         raise HTTPException(status_code=404, detail="Not Found")
     return user
-
-
-def _allowlisted(email: str) -> bool:
-    return email.strip().lower() in {e.strip().lower() for e in get_settings().allowed_emails}
 
 
 @dataclass
@@ -104,19 +139,24 @@ def require_session_or_api_key(request: Request, db: Session = Depends(get_db)) 
     if token is not None:
         session = get_valid_session(db, token)
         if session is not None:
-            db.commit()
             user = db.get(User, session.user_id)
             if user is not None:
+                if not allowlist.is_allowed(db, user.email):
+                    # The touch isn't kept: a refused request never extends an off-list session.
+                    db.rollback()
+                    raise _off_the_allowlist(request)
+                db.commit()
                 return Principal(user)
 
     bearer = _bearer_token(request)
     if bearer is None:
-        raise ApiError(401, "not_authenticated", "Not authenticated")
+        raise _no_session(db, request, token)
     key = api_keys.authenticate(db, bearer)
     user = db.get(User, key.user_id) if key is not None else None
-    # A key outlives a login, so it re-checks the allowlist a login checks: someone taken off
-    # ALLOWED_EMAILS can't sign in to revoke their keys, and no one else can see them.
-    if user is not None and not _allowlisted(user.email):
+    # A key outlives a login, so it re-checks the allowlist a login checks. v69: a removal
+    # revokes the user's keys too; this stays as the second line (an address taken off the
+    # table by hand, say).
+    if user is not None and not allowlist.is_allowed(db, user.email):
         user = None
     if user is None:
         # Never echoes the key back, not even its prefix.
@@ -148,11 +188,13 @@ def require_session_for_streaming(request: Request) -> User:
     try:
         session = get_valid_session(db, token)
         if session is None:
-            raise ApiError(401, "not_authenticated", "Not authenticated")
+            raise _no_session(db, request, token)
 
         user = db.get(User, session.user_id)
         if user is None:
             raise ApiError(401, "not_authenticated", "Not authenticated")
+        if not allowlist.is_allowed(db, user.email):
+            raise _off_the_allowlist(request)
         db.commit()
         # Re-touch *after* commit, while the session is still open -- `expire_on_commit`
         # (the sessionmaker default) marks attributes stale on commit, and reading them
@@ -189,13 +231,23 @@ async def login(
     await run_in_threadpool(rate_limit.hit_login, payload.email, address)
 
     upstream_ok, username = await upstream_auth.login(payload.email, payload.password)
-    allowed = _allowlisted(payload.email)
+    # v69: the allowlist table, read now (never cached), so an address added in /users signs
+    # in on its next attempt.
+    allowed = await run_in_threadpool(allowlist.is_allowed, db, payload.email)
+    db.commit()
 
     # Upstream failure and allowlist rejection must be indistinguishable to the caller.
     if not upstream_ok or not allowed:
         raise _INVALID_CREDENTIALS
 
     await run_in_threadpool(rate_limit.clear_login_failures, payload.email, address)
+    # Read again, now locked (FOR SHARE) until this login commits its session, and only now: a
+    # removal meanwhile waits for it, then ends that session with the others. Not across the
+    # Redis call above (a stalled Redis would hold a removal for its retries). Off the event
+    # loop, since it may wait on a removal's row lock.
+    if not await run_in_threadpool(allowlist.is_allowed, db, payload.email, lock=True):
+        db.rollback()
+        raise _INVALID_CREDENTIALS
     user = get_or_create_user(db, payload.email, username)
     session = create_session(db, user.id)
     db.commit()

@@ -5,8 +5,8 @@ from sqlalchemy import and_, case, or_, select, update
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import Job, JobState, Track, TrackAttemptOutcome, TrackState, UserSettings
-from app.services import alerts, archive, attempts, events, job_status, retry, watch
+from app.models import AllowedEmail, Job, JobState, Track, TrackAttemptOutcome, TrackState, User, UserSettings
+from app.services import alerts, allowlist, archive, attempts, events, job_status, retry, watch
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
@@ -171,17 +171,23 @@ def _dispatch_due_watched_jobs(db) -> None:
     due = (
         db.execute(
             select(Job)
+            # v69: only jobs whose owner may still sign in, started or not: a re-expansion's
+            # new tracks are new work. One join; ADMIN_EMAIL is allowed without a row. A job
+            # skipped here stays due, and its next tick after the address is added again runs it.
+            .join(User, User.id == Job.user_id)
+            .outerjoin(AllowedEmail, AllowedEmail.email == User.email)
             .where(
                 Job.watch_interval_hours.is_not(None),
                 Job.next_expand_at <= now,
                 Job.archived_at.is_(None),
                 Job.state == JobState.EXPANDED,
                 Job.source_type.in_(watch.WATCHABLE_SOURCE_TYPES),
+                allowlist.owner_allowed(User.email, AllowedEmail.email),
             )
             .order_by(Job.next_expand_at.asc())
             # Room for jobs whose marker is held (skipped below) without locking every due row.
             .limit(budget + 20)
-            .with_for_update(skip_locked=True)
+            .with_for_update(skip_locked=True, of=Job)
         )
         .scalars()
         .all()

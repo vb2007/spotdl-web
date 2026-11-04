@@ -43,6 +43,10 @@ ADMIN_ROUTES: dict[tuple[str, str], int] = {
     ("POST", "/api/worker/pause"): 403,
     ("POST", "/api/worker/resume"): 403,
     ("POST", "/api/worker/breaker/release"): 403,
+    # v69: the login allowlist (/users). The remove names an address.
+    ("GET", "/api/admin/allowlist"): 403,
+    ("POST", "/api/admin/allowlist"): 403,
+    ("DELETE", "/api/admin/allowlist/{email}"): 404,
 }
 
 _GATES = {require_admin: 403, require_admin_hidden: 404, admin_router.require_admin_hidden: 404}
@@ -115,7 +119,7 @@ def test_a_non_admin_gets_the_rules_answer(authenticated_client, db_session, own
     db_session.commit()
 
     response = authenticated_client.request(
-        method, _fill(path, {"job_id": str(job.id), "proxy_id": str(proxy.id)}), json={}
+        method, _fill(path, {"job_id": str(job.id), "proxy_id": str(proxy.id), "email": "allowed@example.com"}), json={}
     )
 
     assert response.status_code == ADMIN_ROUTES[(method, path)], response.text
@@ -140,9 +144,9 @@ def test_an_id_routes_404_is_the_same_for_a_real_id_and_a_random_one(
     proxy = Proxy(url="http://203.0.113.5:3128", source=ProxySource.MANUAL, enabled=True)
     db_session.add_all([job, proxy])
     db_session.commit()
-    real = authenticated_client.request(method, _fill(path, {"job_id": str(job.id), "proxy_id": str(proxy.id)}), json={})
+    real = authenticated_client.request(method, _fill(path, {"job_id": str(job.id), "proxy_id": str(proxy.id), "email": "allowed@example.com"}), json={})
     random_id = str(uuid.uuid4())
-    made_up = authenticated_client.request(method, _fill(path, {"job_id": random_id, "proxy_id": random_id}), json={})
+    made_up = authenticated_client.request(method, _fill(path, {"job_id": random_id, "proxy_id": random_id, "email": random_id}), json={})
 
     assert (real.status_code, real.json()) == (made_up.status_code, made_up.json())
 
@@ -157,7 +161,7 @@ def test_an_admin_passes_every_gate(admin_client, method, path):
     """The gate lets an admin through: whatever the handler answers next, it isn't the
     gate's (a made-up id is the handler's own 404 with its own `code`)."""
     random_id = str(uuid.uuid4())
-    response = admin_client.request(method, _fill(path, {"job_id": random_id, "proxy_id": random_id}), json={})
+    response = admin_client.request(method, _fill(path, {"job_id": random_id, "proxy_id": random_id, "email": random_id}), json={})
 
     assert response.status_code != 403
     assert response.json() != {"detail": "Not Found"}

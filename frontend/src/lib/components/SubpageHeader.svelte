@@ -12,7 +12,7 @@
 		isAdmin
 	}: {
 		// v62: none on the error page (+error.svelte), which is none of these.
-		current?: 'settings' | 'library' | 'stats' | 'account';
+		current?: 'settings' | 'library' | 'users' | 'stats' | 'account';
 		isAdmin: boolean;
 	} = $props();
 </script>
@@ -32,6 +32,12 @@
 				class="nav-link"
 				href={resolve('/settings')}
 				aria-current={current === 'settings' ? 'page' : undefined}>{m.nav_settings()}</a
+			>
+			<!-- v69: who may sign in (the login allowlist). -->
+			<a
+				class="nav-link"
+				href={resolve('/users')}
+				aria-current={current === 'users' ? 'page' : undefined}>{m.nav_users()}</a
 			>
 		{/if}
 		<!-- v66: /stats is everyone's now (their own downloads; the admin also everyone's). -->

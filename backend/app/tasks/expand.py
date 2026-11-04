@@ -5,8 +5,8 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import case, func, select, update
 
 from app.db import SessionLocal
-from app.models import Job, JobState, Track, TrackState
-from app.services import events, expansion, job_status, watch
+from app.models import Job, JobState, Track, TrackState, User
+from app.services import allowlist, events, expansion, job_status, watch
 from app.services.serializers import track_song_meta
 from app.tasks.celery_app import celery_app
 from app.tasks.download import download_track
@@ -41,7 +41,23 @@ def _dispatch_due(db, job: Job, track_ids: list[uuid.UUID]) -> None:
     cancelled or downloaded meanwhile."""
     now = datetime.now(timezone.utc)
     lease = now + DISPATCH_LEASE
-    _lock_job(db, job)
+    if _lock_job_held(db, job):
+        # v69: the owner's address was removed before this job started. Nothing is sent, and
+        # no marker is left for beat either: the tracks stay `pending` until the address is
+        # added again (allowlist.add enqueues them then).
+        db.execute(
+            update(Track)
+            .where(Track.id.in_(track_ids), Track.state == TrackState.PENDING)
+            .values(scheduled_at=None)
+            .execution_options(synchronize_session=False)
+        )
+        db.commit()
+        logger.info(
+            "expand_job: job %s is held (owner removed); its %d track(s) stay pending, nothing enqueued",
+            job.id,
+            len(track_ids),
+        )
+        return
     claimed = set(
         db.execute(
             update(Track)
@@ -88,6 +104,15 @@ def _lock_job(db, job: Job) -> None:
     takes it before its own, so the two serialize instead of locking the same track rows in
     different orders (a deadlock)."""
     db.execute(select(Job.id).where(Job.id == job.id).with_for_update())
+
+
+def _lock_job_held(db, job: Job) -> bool:
+    """`_lock_job`, and whether the job is held (v69), read under that lock: a removal locks the
+    owner's job rows before it holds any, so it lands either before this read or after this
+    run's claim commits (and then finds those tracks pending, the job unstarted, and holds it:
+    download_track's gate drains the messages)."""
+    held_at = db.execute(select(Job.held_at).where(Job.id == job.id).with_for_update()).scalar_one_or_none()
+    return held_at is not None
 
 
 def _set_marker(db, job: Job, track_ids: list[uuid.UUID], lease: datetime, marker: datetime | None) -> None:
@@ -155,6 +180,14 @@ def _reexpand(db, job_id: str, marker: str | None = None) -> None:
         logger.info("expand_job: job %s isn't an expanded, unarchived job; not re-expanding", job_id)
         return
     source_url, user_id = job.source_url, job.user_id
+    # v69: a removed owner's run reads nothing from Spotify (checked again under the job's lock
+    # below, where it counts).
+    owner_email = db.execute(select(User.email).where(User.id == user_id)).scalar_one()
+    if not allowlist.is_allowed(db, owner_email):
+        logger.info("expand_job: job %s's owner was removed; not re-expanding", job_id)
+        db.rollback()
+        events.publish_job_event(user_id, job.id, JobState.EXPANDED.value, watch=True)
+        return
     if not watch.start_run(job.id, marker):
         # Superseded: this message waited past its claim's lease, and a newer claim (with its own
         # message) owns the job now. One Spotify read, not one per lease.
@@ -171,6 +204,12 @@ def _reexpand(db, job_id: str, marker: str | None = None) -> None:
         events.publish_job_event(user_id, job.id, JobState.EXPANDED.value, watch=True)
         return
 
+    # v69: the owner's allowlist row FOR SHARE first, before the job's: a removal locks the row
+    # (its DELETE) and then the jobs, so this either waits for a removal in flight and sees it,
+    # or holds it off until these tracks are committed (review round 5).
+    owner_allowed = allowlist.is_allowed(
+        db, db.execute(select(User.email).where(User.id == user_id)).scalar_one(), lock=True
+    )
     # The job's row lock, as a first expansion's commit and cancel_job take it: a cancel
     # either lands first (and nothing is added) or cancels these tracks too.
     _lock_job(db, job)
@@ -178,6 +217,13 @@ def _reexpand(db, job_id: str, marker: str | None = None) -> None:
     if job.state != JobState.EXPANDED or job.archived_at is not None:
         db.rollback()
         logger.info("expand_job: job %s is %s meanwhile; not re-expanding", job_id, job.state.value)
+        return
+    # v69: a run queued before its owner's address was removed adds nothing: new tracks are new
+    # work (beat stops starting them; this covers one already on its way).
+    if not owner_allowed:
+        db.rollback()
+        logger.info("expand_job: job %s's owner was removed meanwhile; not re-expanding", job_id)
+        events.publish_job_event(user_id, job.id, JobState.EXPANDED.value, watch=True)
         return
     known = set(db.execute(select(Track.spotify_track_id).where(Track.job_id == job.id)).scalars())
     # One stamp for the whole batch, read off the clock rather than the transaction's `now()`:
@@ -267,17 +313,25 @@ def expand_job(job_id: str, reexpand: bool = False, marker: str | None = None) -
             # write a no-op if the row moved on while we were running, and db.refresh
             # reads the row's real current state afterward rather than trusting the
             # `job` object loaded at task start.
-            result = db.execute(
+            # v69: RETURNING the job's hold, read under the row lock this UPDATE takes.
+            # A held job that turned out to have nothing to download isn't held any more: there's
+            # nothing a hold could stop (allowlist.remove holds only a job with work).
+            values = {"state": JobState.EXPANDED}
+            if not tracks:
+                values["held_at"] = None
+            expanded = db.execute(
                 update(Job)
                 .where(Job.id == job.id, Job.state == JobState.EXPANDING)
-                .values(state=JobState.EXPANDED)
-            )
-            if result.rowcount == 1:
+                .values(**values)
+                .returning(Job.held_at)
+            ).all()
+            if len(expanded) == 1 and expanded[0].held_at is None:
                 # Due only once the job is really EXPANDED: a job cancelled mid-expansion
                 # commits its tracks unmarked (they're cancelled just below), so beat can't
-                # send one in between.
+                # send one in between. v69: a held job's tracks stay unmarked too: it finishes
+                # expanding and enqueues nothing.
                 _mark_due(tracks, datetime.now(timezone.utc))
-            if result.rowcount == 0:
+            if not expanded:
                 db.refresh(job)
                 already_has_tracks = (
                     db.query(Track.id).filter(Track.job_id == job.id).first() is not None

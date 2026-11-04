@@ -21,6 +21,9 @@ needed" claim — rather than silently deleted.
 ## Index by topic
 
 **Config & environment**
+- `ALLOWED_EMAILS` is import-only since v69: the first `migrate` copies it (plus `ADMIN_EMAIL`)
+  into `allowed_emails`; a later edit does nothing but a startup warning. A slot or dev DB that
+  needs a new identity adds it on `/users`, or is reset (`down --volumes`) → *v69*
 - `pydantic-settings` auto-JSON-decodes `list[...]` fields; any new list-typed setting needs
   `Annotated[list[str], NoDecode]` or the app won't start → *v01*
 - Adding a runtime dependency needs `docker compose build`, not `restart` → *v03*
@@ -231,6 +234,12 @@ needed" claim — rather than silently deleted.
   `docker compose restart web` → *v52*
 
 **Auth, cookies & sessions**
+- A removal deletes the user's sessions, but a login that read the allowlist just before it would
+  still create one: login reads the row `FOR SHARE` until its session commits, and the removal
+  deletes the row *first*, so it waits, then deletes that session too → *v69*
+- `api.vb2007.hu` refuses to register an address whose domain can't receive mail (every
+  `example.com` one, since about 2026-11): new slot identities can't be registered; slot 3 reuses
+  slot 5's saved accounts through `AGENT_ADMIN_EMAIL` → *v69*
 - Admin routes: 404 (`require_admin_hidden`) where the path names an id, 403 elsewhere → *v56*
 - A `failed` job's cancel is the incoming overlay's "dismiss": a cancel rule must keep it → *v56*
 - A Firefox MV3 extension's background fetch carries the session cookie (loopback HTTP and HTTPS
@@ -377,6 +386,10 @@ needed" claim — rather than silently deleted.
   HTML page that redirects by script; an expired code answers 200 → *v65*
 
 **Celery, tasks & durability**
+- A removed user's unstarted job is held (`jobs.held_at`). The removal locks the owner's job rows
+  `FOR UPDATE` before deciding "started", and `download_track` reads `held_at` `FOR SHARE` in the
+  transaction that claims `downloading` (and before a dedup result): whichever commits first wins.
+  Messages already in the broker drain through the gate back to `pending`, unscheduled → *v69*
 - A fire-and-forget Celery send loses an alert five ways (a >300s `meta` backlog expires it, a
   killed worker-meta drops one mid-send and strands its prefetched ones for 6h, a Matrix
   5xx/429 is dropped, a failed send burns the cooldown, a broker error at enqueue drops it):
@@ -590,6 +603,13 @@ needed" claim — rather than silently deleted.
   *v55*
 
 **Live progress & SSE**
+- Until v69 the stream's first chunk was an immediate heartbeat **by accident** (redis-py's
+  `get_message` returns `None` at once for an ignored subscribe confirmation). Vite's dev proxy holds
+  the response headers until the first byte, so without it the page's EventSource opened only 15s
+  in; the stream now sends one heartbeat explicitly right after subscribing → *v69*
+- Anything that ends a user's session goes on `spotdl:control:{user_id}`, never under
+  `spotdl:events:*`: the admin's pattern subscription would deliver it to the admin's own tab →
+  *v69*
 - `view=others` drops the admin's own channel on the server, so the page never hears the admin's
   own downloads there: their amber needs a separate own-download check; a dropped run of own
   messages must still heartbeat on schedule (the tunnel's idle timeout) → *v54*
@@ -7978,3 +7998,58 @@ independently-found production bug from the same conversation)
   session minted in the stack's database), its log dated two years back and archived after the
   spec, so the suite's two identities keep plain lists and the admin's all-users view doesn't page
   through it.
+
+### v69 user-access gotchas (learned moving the login allowlist into the app)
+
+- **The import runs once, on the first `migrate` that knows the table.** Every later `migrate` is a
+  no-op for it, so an `.env` edit after the deploy changes nothing; `api` logs
+  "ALLOWED_EMAILS is ignored since v69, manage users in /users (N address(es) …)" at startup (a
+  count, never an address). On a slot stack this bit at once: switching the slot's identities in
+  `.env.agent` left the table holding the old ones until a `down --volumes`.
+- **The first chunk of `/api/stream` matters to proxies.** Before v69 the loop sent a heartbeat as
+  soon as `get_message` returned `None`, and the subscribe confirmation made the first one return
+  `None` at once. Waiting out the interval on such a read (needed once the loop also schedules the
+  session re-check) left the response's first byte 15s away; Vite's dev proxy forwards headers only
+  with the first body chunk, so every e2e `openDashboard` timed out on "the stream's first resync".
+  Production's nginx (`proxy_buffering off`) would have shown it as a 15s-late `onopen`. The stream
+  now yields one heartbeat right after subscribing.
+- **Revocation needs its own channel.** The admin's `all`/`others` stream pattern-subscribes to
+  `spotdl:events:*`; publishing `revoked` on the removed user's events channel would reach the admin
+  and sign the admin's own tab out. `spotdl:control:{user_id}` never matches that pattern, and only
+  the user's own stream subscribes to it, by exact name.
+- **The stream's safety net reads, never writes.** It re-checks every 15s on a short-lived DB
+  session closed before the next wait (v31's idle-in-transaction rule) and does not touch
+  `last_seen_at` (a write per open tab every 15s). It reports `revoked` when the owner's address is
+  off the allowlist even though the session row is already gone, so the raw stream still ends on
+  `session.revoked`. *(2026-11-02, live review round 1: a removal also records each ended session's
+  token hash in Redis (`spotdl:revoked-session:<sha256>`, for the session lifetime), and a request
+  carrying one answers 401 `access_removed`: a lost publish, a tab with no stream, a reload or an
+  offline tab all land on "Your access was removed". Best effort: with Redis down at the removal
+  they read "Your session ended".)*
+- **"Started" is about the job, not the track, and `waiting` isn't started.** Beat's stale sweep
+  moves a reclaimed `queued` track to `waiting` with no attempt, so the removal's test is
+  `downloading`/`completed`/`skipped_duplicate`/`lookup_failed` or `attempt_count > 0`. A track whose
+  only run was reclaimed from `downloading` has a reclaim row but `attempt_count` 0, so its job counts
+  as not started (the plan's definition, applied literally). *(2026-11-02, review round 2: corrected.
+  `attempts_made > 0` counts too: that run tried the network, and holding its job could leave a
+  `completed` track (the run finished after the reclaim) inside a held album.)*
+- **A held job's tracks carry no schedule.** The hold gate puts a track back to `pending` with
+  `scheduled_at = NULL`, so beat (which since v56 also dispatches a due `pending` track) never sends
+  it again; `expand_job` leaves a held job's new tracks unmarked. Re-adding the address claims them
+  with the same lease expand_job uses and sends one `.delay` each.
+- **The upstream refuses `example.com` registrations now.** `POST /auth/register` answers 400
+  "This e-mail address's domain can't receive e-mail". Lost slot identities can't be replaced with
+  fresh test-domain accounts; `AGENT_ADMIN_EMAIL` lets a slot reuse another slot's saved admin
+  (stacks share no data, so two slots on one upstream account don't interfere).
+- **A remove/re-add cycle can repeat a resumed track's message** (live review round 1, accepted).
+  A resumed track is `pending` with its message in the broker (as a first expansion's is), so a
+  second removal holds it again and the next re-add sends it once more. The extra messages are
+  no-ops at the worker (the gate re-pends a held one; a finished one is ignored), and a single
+  re-add still sends each track once; only the broker grows, by one message per track per cycle.
+- **The allowlist is checked on every cookie request, not only at login** (live review round 2).
+  `require_session`, the cookie half of `require_session_or_api_key` and the stream's auth read it
+  (one primary-key lookup; none for `ADMIN_EMAIL`). Without it a row deleted outside `/users` (by
+  hand: no session ended, no publish) left the session working while the stream's re-check said
+  `revoked`, and the dashboard reconnected into that every ~18s forever. A test that mints a session
+  must put its user on the list (conftest's `session_cookie` does); list endpoints' query counts rose
+  by one.

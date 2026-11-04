@@ -9,6 +9,7 @@ import pytest
 
 from app.config import get_settings
 from app.models import (
+    AllowedEmail,
     Job,
     JobSourceType,
     JobState,
@@ -106,6 +107,8 @@ def _user(db_session, email="owner@example.com", *, is_admin=False) -> User:
     if user is None:
         user = User(email=email, is_admin=is_admin)
         db_session.add(user)
+        # v69: beat re-expands only a job whose owner may still sign in.
+        db_session.merge(AllowedEmail(email=email))
         db_session.flush()
     return user
 

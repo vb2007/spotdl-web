@@ -65,7 +65,9 @@ def job_to_dict(
 
     `new_tracks` (v63): how many tracks re-expansions added after the job's first expansion
     (`watch.new_track_counts`), required for the same reason as `counts`."""
-    rollup = derive_rollup(job.state, counts)
+    # v69: `held_at` -- the owner's address was removed before the job started.
+    held_at = getattr(job, "held_at", None)
+    rollup = derive_rollup(job.state, counts, held=held_at is not None)
     return {
         "id": str(job.id),
         "source_url": job.source_url,
@@ -75,6 +77,7 @@ def job_to_dict(
         "error": job.error,
         "created_at": job.created_at.isoformat(),
         "archived_at": job.archived_at.isoformat() if job.archived_at is not None else None,
+        "held_at": held_at.isoformat() if held_at is not None else None,
         "track_counts": counts,
         "owner_email": owner_email,
         "owner_username": owner_username,

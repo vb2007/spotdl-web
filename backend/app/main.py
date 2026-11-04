@@ -1,4 +1,8 @@
+import logging
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from fastapi.concurrency import run_in_threadpool
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -7,8 +11,38 @@ from app.errors import ApiError, api_error_handler, validation_error_handler
 from app.routers import admin, auth, health, jobs, library, proxies, settings, stats, stream, tracks, worker
 from app.routers import account_keys, links
 from app.routers import export  # v64
+from app.routers import admin_users  # v69
 
-app = FastAPI(title="spotdl-web")
+
+def _warn_if_allowed_emails_ignored(app: FastAPI) -> None:
+    """v69: ALLOWED_EMAILS is an import source only. One warning (a count, never an address)
+    when it holds an address the allowlist table doesn't, since that `.env` edit does nothing.
+    Never stops the api from starting. Its database session is `get_db`'s (a test's override
+    applies), closed before the api starts serving."""
+    from app.db import get_db
+    from app.services import allowlist
+
+    try:
+        db_gen = app.dependency_overrides.get(get_db, get_db)()
+        db = next(db_gen)
+        try:
+            allowlist.warn_if_env_ignored(db)
+            db.commit()
+        finally:
+            next(db_gen, None)
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "startup: couldn't compare ALLOWED_EMAILS with the allowlist table", exc_info=True
+        )
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    await run_in_threadpool(_warn_if_allowed_emails_ignored, app)
+    yield
+
+
+app = FastAPI(title="spotdl-web", lifespan=_lifespan)
 # v46: an ApiError answers with its stable `code` beside `detail` (app/errors.py).
 app.add_exception_handler(ApiError, api_error_handler)
 # v53: a refused body answers with a stable code and never echoes what was sent.
@@ -33,6 +67,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(account_keys.router)
 app.include_router(admin.router)
+app.include_router(admin_users.router)  # v69: /api/admin/allowlist
 app.include_router(auth.router)
 app.include_router(jobs.router)
 app.include_router(export.router)  # v64: /api/jobs/{id}/export.zip, playlist.m3u8

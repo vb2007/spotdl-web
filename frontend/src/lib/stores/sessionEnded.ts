@@ -5,20 +5,24 @@
  * Consumed by the first read. */
 const KEY = 'spotdl:session-ended';
 
-export function markSessionEnded(): void {
+/** v69: `access_removed` -- the server said the session was ended by a removal from the
+ * allowlist, so /login says that rather than "your session ended". */
+export type SessionEndReason = 'ended' | 'access_removed';
+
+export function markSessionEnded(reason: SessionEndReason = 'ended'): void {
 	try {
-		sessionStorage.setItem(KEY, '1');
+		sessionStorage.setItem(KEY, reason === 'access_removed' ? reason : '1');
 	} catch {
 		// No storage: /login only loses the reason.
 	}
 }
 
-export function consumeSessionEnded(): boolean {
+export function consumeSessionEnded(): SessionEndReason | null {
 	try {
-		const was = sessionStorage.getItem(KEY) === '1';
+		const was = sessionStorage.getItem(KEY);
 		sessionStorage.removeItem(KEY);
-		return was;
+		return was === 'access_removed' ? 'access_removed' : was === '1' ? 'ended' : null;
 	} catch {
-		return false;
+		return null;
 	}
 }

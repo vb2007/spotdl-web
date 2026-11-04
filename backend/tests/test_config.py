@@ -58,12 +58,15 @@ def test_admin_email_missing_is_rejected(monkeypatch):
         Settings(**required)
 
 
-def test_admin_email_not_in_allowed_emails_is_rejected():
-    """An admin who isn't allowlisted could never log in -- a deployment nobody can
-    administer, which must crash-loop at boot rather than surface only once someone
-    notices settings/proxies/worker are unreachable."""
-    with pytest.raises(ValidationError):
-        Settings(**{**_REQUIRED, "ADMIN_EMAIL": "not-allowed@example.com"})
+def test_admin_email_needs_no_place_in_allowed_emails(monkeypatch):
+    """v69: ALLOWED_EMAILS is an import source only, and optional; ADMIN_EMAIL is always
+    allowed to sign in (services/allowlist.py), so the v17 boot check that tied the two is
+    gone."""
+    settings = Settings(**{**_REQUIRED, "ADMIN_EMAIL": "not-in-the-list@example.com"})
+    assert settings.admin_email == "not-in-the-list@example.com"
+    monkeypatch.delenv("ALLOWED_EMAILS", raising=False)
+    without = {k: v for k, v in _REQUIRED.items() if k != "ALLOWED_EMAILS"}
+    assert Settings(**without).allowed_emails == []
 
 
 def test_admin_email_matching_is_allowed():

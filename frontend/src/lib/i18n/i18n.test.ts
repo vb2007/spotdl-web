@@ -300,7 +300,13 @@ const BACKEND_CODES = [
 	'reexpand_running',
 	'job_not_reexpandable',
 	'job_not_watchable',
-	'watch_interval_invalid'
+	'watch_interval_invalid',
+	// v69
+	'access_removed',
+	'invalid_email',
+	'email_already_allowed',
+	'cannot_remove_admin',
+	'allowed_email_not_found'
 ];
 const CLIENT_CODES = [
 	'request_invalid',

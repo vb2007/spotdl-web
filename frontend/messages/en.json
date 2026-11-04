@@ -50,6 +50,7 @@
 	"error_reexpand_running": "This job is already being checked for new tracks.",
 	"error_job_not_reexpandable": "Only a job whose link has been read can be checked for new tracks.",
 	"error_job_not_reexpandable_search": "A search can’t be checked for new tracks: only a job submitted as a link can.",
+	"error_job_not_reexpandable_owner_removed": "Its owner's address was removed, so nothing is checked: add it again on the users page first.",
 	"error_job_not_watchable_type": "Only a playlist or an artist can be watched.",
 	"error_job_not_watchable": "Only a job whose link has been read, and that isn’t archived, can be watched.",
 	"error_watch_interval_invalid": "Checks can be {min} to {max} hours apart.",
@@ -1357,5 +1358,66 @@
 	"stats_chart_unread_hour": "no hour picked",
 	"stats_chart_role": "chart",
 	"kbd_chart_step": "Read a chart hour by hour or day by day (on a focused chart)",
-	"kbd_chart_ends": "Jump to a chart’s first or last hour or day"
+	"kbd_chart_ends": "Jump to a chart’s first or last hour or day",
+	"status_held": "held: owner removed",
+	"login_access_removed": "Your access was removed. Ask the admin if you think that's a mistake.",
+	"kbd_go_users": "Users",
+	"nav_users": "users",
+	"adminonly_body_users": "Who can sign in to this server is up to the admin. Your own preferences are on your <a>account page</a>.",
+	"users_title": "spotdl-web — users",
+	"users_heading": "Users",
+	"users_add_heading": "Add an address",
+	"users_add_label": "E-mail address",
+	"users_add_placeholder": "someone@example.com",
+	"users_add_hint": "Each person signs in with their own vb2007.hu account, as soon as their address is added. The app sends no invitation: tell them yourself.",
+	"users_add_button": "add",
+	"users_adding": "adding…",
+	"users_added": "Added {email}. They can sign in now.",
+	"users_list_heading": "Who can sign in",
+	"users_loading": "Reading the list…",
+	"users_load_failed": "Couldn't read the list: {error}",
+	"users_try_again": "try again",
+	"users_admin_badge": "admin",
+	"users_admin_note": "always allowed",
+	"users_never_signed_in": "never signed in",
+	"users_last_signed_in": "last signed in {when}",
+	"users_added_by": "added by {who}, {when}",
+	"users_imported": "imported from the old list",
+	"users_remove": "remove",
+	"users_remove_named": "remove {email}",
+	"users_remove_title": "Remove this address?",
+	"users_remove_body": "They're signed out everywhere at once, and their browser-extension keys stop working. Downloads already started finish; jobs that haven't started yet are held until the address is added again. Their jobs and files are kept.",
+	"users_remove_confirm": "remove address",
+	"users_remove_cancel": "keep address",
+	"users_removed": "Removed {email}.",
+	"users_email_required": "Type an e-mail address first.",
+	"error_invalid_email": "That doesn't look like an e-mail address.",
+	"error_email_already_allowed": "That address can already sign in.",
+	"error_cannot_remove_admin": "The admin's own address can't be removed.",
+	"error_allowed_email_not_found": "That address isn't on the list any more.",
+	"users_count": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "{n} address",
+				"countPlural=*": "{n} addresses"
+			}
+		}
+	],
+	"users_added_resumed": [
+		{
+			"declarations": [
+				"input count",
+				"local countPlural = count: plural",
+				"input n",
+				"input email"
+			],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "Added {email}. They can sign in now, and their {n} held job resumes.",
+				"countPlural=*": "Added {email}. They can sign in now, and their {n} held jobs resume."
+			}
+		}
+	]
 }

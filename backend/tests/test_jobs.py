@@ -126,7 +126,8 @@ def test_list_jobs_query_count_does_not_grow_with_job_count(
     # capped total_estimate count, the page query, and the page's bulk track_counts),
     # each one query regardless of page size, just a higher constant than v15/v17's.
     # v63 adds a 9th: the page's bulk new-track count (watch.new_track_counts).
-    assert len(five_job_statements) <= 9
+    # v69: +1, the per-request allowlist check of the cookie session (a primary-key read).
+    assert len(five_job_statements) <= 10
 
 
 def test_list_jobs_track_counts_are_attributed_per_job(authenticated_client, db_session, owner):

@@ -12,7 +12,10 @@
  * origin can read them, and they already share the cookie that says the same.
  */
 
-export type SessionMessage = { type: 'login'; email: string } | { type: 'logout' };
+/** v69: a sign-out's `reason` -- `access_removed`: the admin took the address off the
+ * allowlist, so every tab's `/login` says that instead of "your session ended". */
+export type SessionMessage =
+	{ type: 'login'; email: string } | { type: 'logout'; reason?: 'access_removed' };
 
 const CHANNEL = 'spotdl-session';
 let channel: BroadcastChannel | null | undefined;
@@ -43,7 +46,12 @@ export function onSessionMessage(handler: (message: SessionMessage) => void): ()
 	if (target === null) return () => {};
 	const listener = (event: MessageEvent) => {
 		const data = event.data as Partial<SessionMessage> | null;
-		if (data?.type === 'logout') handler({ type: 'logout' });
+		if (data?.type === 'logout')
+			handler(
+				data.reason === 'access_removed'
+					? { type: 'logout', reason: data.reason }
+					: { type: 'logout' }
+			);
 		else if (data?.type === 'login' && typeof data.email === 'string')
 			handler({ type: 'login', email: data.email });
 	};

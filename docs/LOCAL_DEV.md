@@ -27,8 +27,8 @@ cp .env.dev.example .env
 
 Fill in the real Postgres password for the dev database's role (the URL's database name must
 stay `spotdlwebtest`, see [Dedicated dev database](#dedicated-dev-database)) and `ADMIN_EMAIL`, a
-**test account**, never the owner's real admin address (v17+ — must also appear in
-`ALLOWED_EMAILS`, or `migrate` fails at boot and the services waiting on it never start). Everything else in `.env.dev.example` is already dev-appropriate out of the box —
+**test account**, never the owner's real admin address (v17+; always allowed to sign in since
+v69, so it no longer has to appear in `ALLOWED_EMAILS`, which only seeds a fresh database). Everything else in `.env.dev.example` is already dev-appropriate out of the box —
 notably `LADDER_SECONDS` is pre-shortened to seconds instead of hours, since testing the real
 retry ladder shouldn't take literal days.
 
@@ -86,12 +86,10 @@ since nothing here is reachable from anywhere else regardless.
 
 ## 4. Seeding a second user for multi-user testing (v17+)
 
-Add a second address to `ALLOWED_EMAILS` (comma-separated, `ADMIN_EMAIL` stays whichever test
-account should be the dev operator) and recreate `api`:
-
-```bash
-docker compose up -d api
-```
+Since v69, sign in as the dev `ADMIN_EMAIL` and add the second address on `/users` (`g u`): it can
+sign in at once, with no restart. `ALLOWED_EMAILS` only seeds a fresh database (the first `migrate`
+imports it); editing it later does nothing but make `api` log a startup warning. `ADMIN_EMAIL` stays
+whichever test account should be the dev operator.
 
 The second identity's `users` row is created automatically on its first successful login — real
 login needs a real password against whichever upstream `UPSTREAM_AUTH_BASE_URL` points at
@@ -109,6 +107,9 @@ from app.services.users import get_or_create_user
 from app.services.sessions import create_session
 db = SessionLocal()
 user = get_or_create_user(db, 'second@example.com')
+# v69: every cookie request re-checks the allowlist, so the address needs its row too.
+from app.models import AllowedEmail
+db.merge(AllowedEmail(email=user.email))
 session = create_session(db, user.id)
 db.commit()
 print(session.token)
@@ -230,7 +231,7 @@ the v39–v47 UI rework, so run it before calling any frontend change done.
 **One-time setup**
 
 1. Two **test** identities that log in through the real upstream: one is the dev `.env`'s
-   `ADMIN_EMAIL`, the other isn't, and both are in `ALLOWED_EMAILS`. Register fresh ones freely
+   `ADMIN_EMAIL`, the other isn't, and both may sign in (in `ALLOWED_EMAILS` before the first `migrate`, or added on `/users` since v69). Register fresh ones freely
    (§4). Never the owner's real account. Keep both **dedicated to the suite**: every run cancels
    whatever they have in flight and archives the rest of their jobs, so manual admin testing
    belongs on another account (the dev `ADMIN_EMAIL` can be switched back for it).
@@ -354,7 +355,11 @@ service refuses to start. The script refuses:
   since the database volume was initialised with that password);
 - the slot's test identities only: `ALLOWED_EMAILS=v5s<slot>admin@example.com,v5s<slot>user@example.com`,
   `ADMIN_EMAIL=v5s<slot>admin@example.com` (`AGENT_EXTRA_EMAILS=a@example.com,…` before `env` adds more,
-  test identities only: each at example.com/.net/.org or a `.test`, `.example` or `.invalid` domain);
+  test identities only: each at example.com/.net/.org or a `.test`, `.example` or `.invalid` domain;
+  v69: `AGENT_ADMIN_EMAIL=a@example.com` replaces the slot's admin address, for a slot whose upstream
+  admin account was lost). **Since v69 the list is imported only on the slot database's first
+  `migrate`**: an identity added later goes in through `/users` as the slot's admin, or with a
+  `down --volumes` reset and a new `up` (which imports the list again);
 - copied from `.env`, only engine and download tuning plus the upstream login: `UPSTREAM_AUTH_BASE_URL`
   (the real `vb2007.hu-api`), `SPOTIFY_CLIENT_*`, `LADDER_SECONDS`, `STALE_TRACK_AFTER_SECONDS`, pacing,
   format, bitrate and `DOWNLOAD_OUTPUT_DIR`, `PROXY_FILE`, `COOKIE_FILE`, `YOUTUBE_PLAYER_CLIENTS`. Never `.env`'s
@@ -399,6 +404,10 @@ The first `e2e` also saves that file as `<git common dir>/agent-stack/e2e.s<slot
 checkout's `.git/agent-stack/`, shared by every worktree), and a later worktree without its own
 file uses that one: the next slice in the slot can't register the same addresses again. All four
 slots' identities were registered and saved during v50, so a slot's first agent needs no setup.
+**v69 (2026-11-02):** slot 3's were lost in a cleanup, and `api.vb2007.hu` now refuses to register
+an address whose domain can't receive mail (every `example.com` one). Slot 3 therefore reuses slot
+5's saved accounts (`AGENT_ADMIN_EMAIL=v5s5admin@example.com AGENT_EXTRA_EMAILS=v5s5user@example.com`,
+and `.env.e2e.s3` holds slot 5's credentials); slot stacks share no data, so this is safe.
 `e2e` exports that file's keys, so they win over a `frontend/e2e/.env.e2e` in the worktree, but
 the suite still reads that file for any key the slot file lacks: keep the slot file complete, or
 the worktree free of `.env.e2e`.
@@ -548,7 +557,7 @@ from before v52 needs nothing by hand.
 | `web` fails with `Bind for 127.0.0.1:5173 failed: port is already allocated`, even though nothing else is using that port | `docker-compose.override.yml`'s `ports:` list *merges* with `docker-compose.yml`'s instead of replacing it (list-type keys merge by default across compose files — `command`/`build` don't, so this is easy to miss), so `web` ends up with two host bindings to the same address | Confirmed fixed for `web` via the `!override` merge tag on its `ports:` key — if you add a *new* port mapping to any service in the override, check `docker compose config` for duplicates rather than assuming a plain list will replace the base file's |
 | Stack was working, comes back broken after `docker compose down && up` with no config changes | Check `docker compose config` for the resolved service definitions before assuming it's a code regression — compose-file merge behavior is a common source of surprises that look like app bugs | |
 | `migrate` exits at boot (and api/workers/beat never start, since they wait on it) with `SPOTDL_ENV=dev but DATABASE_URL points at the production database …` or `… can't be parsed` / `… names no database` (v32) | The local `.env`'s `DATABASE_URL` points at production's database, or is malformed. The dev guard refuses rather than risk production rows | Point `DATABASE_URL` at `spotdlwebtest` (see [Dedicated dev database](#dedicated-dev-database)). Never remove `SPOTDL_ENV` from the override to get past it |
-| `migrate` fails at boot (api/workers/beat never start) with a `pydantic.ValidationError` naming `ADMIN_EMAIL` (v17+) | Either `ADMIN_EMAIL` is unset in `.env`, or it's set but not also present in `ALLOWED_EMAILS` — both are required at startup, by design | Add `ADMIN_EMAIL=you@example.com` to `.env` and make sure that same address is also in `ALLOWED_EMAILS` |
+| `migrate` fails at boot (api/workers/beat never start) with a `pydantic.ValidationError` naming `ADMIN_EMAIL` (v17+) | `ADMIN_EMAIL` is unset in `.env` (required at startup, by design; since v69 it needn't be in `ALLOWED_EMAILS`) | Add `ADMIN_EMAIL=you@example.com` to `.env` |
 | After editing a backend file, `api` logs `Waiting for connections to close` and stops answering (v48) | `uvicorn --reload` waits for every open response before restarting, and an `/api/stream` SSE response (a browser tab, a `curl -N`, a Playwright run) never ends on its own | Fixed in v52: the dev `api` runs with `--timeout-graceful-shutdown 3`, so the reload goes ahead after 3 s and open streams reconnect. If it still hangs, `docker compose restart api` |
 | A backend change works through `api` but a task still runs the old code | Before v52, Celery workers didn't hot-reload: they keep the Python they imported at boot | Fixed in v52 for `worker-dl`, `worker-meta` and `worker-expand`: `scripts/dev/reload.py` restarts them on a `.py` change under `backend/app` (their logs show `dev-reload: changed: …`). `beat` isn't wrapped: `docker compose restart beat` after editing its schedule. A worker whose edit broke its import exits, and Docker restarts it until the edit is fixed (`dev-reload: celery exited on its own (…)` in its log). A `docker compose run` one-off on a worker service that isn't a `celery … worker` command is `exec`ed as is, never watched |
 | A frontend dependency change doesn't show up in `web` (v46) | `web`'s `node_modules` is a volume (`docker-compose.override.yml`), which outlives an image rebuild | Since v52, `docker compose restart web`: the dev command compares `package-lock.json` with the stamp of the lockfile `node_modules` was installed from, and runs `npm ci` into the volume when they differ (its log says so). A plain `up -d` doesn't restart a container whose image didn't change, so restart it. No `--renew-anon-volumes` |

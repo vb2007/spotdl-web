@@ -12,7 +12,7 @@ from app.db import get_db
 from app.errors import ApiError
 from app.models import DownloadedTrack, Job, JobSourceType, JobState, Track, TrackAttemptOutcome, TrackState, User
 from app.routers.auth import Principal, require_admin_hidden, require_session, require_session_or_api_key
-from app.services import archive, attempts, events, job_listing, job_status, rate_limit, retry, rollup, spotify_urls, track_listing, watch
+from app.services import allowlist, archive, attempts, events, job_listing, job_status, rate_limit, retry, rollup, spotify_urls, track_listing, watch
 from app.services.pagination import DEFAULT_LIMIT, InvalidCursor
 from app.services.serializers import job_to_dict, track_counts, track_song_meta
 from app.services.track_states import CANCELLABLE_TRACK_STATES, cancelled_used_proxy_id
@@ -205,6 +205,14 @@ def create_job(
     # NO KEY UPDATE: it doesn't block the KEY SHARE locks a concurrent insert referencing the
     # user takes (a login's session row).
     db.query(User.id).filter(User.id == user.id).with_for_update(key_share=True).one()
+    # v69: the owner may still sign in, read now (a cascade's Spotify call took seconds since
+    # the session check) and held `FOR SHARE` until the job commits, as a login does: a removal
+    # meanwhile waits for this job, then holds it with the user's other unstarted jobs.
+    if not allowlist.is_allowed(db, user.email, lock=True):
+        db.rollback()
+        if principal.api_key is not None:
+            raise ApiError(401, "api_key_invalid", "Invalid or revoked API key")
+        raise ApiError(401, "not_authenticated", "Not authenticated")
     existing = _unfinished_job(db, user.id, source_url)
     if existing is not None:
         # Nothing to write: let the lock go before building the answer.
@@ -479,7 +487,7 @@ def cancel_job(
     # cancellable tracks are exactly what makes a job `active`/`waiting`, rollup.py.)
     if job.state not in (JobState.EXPANDING, JobState.FAILED) and not cancelled_tracks:
         db.rollback()
-        status = rollup.derive_rollup(job.state, track_counts(db, job.id))
+        status = rollup.derive_rollup(job.state, track_counts(db, job.id), held=job.held_at is not None)
         raise ApiError(
             409,
             "job_not_cancellable",
@@ -625,6 +633,15 @@ def reexpand_job(
             "job_not_reexpandable",
             "Only a job submitted as a link can be checked for new tracks",
             {"reason": "source_type", "source_type": job.source_type.value},
+        )
+    if not allowlist.is_allowed(db, owner_email):
+        # v69: its owner's address is off the allowlist, so a check would add nothing (expand
+        # skips it, as beat does): say so rather than stamp a check that never happens.
+        raise ApiError(
+            409,
+            "job_not_reexpandable",
+            "Its owner can't sign in any more; add the address again first",
+            {"reason": "owner_removed"},
         )
     try:
         token = watch.claim_run(job.id)

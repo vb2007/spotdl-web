@@ -10,13 +10,11 @@ Rules:
 
 ## Project: spotdl-web
 
-A self-hosted web wrapper around the **spotdl** Python library. Users submit Spotify
-album/playlist/artist/track URLs; the app downloads everything in the background, treating
-YouTube-Music rate limiting as an expected, permanent condition rather than a failure.
+A self-hosted web wrapper around the **spotdl** Python library. Users submit Spotify album/playlist/artist/track URLs; the app
+downloads everything in the background, treating YouTube-Music rate limiting as an expected, permanent condition rather than a failure.
 
-**Core goal: get everything by dodging rate limits, even if it takes an extremely long time.**
-That inverts normal web-app priorities — durability beats throughput. A track may legitimately sit
-in the queue for days, and that is correct behavior, not a stall.
+**Core goal: get everything by dodging rate limits, even if it takes an extremely long time.** That inverts normal web-app priorities —
+durability beats throughput. A track may legitimately sit in the queue for days, and that is correct behavior, not a stall.
 
 **Status:** masters v1–v4 (v00–v48) are complete and shipping to `spotdl.vb2007.hu`. **Master v5 (v49–v70)
 is in progress**: close every open gotcha, a Firefox extension, an admin "others" view, new features.
@@ -37,8 +35,7 @@ is in progress**: close every open gotcha, a Firefox extension, an admin "others
 - **One feature per agent, in order.** Never one out of order (the sequencing is deliberate). From v5, up
   to 4 slices of the **same wave** run in parallel, each in its own worktree and slot stack, per the master
   plan's parallel model and rebase protocol (wave 0: v49 ∥ v50, v49 merged first). Subagents stay in a slice.
-- **Branch per version**: `dev-<feature-name>` from `main`, one PR into `main` per version (a
-  "version" is a feature slice, not a release).
+- **Branch per version**: `dev-<feature-name>` from `main`, one PR into `main` per version (a "version" is a feature slice, not a release).
 - **"Done when" is a literal checklist.** Every bullet needs its own concrete evidence gathered *this
   session*; one scenario passing never proves a differently shaped one (v05's album, v11's bump
   endpoint). Re-read the plan's list fresh before saying merge-ready.
@@ -50,12 +47,11 @@ is in progress**: close every open gotcha, a Firefox extension, an admin "others
   `https://api.vb2007.hu`; register a fresh test account freely), not only the direct-session-mint
   fallback (`docs/GOTCHAS.md` v15). Skip only if neither is reachable, and say so explicitly.
 - **Context comes from graphify, not exploration agents** (`query`/`path`/`explain` first; `update .` after code changes).
-- **Every version slice bumps the one shared app version**: identical `major.minor.patch` (master .
-  slice, e.g. v21 → `2.21.0`) in `backend/pyproject.toml` and `frontend/package.json`, both bumped even if
-  one side changed, plus `uv lock`; CI's `version` job enforces it (a PR touching neither needs no bump,
-  cuts no release; `extension/` has its own version). **A new
-  required compose variable (`${VAR:?}`)** follows `docs/RELEASE_PIPELINE.md`'s "Adding a required
-  env var" checklist and goes under the PR's "Deploy notes" (preflight and CI's drift check fail on it).
+- **Every version slice bumps the one shared app version**: identical `major.minor.patch` (master . slice, e.g. v21 →
+  `2.21.0`) in `backend/pyproject.toml` and `frontend/package.json`, both bumped even if one side changed, plus `uv lock`;
+  CI's `version` job enforces it (a PR touching neither needs no bump, cuts no release; `extension/` has its own version).
+  **A new required compose variable (`${VAR:?}`)** follows `docs/RELEASE_PIPELINE.md`'s "Adding a required env var" checklist
+  and goes under the PR's "Deploy notes" (preflight and CI's drift check fail on it).
 - **Develop locally, deploy to verify; minimize SSH** (the host runs Matrix/Synapse, Vaultwarden); batch host actions.
 
 ### Development environments
@@ -98,8 +94,8 @@ name and role; never copy one's into another.
 
 | Area | Decision |
 |---|---|
-| User identity | Real `users` table, row created on first successful login. `ALLOWED_EMAILS` gates *who may log in*; the table governs *what they own and may do* |
-| Admin | `is_admin` column seeded from `ADMIN_EMAIL` (which must also be in `ALLOWED_EMAILS` — validated at startup) |
+| User identity | Real `users` table, row created on first successful login. The `allowed_emails` table (v69, managed by the admin on `/users`; `ALLOWED_EMAILS` only seeds it once) gates *who may log in*; `users` governs *what they own and may do*. Removal ends sessions, streams and API keys at once and holds unstarted jobs |
+| Admin | `is_admin` column seeded from `ADMIN_EMAIL`, which is always allowed to sign in and can't be removed from the allowlist (v69) |
 | Data separation | **DB-level only.** Jobs/tracks are per-user; downloaded files stay in one shared library |
 | Dedup under multi-user | Stays global — a track another user already downloaded resolves instantly as `skipped_duplicate`. Never re-fetch the same audio per user |
 | Ownership column | On `jobs` only; tracks inherit via `job_id`. A denormalized copy would be a second source of truth that can drift |
@@ -233,11 +229,11 @@ any ──> cancelled
 
 ### Job rollup status (v2) — two derived axes, never one stored flag
 
-**Lifecycle**: `expanding` · `failed` (expansion errored, zero tracks) · `cancelled` · `active`
-(≥1 track `pending`/`queued`/`downloading`) · `waiting` (no active, ≥1 `waiting`) · `settled` (all
-terminal). **Outcome**, only once `settled`: `complete` (all `completed`/`skipped_duplicate`) vs
-`partial` (≥1 `lookup_failed`/`cancelled`): a 10-track album with 1 `LookupError` is "Done — 9 of
-10", never "failed" or a bare green tick. Both axes are derived in SQL, never stored.
+**Lifecycle**: `expanding` · `held` (v69: `held_at` set, owner removed before it started; wins while it's expanding or has
+a track to run, never over `failed`/`cancelled`) · `failed` (expansion errored, zero tracks) · `cancelled` · `active` (≥1 track
+`pending`/`queued`/`downloading`) · `waiting` (no active, ≥1 `waiting`) · `settled` (all terminal). **Outcome**, only once
+`settled`: `complete` (all `completed`/`skipped_duplicate`) vs `partial` (≥1 `lookup_failed`/`cancelled`): a 10-track album
+with 1 `LookupError` is "Done — 9 of 10", never "failed" or a bare green tick. Both axes are derived in SQL, never stored.
 
 ## Version roadmap
 
