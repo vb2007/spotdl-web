@@ -8112,9 +8112,13 @@ independently-found production bug from the same conversation)
   no session or key gate, and only FastAPI's docs pages may be one. Review rounds 1 and 2 widened
   it: low-priority routes (`app.frontend()`), included routers' own prefix and dependencies, a
   middleware stack of CORS only (an `@app.middleware("http")` endpoint has no route object at
-  all), the extension's `X-Spotdl-Client` header on every request, and a reference scan of
-  `app/` for anything that reads a key outside `require_session_or_api_key` (aliases, `_hash`,
-  `ApiKey.hash`, module level, a direct call of the dependency).
+  all), a second walk with every key carrier at once (`X-Spotdl-Client`, a `moz-extension://`
+  origin, `X-Api-Key`, `?key=`), and a scan of `app/` (the key service included) for anything
+  reaching the key lookup outside `require_session_or_api_key`, resolved through each module's
+  imports, not by name: aliases, `auth.require_session_or_api_key(...)`, `.dependency`,
+  `ApiKey.hash` or `filter_by(hash=)`, a new wrapper in `api_keys.py`. It's name resolution, not
+  a proof (code written to hide a lookup, `getattr` on a built string, isn't a route "added
+  without considering keys"); the carrier walk backs it.
 - **Driving the signed extension in release Firefox 159** (extends v58's harness notes):
   - chrome context needs both `--remote-allow-system-access` and `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`;
   - `WebDriver:ExecuteScript`'s body isn't an async function: wrap it in an async IIFE that gets

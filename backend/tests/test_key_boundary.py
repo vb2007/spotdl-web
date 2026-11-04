@@ -159,10 +159,14 @@ def test_no_router_is_included_with_a_prefix_or_dependencies():
 
 
 def _key_references() -> list[tuple[str, str, str]]:
-    """Every place in `app/` (module level included) that names something a key is read with:
-    `authenticate`/`_hash` (however imported or aliased), `_bearer_token`, `ApiKey.hash`, and
-    `require_session_or_api_key` used any way but as a `Depends(...)` argument. Each as
-    (file, enclosing function or "<module>", what)."""
+    """Every place in `app/` (module level included, the key service itself too) that reaches
+    what a key is read with, resolved through the module's imports rather than by bare name:
+    `api_keys.authenticate`/`_hash` (however imported or aliased), `auth._bearer_token`,
+    `ApiKey.hash` (as an attribute of the class, however reached, or a `filter_by(hash=...)`),
+    `.dependency` (a `Depends` object's callable), and `require_session_or_api_key` referenced any
+    way but as a `Depends`/`Security` argument. Each as (file, enclosing function or "<module>",
+    what). A name that only looks alike (another module's `_hash`, an SMTP client's
+    `authenticate`) isn't one (review rounds 1-3)."""
     import ast
     from pathlib import Path
 
@@ -173,10 +177,44 @@ def _key_references() -> list[tuple[str, str, str]]:
 
     class Visitor(ast.NodeVisitor):
         def __init__(self, rel):
-            self.rel, self.stack, self.depends_args = rel, [], set()
+            self.rel, self.stack, self.exempt = rel, [], set()
+            # What each local name stands for, from this module's own imports (and, in the module
+            # that defines a target, its own top-level name).
+            own = {
+                "services/api_keys.py": {"authenticate": "authenticate", "_hash": "_hash"},
+                "routers/auth.py": {"_bearer_token": "_bearer_token", "require_session_or_api_key": "dependency"},
+                "models/api_key.py": {"ApiKey": "ApiKey"},
+            }
+            self.names = dict(own.get(rel, {}))  # local name -> target
+            self.modules = {}  # local name -> "api_keys" | "auth" | "models"
 
         def _note(self, what):
             found.append((self.rel, self.stack[-1] if self.stack else "<module>", what))
+
+        def visit_ImportFrom(self, node):
+            mod = node.module or ""
+            for alias in node.names:
+                local = alias.asname or alias.name
+                if mod == "app.services" and alias.name == "api_keys":
+                    self.modules[local] = "api_keys"
+                elif mod == "app.routers" and alias.name == "auth":
+                    self.modules[local] = "auth"
+                elif mod == "app" and alias.name == "models":
+                    self.modules[local] = "models"
+                elif mod == "app.services.api_keys" and alias.name in ("authenticate", "_hash"):
+                    self.names[local] = alias.name
+                elif mod == "app.routers.auth" and alias.name == "_bearer_token":
+                    self.names[local] = "_bearer_token"
+                elif mod == "app.routers.auth" and alias.name == "require_session_or_api_key":
+                    self.names[local] = "dependency"
+                elif mod in ("app.models", "app.models.api_key") and alias.name == "ApiKey":
+                    self.names[local] = "ApiKey"
+
+        def visit_Import(self, node):
+            for alias in node.names:
+                kind = {"app.services.api_keys": "api_keys", "app.routers.auth": "auth", "app.models": "models"}
+                if alias.name in kind and alias.asname:
+                    self.modules[alias.asname] = kind[alias.name]
 
         def visit_FunctionDef(self, node):
             self.stack.append(node.name)
@@ -185,51 +223,73 @@ def _key_references() -> list[tuple[str, str, str]]:
 
         visit_AsyncFunctionDef = visit_FunctionDef
 
+        def _target(self, node):
+            """The target `node` (a Name or an Attribute) refers to, if any."""
+            if isinstance(node, ast.Name):
+                return self.names.get(node.id)
+            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+                module = self.modules.get(node.value.id)
+                if module == "api_keys" and node.attr in ("authenticate", "_hash"):
+                    return node.attr
+                if module == "auth" and node.attr == "_bearer_token":
+                    return "_bearer_token"
+                if module == "auth" and node.attr == "require_session_or_api_key":
+                    return "dependency"
+                if module == "models" and node.attr == "ApiKey":
+                    return "ApiKey"
+            return None
+
         def visit_Call(self, node):
             func = node.func
             name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
-            if name == "Depends":
-                self.depends_args.update(id(arg) for arg in node.args)
-            self.generic_visit(node)
-
-        def visit_ImportFrom(self, node):
-            for alias in node.names:
-                if alias.name in ("authenticate", "_hash", "_bearer_token"):
-                    self._note(f"import {alias.name}")
-                # An alias would hide a direct call from the Name check below.
-                if alias.name == "require_session_or_api_key" and alias.asname:
-                    self._note(f"import require_session_or_api_key as {alias.asname}")
-
-        def visit_Attribute(self, node):
-            if node.attr in ("authenticate", "_hash", "_bearer_token"):
-                self._note(node.attr)
-            if node.attr == "hash" and isinstance(node.value, ast.Name) and node.value.id == "ApiKey":
+            if name in ("Depends", "Security"):
+                self.exempt.update(id(arg) for arg in node.args)
+                self.exempt.update(id(k.value) for k in node.keywords if k.arg == "dependency")
+            if name == "filter_by" and any(k.arg == "hash" for k in node.keywords):
                 self._note("ApiKey.hash")
             self.generic_visit(node)
 
+        def _check(self, node):
+            target = self._target(node)
+            if target == "dependency":
+                if id(node) not in self.exempt:
+                    self._note("require_session_or_api_key outside Depends")
+            elif target in ("authenticate", "_hash", "_bearer_token"):
+                self._note(target)
+
         def visit_Name(self, node):
-            if node.id in ("authenticate", "_hash", "_bearer_token"):
-                self._note(node.id)
-            if node.id == "require_session_or_api_key" and id(node) not in self.depends_args:
-                self._note("require_session_or_api_key outside Depends")
+            self._check(node)
+
+        def visit_Attribute(self, node):
+            if node.attr == "dependency":
+                self._note(".dependency")
+            if node.attr == "hash" and self._target(node.value) == "ApiKey":
+                self._note("ApiKey.hash")
+            if self._target(node) is not None:
+                self._check(node)
+                return  # its value (the module name) is no reference of its own
+            self.generic_visit(node)
 
     for path in sorted(root.rglob("*.py")):
         rel = str(path.relative_to(root))
-        if rel == "services/api_keys.py":
-            continue  # the key service itself: its own hashing and lookup
         Visitor(rel).visit(ast.parse(path.read_text(), filename=str(path)))
     return found
 
 
 def test_only_the_key_dependency_reads_a_key():
     """A key is read in one place: `require_session_or_api_key` (`_bearer_token`, then
-    `api_keys.authenticate`), and that dependency is only ever a `Depends(...)` argument, so
-    no other dependency can call it under a condition of its own (an extra header, say). Review
-    rounds 1 and 2: aliases, a direct `ApiKey.hash` lookup, module-level code and a direct call
-    all fail here."""
+    `api_keys.authenticate`), the key service hashes and looks it up only inside `create_key`
+    and `authenticate`, and the dependency is only ever a `Depends`/`Security` argument, so no
+    other dependency can call it under a condition of its own. Name-resolution, not a proof:
+    code written to hide a key lookup from it (`getattr` with a built string, say) isn't
+    "a route added without considering keys"; the behavioural walk below sends every key
+    carrier there is, so a route that answers one still fails there."""
     assert sorted(set(_key_references())) == [
         ("routers/auth.py", "require_session_or_api_key", "_bearer_token"),
         ("routers/auth.py", "require_session_or_api_key", "authenticate"),
+        ("services/api_keys.py", "authenticate", "ApiKey.hash"),
+        ("services/api_keys.py", "authenticate", "_hash"),
+        ("services/api_keys.py", "create_key", "_hash"),
     ]
 
 
@@ -257,19 +317,22 @@ def test_only_the_key_routes_accept_a_key():
     assert accepting == KEY_ROUTES
 
 
-@pytest.mark.parametrize(
-    "client_header", [None, "extension/1.0.2"], ids=["bearer", "bearer+extension"]
-)
+@pytest.mark.parametrize("carriers", ["bearer", "every-carrier"])
 @pytest.mark.parametrize("holder", ["admin", "user"])
 @pytest.mark.parametrize("method,path", DENIED)
-def test_a_key_is_refused_on_every_other_route(request, client, holder, client_header, method, path):
+def test_a_key_is_refused_on_every_other_route(request, client, holder, carriers, method, path):
     """Behavioral, deny-by-default: every route outside the key and public ones answers a key
     401 `not_authenticated`, admin routes included (a key is no credential there, so it never
-    reaches the admin check, let alone passes it). Also as the extension sends it, with
-    `X-Spotdl-Client` (the app branches on that header; review round 2)."""
+    reaches the admin check, let alone passes it). Once as the plain `Bearer`, once with every
+    way a client could carry it or say it's the extension at the same time (`X-Spotdl-Client`,
+    a `moz-extension://` origin, `X-Api-Key`, `?key=`/`?api_key=`), so a dependency that accepts
+    a key only on one of them fails too (review rounds 2-3)."""
     raw = _key(request, holder)
-    headers = bearer(raw) | ({"X-Spotdl-Client": client_header} if client_header else {})
-    response = client.request(method, _fill(path), headers=headers, json={})
+    headers, url = bearer(raw), _fill(path)
+    if carriers == "every-carrier":
+        headers |= {"X-Spotdl-Client": "extension/1.0.2", "Origin": "moz-extension://a1b2c3", "X-Api-Key": raw}
+        url += f"?key={raw}&api_key={raw}"
+    response = client.request(method, url, headers=headers, json={})
     assert response.status_code == 401, (method, path, response.status_code, response.text)
     assert response.json()["code"] == "not_authenticated", (method, path, response.text)
 
