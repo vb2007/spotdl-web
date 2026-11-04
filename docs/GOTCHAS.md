@@ -8113,10 +8113,11 @@ independently-found production bug from the same conversation)
   it: low-priority routes (`app.frontend()`), included routers' own prefix and dependencies, a
   middleware stack of CORS only (an `@app.middleware("http")` endpoint has no route object at
   all), a second walk with every key carrier at once (`X-Spotdl-Client`, a `moz-extension://`
-  origin, `X-Api-Key`, `?key=`, `?api_key=`), routes serving only HEAD, **fingerprints** of the four functions that read a key
+  origin, `X-Api-Key`, `?key=`, `?api_key=`), routes serving only HEAD, the **pinned source** of the four functions that read a key
   (`_bearer_token`, `require_session_or_api_key`, `api_keys.authenticate`, `_hash`: their
-  `ast.unparse` text without the docstring, the same on every Python, one definition each, so a
-  new carrier inside one fails until reviewed), plain `APIRoute`s only (a custom route class can
+  `ast.unparse` text without the docstring, the same on every Python, one definition each, in
+  `tests/fixtures/key_readers.txt`, so a new carrier inside one fails with a diff until reviewed;
+  hashes of it read as "high-entropy secrets" to GitGuardian), plain `APIRoute`s only (a custom route class can
   rewrite the request before any of them sees it), examples of carriers
   the key routes refuse (other headers and schemes, URL params, the body), and an **inventory**: every (file, scope, name) in `app/` naming the key
   machinery (`ApiKey`, `api_keys`, `api_key`, `hash`, `_hash`, `authenticate`, `_bearer_token`,

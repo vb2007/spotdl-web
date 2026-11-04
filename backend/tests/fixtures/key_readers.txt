@@ -1,0 +1,52 @@
+# routers/auth.py:_bearer_token
+def _bearer_token(request: Request) -> str | None:
+    scheme, _, token = request.headers.get('authorization', '').partition(' ')
+    if scheme.lower() != 'bearer' or not token.strip():
+        return None
+    return token.strip()
+
+# routers/auth.py:require_session_or_api_key
+def require_session_or_api_key(request: Request, db: Session=Depends(get_db)) -> Principal:
+    token = request.cookies.get(COOKIE_NAME)
+    if token is not None:
+        session = get_valid_session(db, token)
+        if session is not None:
+            user = db.get(User, session.user_id)
+            if user is not None:
+                if not allowlist.is_allowed(db, user.email):
+                    db.rollback()
+                    raise _off_the_allowlist(request)
+                db.commit()
+                return Principal(user)
+    bearer = _bearer_token(request)
+    if bearer is None:
+        raise _no_session(db, request, token)
+    key = api_keys.authenticate(db, bearer)
+    user = db.get(User, key.user_id) if key is not None else None
+    if user is not None and (not allowlist.is_allowed(db, user.email)):
+        user = None
+    if user is None:
+        raise ApiError(401, 'api_key_invalid', 'Invalid or revoked API key')
+    db.commit()
+    return Principal(user, key)
+
+# services/api_keys.py:authenticate
+def authenticate(db: Session, raw_key: str) -> ApiKey | None:
+    if not looks_like_key(raw_key):
+        return None
+    key = db.query(ApiKey).filter(ApiKey.hash == _hash(raw_key), ApiKey.revoked_at.is_(None)).one_or_none()
+    if key is None:
+        return None
+    now = datetime.now(timezone.utc)
+    last_used_at = key.last_used_at
+    if last_used_at is not None and last_used_at.tzinfo is None:
+        last_used_at = last_used_at.replace(tzinfo=timezone.utc)
+    if last_used_at is None or now - last_used_at >= LAST_USED_RESOLUTION:
+        key.last_used_at = now
+        db.flush()
+    return key
+
+# services/api_keys.py:_hash
+def _hash(raw_key: str) -> str:
+    return hashlib.sha256(raw_key.encode('utf-8')).hexdigest()
+

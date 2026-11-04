@@ -15,6 +15,7 @@ an admin's key."""
 
 import re
 import uuid
+from pathlib import Path
 
 import pytest
 from fastapi.routing import APIRoute
@@ -366,28 +367,28 @@ def test_the_key_machinery_is_touched_only_where_it_was():
     assert not KEY_INVENTORY - now, f"gone (update KEY_INVENTORY): {sorted(KEY_INVENTORY - now)}"
 
 
-# The functions that read a key, fingerprinted (their AST without the docstring): the inventory
-# pins *where* the key machinery is named, not what a function already on it does, so a new
-# carrier inside one of these (a query param, another header, the cookie's value) moved nothing
-# there (review round 9). A change here is meant to fail until someone checks it; the hash is of
-# `ast.unparse` output, the same on every Python version.
-KEY_READERS = {
-    ("routers/auth.py", "_bearer_token"): "d75aa09516fdea14",
-    ("routers/auth.py", "require_session_or_api_key"): "558c6f2e6f9bb9ea",
-    ("services/api_keys.py", "authenticate"): "27807e3d1a7b2f27",
-    ("services/api_keys.py", "_hash"): "22a4708765eda3cb",
-}
+# The functions that read a key, pinned as their source: the inventory pins *where* the key
+# machinery is named, not what a function already on it does, so a new carrier inside one of these
+# (a query param, another header, the cookie's value) moved nothing there (review round 9). Kept as
+# normalized source (`ast.unparse`, docstring dropped: the same text on every Python version) in
+# tests/fixtures/key_readers.txt, so a change fails with a readable diff, not a hash (review
+# round 10; a hash also read as a "high-entropy secret" to GitGuardian).
+KEY_READERS = [
+    ("routers/auth.py", "_bearer_token"),
+    ("routers/auth.py", "require_session_or_api_key"),
+    ("services/api_keys.py", "authenticate"),
+    ("services/api_keys.py", "_hash"),
+]
+KEY_READERS_FIXTURE = Path(__file__).parent / "fixtures" / "key_readers.txt"
 
 
-def _fingerprint(rel: str, name: str) -> str:
-    """The function as source (`ast.unparse`: comments and formatting don't count, and the text
-    is the same on every Python), without its docstring, `async` kept. Exactly one top-level
-    definition may carry the name: Python binds the last one, so a second `def` below the first
-    (a bad merge, say) would otherwise run unfingerprinted (review round 10)."""
+def _reader_source(rel: str, name: str) -> str:
+    """The function as source (`ast.unparse`: comments and formatting don't count), without its
+    docstring, `async` kept. Exactly one top-level definition may carry the name: Python binds
+    the last one, so a second `def` below the first (a bad merge, say) would otherwise run
+    unpinned (review round 10)."""
     import ast
     import copy
-    import hashlib
-    from pathlib import Path
 
     import app as app_package
 
@@ -397,15 +398,21 @@ def _fingerprint(rel: str, name: str) -> str:
     fn = copy.copy(defs[0])
     if fn.body and isinstance(fn.body[0], ast.Expr) and isinstance(fn.body[0].value, ast.Constant):
         fn.body = fn.body[1:] or [ast.Pass()]  # its docstring: words, not behaviour
-    return hashlib.sha256(ast.unparse(fn).encode()).hexdigest()[:16]
+    return ast.unparse(fn)
 
 
-@pytest.mark.parametrize("rel,name", sorted(KEY_READERS))
-def test_the_functions_that_read_a_key_are_unchanged(rel, name):
+def _readers_text() -> str:
+    return "".join(f"# {rel}:{name}\n{_reader_source(rel, name)}\n\n" for rel, name in KEY_READERS)
+
+
+def test_the_functions_that_read_a_key_are_unchanged():
     """How a key is read (which carriers, which checks) changes only on purpose: an edit to one
     of these functions fails until it's reviewed against the boundary (the key routes only, a
-    key as `Authorization: Bearer` only) and its fingerprint updated here."""
-    assert _fingerprint(rel, name) == KEY_READERS[(rel, name)], f"{rel}:{name} changed: review it, then update KEY_READERS"
+    key as `Authorization: Bearer` only) and tests/fixtures/key_readers.txt is updated to the
+    text this test shows."""
+    assert _readers_text() == KEY_READERS_FIXTURE.read_text(), (
+        "a function that reads a key changed: review it, then update tests/fixtures/key_readers.txt"
+    )
 
 
 def test_every_route_has_a_method_to_test():
