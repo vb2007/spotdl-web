@@ -169,8 +169,8 @@ def test_no_router_is_included_with_a_prefix_or_dependencies():
 
 # Every name the key machinery goes by: the model, its modules, its hash, the lookup, the bearer
 # parse and the dependency. Matched by spelling (a name, an attribute, an import and its module
-# path, a keyword, a string naming the table), whatever imports it, so new code touching the
-# machinery names one in all but the owner-accepted cases (a name hidden on purpose).
+# path, a keyword, a string naming the table), whatever imports it. New code touching the
+# machinery is meant to name one; a name hidden on purpose is the owner-accepted gap.
 KEY_NAMES = {"ApiKey", "api_keys", "api_key", "hash", "_hash", "authenticate", "_bearer_token", "require_session_or_api_key"}
 
 
@@ -201,9 +201,21 @@ KEY_INVENTORY = {
     ('models/api_key.py', 'ApiKey', 'hash'),
     ('models/api_key.py', 'ApiKey', 'string naming api_keys'),
     ('routers/account_keys.py', '<module>', 'api_keys'),
+    ('routers/account_keys.py', 'create_api_key', 'ApiKeyLimitReached'),
+    ('routers/account_keys.py', 'create_api_key', 'LABEL_MAX_LENGTH'),
+    ('routers/account_keys.py', 'create_api_key', 'LabelInvalid'),
+    ('routers/account_keys.py', 'create_api_key', 'MAX_ACTIVE_KEYS'),
     ('routers/account_keys.py', 'create_api_key', 'api_keys'),
+    ('routers/account_keys.py', 'create_api_key', 'create_key'),
+    ('routers/account_keys.py', 'create_api_key', 'key_to_dict'),
+    ('routers/account_keys.py', 'create_api_key', 'normalize_label'),
+    ('routers/account_keys.py', 'list_api_keys', 'MAX_ACTIVE_KEYS'),
+    ('routers/account_keys.py', 'list_api_keys', 'active_keys'),
     ('routers/account_keys.py', 'list_api_keys', 'api_keys'),
+    ('routers/account_keys.py', 'list_api_keys', 'key_to_dict'),
     ('routers/account_keys.py', 'revoke_api_key', 'api_keys'),
+    ('routers/account_keys.py', 'revoke_api_key', 'key_to_dict'),
+    ('routers/account_keys.py', 'revoke_api_key', 'revoke_key'),
     ('routers/auth.py', '<module>', 'ApiKey'),
     ('routers/auth.py', '<module>', 'api_keys'),
     ('routers/auth.py', 'Principal', 'ApiKey'),
@@ -284,13 +296,19 @@ def _key_inventory() -> set[tuple[str, str, str]]:
 
     root = Path(app_package.__file__).parent
     service_names = _key_names() - KEY_NAMES
-    table = re.compile(r"\b(api_keys|ApiKey)\b")
+    table = re.compile(r"\b(api_keys|ApiKey)\b", re.IGNORECASE)  # SQL identifiers fold case
     found = set()
 
     def imports_the_service(tree) -> bool:
-        return any(
-            isinstance(n, ast.ImportFrom) and n.module == "app.services.api_keys" for n in ast.walk(tree)
-        )
+        """Any import of the key service: from it, of it, aliased, or relative (review round 8)."""
+        for n in ast.walk(tree):
+            if isinstance(n, ast.Import) and any(a.name == "app.services.api_keys" for a in n.names):
+                return True
+            if isinstance(n, ast.ImportFrom):
+                module = n.module or ""
+                if module.split(".")[-1] == "api_keys" or any(a.name == "api_keys" for a in n.names):
+                    return True
+        return False
 
     def walk(node, rel, scope, names):
         for child in ast.iter_child_nodes(node):
@@ -315,7 +333,7 @@ def _key_inventory() -> set[tuple[str, str, str]]:
                 # The table or model by name in any string the code uses: SQL (a constant, an
                 # f-string's text, a .format template), `metadata.tables["api_keys"]`,
                 # `relationship("ApiKey")`, a second model's `__tablename__` (review rounds 6-7).
-                found.add((rel, scope, f"string naming {table.search(child.value).group(1)}"))
+                found.add((rel, scope, "string naming " + ("api_keys" if table.search(child.value).group(1).lower() == "api_keys" else "ApiKey")))
             if name in names:
                 found.add((rel, scope, name))
             walk(child, rel, scope, names)
@@ -413,18 +431,39 @@ def test_a_key_is_refused_on_every_other_route(request, client, holder, carriers
         assert response.json()["code"] == "not_authenticated", (method, path, response.text)
 
 
-@pytest.mark.usefixtures("_identities")
-@pytest.mark.parametrize("carrier", ["x-api-key", "query-key", "query-api_key"])
-def test_the_key_routes_take_a_key_only_as_a_bearer(request, client, carrier):
-    """The key routes read a key from `Authorization: Bearer` only: a key in the URL would land
-    in nginx's and cloudflared's access logs (review round 7)."""
+@pytest.mark.parametrize(
+    "carrier",
+    ["x-api-key", "token-scheme", "no-scheme", "query-key", "query-api_key", "query-access_token", "query-token", "body"],
+)
+@pytest.mark.parametrize("route", ["me", "create"])
+def test_the_key_routes_take_a_key_only_as_a_bearer(request, client, carrier, route, monkeypatch):
+    """The key routes read a key from `Authorization: Bearer` only, never from another header or
+    scheme, the URL (it would land in nginx's and cloudflared's access logs) or the body, and not
+    even in the extension's context or beside a dead cookie (review rounds 7-8)."""
+    from app.routers import jobs as jobs_router
+
+    monkeypatch.setattr(jobs_router.expand_job, "delay", lambda *a, **k: None)
     raw = _key(request, "user")
-    headers = {"X-Api-Key": raw} if carrier == "x-api-key" else {}
-    query = {"query-key": f"?key={raw}", "query-api_key": f"?api_key={raw}"}.get(carrier, "")
-    response = client.get(f"/api/auth/me{query}", headers=headers)
-    assert response.status_code == 401, (carrier, response.status_code)
+    headers = {
+        "X-Spotdl-Client": "extension/1.0.2",
+        "Origin": "moz-extension://a1b2c3",
+        "Cookie": "SPOTDL_SESSION=not-a-session",
+    }
+    headers |= {
+        "x-api-key": {"X-Api-Key": raw},
+        "token-scheme": {"Authorization": f"Token {raw}"},
+        "no-scheme": {"Authorization": raw},
+    }.get(carrier, {})
+    query = {k: f"?{k.split('-', 1)[1]}={raw}" for k in ("query-key", "query-api_key", "query-access_token", "query-token")}
+    url = ("/api/auth/me" if route == "me" else "/api/jobs") + query.get(carrier, "")
+    body = {"url": "https://open.spotify.com/track/0DiWol3AO6WpXZgp0goxAV"}
+    if carrier == "body":
+        body |= {"key": raw, "api_key": raw, "access_token": raw}
+    response = client.get(url, headers=headers) if route == "me" else client.post(url, headers=headers, json=body)
+    assert response.status_code == 401, (carrier, route, response.status_code, response.text)
 
 
+@pytest.mark.usefixtures("_identities")
 def test_an_admins_key_reads_only_its_own_jobs(request, client, session_cookie, monkeypatch):
     """The read key route treats an admin's key as a non-admin: another user's job is a 404,
     exactly as for a non-owner, though the admin's cookie reads it."""

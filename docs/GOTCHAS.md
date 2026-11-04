@@ -8113,19 +8113,16 @@ independently-found production bug from the same conversation)
   it: low-priority routes (`app.frontend()`), included routers' own prefix and dependencies, a
   middleware stack of CORS only (an `@app.middleware("http")` endpoint has no route object at
   all), a second walk with every key carrier at once (`X-Spotdl-Client`, a `moz-extension://`
-  origin, `X-Api-Key`, `?key=`, `?api_key=`), routes serving only HEAD, and an **inventory**: every
-  (file, scope, name) in `app/` that names the key machinery at all (`ApiKey`, `api_keys`,
-  `api_key`, `hash`, `_hash`, `authenticate`, `_bearer_token`, the dependency, and every
-  top-level name the key service defines, read from it), import module paths included, plus any
-  call's string argument naming the `api_keys` table or `ApiKey` (raw SQL, `relationship("…")`),
-  pinned as a literal. Rounds 1–5 each found an ordinary spelling (an alias, `auth.dep(...)`,
-  `filter_by(hash=)`, `from app import services`, a row's `.hash` compared in a new
-  dependency) that a scan *recognising* key reads missed; an inventory needs far less recognising: new key code changes the set unless it hides a name
-  on purpose. Round 7 found the last ordinary gaps (SQL held in a constant or an f-string,
-  `metadata.tables[...]`): any non-docstring string naming the table counts now, and the
-  service's own names count only where the service is from-imported (another module's own
-  `KEY_PREFIX` was noise). The key routes also refuse a key carried as anything but the
-  bearer. The test then asks for a check and an update. Out of reach, owner-accepted: code written to hide a name (`getattr` on a built string).
+  origin, `X-Api-Key`, `?key=`, `?api_key=`), routes serving only HEAD, a check that the key routes take a key only as `Authorization:
+  Bearer` (not another header or scheme, the URL, the body, the extension's context or beside a
+  dead cookie), and an **inventory**: every (file, scope, name) in `app/` naming the key
+  machinery (`ApiKey`, `api_keys`, `api_key`, `hash`, `_hash`, `authenticate`, `_bearer_token`,
+  the dependency; the key service's own names wherever the service is imported), import module
+  paths, and any non-docstring string naming the `api_keys` table or `ApiKey` in any case,
+  pinned as a literal. Rounds 1–8 each found an ordinary spelling a narrower check missed (an
+  alias, `auth.dep(...)`, `filter_by(hash=)`, `from app import services`, a row's `.hash` in a
+  new dependency, SQL in a constant, all-caps SQL, `?access_token=`); the inventory needs no
+  recognising, only naming, and the test asks for a check and an update when the set moves. Out of reach, owner-accepted: code written to hide a name (`getattr` on a built string).
 - **Driving the signed extension in release Firefox 159** (extends v58's harness notes):
   - chrome context needs both `--remote-allow-system-access` and `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`;
   - `WebDriver:ExecuteScript`'s body isn't an async function: wrap it in an async IIFE that gets
