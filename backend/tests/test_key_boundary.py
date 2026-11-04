@@ -176,8 +176,8 @@ KEY_NAMES = {"ApiKey", "api_keys", "api_key", "hash", "_hash", "authenticate", "
 
 def _key_names() -> set[str]:
     """KEY_NAMES plus every top-level name the key service defines (`create_key`, `key_to_dict`,
-    `KEY_PREFIX`, ...), read from the service itself, so a from-import of any of them is seen
-    where it's used (review round 6)."""
+    `KEY_PREFIX`, ...), read from the service itself, so a use of any of them is seen in a file
+    importing the service (review rounds 6 and 8)."""
     import ast
     from pathlib import Path
 
@@ -342,7 +342,7 @@ def _key_inventory() -> set[tuple[str, str, str]]:
         rel = str(path.relative_to(root))
         tree = ast.parse(path.read_text(), filename=str(path))
         # The key service's own names (KEY_PREFIX, create_key, ...) count where they can mean it:
-        # in the service, and in a file from-importing it (`api_keys.X` is seen everywhere as
+        # in the service, and in a file importing it in any form (`api_keys.X` is seen everywhere as
         # `api_keys`). Another module's own KEY_PREFIX isn't the key machinery (review round 7).
         names = KEY_NAMES | service_names if rel == "services/api_keys.py" or imports_the_service(tree) else KEY_NAMES
         walk(tree, rel, "<module>", names)
@@ -357,10 +357,46 @@ def test_the_key_machinery_is_touched_only_where_it_was():
     that it reads a key only through `require_session_or_api_key` on a key route, and updates
     the inventory. The narrower scans before it (review rounds 1-5) each missed an ordinary
     spelling. Out of reach, by the owner's decision: code written to hide a name from
-    a scan (`getattr` on a built string, say). Review rounds 1-7 shaped it."""
+    a scan (`getattr` on a built string, say). Review rounds 1-9 shaped it."""
     now = _key_inventory()
     assert not now - KEY_INVENTORY, f"new places name the key machinery: {sorted(now - KEY_INVENTORY)}"
     assert not KEY_INVENTORY - now, f"gone (update KEY_INVENTORY): {sorted(KEY_INVENTORY - now)}"
+
+
+# The functions that read a key, fingerprinted (their AST without the docstring): the inventory
+# pins *where* the key machinery is named, not what a function already on it does, so a new
+# carrier inside one of these (a query param, another header, the cookie's value) moved nothing
+# there (review round 9). A change here is meant to fail until someone checks it.
+KEY_READERS = {
+    ("routers/auth.py", "_bearer_token"): "c96f722044e25b46",
+    ("routers/auth.py", "require_session_or_api_key"): "6cca303ad863b9cb",
+    ("services/api_keys.py", "authenticate"): "653aa47b419238e6",
+    ("services/api_keys.py", "_hash"): "a8fb90061da8d712",
+}
+
+
+def _fingerprint(rel: str, name: str) -> str:
+    import ast
+    import hashlib
+    from pathlib import Path
+
+    import app as app_package
+
+    tree = ast.parse((Path(app_package.__file__).parent / rel).read_text())
+    fn = next(n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == name)
+    body = fn.body
+    if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
+        body = body[1:]  # its docstring: words, not behaviour
+    fn = ast.FunctionDef(fn.name, fn.args, body, fn.decorator_list, fn.returns, None, [])
+    return hashlib.sha256(ast.dump(fn, include_attributes=False).encode()).hexdigest()[:16]
+
+
+@pytest.mark.parametrize("rel,name", sorted(KEY_READERS))
+def test_the_functions_that_read_a_key_are_unchanged(rel, name):
+    """How a key is read (which carriers, which checks) changes only on purpose: an edit to one
+    of these functions fails until it's reviewed against the boundary (the key routes only, a
+    key as `Authorization: Bearer` only) and its fingerprint updated here."""
+    assert _fingerprint(rel, name) == KEY_READERS[(rel, name)], f"{rel}:{name} changed: review it, then update KEY_READERS"
 
 
 def test_every_route_has_a_method_to_test():
@@ -435,15 +471,25 @@ def test_a_key_is_refused_on_every_other_route(request, client, holder, carriers
     "carrier",
     ["x-api-key", "token-scheme", "no-scheme", "query-key", "query-api_key", "query-access_token", "query-token", "body"],
 )
-@pytest.mark.parametrize("route", ["me", "create"])
+@pytest.mark.parametrize("route", ["me", "create", "read"])
 def test_the_key_routes_take_a_key_only_as_a_bearer(request, client, carrier, route, monkeypatch):
-    """The key routes read a key from `Authorization: Bearer` only, never from another header or
-    scheme, the URL (it would land in nginx's and cloudflared's access logs) or the body, and not
-    even in the extension's context or beside a dead cookie (review rounds 7-8)."""
+    """None of the key routes takes a key carried in any of these other ways, in the extension's
+    context and beside a dead cookie (review rounds 7-9): other headers or schemes, the URL (it
+    would land in nginx's and cloudflared's access logs), the body. These are examples; what
+    pins the carrier is `test_the_functions_that_read_a_key_are_unchanged`."""
     from app.routers import jobs as jobs_router
 
     monkeypatch.setattr(jobs_router.expand_job, "delay", lambda *a, **k: None)
+    if carrier == "body" and route != "create":
+        pytest.skip("only job create takes a body")
     raw = _key(request, "user")
+    own_job = None
+    if route == "read":
+        made = client.post(
+            "/api/jobs", json={"url": "https://open.spotify.com/track/0DiWol3AO6WpXZgp0goxAV"}, headers=bearer(raw)
+        )
+        assert made.status_code in (200, 201), made.text
+        own_job = made.json()["id"]
     headers = {
         "X-Spotdl-Client": "extension/1.0.2",
         "Origin": "moz-extension://a1b2c3",
@@ -455,11 +501,11 @@ def test_the_key_routes_take_a_key_only_as_a_bearer(request, client, carrier, ro
         "no-scheme": {"Authorization": raw},
     }.get(carrier, {})
     query = {k: f"?{k.split('-', 1)[1]}={raw}" for k in ("query-key", "query-api_key", "query-access_token", "query-token")}
-    url = ("/api/auth/me" if route == "me" else "/api/jobs") + query.get(carrier, "")
+    url = {"me": "/api/auth/me", "create": "/api/jobs", "read": f"/api/jobs/{own_job}"}[route] + query.get(carrier, "")
     body = {"url": "https://open.spotify.com/track/0DiWol3AO6WpXZgp0goxAV"}
     if carrier == "body":
         body |= {"key": raw, "api_key": raw, "access_token": raw}
-    response = client.get(url, headers=headers) if route == "me" else client.post(url, headers=headers, json=body)
+    response = client.post(url, headers=headers, json=body) if route == "create" else client.get(url, headers=headers)
     assert response.status_code == 401, (carrier, route, response.status_code, response.text)
 
 
