@@ -166,170 +166,118 @@ def test_no_router_is_included_with_a_prefix_or_dependencies():
     assert [i for i in included if i[1] or i[2]] == []
 
 
-def _key_references() -> list[tuple[str, str, str]]:
-    """Every place in `app/` (module level included, the key service itself too) that reaches
-    what a key is read with, resolved through the module's imports rather than by bare name:
-    `api_keys.authenticate`/`_hash` (from-imports, aliases, module aliases), `auth._bearer_token`,
-    `ApiKey.hash` (on the class, however reached, or `filter_by(hash=...)` on an `ApiKey` query),
-    and `require_session_or_api_key` referenced any way but as a `Depends`/`Security` argument
-    in a parameter. An import it can't resolve (relative, star, an unaliased `import app.x`)
-    is itself flagged. Each as (file, enclosing function or "<module>",
-    what). A name that only looks alike (another module's `_hash`, an SMTP client's
-    `authenticate`) isn't one (review rounds 1-3)."""
+# Every name the key machinery goes by: the model, its modules, its hash, the lookup, the bearer
+# parse and the dependency. Matched by spelling anywhere (a name, an attribute, an import, a
+# keyword), whatever imports it, so a new place touching the machinery can't avoid naming one.
+KEY_NAMES = {"ApiKey", "api_keys", "api_key", "hash", "_hash", "authenticate", "_bearer_token", "require_session_or_api_key"}
+
+# Where `app/` names any of them today, as (file, scope, name). The scope is the enclosing
+# function or class, dotted when nested ("<module>" at top level); a definition's decorators,
+# defaults and annotations count as its own.
+KEY_INVENTORY = {
+    ('models/__init__.py', '<module>', 'ApiKey'),
+    ('models/api_key.py', 'ApiKey', 'hash'),
+    ('routers/account_keys.py', '<module>', 'api_keys'),
+    ('routers/account_keys.py', 'create_api_key', 'api_keys'),
+    ('routers/account_keys.py', 'list_api_keys', 'api_keys'),
+    ('routers/account_keys.py', 'revoke_api_key', 'api_keys'),
+    ('routers/auth.py', '<module>', 'ApiKey'),
+    ('routers/auth.py', '<module>', 'api_keys'),
+    ('routers/auth.py', 'Principal', 'ApiKey'),
+    ('routers/auth.py', 'Principal', 'api_key'),
+    ('routers/auth.py', 'me', 'api_key'),
+    ('routers/auth.py', 'me', 'require_session_or_api_key'),
+    ('routers/auth.py', 'require_session_or_api_key', '_bearer_token'),
+    ('routers/auth.py', 'require_session_or_api_key', 'api_keys'),
+    ('routers/auth.py', 'require_session_or_api_key', 'authenticate'),
+    ('routers/jobs.py', '<module>', 'require_session_or_api_key'),
+    ('routers/jobs.py', 'create_job', 'api_key'),
+    ('routers/jobs.py', 'create_job', 'require_session_or_api_key'),
+    ('routers/jobs.py', 'get_job', 'api_key'),
+    ('routers/jobs.py', 'get_job', 'require_session_or_api_key'),
+    ('services/allowlist.py', '<module>', 'ApiKey'),
+    ('services/allowlist.py', 'remove', 'ApiKey'),
+    ('services/api_keys.py', '<module>', 'ApiKey'),
+    ('services/api_keys.py', 'active_keys', 'ApiKey'),
+    ('services/api_keys.py', 'authenticate', 'ApiKey'),
+    ('services/api_keys.py', 'authenticate', '_hash'),
+    ('services/api_keys.py', 'authenticate', 'hash'),
+    ('services/api_keys.py', 'create_key', 'ApiKey'),
+    ('services/api_keys.py', 'create_key', '_hash'),
+    ('services/api_keys.py', 'create_key', 'hash'),
+    ('services/api_keys.py', 'key_to_dict', 'ApiKey'),
+    ('services/api_keys.py', 'revoke_key', 'ApiKey'),
+}
+
+
+def _key_inventory() -> set[tuple[str, str, str]]:
     import ast
     from pathlib import Path
 
     import app as app_package
 
     root = Path(app_package.__file__).parent
-    found = []
-    api_key_modules = set()
+    found = set()
 
-    class Visitor(ast.NodeVisitor):
-        def __init__(self, rel):
-            self.rel, self.stack, self.exempt = rel, [], set()
-            # What each local name stands for, from this module's own imports (and, in the module
-            # that defines a target, its own top-level name).
-            own = {
-                "services/api_keys.py": {"authenticate": "authenticate", "_hash": "_hash"},
-                "routers/auth.py": {"_bearer_token": "_bearer_token", "require_session_or_api_key": "dependency"},
-                "models/api_key.py": {"ApiKey": "ApiKey"},
-            }
-            self.names = dict(own.get(rel, {}))  # local name -> target
-            self.modules = {}  # local name -> "api_keys" | "auth" | "models"
-            self.parameter_depends = set()  # Depends(...) calls that are a parameter's default
-
-        def _note(self, what):
-            found.append((self.rel, self.stack[-1] if self.stack else "<module>", what))
-
-        def visit_ImportFrom(self, node):
-            mod = node.module or ""
-            if node.level or any(alias.name == "*" for alias in node.names):
-                # Relative and star imports aren't resolved here (none in app/ today).
-                self._note("an import the scan can't resolve")
-            for alias in node.names:
-                local = alias.asname or alias.name
-                if mod == "app.services" and alias.name == "api_keys":
-                    self.modules[local] = "api_keys"
-                elif mod == "app.routers" and alias.name == "auth":
-                    self.modules[local] = "auth"
-                elif mod == "app" and alias.name == "models":
-                    self.modules[local] = "models"
-                elif mod == "app.services.api_keys" and alias.name in ("authenticate", "_hash"):
-                    self.names[local] = alias.name
-                elif mod == "app.routers.auth" and alias.name == "_bearer_token":
-                    self.names[local] = "_bearer_token"
-                elif mod == "app.routers.auth" and alias.name == "require_session_or_api_key":
-                    self.names[local] = "dependency"
-                elif mod in ("app.models", "app.models.api_key") and alias.name == "ApiKey":
-                    self.names[local] = "ApiKey"
-
-        def visit_Import(self, node):
-            for alias in node.names:
-                kind = {"app.services.api_keys": "api_keys", "app.routers.auth": "auth", "app.models": "models"}
-                if alias.name in kind and alias.asname:
-                    self.modules[alias.asname] = kind[alias.name]
-                elif alias.name.startswith("app.") and not alias.asname:
-                    # `import app.x.y` reaches it as a dotted chain (none in app/ today).
-                    self._note("an import the scan can't resolve")
-
-        def visit_FunctionDef(self, node):
-            defaults = [*node.args.defaults, *[d for d in node.args.kw_defaults if d is not None]]
-            annotations = [a.annotation for a in [*node.args.args, *node.args.kwonlyargs] if a.annotation]
-            for expr in [*defaults, *annotations]:  # a default, or inside Annotated[...]
-                self.parameter_depends.update(id(n) for n in ast.walk(expr) if isinstance(n, ast.Call))
-            self.stack.append(node.name)
-            self.generic_visit(node)
-            self.stack.pop()
-
-        visit_AsyncFunctionDef = visit_FunctionDef
-
-        def _target(self, node):
-            """The target `node` (a Name or an Attribute) refers to, if any."""
-            if isinstance(node, ast.Name):
-                return self.names.get(node.id)
-            if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
-                module = self.modules.get(node.value.id)
-                if module == "api_keys" and node.attr in ("authenticate", "_hash"):
-                    return node.attr
-                if module == "auth" and node.attr == "_bearer_token":
-                    return "_bearer_token"
-                if module == "auth" and node.attr == "require_session_or_api_key":
-                    return "dependency"
-                if module == "models" and node.attr == "ApiKey":
-                    return "ApiKey"
-            return None
-
-        def visit_Call(self, node):
-            func = node.func
-            name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
-            if name in ("Depends", "Security"):
-                wrapped = [*node.args, *[k.value for k in node.keywords if k.arg == "dependency"]]
-                self.exempt.update(id(arg) for arg in wrapped)
-                # The key dependency's Depends belongs in a parameter; one kept elsewhere (a
-                # module constant) can be called through `.dependency` from any helper.
-                if id(node) not in self.parameter_depends and any(self._target(a) == "dependency" for a in wrapped):
-                    self._note("Depends(require_session_or_api_key) outside a parameter")
-            on_api_key = any(self._target(n) == "ApiKey" for n in ast.walk(func))
-            if name == "filter_by" and on_api_key and any(k.arg == "hash" for k in node.keywords):
-                self._note("ApiKey.hash")
-            self.generic_visit(node)
-
-        def _check(self, node):
-            target = self._target(node)
-            if target == "ApiKey":
-                api_key_modules.add(self.rel)
-            if target == "dependency":
-                if id(node) not in self.exempt:
-                    self._note("require_session_or_api_key outside Depends")
-            elif target in ("authenticate", "_hash", "_bearer_token"):
-                self._note(target)
-
-        def visit_Name(self, node):
-            self._check(node)
-
-        def visit_Attribute(self, node):
-            if node.attr == "hash" and self._target(node.value) == "ApiKey":
-                self._note("ApiKey.hash")
-            if self._target(node) is not None:
-                self._check(node)
-                return  # its value (the module name) is no reference of its own
-            self.generic_visit(node)
+    def walk(node, rel, scope):
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                walk(child, rel, child.name if scope == "<module>" else f"{scope}.{child.name}")
+                continue
+            name = None
+            if isinstance(child, ast.Name):
+                name = child.id
+            elif isinstance(child, ast.Attribute):
+                name = child.attr
+            elif isinstance(child, ast.keyword):
+                name = child.arg
+            elif isinstance(child, ast.alias):
+                name = child.asname or child.name.split(".")[-1]
+                found.update((rel, scope, part) for part in child.name.split(".") if part in KEY_NAMES)
+            if name in KEY_NAMES:
+                found.add((rel, scope, name))
+            walk(child, rel, scope)
 
     for path in sorted(root.rglob("*.py")):
         rel = str(path.relative_to(root))
-        Visitor(rel).visit(ast.parse(path.read_text(), filename=str(path)))
-    _key_references.api_key_modules = api_key_modules
+        walk(ast.parse(path.read_text(), filename=str(path)), rel, "<module>")
     return found
 
 
-def test_only_the_key_dependency_reads_a_key():
-    """A key is read in one place: `require_session_or_api_key` (`_bearer_token`, then
-    `api_keys.authenticate`), the key service hashes and looks it up only inside `create_key`
-    and `authenticate`, and the dependency is only ever a `Depends`/`Security` argument, so no
-    other dependency can call it under a condition of its own. Name-resolution, not a proof:
-    code written to hide a key lookup from it (`getattr` with a built string, say) isn't
-    "a route added without considering keys" (owner-accepted limit, the master plan's v70
-    Amendment); the behavioural walk below sends the key carriers a client uses today. Which
-    modules may touch `ApiKey` at all is pinned too (review round 4: a lookup that never names
-    `ApiKey.hash`, say a prefix match and a digest compare, would otherwise pass)."""
-    assert sorted(set(_key_references())) == [
-        ("routers/auth.py", "require_session_or_api_key", "_bearer_token"),
-        ("routers/auth.py", "require_session_or_api_key", "authenticate"),
-        ("services/api_keys.py", "authenticate", "ApiKey.hash"),
-        ("services/api_keys.py", "authenticate", "_hash"),
-        ("services/api_keys.py", "create_key", "_hash"),
-    ]
-    # Where `ApiKey` is used (the model package defines and re-exports it, naming no use).
-    assert _key_references.api_key_modules == {
-        "routers/auth.py",
-        "services/allowlist.py",
-        "services/api_keys.py",
-    }
+def test_the_key_machinery_is_touched_only_where_it_was():
+    """Deny-by-default for how a key is *read*. The behavioural walk below can only send the
+    carriers a client uses today, so this pins every place that names the key machinery at
+    all. A change (a new dependency in auth.py hashing a header, a new helper in the key
+    service, a route reaching `services.api_keys` some new way) fails here until someone checks
+    that it reads a key only through `require_session_or_api_key` on a key route, and updates
+    the inventory. Review rounds 1-5 found the narrower scans before this one each missed an
+    ordinary spelling. Out of reach, by the owner's decision: code written to hide a name from
+    a scan (`getattr` on a built string, say)."""
+    now = _key_inventory()
+    assert not now - KEY_INVENTORY, f"new places name the key machinery: {sorted(now - KEY_INVENTORY)}"
+    assert not KEY_INVENTORY - now, f"gone (update KEY_INVENTORY): {sorted(KEY_INVENTORY - now)}"
 
 
 def test_every_route_has_a_method_to_test():
     assert [r.path for r in _api_routes() if not _methods(r)] == []
+
+
+@pytest.mark.parametrize(
+    "methods,tested",
+    [
+        ({"GET", "HEAD"}, ["GET"]),
+        ({"HEAD"}, ["HEAD"]),
+        ({"OPTIONS"}, ["OPTIONS"]),
+        ({"POST", "OPTIONS"}, ["POST"]),
+        ({"GET", "HEAD", "OPTIONS"}, ["GET"]),
+    ],
+)
+def test_the_methods_a_route_is_tested_with(methods, tested):
+    """HEAD is dropped only beside GET, OPTIONS only beside another method (review round 5:
+    nothing in the app serves HEAD alone today, so this pins `_methods` itself)."""
+    route = APIRoute("/x", lambda: None, methods=list(methods))
+    route.methods = set(methods)
+    assert _methods(route) == tested
 
 
 def test_no_middleware_answers_on_its_own():
@@ -373,7 +321,8 @@ def test_a_key_is_refused_on_every_other_route(request, client, holder, carriers
         url += f"?key={raw}&api_key={raw}"
     response = client.request(method, url, headers=headers, json={})
     assert response.status_code == 401, (method, path, response.status_code, response.text)
-    assert response.json()["code"] == "not_authenticated", (method, path, response.text)
+    if method != "HEAD":  # a HEAD answer has no body (review round 5)
+        assert response.json()["code"] == "not_authenticated", (method, path, response.text)
 
 
 @pytest.mark.usefixtures("_identities")

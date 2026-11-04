@@ -923,9 +923,9 @@ here.
     config (its `release.yml` and vb2007.hu-vue's), an issue for that repo drafted for the owner.
   - **The key boundary's accepted limit (owner, 2026-11-04):** `test_key_boundary.py` is a
     behavioural walk (every non-key route, an admin's and a user's key, every key carrier at
-    once) backed by a static scan that resolves names through imports. Code written to hide a
-    key lookup from a static scan (`getattr` on a built string, say) is out of its reach and out
-    of scope: it isn't a route "added without considering keys".
+    once) backed by an inventory of every place in `app/` that names the key machinery, pinned.
+    Code written to hide such a name (`getattr` on a built string, say) is out of its reach and
+    out of scope: it isn't a route "added without considering keys".
   - **The prod smoke's identity:** production's allowlist held only real people, so v70 added
     `v5s4user@example.com` (one owner-approved INSERT) and the owner removed it on `/users` as the
     live-removal check.
