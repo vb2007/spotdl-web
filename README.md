@@ -14,11 +14,12 @@ adds a download button to `open.spotify.com`.
 
 ## Status
 
-Masters v1 to v4 (versions v00–v48) are complete and run in production. **Master v5 (v49–v70) is
-in progress**: closing the open gotchas, the Firefox extension, an admin view of other users'
-jobs, and new features. The roadmap, its open-items ledger and the per-version plans are in
-[`plan/master-v5/`](plan/master-v5/00-master-plan.md). Earlier masters' plans stay in
-`plan/master-vN/` as history.
+Masters v1 to v5 (versions v00–v70) are complete and run in production. Master v5 closed every
+item on its open-items ledger and added the Firefox extension, an admin view of other users'
+jobs, watched playlists and artists, zip and M3U export, an installable app with a share target,
+personal notifications with "my stats", and admin-managed sign-in access (`/users`). Its roadmap,
+ledger and per-version plans are in [`plan/master-v5/`](plan/master-v5/00-master-plan.md); every
+master's plans stay in `plan/master-vN/` as history. No master v6 is planned yet.
 
 ## Where to read next
 

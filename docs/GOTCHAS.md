@@ -35,6 +35,8 @@ needed" claim — rather than silently deleted.
 - A `BaseSettings` field omitted from a test's constructor kwargs still resolves from
   `os.environ` — a test asserting "missing X is rejected" must `monkeypatch.delenv(X)` first, or
   it silently passes via a value some *other* test's `conftest.py` setdefault already set → *v17*
+- graphify's AST cache keys node ids by the absolute path it was built in: tracked, it carried
+  every v5 worktree's paths into main's graph (half its ids, lost edges); untracked since v70 → *v70*
 
 **Database, migrations & enums**
 - A loaded row written back (`track.state = X; commit`) overwrites a concurrent commit; a
@@ -1002,6 +1004,10 @@ needed" claim — rather than silently deleted.
 - AMO re-serializes `manifest.json` when it signs (tabs became 2-space indentation): compare it
   with the source as parsed JSON, never byte for byte, or every fetched file reads as other
   content → *v61.1*
+- A track page has no header icon for its own track (rows, cards and album/artist/playlist action
+  bars only): a track target is a tracklist row → *v70*
+- Firefox for Android has no Web Share Target: only Chromium browsers offer the installed app in
+  the share sheet (the owner's real share, v70) → *v70*
 
 **Testing & verification technique**
 - Real OS notifications are counted with `dbus-monitor` on `org.freedesktop.Notifications.Notify`;
@@ -1306,6 +1312,17 @@ needed" claim — rather than silently deleted.
 - 1600 jobs are exactly 32 pages, and the cursor doesn't know it's the end: a 33rd "load more"
   returns nothing, and `main` then focuses the queue's heading (scrolling to the top) after the
   button is gone. A spec that loads everything waits for that before it scrolls → *v68*
+- The key boundary is deny-by-default in `test_key_boundary.py`: it walks every route object, and a
+  non-`APIRoute` (no FastAPI dependency, so no gate) fails the walk outright → *v70*
+- A spec that passes only on a slot earlier runs filled fails on a fresh one: spec 14's my-stats
+  journey needed the e2e user's own attempt (seeded since v70), spec 26's fixture a `publish_change` → *v70*
+- Release Firefox 159's Marionette needs `--remote-allow-system-access` *and*
+  `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1` for chrome context; a signed XPI installs permanently
+  through `AddonManager.getInstallForFile` there → *v70*
+- The session cookie is `Secure`: a stdlib cookie jar never sends it to plain-http `127.0.0.1`
+  (curl does); carry it by hand → *v70*
+- `pytest --durations=10` finds a test waiting on a real broker or TCP timeout; v70 found three
+  (19 s of Celery retries, two 2 s proxy probes) and the budget is 90 s since → *v70*
 
 **CI**
 - The `pytest` job's Postgres is a service container the runner pulls with the shared
@@ -1382,6 +1399,8 @@ needed" claim — rather than silently deleted.
 - `gh release view`/`download` exit 1 for both "release not found" and real errors: match the
   message (`release not found`, `no assets match the file pattern`, `no assets to download`) and
   fail on anything else → *v61*
+- A run hand-cancelled after its jobs sat unacquired (no runner, no steps) and re-run green
+  counts as explained, not as a cancelled chain: #83's attempt 1 (81 min), v62's PR run → *v70*
 
 **Performance**
 - Never load "everything the queue needs" with a per-job (or per-row) request loop; one bulk
@@ -6338,7 +6357,7 @@ independently-found production bug from the same conversation)
   401 `not_authenticated` (owner's decision, 2026-10-24: keep 401). `test_api_keys.py`
   parametrizes this over every route in the app, not only the admin ones. The job read was added
   on the owner's decision the same day (the master plan's "read their own submission status"):
-  through a key it's the key's user's own jobs only, an admin's too (404 otherwise). *(2026-10-26, v56 (A6): an admin route whose path names an id (priority, bump, one proxy) now answers a non-admin 404, like stats and the test-alert send; `tests/test_admin_gating.py` holds the table.)*
+  through a key it's the key's user's own jobs only, an admin's too (404 otherwise). *(2026-10-26, v56 (A6): an admin route whose path names an id (priority, bump, one proxy) now answers a non-admin 404, like stats and the test-alert send; `tests/test_admin_gating.py` holds the table.)* *(2026-11-04, v70: the route walk moved from `test_api_keys.py` to `test_key_boundary.py`, which also tries a plain user's key, walks every route object (low-priority routes included), and pins the included routers' prefix and dependencies and an inventory of every place naming the key machinery.)*
 - **FastAPI keeps an included router as a lazy `_IncludedRouter` in `app.routes`** (0.162 in the slot's
   image, 0.141.1 in `uv.lock`/`requirements.txt`: both do). A test
   walking `app.routes` for `APIRoute`s finds only the four built-in docs routes; descend through
@@ -8053,3 +8072,92 @@ independently-found production bug from the same conversation)
   `revoked`, and the dashboard reconnected into that every ~18s forever. A test that mints a session
   must put its user on the list (conftest's `session_cookie` does); list endpoints' query counts rose
   by one.
+
+### v70 v5-hardening gotchas (learned closing master v5)
+
+- **graphify's cache isn't portable between checkouts.** Its AST cache (`graphify-out/cache/ast/`)
+  stores node ids built from the absolute path of the checkout that extracted the file, and
+  `graphify update .` makes an id root-relative only when it starts with the *current* root. With
+  the cache tracked, every v5 worktree (`/home/vb2007/code/spotdl-web-wt/dev-*`) committed entries
+  keyed to its own path, so the next checkout reused them verbatim: main's graph at v69 had 3,487 of
+  6,885 ids prefixed with about twenty deleted worktrees' paths, and edges between files extracted
+  in different checkouts didn't meet (a cache-free rebuild had 870 more). The owner chose to untrack
+  the cache (`.gitignore`, v70); each checkout builds its own on its first `update` (about a
+  minute). A handful of ids stay absolute even so: graphify resolves some import targets (CSS, the
+  extension's HTML) by their absolute path, and those carry the building checkout's root.
+- **Two specs passed only on a slot that earlier runs had filled** (the first full suite on a fresh
+  slot database, v70):
+  - **Spec 14's "my stats by keyboard"** (v66) tabs through every chart's "show as a table", and
+    `/stats` draws a chart only when the user had a track *tried* in the window. A duplicate isn't
+    an attempt, and a default run makes no network attempt, so on a fresh database the e2e user had
+    none; v66's own slot still held attempts from its earlier runs. `agent_seed.py` now gives the
+    e2e user one archived job with a completed attempt and its ledger file, all moved to an hour
+    ago on every seed (live review round 1: moving only the attempt left a 59-day "time to
+    complete" and a completed track with no file), and
+    `agent_stack.sh e2e` passes the user in (`SEED_USER_EMAIL`).
+  - **Spec 26's "a live update to a job off the window"** (v68) asserts the stream alone patches
+    the row (no `/api/jobs` read). The fixture resets the live job to `waiting` in Postgres only, so
+    its Redis rollup record (`spotdl:job-status:<id>`, v62) was missing on the first run (the cancel's
+    `job.status` had no `prev_status`, and a row loaded by "load more" isn't in the store's count
+    seed, so it re-read the counts once, by design) and said `cancelled` on every later run (no
+    `job.status` event at all). Reproduced by deleting the record. The fixture now calls
+    `job_status.publish_change` after its reset, as app code must (CLAUDE.md), so every run cancels
+    a job recorded as `waiting`.
+- **The key boundary has three routes, not two.** v70's plan says a key is refused "on every route
+  except the two it's allowed on" (submit, `me`); v53's owner decision added `GET /api/jobs/{id}`
+  for a key's own jobs (the extension's "how is my submission doing", 404 for anyone else's even
+  with an admin's key). `test_key_boundary.py` allows those three and pins them structurally (the
+  set of routes depending on `require_session_or_api_key` must equal them). It also walks every
+  route object, not only `APIRoute`s: a Starlette `Route` or `Mount` runs no FastAPI dependency, so
+  no session or key gate, and only FastAPI's docs pages may be one. Review rounds 1–7 widened
+  it: low-priority routes (`app.frontend()`), included routers' own prefix and dependencies, a
+  middleware stack of CORS only (an `@app.middleware("http")` endpoint has no route object at
+  all), a second walk with every key carrier at once (`X-Spotdl-Client`, a `moz-extension://`
+  origin, `X-Api-Key`, `?key=`, `?api_key=`), routes serving only HEAD, the **pinned source** of the four functions that read a key
+  (`_bearer_token`, `require_session_or_api_key`, `api_keys.authenticate`, `_hash`: their
+  `ast.unparse` text without the docstring, the same on every Python, one definition each, in
+  `tests/fixtures/key_readers.txt`, so a new carrier inside one fails with a diff until reviewed;
+  hashes of it read as "high-entropy secrets" to GitGuardian), plain `APIRoute`s only (a custom route class can
+  rewrite the request before any of them sees it), examples of carriers
+  the key routes refuse (other headers and schemes, URL params, the body), and an **inventory**: every (file, scope, name) in `app/` naming the key
+  machinery (`ApiKey`, `api_keys`, `api_key`, `hash`, `_hash`, `authenticate`, `_bearer_token`,
+  the dependency; the key service's own names wherever the service is imported), import module
+  paths, and any non-docstring string naming the `api_keys` table or `ApiKey` in any case,
+  pinned as a literal. Rounds 1–8 each found an ordinary spelling a narrower check missed (an
+  alias, `auth.dep(...)`, `filter_by(hash=)`, `from app import services`, a row's `.hash` in a
+  new dependency, SQL in a constant, all-caps SQL, `?access_token=`, a carrier added inside the
+  bearer parse itself, a second `def` of it, a custom route class); the inventory needs no
+  recognising, only naming, and the test asks for a check and an update when the set moves. Out of reach, owner-accepted: code written to hide a name (`getattr` on a built string).
+- **Driving the signed extension in release Firefox 159** (extends v58's harness notes):
+  - chrome context needs both `--remote-allow-system-access` and `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`;
+  - `WebDriver:ExecuteScript`'s body isn't an async function: wrap it in an async IIFE that gets
+    `arguments`, and the returned promise is awaited;
+  - `WebDriver:FindElements` and `GetElementRect` answer bare values here, not `{value: ...}`;
+  - `AddonManager.getInstallForFile(...).install()` is a permanent install, and with
+    `xpinstall.signatures.required` (release's default) an unsigned build of the same source fails
+    with `ERROR_SIGNEDSTATE_REQUIRED` while the AMO-signed one installs (`signedState` 2);
+    `addon.findUpdates(..., UPDATE_WHEN_USER_REQUESTED)` is about:addons' "Check for Updates";
+  - a track page carries icons for its artist's top-track rows and the cards, never for its own
+    track (there's no track-page header target), so a track target is an album page's tracklist row.
+- **Production's allowlist holds no test identity.** After v69's import only the real people are on
+  it, and the upstream no longer registers `example.com` addresses, so a production smoke reuses a
+  saved slot account (`v5s4user@example.com`) and needs its row added (v70: one owner-approved
+  INSERT, removed again on `/users` by the owner as the live-removal check). Its user row and its
+  cancelled smoke jobs stay, like every removed user's (v69).
+- **Two "cancelled" runs since v49 were hand-cancels of jobs no runner acquired.** #83's merge run
+  (attempt 1: three check jobs with no runner and no steps for 81 minutes) and v62's PR run (about
+  100 minutes) were cancelled by hand and re-run green; the chain itself never cancelled anything.
+  The ❌ notice of #83's attempt 1 arrived the minute it ended, which is P1's fix (curl-only
+  `notify`) working in production. v60's "not acquired" note (`docs/CI_SELF_HOSTED_RUNNER.md`) is
+  the same runner behaviour; GitHub's own auto-cancel would have said so in the annotation.
+- **A test that waits on a real timeout is a budget leak nobody sees.** v51's 30 s pytest budget
+  was past at v60 and at 73 s by v69, unrecorded. `--durations` showed one v63 test at 19 s: its
+  second `expand_job` reached a real `download_track.delay`, and Celery retried an unreachable
+  broker and result backend before giving up (the test passed anyway); two v56 proxy tests ran
+  `sync_from_file`'s real TCP probe of `10.0.0.2x:3128`, 2 s each, from whatever network the suite
+  runs on (in CI, the production host's). Stubbed as their neighbours are, the run is 52 s, and
+  the owner raised the budget to 90 s for a suite 2.7 times v51's size (`docs/LOCAL_DEV.md`).
+- **Firefox for Android has no Web Share Target.** The owner's real phone share (v65's open
+  bullet): Chrome on Android lists the installed app in the share sheet and `/share` queues the
+  link; Firefox and IronFox on Android 16 never offer the app as a target. That's the browser's
+  missing `share_target` support, not the manifest; nothing to fix here.

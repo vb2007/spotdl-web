@@ -21,6 +21,7 @@
 	import { ListWindow } from '$lib/listWindow.svelte';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText, textLang } from '$lib/i18n/errors';
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { counted, formatNumber } from '$lib/i18n/format';
 	import { countLinks, linkIn } from '$lib/submitLink';
 	import * as notifications from '$lib/notifications';
@@ -376,21 +377,23 @@
 	}
 
 	// v47: a sign-out the server couldn't take says so (it failed silently on /).
-	let logoutError = $state('');
+	// v70 (U9): the failure's own text, so the sentence marks it (ErrorSentence); an object, so
+	// the timer below clears only the one it was set for.
+	let logoutError = $state.raw<{ error: string } | null>(null);
 
 	async function onLogout() {
 		loggingOut = true;
-		logoutError = '';
+		logoutError = null;
 		try {
 			await api.logout();
 		} catch (err) {
 			// Still here and still signed in: the reload guard must work again.
 			loggingOut = false;
-			const shown = m.dashboard_disconnect_failed({ error: errorText(err) });
+			const shown = { error: errorText(err) };
 			logoutError = shown;
 			// It answers one press; it doesn't stay in the masthead for the rest of the visit.
 			setTimeout(() => {
-				if (logoutError === shown) logoutError = '';
+				if (logoutError === shown) logoutError = null;
 			}, 10_000);
 			return;
 		}
@@ -794,7 +797,12 @@
 				>{api.displayName(data.session?.username ?? null, data.session?.email ?? '')}</span
 			>
 			<button type="button" class="logout" onclick={onLogout}>{m.dashboard_disconnect()}</button>
-			<p class="logout-error" role="alert">{logoutError}</p>
+			<p class="logout-error" role="alert">
+				{#if logoutError}<ErrorSentence
+						sentence={(error) => m.dashboard_disconnect_failed({ error })}
+						error={logoutError.error}
+					/>{/if}
+			</p>
 		</nav>
 	</header>
 
@@ -866,7 +874,7 @@
 				<div class="state" role="alert">
 					<h3 class="state-title">{m.dashboard_error_title()}</h3>
 					<p class="state-text">
-						<span>{errorText($page.error.err)}</span>
+						<span lang={textLang(errorText($page.error.err))}>{errorText($page.error.err)}</span>
 					</p>
 					<button type="button" class="state-action" onclick={retryQueue}
 						>{m.dashboard_error_retry()}</button
@@ -974,7 +982,10 @@
 			     retries just that page. -->
 			{#if $page.moreError}
 				<p class="more-error" role="alert">
-					{m.dashboard_more_error()} <span>{errorText($page.moreError.err)}</span>
+					{m.dashboard_more_error()}
+					<span lang={textLang(errorText($page.moreError.err))}
+						>{errorText($page.moreError.err)}</span
+					>
 				</p>
 			{/if}
 			<!-- Stays mounted (aria-disabled) through a background reload (a reconnect's resync),

@@ -371,3 +371,18 @@ describe('v66: through the service worker', () => {
 		expect(activated).toEqual(['j1']);
 	});
 });
+
+describe('notificationBody (v70, U6)', () => {
+	it('names a one-track not-found job as not found, like its row badge', async () => {
+		const { notificationBody } = await import('$lib/notifications');
+		expect(notificationBody({ lookup_failed: 1 })).toBe('Not found');
+	});
+
+	it('counts what every other settled job got', async () => {
+		const { notificationBody } = await import('$lib/notifications');
+		expect(notificationBody({ completed: 1 })).toBe('Done — 1 of 1');
+		expect(notificationBody({ skipped_duplicate: 1, lookup_failed: 1 })).toBe('Done — 1 of 2');
+		expect(notificationBody({ completed: 9, lookup_failed: 1 })).toBe('Done — 9 of 10');
+		expect(notificationBody({ cancelled: 1 })).toBe('Done — 0 of 1');
+	});
+});

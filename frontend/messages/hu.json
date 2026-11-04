@@ -1268,6 +1268,7 @@
 	"account_notify_allow": "engedélyezés ebben a böngészőben",
 	"account_notify_shown_here": "Ez a böngésző megjeleníti őket.",
 	"notify_job_done": "Kész — {done} / {total}",
+	"notify_job_not_found": "Nem található",
 	"stats_bytes": [
 		{
 			"declarations": ["input count", "input n"],

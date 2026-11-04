@@ -4,14 +4,16 @@
 
 ## Platform
 
-web
+web (an installable PWA since v65), plus a Firefox extension for `open.spotify.com` (v58, v61)
 
 ## Users
 
 The project owner plus a small, explicitly allowlisted circle of trusted people (family/friends),
 each authenticated via a server-to-server proxied login against the owner's existing
-`vb2007.hu-api` account system and checked against an `ALLOWED_EMAILS` allowlist afterward. One
-designated `ADMIN_EMAIL` account is the operator; everyone else is a plain user.
+`vb2007.hu-api` account system and checked against an allowlist afterward. Since v69 the admin
+manages that allowlist on `/users` (the env's `ALLOWED_EMAILS` only seeded it once); removing an
+address signs the person out everywhere at once, and their jobs and files stay. One designated
+`ADMIN_EMAIL` account is the operator, always allowed; everyone else is a plain user.
 
 Confirmed (master v2, v16–v22): every allowlisted user gets their own real `users` row and their
 own job/track history — `jobs.user_id` scopes ownership, enforced on every list and direct-id
@@ -21,8 +23,8 @@ separation per user, adversarially verified (`backend/tests/test_ownership.py`,
 `scripts/verify_separation_sse.sh`) — see `CLAUDE.md`'s "Master v2 invariants". What stays shared
 on purpose: the downloaded audio files themselves live in one library, and the dedup ledger is
 global — if another user already downloaded a track, yours resolves instantly rather than
-re-fetching it. The admin also has an explicit, off-by-default "all users" toggle for
-troubleshooting the shared queue/worker.
+re-fetching it. The admin also has an explicit, off-by-default view of everyone's queue, or of
+only other users' (`mine | all | others`, v54), for troubleshooting the shared queue/worker.
 
 ## Product Purpose
 
@@ -85,6 +87,15 @@ retention setting) has shipped since v09/v20 — deployed and in real use at `sp
   metaphor. Track metadata, raw error text, alerts and logs stay untranslated; the backend answers
   with stable error codes that the frontend translates. Both message files must carry identical
   keys (`npm run lint` checks it).
+- Confirmed (master v5, v53–v69): a **Firefox extension** puts a download icon beside tracks,
+  albums, artists and playlists on `open.spotify.com`; a click queues the item, a right-click
+  offers its album or artist (resolved by the server). It signs in with the browser's own app
+  session, or a per-user API key from `/account` that can only submit and read its own jobs,
+  never anything admin. A playlist or artist job can be **watched**, re-expanded on a schedule
+  for new tracks only; any job can re-run its expansion or retry its failed tracks. A job
+  **exports** as a streamed zip of its files or an `.m3u8`. The app **installs** as a PWA whose
+  share target queues a link shared from Spotify's app. A user can turn on **browser
+  notifications** for their own settled jobs and has their own **"my stats"** on `/stats`.
 - Terminology: a "job" is one submitted URL; a "track" is one individual song being downloaded.
 
 ## Brand Commitments
@@ -106,7 +117,7 @@ usage data.
 2. Treat rate-limiting as normal, not exceptional — never surface it to the user as an app failure.
 3. Shared trust, private data — allowlisted people share one instance, one download library, and
    one dedup ledger, but each person's own queue and job history is private from the others (v16–
-   v22); the admin's "all users" view is an explicit, off-by-default exception for troubleshooting.
+   v22); the admin's "all"/"others" views are an explicit, off-by-default exception for troubleshooting.
 4. Config over UI, until proven necessary — but this narrowed over time, not stayed fixed: proxy
    management (v13), output/library settings (v13, v28) and worker pause/resume (v25) all moved
    into the settings UI once they proved to need routine adjustment. The proxy list file

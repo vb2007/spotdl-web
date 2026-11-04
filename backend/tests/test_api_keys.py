@@ -7,9 +7,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from fastapi.routing import APIRoute
 
-from app.main import app
 from app.models import ApiKey
 from app.routers import jobs as jobs_router
 from app.services import api_keys
@@ -287,91 +285,8 @@ def test_an_admins_key_reads_only_the_admins_own_jobs(client, session_cookie, ad
 
 # --- a key never grants admin, or anything else ------------------------------------------
 
-# The two routes a key may use. Everything else in the app must refuse a key.
-KEY_ROUTES = {("POST", "/api/jobs"), ("GET", "/api/jobs/{job_id}"), ("GET", "/api/auth/me")}
-# Routes that need no credential at all.
-PUBLIC_ROUTES = {("GET", "/api/health"), ("POST", "/api/auth/login")}
-
-
-def _api_routes(routes=None) -> list[APIRoute]:
-    """Every APIRoute in the app. FastAPI (0.141+) keeps an included router as a lazy
-    `_IncludedRouter` wrapper (no prefix of its own here: every router carries its prefix), so
-    this descends into each one's `original_router`."""
-    found = []
-    for route in app.routes if routes is None else routes:
-        if isinstance(route, APIRoute):
-            found.append(route)
-        elif hasattr(route, "original_router"):
-            found.extend(_api_routes(route.original_router.routes))
-    return found
-
-
-def _all_routes() -> list[tuple[str, str]]:
-    return [(m, r.path) for r in _api_routes() for m in sorted(r.methods - {"HEAD", "OPTIONS"})]
-
-
-def _depends_on(route: APIRoute, target) -> bool:
-    stack = list(route.dependant.dependencies)
-    while stack:
-        dep = stack.pop()
-        if dep.call is target:
-            return True
-        stack.extend(dep.dependencies)
-    return False
-
-
-def _admin_routes() -> list[tuple[str, str]]:
-    from app.routers.admin import require_admin_hidden as stats_gate
-    from app.routers.auth import require_admin, require_admin_hidden
-
-    found = []
-    for route in _api_routes():
-        # v56 (A6): require_admin answers a non-admin 403, require_admin_hidden 404 (and
-        # admin.py keeps its own copy of the latter for /api/admin/stats).
-        if any(_depends_on(route, gate) for gate in (require_admin, require_admin_hidden, stats_gate)):
-            found.extend((m, route.path) for m in sorted(route.methods - {"HEAD", "OPTIONS"}))
-    return found
-
-
-def _fill(path: str) -> str:
-    out = path
-    while "{" in out:
-        start, end = out.index("{"), out.index("}")
-        out = out[:start] + str(uuid.uuid4()) + out[end + 1 :]
-    return out
-
-
-def test_the_route_lists_are_complete():
-    # Guards the parametrizations below against silently testing nothing.
-    assert len(_admin_routes()) >= 10
-    assert set(_admin_routes()) <= set(_all_routes())
-    assert KEY_ROUTES | PUBLIC_ROUTES <= set(_all_routes())
-    assert len(_all_routes()) >= 40
-
-
-@pytest.mark.parametrize("method,path", _admin_routes())
-def test_an_admins_key_gets_no_admin_answer_on_any_admin_route(client, admin_client, method, path):
-    raw = _create_key(admin_client)["key"]
-    client.cookies.clear()
-    # A valid admin key (it works where a key may), refused here.
-    assert client.get("/api/auth/me", headers=bearer(raw)).json()["is_admin"] is True
-    response = client.request(method, _fill(path), headers=bearer(raw), json={})
-    # Not authenticated at all: a key is no credential here, so it never reaches the
-    # admin check, and certainly never passes it.
-    assert response.status_code == 401, (method, path, response.status_code, response.text)
-    assert response.json()["code"] == "not_authenticated"
-
-
-@pytest.mark.parametrize(
-    "method,path",
-    [r for r in _all_routes() if r not in KEY_ROUTES | PUBLIC_ROUTES],
-)
-def test_a_key_is_refused_on_every_route_but_submit_and_me(client, admin_client, method, path):
-    raw = _create_key(admin_client)["key"]
-    client.cookies.clear()
-    assert client.get("/api/auth/me", headers=bearer(raw)).status_code == 200
-    response = client.request(method, _fill(path), headers=bearer(raw), json={})
-    assert response.status_code == 401, (method, path, response.status_code, response.text)
+# The route walk (a key refused everywhere but create, its own job and `me`, admin routes
+# included) lives in test_key_boundary.py since v70, deny-by-default.
 
 
 def test_the_admins_cookie_still_works_beside_its_key(admin_client):

@@ -1339,6 +1339,7 @@
 	"account_notify_allow": "allow in this browser",
 	"account_notify_shown_here": "This browser shows them.",
 	"notify_job_done": "Done — {done} of {total}",
+	"notify_job_not_found": "Not found",
 	"stats_bytes": [
 		{
 			"declarations": ["input count", "local countPlural = count: plural", "input n"],

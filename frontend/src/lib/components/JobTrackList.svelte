@@ -7,6 +7,7 @@
 	import { keepFocus } from '$lib/stores/confirm';
 	import * as m from '$lib/paraglide/messages';
 	import { errorText } from '$lib/i18n/errors';
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { formatNumber } from '$lib/i18n/format';
 
 	// v47: `unreadable` (the job failed before any track was read) says why the list is empty
@@ -71,6 +72,10 @@
 		// v68: rendered first if the list is windowed.
 		if (fresh) focusRowEl(rowById(fresh.id));
 	}
+
+	// v70 (U9): "Couldn't load the tracks." with the reason after it; ErrorSentence marks a raw
+	// English reason lang="en" (the sentence's own words stay in the page's language).
+	const failedSentence = (error: string) => `${m.job_tracks_failed()} ${error}`;
 </script>
 
 <!-- v41: the job's tracks hang off a rail in its chevron column, indented by exactly one
@@ -79,7 +84,10 @@
 	<!-- v47: the list's one failure announcement, present from the moment the list opens (the
 	     visible lines below are swapped in with their text, which often goes unannounced). -->
 	<p class="sr-only" role="alert">
-		{state?.error ? `${m.job_tracks_failed()} ${errorText(state.error.err)}` : ''}
+		{#if state?.error}<ErrorSentence
+				sentence={failedSentence}
+				error={errorText(state.error.err)}
+			/>{/if}
 	</p>
 	{#if state === undefined || state.loading}
 		<p class="hint">{m.job_tracks_loading()}</p>
@@ -87,7 +95,7 @@
 		<!-- v47: what failed, the reason, and a way to retry it here (it took a collapse and
 		     re-open before). -->
 		<div class="hint fail">
-			<p>{m.job_tracks_failed()} {errorText(state.error.err)}</p>
+			<p><ErrorSentence sentence={failedSentence} error={errorText(state.error.err)} /></p>
 			<button
 				type="button"
 				class="retry"
@@ -148,7 +156,10 @@
 		     retries it) or a re-read of the list (a cancel's), which offers its own retry. v47:
 		     one sentence for both, since either can fail. -->
 		<p class="hint fail">
-			{state.error ? `${m.job_tracks_failed()} ${errorText(state.error.err)}` : ''}
+			{#if state.error}<ErrorSentence
+					sentence={failedSentence}
+					error={errorText(state.error.err)}
+				/>{/if}
 		</p>
 		{#if state.error && (state.rereadFailed || !state.nextCursor)}
 			<button

@@ -934,8 +934,16 @@ test.describe('as the admin', () => {
 			await expect(page).toHaveURL('/account');
 			const auto = page.getByRole('button', { name: t(m.account_retention_auto), exact: true });
 			await tabTo(page, auto);
+			// v70: "auto" saves on its own when it's a change (from "never"). Waited for here, or a
+			// slow answer to it is the one `retained` below catches, and the read runs before the
+			// queued 412 is even sent. Already "auto", the press sends nothing.
+			const autoSaved =
+				retention.retention_days === null
+					? page.waitForResponse(sent('PATCH', '/api/settings/retention'))
+					: null;
 			await page.keyboard.press('Enter');
 			await expect(auto).toHaveAttribute('aria-pressed', 'true');
+			if (autoSaved) expect((await autoSaved).ok()).toBe(true);
 			const days = page.getByLabel(t(m.account_retention_after), { exact: true });
 			await tabTo(page, days);
 			await page.keyboard.press('Control+a');

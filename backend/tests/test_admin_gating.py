@@ -53,7 +53,7 @@ _GATES = {require_admin: 403, require_admin_hidden: 404, admin_router.require_ad
 
 
 def _api_routes(routes=None) -> list[APIRoute]:
-    # Included routers are lazy wrappers (FastAPI 0.141+); see test_api_keys.py's twin.
+    # Included routers are lazy wrappers (FastAPI 0.141+); see test_key_boundary.py's twin (v70).
     found = []
     for route in app.routes if routes is None else routes:
         if isinstance(route, APIRoute):

@@ -1042,7 +1042,7 @@ def test_a_run_whose_marker_expired_takes_it_back(markers):
     assert watch.claim_run(job_id) is None
 
 
-def test_a_superseded_run_skips_its_read(db_session, monkeypatch, markers):
+def test_a_superseded_run_skips_its_read(db_session, monkeypatch, markers, sent_downloads):
     job = _job(db_session, _user(db_session), track_ids=("a",), last_expanded_at=datetime.now(timezone.utc))
     old = watch.claim_run(job.id)
     markers.values.clear()
@@ -1058,6 +1058,9 @@ def test_a_superseded_run_skips_its_read(db_session, monkeypatch, markers):
     assert watch.claim_run(job.id) is None
     expand_task.expand_job(str(job.id), reexpand=True, marker=newer)
     assert len(reads) == 1
+    # v70: its new track is sent through the stub. A real `.delay` here spent ~19 s in Celery's
+    # broker retries, a third of the suite's run.
+    assert len(sent_downloads) == 1
 
 
 # --- review round 8 ----------------------------------------------------------------------

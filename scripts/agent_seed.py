@@ -12,6 +12,7 @@ Stand-in files are one-second silent MP3s: "already exists" is folder + filename
 stand-in counts as present. Every row it creates says "agent fixture" in its path or URL.
 """
 
+import os
 import re
 import subprocess
 import sys
@@ -191,3 +192,69 @@ else:
         f"seed: {email}'s history: {HISTORY_JOBS} archived jobs, a {ALBUM_TRACKS}-track album, "
         "a track with a network path"
     )
+
+# v70: the e2e user's own recent attempt. Spec 14's "my stats" journey (v66) tabs through the
+# charts' table views, and the charts exist only when the user had a track tried in the window;
+# on the owner's database earlier runs left some, a fresh slot had none. One archived job with
+# one completed track, its attempt moved to an hour ago on every run, so the 24h/7d/30d windows
+# all hold it however long the slot lives. agent_stack.sh passes the user (e2e's identities).
+user_email = os.environ.get("SEED_USER_EMAIL", "").strip()
+if user_email:
+    owner = get_or_create_user(db, normalize_email(user_email))
+    url = HISTORY_URL.format(kind="track", n=9000)
+    job = db.query(Job).filter(Job.user_id == owner.id, Job.source_url == url).one_or_none()
+    if job is None:
+        created = datetime.now(timezone.utc) - timedelta(days=60)
+        job = Job(
+            user_id=owner.id,
+            source_url=url,
+            source_type=JobSourceType.TRACK,
+            state=JobState.EXPANDED,
+            created_at=created,
+            archived_at=created + timedelta(hours=1),
+        )
+        db.add(job)
+        db.flush()
+        track = Track(
+            job_id=job.id,
+            spotify_track_id="agentfixture9000t00",
+            song_json={"name": "My stats fixture", "artists": ["agent fixture"], "album_name": "agent fixture"},
+            state=TrackState.COMPLETED,
+            created_at=created,
+            attempts_made=1,
+        )
+        db.add(track)
+        db.flush()
+        db.add(TrackAttempt(track_id=track.id, attempt_number=1, outcome=TrackAttemptOutcome.COMPLETED,
+                            network_path=NetworkPath.DIRECT_IPV4, started_at=created, finished_at=created))
+        db.flush()
+    # The whole fixture moves with the attempt (review round 1): a job and track created 60 days
+    # before their attempt made the user's "time to complete" read 59 days.
+    finished = datetime.now(timezone.utc) - timedelta(hours=1)
+    queued = finished - timedelta(minutes=2)
+    db.execute(
+        text("""
+            update track_attempts set started_at = :started, finished_at = :finished
+            where track_id in (select id from tracks where job_id = :job)
+        """),
+        {"started": finished - timedelta(seconds=20), "finished": finished, "job": job.id},
+    )
+    db.execute(text("update tracks set created_at = :queued where job_id = :job"), {"queued": queued, "job": job.id})
+    db.execute(
+        text("update jobs set created_at = :queued, archived_at = :archived where id = :job"),
+        {"queued": queued, "archived": finished + timedelta(minutes=1), "job": job.id},
+    )
+    # A completed track has its file in the ledger, as every other fixture's does, so the user's
+    # library count agrees with the attempt (one file, a stand-in).
+    path = downloads / "agentfixture9000t00.mp3"
+    if not path.is_file():
+        stand_in(path, "agentfixture9000t00")
+    values = {"file_path": str(path), "format": "mp3", "bitrate": "128k", "in_library": True}
+    db.execute(
+        insert(DownloadedTrack)
+        .values(spotify_track_id="agentfixture9000t00", **values)
+        .on_conflict_do_update(index_elements=["spotify_track_id"], set_=values)
+    )
+    db.commit()
+    print(f"seed: {owner.email}'s own attempt, an hour ago (spec 14's my stats)")
+
