@@ -8109,14 +8109,16 @@ independently-found production bug from the same conversation)
   with an admin's key). `test_key_boundary.py` allows those three and pins them structurally (the
   set of routes depending on `require_session_or_api_key` must equal them). It also walks every
   route object, not only `APIRoute`s: a Starlette `Route` or `Mount` runs no FastAPI dependency, so
-  no session or key gate, and only FastAPI's docs pages may be one. Review rounds 1 and 2 widened
+  no session or key gate, and only FastAPI's docs pages may be one. Review rounds 1–4 widened
   it: low-priority routes (`app.frontend()`), included routers' own prefix and dependencies, a
   middleware stack of CORS only (an `@app.middleware("http")` endpoint has no route object at
   all), a second walk with every key carrier at once (`X-Spotdl-Client`, a `moz-extension://`
   origin, `X-Api-Key`, `?key=`), and a scan of `app/` (the key service included) for anything
   reaching the key lookup outside `require_session_or_api_key`, resolved through each module's
-  imports, not by name: aliases, `auth.require_session_or_api_key(...)`, `.dependency`,
-  `ApiKey.hash` or `filter_by(hash=)`, a new wrapper in `api_keys.py`. It's name resolution, not
+  imports, not by name: aliases, `auth.require_session_or_api_key(...)`, a `Depends` of it
+  kept outside a parameter, `ApiKey.hash` or `filter_by(hash=)` on an `ApiKey` query, a new
+  wrapper in `api_keys.py`, an import it can't resolve, `ApiKey` used outside the three modules
+  that use it today; and a route serving only HEAD is tested too. It's name resolution, not
   a proof (code written to hide a lookup, `getattr` on a built string, isn't a route "added
   without considering keys"); the carrier walk backs it.
 - **Driving the signed extension in release Firefox 159** (extends v58's harness notes):

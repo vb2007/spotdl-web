@@ -70,7 +70,15 @@ def _api_routes() -> list[APIRoute]:
 
 
 def _methods(route: APIRoute) -> list[str]:
-    return sorted(route.methods - {"HEAD", "OPTIONS"})
+    """The methods to test: HEAD only beside GET answers what GET does, and OPTIONS only beside
+    another method (CORS preflight); a route serving only HEAD or OPTIONS keeps it (review round
+    4: a `@router.head` route had nothing tested)."""
+    methods = set(route.methods)
+    if "GET" in methods:
+        methods.discard("HEAD")
+    if methods - {"OPTIONS"}:
+        methods.discard("OPTIONS")
+    return sorted(methods)
 
 
 def _all_routes() -> list[tuple[str, str]]:
@@ -161,10 +169,11 @@ def test_no_router_is_included_with_a_prefix_or_dependencies():
 def _key_references() -> list[tuple[str, str, str]]:
     """Every place in `app/` (module level included, the key service itself too) that reaches
     what a key is read with, resolved through the module's imports rather than by bare name:
-    `api_keys.authenticate`/`_hash` (however imported or aliased), `auth._bearer_token`,
-    `ApiKey.hash` (as an attribute of the class, however reached, or a `filter_by(hash=...)`),
-    `.dependency` (a `Depends` object's callable), and `require_session_or_api_key` referenced any
-    way but as a `Depends`/`Security` argument. Each as (file, enclosing function or "<module>",
+    `api_keys.authenticate`/`_hash` (from-imports, aliases, module aliases), `auth._bearer_token`,
+    `ApiKey.hash` (on the class, however reached, or `filter_by(hash=...)` on an `ApiKey` query),
+    and `require_session_or_api_key` referenced any way but as a `Depends`/`Security` argument
+    in a parameter. An import it can't resolve (relative, star, an unaliased `import app.x`)
+    is itself flagged. Each as (file, enclosing function or "<module>",
     what). A name that only looks alike (another module's `_hash`, an SMTP client's
     `authenticate`) isn't one (review rounds 1-3)."""
     import ast
@@ -174,6 +183,7 @@ def _key_references() -> list[tuple[str, str, str]]:
 
     root = Path(app_package.__file__).parent
     found = []
+    api_key_modules = set()
 
     class Visitor(ast.NodeVisitor):
         def __init__(self, rel):
@@ -187,12 +197,16 @@ def _key_references() -> list[tuple[str, str, str]]:
             }
             self.names = dict(own.get(rel, {}))  # local name -> target
             self.modules = {}  # local name -> "api_keys" | "auth" | "models"
+            self.parameter_depends = set()  # Depends(...) calls that are a parameter's default
 
         def _note(self, what):
             found.append((self.rel, self.stack[-1] if self.stack else "<module>", what))
 
         def visit_ImportFrom(self, node):
             mod = node.module or ""
+            if node.level or any(alias.name == "*" for alias in node.names):
+                # Relative and star imports aren't resolved here (none in app/ today).
+                self._note("an import the scan can't resolve")
             for alias in node.names:
                 local = alias.asname or alias.name
                 if mod == "app.services" and alias.name == "api_keys":
@@ -215,8 +229,15 @@ def _key_references() -> list[tuple[str, str, str]]:
                 kind = {"app.services.api_keys": "api_keys", "app.routers.auth": "auth", "app.models": "models"}
                 if alias.name in kind and alias.asname:
                     self.modules[alias.asname] = kind[alias.name]
+                elif alias.name.startswith("app.") and not alias.asname:
+                    # `import app.x.y` reaches it as a dotted chain (none in app/ today).
+                    self._note("an import the scan can't resolve")
 
         def visit_FunctionDef(self, node):
+            defaults = [*node.args.defaults, *[d for d in node.args.kw_defaults if d is not None]]
+            annotations = [a.annotation for a in [*node.args.args, *node.args.kwonlyargs] if a.annotation]
+            for expr in [*defaults, *annotations]:  # a default, or inside Annotated[...]
+                self.parameter_depends.update(id(n) for n in ast.walk(expr) if isinstance(n, ast.Call))
             self.stack.append(node.name)
             self.generic_visit(node)
             self.stack.pop()
@@ -243,14 +264,21 @@ def _key_references() -> list[tuple[str, str, str]]:
             func = node.func
             name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
             if name in ("Depends", "Security"):
-                self.exempt.update(id(arg) for arg in node.args)
-                self.exempt.update(id(k.value) for k in node.keywords if k.arg == "dependency")
-            if name == "filter_by" and any(k.arg == "hash" for k in node.keywords):
+                wrapped = [*node.args, *[k.value for k in node.keywords if k.arg == "dependency"]]
+                self.exempt.update(id(arg) for arg in wrapped)
+                # The key dependency's Depends belongs in a parameter; one kept elsewhere (a
+                # module constant) can be called through `.dependency` from any helper.
+                if id(node) not in self.parameter_depends and any(self._target(a) == "dependency" for a in wrapped):
+                    self._note("Depends(require_session_or_api_key) outside a parameter")
+            on_api_key = any(self._target(n) == "ApiKey" for n in ast.walk(func))
+            if name == "filter_by" and on_api_key and any(k.arg == "hash" for k in node.keywords):
                 self._note("ApiKey.hash")
             self.generic_visit(node)
 
         def _check(self, node):
             target = self._target(node)
+            if target == "ApiKey":
+                api_key_modules.add(self.rel)
             if target == "dependency":
                 if id(node) not in self.exempt:
                     self._note("require_session_or_api_key outside Depends")
@@ -261,8 +289,6 @@ def _key_references() -> list[tuple[str, str, str]]:
             self._check(node)
 
         def visit_Attribute(self, node):
-            if node.attr == "dependency":
-                self._note(".dependency")
             if node.attr == "hash" and self._target(node.value) == "ApiKey":
                 self._note("ApiKey.hash")
             if self._target(node) is not None:
@@ -273,6 +299,7 @@ def _key_references() -> list[tuple[str, str, str]]:
     for path in sorted(root.rglob("*.py")):
         rel = str(path.relative_to(root))
         Visitor(rel).visit(ast.parse(path.read_text(), filename=str(path)))
+    _key_references.api_key_modules = api_key_modules
     return found
 
 
@@ -282,8 +309,10 @@ def test_only_the_key_dependency_reads_a_key():
     and `authenticate`, and the dependency is only ever a `Depends`/`Security` argument, so no
     other dependency can call it under a condition of its own. Name-resolution, not a proof:
     code written to hide a key lookup from it (`getattr` with a built string, say) isn't
-    "a route added without considering keys"; the behavioural walk below sends every key
-    carrier there is, so a route that answers one still fails there."""
+    "a route added without considering keys" (owner-accepted limit, the master plan's v70
+    Amendment); the behavioural walk below sends the key carriers a client uses today. Which
+    modules may touch `ApiKey` at all is pinned too (review round 4: a lookup that never names
+    `ApiKey.hash`, say a prefix match and a digest compare, would otherwise pass)."""
     assert sorted(set(_key_references())) == [
         ("routers/auth.py", "require_session_or_api_key", "_bearer_token"),
         ("routers/auth.py", "require_session_or_api_key", "authenticate"),
@@ -291,6 +320,16 @@ def test_only_the_key_dependency_reads_a_key():
         ("services/api_keys.py", "authenticate", "_hash"),
         ("services/api_keys.py", "create_key", "_hash"),
     ]
+    # Where `ApiKey` is used (the model package defines and re-exports it, naming no use).
+    assert _key_references.api_key_modules == {
+        "routers/auth.py",
+        "services/allowlist.py",
+        "services/api_keys.py",
+    }
+
+
+def test_every_route_has_a_method_to_test():
+    assert [r.path for r in _api_routes() if not _methods(r)] == []
 
 
 def test_no_middleware_answers_on_its_own():
@@ -324,7 +363,7 @@ def test_a_key_is_refused_on_every_other_route(request, client, holder, carriers
     """Behavioral, deny-by-default: every route outside the key and public ones answers a key
     401 `not_authenticated`, admin routes included (a key is no credential there, so it never
     reaches the admin check, let alone passes it). Once as the plain `Bearer`, once with every
-    way a client could carry it or say it's the extension at the same time (`X-Spotdl-Client`,
+    way a client carries it today or says it's the extension, at the same time (`X-Spotdl-Client`,
     a `moz-extension://` origin, `X-Api-Key`, `?key=`/`?api_key=`), so a dependency that accepts
     a key only on one of them fails too (review rounds 2-3)."""
     raw = _key(request, holder)

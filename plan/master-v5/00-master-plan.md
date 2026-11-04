@@ -898,7 +898,8 @@ here.
   - **graphify's cache is untracked** (owner's choice): it keyed node ids by the absolute path of the
     worktree that built them, so main's graph mixed about twenty deleted v5 worktrees' ids.
   - **Fixed here, beyond the plan's tasks:** ledger U9's remainder (two dashboard error spans
-    without `textLang()`, the masthead's disconnect failure restructured onto `ErrorSentence`) and
+    without `textLang()`, the masthead's disconnect failure restructured onto `ErrorSentence`, and
+    review's sweep: a job's track-list failure and v69's `/users` errors) and
     U6's on the one surface v67 left (a one-track not-found job's notification), owner's choice;
     two e2e specs that passed only on a slot earlier runs had filled (spec 14's my-stats journey,
     spec 26's fixture); three tests waiting on real timeouts (a real Celery `.delay`, two real TCP
