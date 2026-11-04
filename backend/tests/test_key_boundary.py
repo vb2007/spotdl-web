@@ -148,7 +148,10 @@ def test_no_route_escapes_the_walk():
     escaped = [
         (type(route).__name__, getattr(route, "path", repr(route)))
         for route in _leaves()
-        if not isinstance(route, APIRoute)
+        # Exactly APIRoute: a custom route class (FastAPI's `route_class` hook) can rewrite the
+        # request before any key reader sees it, a header built from `?auth=` say (review round
+        # 10), so one has to be justified here.
+        if type(route) is not APIRoute
         and not (type(route) is Route and route.path in FRAMEWORK_ROUTES)
     ]
     assert escaped == []
@@ -366,29 +369,35 @@ def test_the_key_machinery_is_touched_only_where_it_was():
 # The functions that read a key, fingerprinted (their AST without the docstring): the inventory
 # pins *where* the key machinery is named, not what a function already on it does, so a new
 # carrier inside one of these (a query param, another header, the cookie's value) moved nothing
-# there (review round 9). A change here is meant to fail until someone checks it.
+# there (review round 9). A change here is meant to fail until someone checks it; the hash is of
+# `ast.unparse` output, the same on every Python version.
 KEY_READERS = {
-    ("routers/auth.py", "_bearer_token"): "c96f722044e25b46",
-    ("routers/auth.py", "require_session_or_api_key"): "6cca303ad863b9cb",
-    ("services/api_keys.py", "authenticate"): "653aa47b419238e6",
-    ("services/api_keys.py", "_hash"): "a8fb90061da8d712",
+    ("routers/auth.py", "_bearer_token"): "d75aa09516fdea14",
+    ("routers/auth.py", "require_session_or_api_key"): "558c6f2e6f9bb9ea",
+    ("services/api_keys.py", "authenticate"): "27807e3d1a7b2f27",
+    ("services/api_keys.py", "_hash"): "22a4708765eda3cb",
 }
 
 
 def _fingerprint(rel: str, name: str) -> str:
+    """The function as source (`ast.unparse`: comments and formatting don't count, and the text
+    is the same on every Python), without its docstring, `async` kept. Exactly one top-level
+    definition may carry the name: Python binds the last one, so a second `def` below the first
+    (a bad merge, say) would otherwise run unfingerprinted (review round 10)."""
     import ast
+    import copy
     import hashlib
     from pathlib import Path
 
     import app as app_package
 
     tree = ast.parse((Path(app_package.__file__).parent / rel).read_text())
-    fn = next(n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == name)
-    body = fn.body
-    if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant):
-        body = body[1:]  # its docstring: words, not behaviour
-    fn = ast.FunctionDef(fn.name, fn.args, body, fn.decorator_list, fn.returns, None, [])
-    return hashlib.sha256(ast.dump(fn, include_attributes=False).encode()).hexdigest()[:16]
+    defs = [n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == name]
+    assert len(defs) == 1, f"{rel} defines {name} {len(defs)} times"
+    fn = copy.copy(defs[0])
+    if fn.body and isinstance(fn.body[0], ast.Expr) and isinstance(fn.body[0].value, ast.Constant):
+        fn.body = fn.body[1:] or [ast.Pass()]  # its docstring: words, not behaviour
+    return hashlib.sha256(ast.unparse(fn).encode()).hexdigest()[:16]
 
 
 @pytest.mark.parametrize("rel,name", sorted(KEY_READERS))
@@ -476,7 +485,9 @@ def test_the_key_routes_take_a_key_only_as_a_bearer(request, client, carrier, ro
     """None of the key routes takes a key carried in any of these other ways, in the extension's
     context and beside a dead cookie (review rounds 7-9): other headers or schemes, the URL (it
     would land in nginx's and cloudflared's access logs), the body. These are examples; what
-    pins the carrier is `test_the_functions_that_read_a_key_are_unchanged`."""
+    pins the carrier is the fingerprints of the functions that read a key, together with plain
+    `APIRoute`s only and a CORS-only middleware stack. Out of this file's reach: an nginx or
+    tunnel rule that builds an `Authorization` header from something else."""
     from app.routers import jobs as jobs_router
 
     monkeypatch.setattr(jobs_router.expand_job, "delay", lambda *a, **k: None)

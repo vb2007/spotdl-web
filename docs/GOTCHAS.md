@@ -8114,8 +8114,10 @@ independently-found production bug from the same conversation)
   middleware stack of CORS only (an `@app.middleware("http")` endpoint has no route object at
   all), a second walk with every key carrier at once (`X-Spotdl-Client`, a `moz-extension://`
   origin, `X-Api-Key`, `?key=`, `?api_key=`), routes serving only HEAD, **fingerprints** of the four functions that read a key
-  (`_bearer_token`, `require_session_or_api_key`, `api_keys.authenticate`, `_hash`: their AST
-  without the docstring, so a new carrier inside one fails until reviewed), examples of carriers
+  (`_bearer_token`, `require_session_or_api_key`, `api_keys.authenticate`, `_hash`: their
+  `ast.unparse` text without the docstring, the same on every Python, one definition each, so a
+  new carrier inside one fails until reviewed), plain `APIRoute`s only (a custom route class can
+  rewrite the request before any of them sees it), examples of carriers
   the key routes refuse (other headers and schemes, URL params, the body), and an **inventory**: every (file, scope, name) in `app/` naming the key
   machinery (`ApiKey`, `api_keys`, `api_key`, `hash`, `_hash`, `authenticate`, `_bearer_token`,
   the dependency; the key service's own names wherever the service is imported), import module
@@ -8123,7 +8125,7 @@ independently-found production bug from the same conversation)
   pinned as a literal. Rounds 1–8 each found an ordinary spelling a narrower check missed (an
   alias, `auth.dep(...)`, `filter_by(hash=)`, `from app import services`, a row's `.hash` in a
   new dependency, SQL in a constant, all-caps SQL, `?access_token=`, a carrier added inside the
-  bearer parse itself); the inventory needs no
+  bearer parse itself, a second `def` of it, a custom route class); the inventory needs no
   recognising, only naming, and the test asks for a check and an update when the set moves. Out of reach, owner-accepted: code written to hide a name (`getattr` on a built string).
 - **Driving the signed extension in release Firefox 159** (extends v58's harness notes):
   - chrome context needs both `--remote-allow-system-access` and `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`;
