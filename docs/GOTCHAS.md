@@ -6357,7 +6357,7 @@ independently-found production bug from the same conversation)
   401 `not_authenticated` (owner's decision, 2026-10-24: keep 401). `test_api_keys.py`
   parametrizes this over every route in the app, not only the admin ones. The job read was added
   on the owner's decision the same day (the master plan's "read their own submission status"):
-  through a key it's the key's user's own jobs only, an admin's too (404 otherwise). *(2026-10-26, v56 (A6): an admin route whose path names an id (priority, bump, one proxy) now answers a non-admin 404, like stats and the test-alert send; `tests/test_admin_gating.py` holds the table.)*
+  through a key it's the key's user's own jobs only, an admin's too (404 otherwise). *(2026-10-26, v56 (A6): an admin route whose path names an id (priority, bump, one proxy) now answers a non-admin 404, like stats and the test-alert send; `tests/test_admin_gating.py` holds the table.)* *(2026-11-04, v70: the route walk moved from `test_api_keys.py` to `test_key_boundary.py`, which also tries a plain user's key, walks every route object (low-priority routes included), and pins the included routers' prefix and dependencies and the key-reading call sites.)*
 - **FastAPI keeps an included router as a lazy `_IncludedRouter` in `app.routes`** (0.162 in the slot's
   image, 0.141.1 in `uv.lock`/`requirements.txt`: both do). A test
   walking `app.routes` for `APIRoute`s finds only the four built-in docs routes; descend through

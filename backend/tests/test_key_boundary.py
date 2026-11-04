@@ -35,14 +35,31 @@ PUBLIC_ROUTES = {("GET", "/api/health"), ("POST", "/api/auth/login")}
 FRAMEWORK_ROUTES = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
 
 
-def _leaves(routes=None) -> list:
-    """Every route object in the app. FastAPI (0.141+) keeps an included router as a lazy
-    `_IncludedRouter` wrapper (no prefix of its own here: every router carries its prefix), so
-    this descends into each one's `original_router`."""
+def _route_lists(router) -> list:
+    """A router's routes, plus the ones FastAPI serves after them (`_low_priority_routes`, where
+    `.frontend()` registers a static mount, review round 1)."""
+    return list(router.routes) + list(getattr(router, "_low_priority_routes", []))
+
+
+def _wrappers(routes=None) -> list:
+    """Every included-router wrapper (FastAPI 0.141+'s lazy `_IncludedRouter`), nested ones too."""
     found = []
-    for route in app.routes if routes is None else routes:
+    for route in _route_lists(app.router) if routes is None else routes:
         if hasattr(route, "original_router"):
-            found.extend(_leaves(route.original_router.routes))
+            found.append(route)
+            found.extend(_wrappers(_route_lists(route.original_router)))
+    return found
+
+
+def _leaves(routes=None) -> list:
+    """Every route object in the app. FastAPI keeps an included router as a lazy
+    `_IncludedRouter` wrapper (no prefix of its own here: every router carries its prefix, which
+    `test_no_router_is_included_with_a_prefix_or_dependencies` pins), so this descends into each
+    one's `original_router`, low-priority routes included."""
+    found = []
+    for route in _route_lists(app.router) if routes is None else routes:
+        if hasattr(route, "original_router"):
+            found.extend(_leaves(_route_lists(route.original_router)))
         else:
             found.append(route)
     return found
@@ -126,6 +143,50 @@ def test_no_route_escapes_the_walk():
         and not (type(route) is Route and route.path in FRAMEWORK_ROUTES)
     ]
     assert escaped == []
+
+
+def test_no_router_is_included_with_a_prefix_or_dependencies():
+    """The walk reads each route's own path and dependencies. An `include_router(prefix=...,
+    dependencies=...)` keeps those on the wrapper instead (`include_context`), where the checks
+    below wouldn't see them: a gate or a prefix added that way must be moved onto the router, or
+    this file taught to read it (review round 1)."""
+    included = [
+        (w.original_router.prefix, w.include_context.prefix, list(w.include_context.dependencies))
+        for w in _wrappers()
+    ]
+    assert len(included) >= 10
+    assert [i for i in included if i[1] or i[2]] == []
+
+
+def test_only_the_key_dependency_reads_a_key():
+    """A key is read in one place: `require_session_or_api_key` calls `api_keys.authenticate`
+    (and `_bearer_token`); no other call in the app is named either, however it's imported. A new dependency that authenticated a key another way, through the
+    same service or the bearer helper, would pass the route walk if it also refused a plain
+    `Bearer` request; this pins the call sites (review round 1)."""
+    import ast
+    from pathlib import Path
+
+    import app as app_package
+
+    root = Path(app_package.__file__).parent
+    callers = set()
+    for path in root.rglob("*.py"):
+        tree = ast.parse(path.read_text(), filename=str(path))
+        for fn in ast.walk(tree):
+            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            for node in ast.walk(fn):
+                if not isinstance(node, ast.Call):
+                    continue
+                func = node.func
+                name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
+                # By name, whatever the module is imported as (`import ... as`, `from ... import`).
+                if name in ("authenticate", "_bearer_token"):
+                    callers.add((str(path.relative_to(root)), fn.name, name))
+    assert callers == {
+        ("routers/auth.py", "require_session_or_api_key", "authenticate"),
+        ("routers/auth.py", "require_session_or_api_key", "_bearer_token"),
+    }
 
 
 def test_the_route_lists_are_complete():
