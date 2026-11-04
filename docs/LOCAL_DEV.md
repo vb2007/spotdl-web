@@ -460,8 +460,9 @@ what a fresh slot lacks:
 - the e2e admin's history: 120 archived jobs (spec 14 pages through three pages of 50), a 14-track
   album (spec 14's twelve-or-more-track job) and a track whose attempt recorded a network path
   (spec 3, which since v52 adds its own fixture when it finds none it can use);
-- v70: the e2e user's own completed attempt, moved to an hour ago on every run (spec 14's "my
-  stats" journey needs a chart, and a chart needs a track of the user's tried in the window).
+- v70: the e2e user's own archived one-track job with a completed attempt and its ledger file,
+  moved to an hour ago on every run (spec 14's "my stats" journey needs a chart, and a chart needs
+  a track of the user's tried in the window).
   Only `e2e` passes the user to the seed (it has loaded the slot's identities); a bare `seed`
   skips it.
 

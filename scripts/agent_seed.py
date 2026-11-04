@@ -228,13 +228,32 @@ if user_email:
         db.add(TrackAttempt(track_id=track.id, attempt_number=1, outcome=TrackAttemptOutcome.COMPLETED,
                             network_path=NetworkPath.DIRECT_IPV4, started_at=created, finished_at=created))
         db.flush()
+    # The whole fixture moves with the attempt (review round 1): a job and track created 60 days
+    # before their attempt made the user's "time to complete" read 59 days.
     finished = datetime.now(timezone.utc) - timedelta(hours=1)
+    queued = finished - timedelta(minutes=2)
     db.execute(
         text("""
             update track_attempts set started_at = :started, finished_at = :finished
             where track_id in (select id from tracks where job_id = :job)
         """),
         {"started": finished - timedelta(seconds=20), "finished": finished, "job": job.id},
+    )
+    db.execute(text("update tracks set created_at = :queued where job_id = :job"), {"queued": queued, "job": job.id})
+    db.execute(
+        text("update jobs set created_at = :queued, archived_at = :archived where id = :job"),
+        {"queued": queued, "archived": finished + timedelta(minutes=1), "job": job.id},
+    )
+    # A completed track has its file in the ledger, as every other fixture's does, so the user's
+    # library count agrees with the attempt (one file, a stand-in).
+    path = downloads / "agentfixture9000t00.mp3"
+    if not path.is_file():
+        stand_in(path, "agentfixture9000t00")
+    values = {"file_path": str(path), "format": "mp3", "bitrate": "128k", "in_library": True}
+    db.execute(
+        insert(DownloadedTrack)
+        .values(spotify_track_id="agentfixture9000t00", **values)
+        .on_conflict_do_update(index_elements=["spotify_track_id"], set_=values)
     )
     db.commit()
     print(f"seed: {owner.email}'s own attempt, an hour ago (spec 14's my stats)")

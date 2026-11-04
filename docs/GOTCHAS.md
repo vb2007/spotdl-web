@@ -8091,7 +8091,9 @@ independently-found production bug from the same conversation)
     `/stats` draws a chart only when the user had a track *tried* in the window. A duplicate isn't
     an attempt, and a default run makes no network attempt, so on a fresh database the e2e user had
     none; v66's own slot still held attempts from its earlier runs. `agent_seed.py` now gives the
-    e2e user one archived job with a completed attempt, moved to an hour ago on every seed, and
+    e2e user one archived job with a completed attempt and its ledger file, all moved to an hour
+    ago on every seed (live review round 1: moving only the attempt left a 59-day "time to
+    complete" and a completed track with no file), and
     `agent_stack.sh e2e` passes the user in (`SEED_USER_EMAIL`).
   - **Spec 26's "a live update to a job off the window"** (v68) asserts the stream alone patches
     the row (no `/api/jobs` read). The fixture resets the live job to `waiting` in Postgres only, so
