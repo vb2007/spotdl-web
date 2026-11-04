@@ -1,7 +1,7 @@
 {
   "CLAUDE.md": {
-    "mtime": 1793786432.6704412,
-    "ast_hash": "786f50aab003acf894d59b00d7a1db86",
+    "mtime": 1793792845.412166,
+    "ast_hash": "30010de2636d31fe833f9981ddb602fe",
     "semantic_hash": ""
   },
   "README.md": {
@@ -30,7 +30,7 @@
     "semantic_hash": ""
   },
   "backend/app/main.py": {
-    "mtime": 1793782500.5172946,
+    "mtime": 1793793921.9295275,
     "ast_hash": "3967f2f8215bde57dad3272566889f44",
     "semantic_hash": ""
   },
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "docs/LOCAL_DEV.md": {
-    "mtime": 1793787406.335562,
-    "ast_hash": "27c268b6e210038b70591fe880c46bae",
+    "mtime": 1793790906.2229896,
+    "ast_hash": "ba52cdca89876467a309457f31b8a228",
     "semantic_hash": ""
   },
   "backend/alembic/versions/ebc1d43e2c21_initial_schema.py": {
@@ -200,7 +200,7 @@
     "semantic_hash": "c56dbe8d4a14e59494c84de3f41ddfc6"
   },
   "backend/app/routers/auth.py": {
-    "mtime": 1793782110.5011752,
+    "mtime": 1793797564.1429496,
     "ast_hash": "eba3e3c656917735a19efb1a9d6a434a",
     "semantic_hash": ""
   },
@@ -375,8 +375,8 @@
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
-    "mtime": 1793787686.6797233,
-    "ast_hash": "47516516b6d7c16fa06b40542be1c8f3",
+    "mtime": 1793792201.8456986,
+    "ast_hash": "1f09351f9ce042911047b132b84ab007",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/IncomingJobs.svelte": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1793787419.5341015,
-    "ast_hash": "75d972838f4f1f8e9f3ed5ef6a254209",
+    "mtime": 1793797574.3913076,
+    "ast_hash": "48a921e52a73156a4db83455a451cca2",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -745,8 +745,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/components/JobTrackList.svelte": {
-    "mtime": 1793782110.5115821,
-    "ast_hash": "28f593e2fcb7a0d4e10dbfd0947e30c6",
+    "mtime": 1793792133.890656,
+    "ast_hash": "bb64fe312cf11646bf6a1e505c70f611",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/QueueControls.svelte": {
@@ -1425,8 +1425,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/14-keyboard.e2e.ts": {
-    "mtime": 1793782110.509111,
-    "ast_hash": "828ee2b1a1eba88a976849756d1bcfe7",
+    "mtime": 1793789376.2878532,
+    "ast_hash": "dbabc297c11bb61cc7d9371878ae691f",
     "semantic_hash": ""
   },
   "frontend/e2e/support/guards.ts": {
@@ -1620,8 +1620,8 @@
     "semantic_hash": ""
   },
   "plan/master-v5/00-master-plan.md": {
-    "mtime": 1793787781.6818922,
-    "ast_hash": "bc7075aaacacb701ab1227f5d7082228",
+    "mtime": 1793794368.281955,
+    "ast_hash": "b0ab710b2ba7d345ab0a2a9b1c7b6b1a",
     "semantic_hash": ""
   },
   "plan/master-v5/IMPLEMENTATION_PROMPT.md": {
@@ -1735,8 +1735,8 @@
     "semantic_hash": ""
   },
   "scripts/agent_seed.py": {
-    "mtime": 1793785964.4413762,
-    "ast_hash": "c9eaf4156bbb0a3f5dd97fdc60d15799",
+    "mtime": 1793790877.1340733,
+    "ast_hash": "f9611da8b7be2b1e7abee0b260c5d9ed",
     "semantic_hash": ""
   },
   "scripts/agent_stack.sh": {
@@ -1780,7 +1780,7 @@
     "semantic_hash": ""
   },
   "backend/app/services/api_keys.py": {
-    "mtime": 1793782110.501581,
+    "mtime": 1793792829.0222456,
     "ast_hash": "f8ea3d14d5763df2023239d791b9b64c",
     "semantic_hash": ""
   },
@@ -1890,8 +1890,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_admin_gating.py": {
-    "mtime": 1793782110.5030737,
-    "ast_hash": "1a877a513529777f4d5c7414386a99d6",
+    "mtime": 1793793836.8921986,
+    "ast_hash": "f2598da75c89cfc7d76eb9439e64d053",
     "semantic_hash": ""
   },
   "backend/alembic/versions/b7e3c1a9d5f2_library_sweep_cancel_and_known_roots.py": {
@@ -2120,7 +2120,7 @@
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/ddfcc3e2c6047561.json": {
-    "mtime": 1793787544.9982278,
+    "mtime": 1793790941.5661528,
     "ast_hash": "6ec420b37f0c64ef4a6cff6d47142dba",
     "semantic_hash": ""
   },
@@ -2445,8 +2445,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/users/+page.svelte": {
-    "mtime": 1793782110.5139768,
-    "ast_hash": "263900bd9f63ad37cceb65b476dbabc9",
+    "mtime": 1793792133.9446585,
+    "ast_hash": "cf60f27cc305402811bbbdf9662e3943",
     "semantic_hash": ""
   },
   "frontend/src/routes/users/+page.ts": {
@@ -2455,8 +2455,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_key_boundary.py": {
-    "mtime": 1793782413.76657,
-    "ast_hash": "b5f9308e65ad3f10af51c71123b8b585",
+    "mtime": 1793797538.7229083,
+    "ast_hash": "48aa093852b39590b427f4021f4f6a76",
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/f7f7f3d5999c0cd9.json": {
