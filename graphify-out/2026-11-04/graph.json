@@ -1478,7 +1478,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_alembic_versions_cab1bff456eb_relink_ledger_rows_stranded_before_v48",
-      "community": 199,
+      "community": 3,
       "norm_label": "cab1bff456eb_relink_ledger_rows_stranded_before_v48.py"
     },
     {
@@ -1488,7 +1488,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "backend_alembic_versions_cab1bff456eb_relink_ledger_rows_stranded_before_v48_upgrade",
-      "community": 199,
+      "community": 3,
       "norm_label": "upgrade()"
     },
     {
@@ -1498,7 +1498,7 @@
       "source_location": "L124",
       "_origin": "ast",
       "id": "backend_alembic_versions_cab1bff456eb_relink_ledger_rows_stranded_before_v48_downgrade",
-      "community": 199,
+      "community": 3,
       "norm_label": "downgrade()"
     },
     {
@@ -1508,7 +1508,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_alembic_versions_cab1bff456eb_relink_ledger_rows_stranded_before_v48_rationale_1",
-      "community": 199,
+      "community": 3,
       "norm_label": "v48: relink ledger rows stranded by pre-v48 library sweeps (f34 repair)  revisio"
     },
     {
@@ -1518,7 +1518,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "backend_alembic_versions_cab1bff456eb_relink_ledger_rows_stranded_before_v48_rationale_125",
-      "community": 199,
+      "community": 3,
       "norm_label": "the relink stays: there's no stranded state worth restoring."
     },
     {
@@ -2538,7 +2538,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_app_models_job_job",
-      "community": 22,
+      "community": 19,
       "norm_label": "job"
     },
     {
@@ -2548,7 +2548,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_models_job_rationale_27",
-      "community": 22,
+      "community": 19,
       "norm_label": "one row per submitted url (album/playlist/artist/track)."
     },
     {
@@ -2738,7 +2738,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_trackattempt",
-      "community": 46,
+      "community": 76,
       "norm_label": "trackattempt"
     },
     {
@@ -2758,7 +2758,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_rationale_40",
-      "community": 46,
+      "community": 76,
       "norm_label": "one row per `download_track` invocation (v24) -- what it tried (direct vs. which"
     },
     {
@@ -11418,7 +11418,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "backend_app_services_spotify_urls_spotifyref_url",
-      "community": 235,
+      "community": 22,
       "norm_label": ".url()"
     },
     {
@@ -11738,7 +11738,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "backend_app_services_stats_epoch_bucket",
-      "community": 203,
+      "community": 169,
       "norm_label": "epoch_bucket"
     },
     {
@@ -11748,7 +11748,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "functionelement",
-      "community": 203,
+      "community": 169,
       "norm_label": "functionelement"
     },
     {
@@ -11758,7 +11758,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "backend_app_services_stats_epoch_bucket_init",
-      "community": 203,
+      "community": 169,
       "norm_label": ".__init__()"
     },
     {
@@ -11878,7 +11878,7 @@
       "source_location": "L170",
       "_origin": "ast",
       "id": "backend_app_services_stats_bucket_starts",
-      "community": 203,
+      "community": 169,
       "norm_label": "_bucket_starts()"
     },
     {
@@ -11888,7 +11888,7 @@
       "source_location": "L176",
       "_origin": "ast",
       "id": "backend_app_services_stats_failure_series",
-      "community": 203,
+      "community": 169,
       "norm_label": "_failure_series()"
     },
     {
@@ -11898,7 +11898,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_stats_py_session",
-      "community": 203,
+      "community": 169,
       "norm_label": "session"
     },
     {
@@ -11918,7 +11918,7 @@
       "source_location": "L358",
       "_origin": "ast",
       "id": "backend_app_services_stats_owned_attempts",
-      "community": 203,
+      "community": 169,
       "norm_label": "_owned_attempts()"
     },
     {
@@ -11928,7 +11928,7 @@
       "source_location": "L366",
       "_origin": "ast",
       "id": "backend_app_services_stats_contributed_files",
-      "community": 203,
+      "community": 169,
       "norm_label": "contributed_files()"
     },
     {
@@ -11938,7 +11938,7 @@
       "source_location": "L380",
       "_origin": "ast",
       "id": "backend_app_services_stats_measure_files",
-      "community": 203,
+      "community": 169,
       "norm_label": "measure_files()"
     },
     {
@@ -11948,7 +11948,7 @@
       "source_location": "L397",
       "_origin": "ast",
       "id": "backend_app_services_stats_my_stats",
-      "community": 203,
+      "community": 169,
       "norm_label": "my_stats()"
     },
     {
@@ -11968,7 +11968,7 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "backend_app_services_stats_rationale_65",
-      "community": 203,
+      "community": 169,
       "norm_label": "`floor((epoch seconds of <timestamp> + <offset>) / <seconds>)`: the index of the"
     },
     {
@@ -12028,7 +12028,7 @@
       "source_location": "L179",
       "_origin": "ast",
       "id": "backend_app_services_stats_rationale_179",
-      "community": 203,
+      "community": 169,
       "norm_label": "failed attempts per bucket, one series per error_type that occurred, in one grou"
     },
     {
@@ -12038,7 +12038,7 @@
       "source_location": "L359",
       "_origin": "ast",
       "id": "backend_app_services_stats_rationale_359",
-      "community": 203,
+      "community": 169,
       "norm_label": "`trackattempt` rows of the user's own tracks: the one predicate that narrows the"
     },
     {
@@ -12048,7 +12048,7 @@
       "source_location": "L367",
       "_origin": "ast",
       "id": "backend_app_services_stats_rationale_367",
-      "community": 203,
+      "community": 169,
       "norm_label": "the files the user's own jobs downloaded, all time: the ledger rows behind their"
     },
     {
@@ -12058,7 +12058,7 @@
       "source_location": "L381",
       "_origin": "ast",
       "id": "backend_app_services_stats_rationale_381",
-      "community": 203,
+      "community": 169,
       "norm_label": "the contribution's count and size. the size isn't recorded anywhere, so it's rea"
     },
     {
@@ -12068,7 +12068,7 @@
       "source_location": "L406",
       "_origin": "ast",
       "id": "backend_app_services_stats_rationale_406",
-      "community": 203,
+      "community": 169,
       "norm_label": "v66: one user's own downloads over a window (the admin page's windows and bucket"
     },
     {
@@ -18411,7 +18411,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_archive",
-      "community": 214,
+      "community": 19,
       "norm_label": "test_archive.py"
     },
     {
@@ -18421,7 +18421,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "backend_tests_test_archive_owner",
-      "community": 214,
+      "community": 19,
       "norm_label": "_owner()"
     },
     {
@@ -18431,7 +18431,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_tests_test_archive_make_job",
-      "community": 214,
+      "community": 19,
       "norm_label": "_make_job()"
     },
     {
@@ -18441,7 +18441,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_archive_py_job",
-      "community": 214,
+      "community": 19,
       "norm_label": "job"
     },
     {
@@ -18451,7 +18451,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_archives_only_settled_failed_or_cancelled_jobs_for_the_owner",
-      "community": 214,
+      "community": 19,
       "norm_label": "test_archive_jobs_archives_only_settled_failed_or_cancelled_jobs_for_the_owner()"
     },
     {
@@ -18461,7 +18461,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_never_archives_a_waiting_job_regardless_of_age",
-      "community": 214,
+      "community": 19,
       "norm_label": "test_archive_jobs_never_archives_a_waiting_job_regardless_of_age()"
     },
     {
@@ -18471,7 +18471,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_age_is_measured_from_newest_track_activity_not_job_created_at",
-      "community": 214,
+      "community": 19,
       "norm_label": "test_archive_jobs_age_is_measured_from_newest_track_activity_not_job_created_at()"
     },
     {
@@ -18481,7 +18481,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_sweep_archives_settled_jobs_past_the_threshold",
-      "community": 214,
+      "community": 19,
       "norm_label": "test_archive_jobs_sweep_archives_settled_jobs_past_the_threshold()"
     },
     {
@@ -18491,7 +18491,7 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_with_job_ids_restricts_to_the_given_ids",
-      "community": 214,
+      "community": 19,
       "norm_label": "test_archive_jobs_with_job_ids_restricts_to_the_given_ids()"
     },
     {
@@ -18501,7 +18501,7 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_ignores_job_ids_belonging_to_another_user",
-      "community": 214,
+      "community": 19,
       "norm_label": "test_archive_jobs_ignores_job_ids_belonging_to_another_user()"
     },
     {
@@ -18511,7 +18511,7 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_never_touches_downloaded_tracks",
-      "community": 214,
+      "community": 19,
       "norm_label": "test_archive_jobs_never_touches_downloaded_tracks()"
     },
     {
@@ -18521,7 +18521,7 @@
       "source_location": "L140",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_unarchive_jobs_restores_only_owned_archived_jobs",
-      "community": 214,
+      "community": 19,
       "norm_label": "test_unarchive_jobs_restores_only_owned_archived_jobs()"
     },
     {
@@ -18531,7 +18531,7 @@
       "source_location": "L155",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_unarchive_jobs_on_a_non_archived_job_is_a_noop",
-      "community": 214,
+      "community": 19,
       "norm_label": "test_unarchive_jobs_on_a_non_archived_job_is_a_noop()"
     },
     {
@@ -18931,7 +18931,7 @@
       "source_location": "L411",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_test_reclaim_leaves_a_track_completed_after_its_snapshot_on_real_connections",
-      "community": 46,
+      "community": 76,
       "norm_label": "test_reclaim_leaves_a_track_completed_after_its_snapshot_on_real_connections()"
     },
     {
@@ -18941,7 +18941,7 @@
       "source_location": "L465",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_test_reclaim_leaves_a_queued_track_that_started_downloading_after_its_snapshot",
-      "community": 46,
+      "community": 76,
       "norm_label": "test_reclaim_leaves_a_queued_track_that_started_downloading_after_its_snapshot()"
     },
     {
@@ -18991,7 +18991,7 @@
       "source_location": "L412",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_rationale_412",
-      "community": 46,
+      "community": 76,
       "norm_label": "v51, on two real connections: the stale sweep reads its snapshot (the track is"
     },
     {
@@ -19001,7 +19001,7 @@
       "source_location": "L466",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_rationale_466",
-      "community": 46,
+      "community": 76,
       "norm_label": "v55 (e2), the other snapshotted state: the sweep snapshots a track stuck `queued"
     },
     {
@@ -23961,7 +23961,7 @@
       "source_location": "L410",
       "_origin": "ast",
       "id": "backend_tests_test_extension_jobs_test_a_zero_limit_turns_the_limiter_off",
-      "community": 18,
+      "community": 125,
       "norm_label": "test_a_zero_limit_turns_the_limiter_off()"
     },
     {
@@ -24061,7 +24061,7 @@
       "source_location": "L574",
       "_origin": "ast",
       "id": "backend_tests_test_extension_jobs_test_an_impossible_login_is_invalid_credentials_not_a_500",
-      "community": 125,
+      "community": 18,
       "norm_label": "test_an_impossible_login_is_invalid_credentials_not_a_500()"
     },
     {
@@ -25201,7 +25201,7 @@
       "source_location": "L492",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_committed_job",
-      "community": 19,
+      "community": 76,
       "norm_label": "_committed_job()"
     },
     {
@@ -25211,7 +25211,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_py_jobstate",
-      "community": 19,
+      "community": 76,
       "norm_label": "jobstate"
     },
     {
@@ -25241,7 +25241,7 @@
       "source_location": "L549",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_committed_expanded_job_with_track",
-      "community": 19,
+      "community": 76,
       "norm_label": "_committed_expanded_job_with_track()"
     },
     {
@@ -25251,7 +25251,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_py_trackstate",
-      "community": 19,
+      "community": 76,
       "norm_label": "trackstate"
     },
     {
@@ -25261,7 +25261,7 @@
       "source_location": "L558",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_cancel_job_racing_its_last_track_completing_leaves_the_job_settled",
-      "community": 19,
+      "community": 76,
       "norm_label": "test_cancel_job_racing_its_last_track_completing_leaves_the_job_settled()"
     },
     {
@@ -25271,7 +25271,7 @@
       "source_location": "L600",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_cancel_job_that_wins_the_race_cancels_the_job_and_its_track",
-      "community": 19,
+      "community": 76,
       "norm_label": "test_cancel_job_that_wins_the_race_cancels_the_job_and_its_track()"
     },
     {
@@ -25291,7 +25291,7 @@
       "source_location": "L627",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_job_listing_snapshot_hides_a_job_committed_mid_listing",
-      "community": 19,
+      "community": 76,
       "norm_label": "test_job_listing_snapshot_hides_a_job_committed_mid_listing()"
     },
     {
@@ -25391,7 +25391,7 @@
       "source_location": "L559",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_rationale_559",
-      "community": 19,
+      "community": 76,
       "norm_label": "v56 (a1) on two real connections. the job's last track is completing: its     tr"
     },
     {
@@ -25401,7 +25401,7 @@
       "source_location": "L601",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_rationale_601",
-      "community": 19,
+      "community": 76,
       "norm_label": "the other order: the cancel commits first, so the job and its last track are"
     },
     {
@@ -25421,7 +25421,7 @@
       "source_location": "L628",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_rationale_628",
-      "community": 19,
+      "community": 76,
       "norm_label": "v51, the test above on two real connections: a job committed between the listing"
     },
     {
@@ -25568,7 +25568,7 @@
       "label": "test_no_router_is_included_with_a_prefix_or_dependencies()",
       "file_type": "code",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L157",
+      "source_location": "L160",
       "_origin": "ast",
       "id": "backend_tests_test_key_boundary_test_no_router_is_included_with_a_prefix_or_dependencies",
       "community": 30,
@@ -25578,7 +25578,7 @@
       "label": "_key_names()",
       "file_type": "code",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L177",
+      "source_location": "L180",
       "_origin": "ast",
       "id": "backend_tests_test_key_boundary_key_names",
       "community": 30,
@@ -25588,7 +25588,7 @@
       "label": "_key_inventory()",
       "file_type": "code",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L279",
+      "source_location": "L294",
       "_origin": "ast",
       "id": "backend_tests_test_key_boundary_key_inventory",
       "community": 30,
@@ -25598,17 +25598,37 @@
       "label": "test_the_key_machinery_is_touched_only_where_it_was()",
       "file_type": "code",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L334",
+      "source_location": "L355",
       "_origin": "ast",
       "id": "backend_tests_test_key_boundary_test_the_key_machinery_is_touched_only_where_it_was",
       "community": 30,
       "norm_label": "test_the_key_machinery_is_touched_only_where_it_was()"
     },
     {
+      "label": "_fingerprint()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_key_boundary.py",
+      "source_location": "L382",
+      "_origin": "ast",
+      "id": "backend_tests_test_key_boundary_fingerprint",
+      "community": 30,
+      "norm_label": "_fingerprint()"
+    },
+    {
+      "label": "test_the_functions_that_read_a_key_are_unchanged()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_key_boundary.py",
+      "source_location": "L404",
+      "_origin": "ast",
+      "id": "backend_tests_test_key_boundary_test_the_functions_that_read_a_key_are_unchanged",
+      "community": 30,
+      "norm_label": "test_the_functions_that_read_a_key_are_unchanged()"
+    },
+    {
       "label": "test_every_route_has_a_method_to_test()",
       "file_type": "code",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L348",
+      "source_location": "L411",
       "_origin": "ast",
       "id": "backend_tests_test_key_boundary_test_every_route_has_a_method_to_test",
       "community": 30,
@@ -25618,7 +25638,7 @@
       "label": "test_the_methods_a_route_is_tested_with()",
       "file_type": "code",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L364",
+      "source_location": "L427",
       "_origin": "ast",
       "id": "backend_tests_test_key_boundary_test_the_methods_a_route_is_tested_with",
       "community": 30,
@@ -25628,7 +25648,7 @@
       "label": "test_no_middleware_answers_on_its_own()",
       "file_type": "code",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L371",
+      "source_location": "L434",
       "_origin": "ast",
       "id": "backend_tests_test_key_boundary_test_no_middleware_answers_on_its_own",
       "community": 30,
@@ -25638,7 +25658,7 @@
       "label": "test_the_route_lists_are_complete()",
       "file_type": "code",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L378",
+      "source_location": "L441",
       "_origin": "ast",
       "id": "backend_tests_test_key_boundary_test_the_route_lists_are_complete",
       "community": 30,
@@ -25648,7 +25668,7 @@
       "label": "test_only_the_key_routes_accept_a_key()",
       "file_type": "code",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L388",
+      "source_location": "L451",
       "_origin": "ast",
       "id": "backend_tests_test_key_boundary_test_only_the_key_routes_accept_a_key",
       "community": 30,
@@ -25658,7 +25678,7 @@
       "label": "test_a_key_is_refused_on_every_other_route()",
       "file_type": "code",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L398",
+      "source_location": "L461",
       "_origin": "ast",
       "id": "backend_tests_test_key_boundary_test_a_key_is_refused_on_every_other_route",
       "community": 30,
@@ -25668,7 +25688,7 @@
       "label": "test_the_key_routes_take_a_key_only_as_a_bearer()",
       "file_type": "code",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L418",
+      "source_location": "L484",
       "_origin": "ast",
       "id": "backend_tests_test_key_boundary_test_the_key_routes_take_a_key_only_as_a_bearer",
       "community": 30,
@@ -25678,7 +25698,7 @@
       "label": "test_an_admins_key_reads_only_its_own_jobs()",
       "file_type": "code",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L428",
+      "source_location": "L524",
       "_origin": "ast",
       "id": "backend_tests_test_key_boundary_test_an_admins_key_reads_only_its_own_jobs",
       "community": 30,
@@ -25688,7 +25708,7 @@
       "label": "test_a_key_submits_only_spotify_links_even_the_admins()",
       "file_type": "code",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L449",
+      "source_location": "L545",
       "_origin": "ast",
       "id": "backend_tests_test_key_boundary_test_a_key_submits_only_spotify_links_even_the_admins",
       "community": 30,
@@ -25768,9 +25788,9 @@
       "label": "The walk reads each route's own path and dependencies. An `include_router(prefix",
       "file_type": "rationale",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L158",
+      "source_location": "L161",
       "_origin": "ast",
-      "id": "backend_tests_test_key_boundary_rationale_158",
+      "id": "backend_tests_test_key_boundary_rationale_161",
       "community": 30,
       "norm_label": "the walk reads each route's own path and dependencies. an `include_router(prefix"
     },
@@ -25778,9 +25798,9 @@
       "label": "KEY_NAMES plus every top-level name the key service defines (`create_key`, `key_",
       "file_type": "rationale",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L178",
+      "source_location": "L181",
       "_origin": "ast",
-      "id": "backend_tests_test_key_boundary_rationale_178",
+      "id": "backend_tests_test_key_boundary_rationale_181",
       "community": 30,
       "norm_label": "key_names plus every top-level name the key service defines (`create_key`, `key_"
     },
@@ -25788,19 +25808,39 @@
       "label": "Deny-by-default for how a key is *read*. The behavioural walk below can only sen",
       "file_type": "rationale",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L335",
+      "source_location": "L356",
       "_origin": "ast",
-      "id": "backend_tests_test_key_boundary_rationale_335",
+      "id": "backend_tests_test_key_boundary_rationale_356",
       "community": 30,
       "norm_label": "deny-by-default for how a key is *read*. the behavioural walk below can only sen"
+    },
+    {
+      "label": "The function as source (`ast.unparse`: comments and formatting don't count, and",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_key_boundary.py",
+      "source_location": "L383",
+      "_origin": "ast",
+      "id": "backend_tests_test_key_boundary_rationale_383",
+      "community": 30,
+      "norm_label": "the function as source (`ast.unparse`: comments and formatting don't count, and"
+    },
+    {
+      "label": "How a key is read (which carriers, which checks) changes only on purpose: an edi",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_key_boundary.py",
+      "source_location": "L405",
+      "_origin": "ast",
+      "id": "backend_tests_test_key_boundary_rationale_405",
+      "community": 30,
+      "norm_label": "how a key is read (which carriers, which checks) changes only on purpose: an edi"
     },
     {
       "label": "HEAD is dropped only beside GET, OPTIONS only beside another method (review roun",
       "file_type": "rationale",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L365",
+      "source_location": "L428",
       "_origin": "ast",
-      "id": "backend_tests_test_key_boundary_rationale_365",
+      "id": "backend_tests_test_key_boundary_rationale_428",
       "community": 30,
       "norm_label": "head is dropped only beside get, options only beside another method (review roun"
     },
@@ -25808,9 +25848,9 @@
       "label": "A middleware runs before any route, so one that answered a request (an     `@app",
       "file_type": "rationale",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L372",
+      "source_location": "L435",
       "_origin": "ast",
-      "id": "backend_tests_test_key_boundary_rationale_372",
+      "id": "backend_tests_test_key_boundary_rationale_435",
       "community": 30,
       "norm_label": "a middleware runs before any route, so one that answered a request (an     `@app"
     },
@@ -25818,9 +25858,9 @@
       "label": "Structural: the one dependency that reads a key sits on exactly the key routes.",
       "file_type": "rationale",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L389",
+      "source_location": "L452",
       "_origin": "ast",
-      "id": "backend_tests_test_key_boundary_rationale_389",
+      "id": "backend_tests_test_key_boundary_rationale_452",
       "community": 30,
       "norm_label": "structural: the one dependency that reads a key sits on exactly the key routes."
     },
@@ -25828,29 +25868,29 @@
       "label": "Behavioral, deny-by-default: every route outside the key and public ones answers",
       "file_type": "rationale",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L399",
+      "source_location": "L462",
       "_origin": "ast",
-      "id": "backend_tests_test_key_boundary_rationale_399",
+      "id": "backend_tests_test_key_boundary_rationale_462",
       "community": 30,
       "norm_label": "behavioral, deny-by-default: every route outside the key and public ones answers"
     },
     {
-      "label": "The key routes read a key from `Authorization: Bearer` only: a key in the URL wo",
+      "label": "None of the key routes takes a key carried in any of these other ways, in the ex",
       "file_type": "rationale",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L419",
+      "source_location": "L485",
       "_origin": "ast",
-      "id": "backend_tests_test_key_boundary_rationale_419",
+      "id": "backend_tests_test_key_boundary_rationale_485",
       "community": 30,
-      "norm_label": "the key routes read a key from `authorization: bearer` only: a key in the url wo"
+      "norm_label": "none of the key routes takes a key carried in any of these other ways, in the ex"
     },
     {
       "label": "The read key route treats an admin's key as a non-admin: another user's job is a",
       "file_type": "rationale",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L429",
+      "source_location": "L525",
       "_origin": "ast",
-      "id": "backend_tests_test_key_boundary_rationale_429",
+      "id": "backend_tests_test_key_boundary_rationale_525",
       "community": 30,
       "norm_label": "the read key route treats an admin's key as a non-admin: another user's job is a"
     },
@@ -25858,9 +25898,9 @@
       "label": "The create key route: a key gets the extension's allowlist (v53), whoever holds",
       "file_type": "rationale",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L450",
+      "source_location": "L546",
       "_origin": "ast",
-      "id": "backend_tests_test_key_boundary_rationale_450",
+      "id": "backend_tests_test_key_boundary_rationale_546",
       "community": 30,
       "norm_label": "the create key route: a key gets the extension's allowlist (v53), whoever holds"
     },
@@ -27271,7 +27311,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_tests_test_links_short_host",
-      "community": 81,
+      "community": 239,
       "norm_label": "short_host()"
     },
     {
@@ -27511,7 +27551,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_tests_test_links_rationale_22",
-      "community": 81,
+      "community": 239,
       "norm_label": "routes the resolver's httpx client to `answers` (url -> response or exception) a"
     },
     {
@@ -29101,7 +29141,7 @@
       "source_location": "L803",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_sync_lets_a_file_line_take_the_target_of_a_manual_proxy_being_deleted",
-      "community": 267,
+      "community": 133,
       "norm_label": "test_sync_lets_a_file_line_take_the_target_of_a_manual_proxy_being_deleted()"
     },
     {
@@ -29251,7 +29291,7 @@
       "source_location": "L804",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_rationale_804",
-      "community": 267,
+      "community": 133,
       "norm_label": "v56 (a4): a deleting manual row no longer holds its target, so proxies.txt's lin"
     },
     {
@@ -29811,7 +29851,7 @@
       "source_location": "L440",
       "_origin": "ast",
       "id": "backend_tests_test_removal_holds_test_race_a_re_add_waits_for_the_gate_and_then_enqueues_the_track",
-      "community": 76,
+      "community": 47,
       "norm_label": "test_race_a_re_add_waits_for_the_gate_and_then_enqueues_the_track()"
     },
     {
@@ -29911,7 +29951,7 @@
       "source_location": "L441",
       "_origin": "ast",
       "id": "backend_tests_test_removal_holds_rationale_441",
-      "community": 76,
+      "community": 47,
       "norm_label": "review round 1: the gate's read and its `pending` write are one locked transacti"
     },
     {
@@ -30031,7 +30071,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_next_delay_follows_ladder_and_caps_at_final_step",
-      "community": 59,
+      "community": 125,
       "norm_label": "test_next_delay_follows_ladder_and_caps_at_final_step()"
     },
     {
@@ -33161,7 +33201,7 @@
       "source_location": "L834",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_test_a_proxy_deleted_mid_attempt_still_lets_the_attempt_commit_on_real_connections",
-      "community": 46,
+      "community": 76,
       "norm_label": "test_a_proxy_deleted_mid_attempt_still_lets_the_attempt_commit_on_real_connections()"
     },
     {
@@ -33411,7 +33451,7 @@
       "source_location": "L835",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_rationale_835",
-      "community": 46,
+      "community": 76,
       "norm_label": "v56 (a4): with on delete set null an admin can delete a manual proxy while a dow"
     },
     {
@@ -33731,7 +33771,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_fakemarkers",
-      "community": 248,
+      "community": 3,
       "norm_label": "_fakemarkers"
     },
     {
@@ -33741,7 +33781,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_fakemarkers_init",
-      "community": 248,
+      "community": 3,
       "norm_label": ".__init__()"
     },
     {
@@ -33751,7 +33791,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_fakemarkers_set",
-      "community": 248,
+      "community": 3,
       "norm_label": ".set()"
     },
     {
@@ -33761,7 +33801,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_fakemarkers_get",
-      "community": 199,
+      "community": 3,
       "norm_label": ".get()"
     },
     {
@@ -33771,7 +33811,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_fakemarkers_expire",
-      "community": 248,
+      "community": 3,
       "norm_label": ".expire()"
     },
     {
@@ -33781,7 +33821,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_fakemarkers_delete",
-      "community": 248,
+      "community": 3,
       "norm_label": ".delete()"
     },
     {
@@ -33791,7 +33831,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_markers",
-      "community": 248,
+      "community": 3,
       "norm_label": "markers()"
     },
     {
@@ -33801,7 +33841,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_quiet_events",
-      "community": 275,
+      "community": 3,
       "norm_label": "_quiet_events()"
     },
     {
@@ -33831,7 +33871,7 @@
       "source_location": "L88",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_nonclosingsession",
-      "community": 235,
+      "community": 3,
       "norm_label": "_nonclosingsession"
     },
     {
@@ -33841,7 +33881,7 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_nonclosingsession_init",
-      "community": 235,
+      "community": 3,
       "norm_label": ".__init__()"
     },
     {
@@ -33851,7 +33891,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_nonclosingsession_getattr",
-      "community": 235,
+      "community": 3,
       "norm_label": ".__getattr__()"
     },
     {
@@ -33861,7 +33901,7 @@
       "source_location": "L95",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_nonclosingsession_close",
-      "community": 235,
+      "community": 3,
       "norm_label": ".close()"
     },
     {
@@ -33871,7 +33911,7 @@
       "source_location": "L99",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_fakesong",
-      "community": 235,
+      "community": 3,
       "norm_label": "_fakesong"
     },
     {
@@ -33881,7 +33921,7 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_fakesong_init",
-      "community": 235,
+      "community": 3,
       "norm_label": ".__init__()"
     },
     {
@@ -33891,7 +33931,7 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_user",
-      "community": 212,
+      "community": 3,
       "norm_label": "_user()"
     },
     {
@@ -33911,7 +33951,7 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_job_track_ids",
-      "community": 234,
+      "community": 3,
       "norm_label": "_job_track_ids()"
     },
     {
@@ -33921,7 +33961,7 @@
       "source_location": "L148",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_reexpand",
-      "community": 234,
+      "community": 3,
       "norm_label": "_reexpand()"
     },
     {
@@ -33931,7 +33971,7 @@
       "source_location": "L160",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_reexpand_adds_only_the_tracks_new_to_the_job",
-      "community": 234,
+      "community": 3,
       "norm_label": "test_reexpand_adds_only_the_tracks_new_to_the_job()"
     },
     {
@@ -33941,7 +33981,7 @@
       "source_location": "L176",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_reexpand_keeps_a_track_gone_from_the_playlist",
-      "community": 234,
+      "community": 3,
       "norm_label": "test_reexpand_keeps_a_track_gone_from_the_playlist()"
     },
     {
@@ -33951,7 +33991,7 @@
       "source_location": "L185",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_reexpand_with_nothing_changed_adds_nothing",
-      "community": 234,
+      "community": 3,
       "norm_label": "test_reexpand_with_nothing_changed_adds_nothing()"
     },
     {
@@ -33961,7 +34001,7 @@
       "source_location": "L199",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_reexpand_announces_new_tracks_as_the_first_expansion_does",
-      "community": 234,
+      "community": 3,
       "norm_label": "test_reexpand_announces_new_tracks_as_the_first_expansion_does()"
     },
     {
@@ -33971,7 +34011,7 @@
       "source_location": "L221",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_reexpand_leaves_a_job_that_isnt_expanded_and_unarchived",
-      "community": 235,
+      "community": 3,
       "norm_label": "test_reexpand_leaves_a_job_that_isnt_expanded_and_unarchived()"
     },
     {
@@ -33981,7 +34021,7 @@
       "source_location": "L233",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_reexpand_adds_nothing_to_a_job_cancelled_during_the_spotify_read",
-      "community": 234,
+      "community": 3,
       "norm_label": "test_reexpand_adds_nothing_to_a_job_cancelled_during_the_spotify_read()"
     },
     {
@@ -33991,7 +34031,7 @@
       "source_location": "L249",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_a_failed_spotify_read_leaves_the_job_and_clears_the_marker",
-      "community": 235,
+      "community": 3,
       "norm_label": "test_a_failed_spotify_read_leaves_the_job_and_clears_the_marker()"
     },
     {
@@ -34001,7 +34041,7 @@
       "source_location": "L266",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_new_tracks_counts_only_what_reexpansion_added",
-      "community": 234,
+      "community": 3,
       "norm_label": "test_new_tracks_counts_only_what_reexpansion_added()"
     },
     {
@@ -34011,7 +34051,7 @@
       "source_location": "L276",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_watched",
-      "community": 212,
+      "community": 3,
       "norm_label": "_watched()"
     },
     {
@@ -34021,7 +34061,7 @@
       "source_location": "L282",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_tick",
-      "community": 212,
+      "community": 3,
       "norm_label": "_tick()"
     },
     {
@@ -34031,7 +34071,7 @@
       "source_location": "L288",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_beat_starts_a_due_watched_job_and_schedules_its_next_check",
-      "community": 212,
+      "community": 3,
       "norm_label": "test_beat_starts_a_due_watched_job_and_schedules_its_next_check()"
     },
     {
@@ -34041,7 +34081,7 @@
       "source_location": "L314",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_beat_skips_a_watched_job_it_mustnt_reexpand",
-      "community": 212,
+      "community": 3,
       "norm_label": "test_beat_skips_a_watched_job_it_mustnt_reexpand()"
     },
     {
@@ -34051,7 +34091,7 @@
       "source_location": "L320",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_beat_reexpands_while_the_breaker_is_tripped",
-      "community": 212,
+      "community": 3,
       "norm_label": "test_beat_reexpands_while_the_breaker_is_tripped()"
     },
     {
@@ -34061,7 +34101,7 @@
       "source_location": "L331",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_the_hourly_cap_starts_k_and_leaves_the_rest_for_the_next_hour",
-      "community": 212,
+      "community": 3,
       "norm_label": "test_the_hourly_cap_starts_k_and_leaves_the_rest_for_the_next_hour()"
     },
     {
@@ -34071,7 +34111,7 @@
       "source_location": "L356",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_the_cap_counts_check_now_runs",
-      "community": 212,
+      "community": 3,
       "norm_label": "test_the_cap_counts_check_now_runs()"
     },
     {
@@ -34081,7 +34121,7 @@
       "source_location": "L367",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_beat_leaves_a_due_job_whose_check_now_is_running",
-      "community": 212,
+      "community": 3,
       "norm_label": "test_beat_leaves_a_due_job_whose_check_now_is_running()"
     },
     {
@@ -34091,7 +34131,7 @@
       "source_location": "L378",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_a_refused_send_leaves_the_job_due_and_uncounted",
-      "community": 212,
+      "community": 3,
       "norm_label": "test_a_refused_send_leaves_the_job_due_and_uncounted()"
     },
     {
@@ -34101,7 +34141,7 @@
       "source_location": "L395",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_a_watched_job_pass_error_never_stops_track_dispatch",
-      "community": 212,
+      "community": 3,
       "norm_label": "test_a_watched_job_pass_error_never_stops_track_dispatch()"
     },
     {
@@ -34171,7 +34211,7 @@
       "source_location": "L487",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_the_listing_carries_the_watch_and_the_new_count",
-      "community": 199,
+      "community": 3,
       "norm_label": "test_the_listing_carries_the_watch_and_the_new_count()"
     },
     {
@@ -34221,7 +34261,7 @@
       "source_location": "L537",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_check_now_runs_again_once_the_last_run_ended",
-      "community": 235,
+      "community": 3,
       "norm_label": "test_check_now_runs_again_once_the_last_run_ended()"
     },
     {
@@ -34261,7 +34301,7 @@
       "source_location": "L592",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_failed_job",
-      "community": 199,
+      "community": 3,
       "norm_label": "_failed_job()"
     },
     {
@@ -34271,7 +34311,7 @@
       "source_location": "L615",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_tracks",
-      "community": 199,
+      "community": 3,
       "norm_label": "_tracks()"
     },
     {
@@ -34281,7 +34321,7 @@
       "source_location": "L620",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_retry_failed_makes_every_waiting_track_due_now",
-      "community": 199,
+      "community": 3,
       "norm_label": "test_retry_failed_makes_every_waiting_track_due_now()"
     },
     {
@@ -34291,7 +34331,7 @@
       "source_location": "L637",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_retry_failed_holds_a_non_admin_to_one_retry_per_step",
-      "community": 199,
+      "community": 3,
       "norm_label": "test_retry_failed_holds_a_non_admin_to_one_retry_per_step()"
     },
     {
@@ -34301,7 +34341,7 @@
       "source_location": "L661",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_an_admins_retry_failed_isnt_held_per_step",
-      "community": 199,
+      "community": 3,
       "norm_label": "test_an_admins_retry_failed_isnt_held_per_step()"
     },
     {
@@ -34311,7 +34351,7 @@
       "source_location": "L669",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_admin_include_not_found_queues_them_and_records_manual_override",
-      "community": 199,
+      "community": 3,
       "norm_label": "test_admin_include_not_found_queues_them_and_records_manual_override()"
     },
     {
@@ -34321,7 +34361,7 @@
       "source_location": "L692",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_a_non_admin_cant_include_not_found",
-      "community": 199,
+      "community": 3,
       "norm_label": "test_a_non_admin_cant_include_not_found()"
     },
     {
@@ -34331,7 +34371,7 @@
       "source_location": "L708",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_retry_failed_refuses_an_archived_or_cancelled_job",
-      "community": 199,
+      "community": 3,
       "norm_label": "test_retry_failed_refuses_an_archived_or_cancelled_job()"
     },
     {
@@ -34341,7 +34381,7 @@
       "source_location": "L718",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_retry_failed_says_when_the_breaker_holds",
-      "community": 199,
+      "community": 3,
       "norm_label": "test_retry_failed_says_when_the_breaker_holds()"
     },
     {
@@ -34351,7 +34391,7 @@
       "source_location": "L729",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_a_new_batch_shares_one_stamp",
-      "community": 234,
+      "community": 3,
       "norm_label": "test_a_new_batch_shares_one_stamp()"
     },
     {
@@ -34361,7 +34401,7 @@
       "source_location": "L741",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_a_job_whose_first_read_was_empty_counts_its_first_batch_as_first",
-      "community": 234,
+      "community": 3,
       "norm_label": "test_a_job_whose_first_read_was_empty_counts_its_first_batch_as_first()"
     },
     {
@@ -34371,7 +34411,7 @@
       "source_location": "L749",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_a_failed_read_still_announces_the_job",
-      "community": 235,
+      "community": 3,
       "norm_label": "test_a_failed_read_still_announces_the_job()"
     },
     {
@@ -34391,7 +34431,7 @@
       "source_location": "L771",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_cancelling_a_watched_job_ends_its_watch",
-      "community": 248,
+      "community": 3,
       "norm_label": "test_cancelling_a_watched_job_ends_its_watch()"
     },
     {
@@ -34431,7 +34471,7 @@
       "source_location": "L854",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_retry_failed_cooldown_counts_only_tracks_held_by_the_step_rule",
-      "community": 199,
+      "community": 3,
       "norm_label": "test_retry_failed_cooldown_counts_only_tracks_held_by_the_step_rule()"
     },
     {
@@ -34471,7 +34511,7 @@
       "source_location": "L921",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_beats_refused_send_keeps_an_interval_changed_meanwhile",
-      "community": 212,
+      "community": 3,
       "norm_label": "test_beats_refused_send_keeps_an_interval_changed_meanwhile()"
     },
     {
@@ -34481,7 +34521,7 @@
       "source_location": "L946",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_a_started_run_schedules_the_interval_before_its_read",
-      "community": 212,
+      "community": 3,
       "norm_label": "test_a_started_run_schedules_the_interval_before_its_read()"
     },
     {
@@ -34491,7 +34531,7 @@
       "source_location": "L965",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_a_run_lost_after_its_claim_is_claimed_again_after_the_lease",
-      "community": 212,
+      "community": 3,
       "norm_label": "test_a_run_lost_after_its_claim_is_claimed_again_after_the_lease()"
     },
     {
@@ -34501,7 +34541,7 @@
       "source_location": "L980",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_a_started_run_keeps_a_watch_changed_after_its_claim",
-      "community": 212,
+      "community": 3,
       "norm_label": "test_a_started_run_keeps_a_watch_changed_after_its_claim()"
     },
     {
@@ -34531,7 +34571,7 @@
       "source_location": "L1016",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_a_held_marker_takes_no_slot_of_the_budget",
-      "community": 212,
+      "community": 3,
       "norm_label": "test_a_held_marker_takes_no_slot_of_the_budget()"
     },
     {
@@ -34561,7 +34601,7 @@
       "source_location": "L1045",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_a_superseded_run_skips_its_read",
-      "community": 235,
+      "community": 3,
       "norm_label": "test_a_superseded_run_skips_its_read()"
     },
     {
@@ -34571,7 +34611,7 @@
       "source_location": "L1069",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_test_a_run_with_nothing_new_still_announces_the_status",
-      "community": 234,
+      "community": 3,
       "norm_label": "test_a_run_with_nothing_new_still_announces_the_status()"
     },
     {
@@ -34591,7 +34631,7 @@
       "source_location": "L29",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_rationale_29",
-      "community": 248,
+      "community": 3,
       "norm_label": "the two commands watch.py's run marker uses, with real expiry."
     },
     {
@@ -34601,7 +34641,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_rationale_64",
-      "community": 275,
+      "community": 3,
       "norm_label": "no test here reaches the stack's redis through a publish."
     },
     {
@@ -34611,7 +34651,7 @@
       "source_location": "L149",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_rationale_149",
-      "community": 234,
+      "community": 3,
       "norm_label": "runs a re-expansion as beat or \"check now\" would, claim included (`last_expanded"
     },
     {
@@ -34641,7 +34681,7 @@
       "source_location": "L1070",
       "_origin": "ast",
       "id": "backend_tests_test_watch_jobs_rationale_1070",
-      "community": 234,
+      "community": 3,
       "norm_label": "a redelivered run (its first delivery died after the insert commit) adds nothing"
     },
     {
@@ -36491,7 +36531,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_03_track_detail_e2e",
-      "community": 107,
+      "community": 203,
       "norm_label": "03-track-detail.e2e.ts"
     },
     {
@@ -36501,7 +36541,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "frontend_e2e_03_track_detail_e2e_findrealpathtrack",
-      "community": 107,
+      "community": 203,
       "norm_label": "findrealpathtrack()"
     },
     {
@@ -36511,7 +36551,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "frontend_e2e_03_track_detail_e2e_checkattempthistory",
-      "community": 107,
+      "community": 203,
       "norm_label": "checkattempthistory()"
     },
     {
@@ -36541,7 +36581,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_06_admin_pages_e2e",
-      "community": 66,
+      "community": 199,
       "norm_label": "06-admin-pages.e2e.ts"
     },
     {
@@ -36551,7 +36591,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "frontend_e2e_06_admin_pages_e2e_admin_gets",
-      "community": 66,
+      "community": 199,
       "norm_label": "admin_gets"
     },
     {
@@ -36591,7 +36631,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_09_moved_file_e2e",
-      "community": 107,
+      "community": 66,
       "norm_label": "09-moved-file.e2e.ts"
     },
     {
@@ -36691,7 +36731,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_13_admin_stats_e2e",
-      "community": 329,
+      "community": 199,
       "norm_label": "13-admin-stats.e2e.ts"
     },
     {
@@ -36701,7 +36741,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "frontend_e2e_13_admin_stats_e2e_recordstatscalls",
-      "community": 329,
+      "community": 199,
       "norm_label": "recordstatscalls()"
     },
     {
@@ -36751,7 +36791,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "frontend_e2e_14_keyboard_e2e_focusrowbykeys",
-      "community": 141,
+      "community": 137,
       "norm_label": "focusrowbykeys()"
     },
     {
@@ -36971,7 +37011,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_19_others_view_e2e",
-      "community": 329,
+      "community": 107,
       "norm_label": "19-others-view.e2e.ts"
     },
     {
@@ -36981,7 +37021,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "frontend_e2e_19_others_view_e2e_viewgroup",
-      "community": 329,
+      "community": 107,
       "norm_label": "viewgroup()"
     },
     {
@@ -36991,7 +37031,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "frontend_e2e_19_others_view_e2e_viewbutton",
-      "community": 329,
+      "community": 107,
       "norm_label": "viewbutton()"
     },
     {
@@ -37011,7 +37051,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "frontend_e2e_19_others_view_e2e_expectview",
-      "community": 329,
+      "community": 107,
       "norm_label": "expectview()"
     },
     {
@@ -37021,7 +37061,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "frontend_e2e_19_others_view_e2e_expectnounhandledrejection",
-      "community": 329,
+      "community": 107,
       "norm_label": "expectnounhandledrejection()"
     },
     {
@@ -37031,7 +37071,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_20_store_fixes_e2e",
-      "community": 77,
+      "community": 329,
       "norm_label": "20-store-fixes.e2e.ts"
     },
     {
@@ -37041,7 +37081,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "frontend_e2e_20_store_fixes_e2e_makefixture",
-      "community": 77,
+      "community": 329,
       "norm_label": "makefixture()"
     },
     {
@@ -37051,7 +37091,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "frontend_e2e_20_store_fixes_e2e_dropfixture",
-      "community": 77,
+      "community": 329,
       "norm_label": "dropfixture()"
     },
     {
@@ -37061,7 +37101,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "frontend_e2e_20_store_fixes_e2e_chipcount",
-      "community": 77,
+      "community": 329,
       "norm_label": "chipcount()"
     },
     {
@@ -37071,7 +37111,7 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "frontend_e2e_20_store_fixes_e2e_servercounts",
-      "community": 77,
+      "community": 329,
       "norm_label": "servercounts()"
     },
     {
@@ -37081,7 +37121,7 @@
       "source_location": "L274",
       "_origin": "ast",
       "id": "frontend_e2e_20_store_fixes_e2e_edittemplate",
-      "community": 77,
+      "community": 329,
       "norm_label": "edittemplate()"
     },
     {
@@ -37151,7 +37191,7 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "frontend_e2e_21_watch_jobs_e2e_pauseworker",
-      "community": 247,
+      "community": 77,
       "norm_label": "pauseworker()"
     },
     {
@@ -37161,7 +37201,7 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "frontend_e2e_21_watch_jobs_e2e_openbykeyboard",
-      "community": 141,
+      "community": 137,
       "norm_label": "openbykeyboard()"
     },
     {
@@ -37181,7 +37221,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "frontend_e2e_22_export_e2e_serverexport",
-      "community": 77,
+      "community": 66,
       "norm_label": "serverexport()"
     },
     {
@@ -37321,7 +37361,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_25_ui_debt_e2e",
-      "community": 137,
+      "community": 329,
       "norm_label": "25-ui-debt.e2e.ts"
     },
     {
@@ -37331,7 +37371,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "frontend_e2e_25_ui_debt_e2e_tabto",
-      "community": 137,
+      "community": 329,
       "norm_label": "tabto()"
     },
     {
@@ -37461,7 +37501,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_27_user_access_e2e",
-      "community": 141,
+      "community": 137,
       "norm_label": "27-user-access.e2e.ts"
     },
     {
@@ -37471,7 +37511,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "frontend_e2e_27_user_access_e2e_scratchaddress",
-      "community": 141,
+      "community": 137,
       "norm_label": "scratchaddress()"
     },
     {
@@ -37481,7 +37521,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "frontend_e2e_27_user_access_e2e_adminapi",
-      "community": 141,
+      "community": 137,
       "norm_label": "adminapi()"
     },
     {
@@ -37491,7 +37531,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "frontend_e2e_27_user_access_e2e_restoreuser",
-      "community": 141,
+      "community": 137,
       "norm_label": "restoreuser()"
     },
     {
@@ -37501,7 +37541,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_global_setup",
-      "community": 77,
+      "community": 66,
       "norm_label": "global-setup.ts"
     },
     {
@@ -37511,7 +37551,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "frontend_e2e_global_setup_login",
-      "community": 77,
+      "community": 66,
       "norm_label": "login()"
     },
     {
@@ -37521,7 +37561,7 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "frontend_e2e_global_setup_clearslate",
-      "community": 77,
+      "community": 66,
       "norm_label": "clearslate()"
     },
     {
@@ -37531,7 +37571,7 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "frontend_e2e_global_setup_seedjob",
-      "community": 137,
+      "community": 66,
       "norm_label": "seedjob()"
     },
     {
@@ -37541,7 +37581,7 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "frontend_e2e_global_setup_globalsetup",
-      "community": 77,
+      "community": 66,
       "norm_label": "globalsetup()"
     },
     {
@@ -37551,7 +37591,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_global_teardown",
-      "community": 77,
+      "community": 66,
       "norm_label": "global-teardown.ts"
     },
     {
@@ -37561,7 +37601,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "frontend_e2e_global_teardown_globalteardown",
-      "community": 77,
+      "community": 66,
       "norm_label": "globalteardown()"
     },
     {
@@ -37631,7 +37671,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "frontend_e2e_support_env_requireenv",
-      "community": 77,
+      "community": 66,
       "norm_label": "requireenv()"
     },
     {
@@ -37681,7 +37721,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_support_i18n",
-      "community": 137,
+      "community": 329,
       "norm_label": "i18n.ts"
     },
     {
@@ -37691,7 +37731,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "frontend_e2e_support_i18n_lang",
-      "community": 137,
+      "community": 329,
       "norm_label": "lang"
     },
     {
@@ -37721,7 +37761,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "frontend_e2e_support_i18n_escaperegexp",
-      "community": 137,
+      "community": 329,
       "norm_label": "escaperegexp()"
     },
     {
@@ -37731,7 +37771,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "frontend_e2e_support_i18n_prefix",
-      "community": 137,
+      "community": 329,
       "norm_label": "prefix()"
     },
     {
@@ -37741,7 +37781,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "frontend_e2e_support_i18n_anytitle",
-      "community": 137,
+      "community": 329,
       "norm_label": "anytitle()"
     },
     {
@@ -37751,7 +37791,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_support_keyboard",
-      "community": 141,
+      "community": 137,
       "norm_label": "keyboard.ts"
     },
     {
@@ -37761,7 +37801,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "frontend_e2e_support_keyboard_tabto",
-      "community": 141,
+      "community": 137,
       "norm_label": "tabto()"
     },
     {
@@ -37771,7 +37811,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "frontend_e2e_support_keyboard_isfocused",
-      "community": 141,
+      "community": 137,
       "norm_label": "isfocused()"
     },
     {
@@ -37781,7 +37821,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "frontend_e2e_support_keyboard_focusedrow",
-      "community": 141,
+      "community": 137,
       "norm_label": "focusedrow()"
     },
     {
@@ -37791,7 +37831,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "frontend_e2e_support_keyboard_focusedlist",
-      "community": 141,
+      "community": 137,
       "norm_label": "focusedlist()"
     },
     {
@@ -37801,7 +37841,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "frontend_e2e_support_keyboard_describefocus",
-      "community": 141,
+      "community": 137,
       "norm_label": "describefocus()"
     },
     {
@@ -37811,7 +37851,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "frontend_e2e_support_keyboard_expectfocusinlist",
-      "community": 141,
+      "community": 137,
       "norm_label": "expectfocusinlist()"
     },
     {
@@ -37821,7 +37861,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "frontend_e2e_support_keyboard_rowids",
-      "community": 141,
+      "community": 137,
       "norm_label": "rowids()"
     },
     {
@@ -37831,7 +37871,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "frontend_e2e_support_keyboard_tabstopsin",
-      "community": 141,
+      "community": 137,
       "norm_label": "tabstopsin()"
     },
     {
@@ -37841,7 +37881,7 @@
       "source_location": "L81",
       "_origin": "ast",
       "id": "frontend_e2e_support_keyboard_hukey",
-      "community": 141,
+      "community": 137,
       "norm_label": "hukey"
     },
     {
@@ -37851,7 +37891,7 @@
       "source_location": "L114",
       "_origin": "ast",
       "id": "frontend_e2e_support_keyboard_hupress",
-      "community": 141,
+      "community": 137,
       "norm_label": "hupress()"
     },
     {
@@ -37891,7 +37931,7 @@
       "source_location": "L10",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_user_state",
-      "community": 329,
+      "community": 199,
       "norm_label": "user_state"
     },
     {
@@ -37911,7 +37951,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_run_file",
-      "community": 77,
+      "community": 66,
       "norm_label": "run_file"
     },
     {
@@ -37931,7 +37971,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_adminidentity",
-      "community": 77,
+      "community": 66,
       "norm_label": "adminidentity()"
     },
     {
@@ -37941,7 +37981,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_useridentity",
-      "community": 77,
+      "community": 66,
       "norm_label": "useridentity()"
     },
     {
@@ -37971,7 +38011,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_stageworker",
-      "community": 247,
+      "community": 77,
       "norm_label": "stageworker()"
     },
     {
@@ -37981,7 +38021,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_restoreworker",
-      "community": 77,
+      "community": 66,
       "norm_label": "restoreworker()"
     },
     {
@@ -38001,7 +38041,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_compose",
-      "community": 77,
+      "community": 66,
       "norm_label": "compose()"
     },
     {
@@ -38011,7 +38051,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_detachedwebvolumes",
-      "community": 77,
+      "community": 66,
       "norm_label": "detachedwebvolumes()"
     },
     {
@@ -38021,7 +38061,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_stopexpandworker",
-      "community": 247,
+      "community": 66,
       "norm_label": "stopexpandworker()"
     },
     {
@@ -38041,7 +38081,7 @@
       "source_location": "L140",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_restartexpandworker",
-      "community": 77,
+      "community": 66,
       "norm_label": "restartexpandworker()"
     },
     {
@@ -38091,7 +38131,7 @@
       "source_location": "L197",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_stagesettings",
-      "community": 66,
+      "community": 199,
       "norm_label": "stagesettings()"
     },
     {
@@ -38101,7 +38141,7 @@
       "source_location": "L211",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_restoresettings",
-      "community": 77,
+      "community": 66,
       "norm_label": "restoresettings()"
     },
     {
@@ -38151,7 +38191,7 @@
       "source_location": "L284",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_restoresweepreport",
-      "community": 77,
+      "community": 66,
       "norm_label": "restoresweepreport()"
     },
     {
@@ -38161,7 +38201,7 @@
       "source_location": "L330",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_removetestproxy",
-      "community": 66,
+      "community": 199,
       "norm_label": "removetestproxy()"
     },
     {
@@ -38181,7 +38221,7 @@
       "source_location": "L355",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_spotifytrackurl",
-      "community": 107,
+      "community": 66,
       "norm_label": "spotifytrackurl()"
     },
     {
@@ -38201,7 +38241,7 @@
       "source_location": "L369",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_seedjob",
-      "community": 66,
+      "community": 203,
       "norm_label": "seedjob"
     },
     {
@@ -38241,7 +38281,7 @@
       "source_location": "L390",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_readrun",
-      "community": 77,
+      "community": 66,
       "norm_label": "readrun()"
     },
     {
@@ -38251,7 +38291,7 @@
       "source_location": "L399",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_stackpython",
-      "community": 77,
+      "community": 66,
       "norm_label": "stackpython()"
     },
     {
@@ -38321,7 +38361,7 @@
       "source_location": "L466",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_resetpreferences",
-      "community": 77,
+      "community": 66,
       "norm_label": "resetpreferences()"
     },
     {
@@ -38331,7 +38371,7 @@
       "source_location": "L478",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_ledgermisses",
-      "community": 77,
+      "community": 66,
       "norm_label": "ledgermisses()"
     },
     {
@@ -38351,7 +38391,7 @@
       "source_location": "L508",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_movedledgertracks",
-      "community": 77,
+      "community": 66,
       "norm_label": "movedledgertracks()"
     },
     {
@@ -38361,7 +38401,7 @@
       "source_location": "L558",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_ledgerfilepath",
-      "community": 107,
+      "community": 66,
       "norm_label": "ledgerfilepath()"
     },
     {
@@ -38371,7 +38411,7 @@
       "source_location": "L575",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_ledgerdownloads",
-      "community": 107,
+      "community": 66,
       "norm_label": "ledgerdownloads()"
     },
     {
@@ -38381,7 +38421,7 @@
       "source_location": "L594",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_trackswithnetworkpath",
-      "community": 77,
+      "community": 203,
       "norm_label": "trackswithnetworkpath()"
     },
     {
@@ -38391,7 +38431,7 @@
       "source_location": "L625",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_networkpathfixture",
-      "community": 77,
+      "community": 203,
       "norm_label": "networkpathfixture()"
     },
     {
@@ -38401,7 +38441,7 @@
       "source_location": "L674",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_e2edownloadsinflight",
-      "community": 77,
+      "community": 66,
       "norm_label": "e2edownloadsinflight()"
     },
     {
@@ -38411,7 +38451,7 @@
       "source_location": "L698",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_normalizeemail",
-      "community": 77,
+      "community": 141,
       "norm_label": "normalizeemail()"
     },
     {
@@ -38431,7 +38471,7 @@
       "source_location": "L722",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_waitforjob",
-      "community": 137,
+      "community": 66,
       "norm_label": "waitforjob()"
     },
     {
@@ -38451,7 +38491,7 @@
       "source_location": "L763",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_issettled",
-      "community": 137,
+      "community": 66,
       "norm_label": "issettled()"
     },
     {
@@ -38461,7 +38501,7 @@
       "source_location": "L770",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_expectedtimeline",
-      "community": 107,
+      "community": 203,
       "norm_label": "expectedtimeline()"
     },
     {
@@ -38471,7 +38511,7 @@
       "source_location": "L789",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_expectedattemptvia",
-      "community": 107,
+      "community": 203,
       "norm_label": "expectedattemptvia()"
     },
     {
@@ -49241,7 +49281,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "frontend_scripts_check_messages_inputs",
-      "community": 226,
+      "community": 247,
       "norm_label": "inputs()"
     },
     {
@@ -49650,7 +49690,7 @@
       "source_location": "L147",
       "_origin": "ast",
       "id": "frontend_src_lib_api_trackattempt",
-      "community": 107,
+      "community": 66,
       "norm_label": "trackattempt"
     },
     {
@@ -49840,7 +49880,7 @@
       "source_location": "L370",
       "_origin": "ast",
       "id": "frontend_src_lib_api_proxy",
-      "community": 66,
+      "community": 199,
       "norm_label": "proxy"
     },
     {
@@ -49850,7 +49890,7 @@
       "source_location": "L386",
       "_origin": "ast",
       "id": "frontend_src_lib_api_outputsettings",
-      "community": 66,
+      "community": 199,
       "norm_label": "outputsettings"
     },
     {
@@ -50020,7 +50060,7 @@
       "source_location": "L522",
       "_origin": "ast",
       "id": "frontend_src_lib_api_jobtrackspage",
-      "community": 107,
+      "community": 66,
       "norm_label": "jobtrackspage"
     },
     {
@@ -58237,7 +58277,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "product",
-      "community": 130,
+      "community": 187,
       "norm_label": "product.md"
     },
     {
@@ -58357,7 +58397,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme",
-      "community": 130,
+      "community": 187,
       "norm_label": "readme.md"
     },
     {
@@ -58367,7 +58407,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme_spotdl_web",
-      "community": 130,
+      "community": 187,
       "norm_label": "spotdl-web"
     },
     {
@@ -58377,7 +58417,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "readme_status",
-      "community": 130,
+      "community": 187,
       "norm_label": "status"
     },
     {
@@ -58387,7 +58427,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "readme_where_to_read_next",
-      "community": 130,
+      "community": 187,
       "norm_label": "where to read next"
     },
     {
@@ -58397,7 +58437,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_ci_self_hosted_runner",
-      "community": 130,
+      "community": 187,
       "norm_label": "ci_self_hosted_runner.md"
     },
     {
@@ -58577,7 +58617,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_deployment",
-      "community": 130,
+      "community": 187,
       "norm_label": "deployment.md"
     },
     {
@@ -59857,7 +59897,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_local_dev",
-      "community": 130,
+      "community": 187,
       "norm_label": "local_dev.md"
     },
     {
@@ -59977,7 +60017,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "docs_release_pipeline",
-      "community": 130,
+      "community": 187,
       "norm_label": "release_pipeline.md"
     },
     {
@@ -60967,7 +61007,7 @@
       "source_location": "L171",
       "_origin": "ast",
       "id": "frontend_src_design_2_palette",
-      "community": 151,
+      "community": 212,
       "norm_label": "2. palette"
     },
     {
@@ -60977,7 +61017,7 @@
       "source_location": "L176",
       "_origin": "ast",
       "id": "frontend_src_design_chassis_ground",
-      "community": 151,
+      "community": 212,
       "norm_label": "chassis / ground"
     },
     {
@@ -60987,7 +61027,7 @@
       "source_location": "L194",
       "_origin": "ast",
       "id": "frontend_src_design_text",
-      "community": 151,
+      "community": 212,
       "norm_label": "text"
     },
     {
@@ -60997,7 +61037,7 @@
       "source_location": "L220",
       "_origin": "ast",
       "id": "frontend_src_design_signal_condition_colors_the_semantic_core_of_the_system",
-      "community": 151,
+      "community": 212,
       "norm_label": "signal-condition colors \u2014 the semantic core of the system"
     },
     {
@@ -61007,7 +61047,7 @@
       "source_location": "L270",
       "_origin": "ast",
       "id": "frontend_src_design_amber_on_chrome_the_v40_decision_v39_f10_amendment_a5",
-      "community": 151,
+      "community": 212,
       "norm_label": "amber on chrome: the v40 decision (v39 f10, amendment a5)"
     },
     {
@@ -61017,7 +61057,7 @@
       "source_location": "L301",
       "_origin": "ast",
       "id": "frontend_src_design_focus",
-      "community": 151,
+      "community": 212,
       "norm_label": "focus"
     },
     {
@@ -66717,7 +66757,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "plan_master_v5_00_master_plan",
-      "community": 130,
+      "community": 187,
       "norm_label": "00-master-plan.md"
     },
     {
@@ -85765,7 +85805,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L391",
+      "source_location": "L454",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_only_the_key_routes_accept_a_key",
       "target": "backend_app_routers_auth_require_session_or_api_key"
@@ -111512,7 +111552,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L437",
+      "source_location": "L533",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_an_admins_key_reads_only_its_own_jobs",
       "target": "backend_tests_conftest_session_cookie"
@@ -112527,7 +112567,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L406",
+      "source_location": "L469",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_a_key_is_refused_on_every_other_route",
       "target": "backend_tests_extension_support_bearer"
@@ -112538,7 +112578,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L456",
+      "source_location": "L552",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_a_key_submits_only_spotify_links_even_the_admins",
       "target": "backend_tests_extension_support_bearer"
@@ -112549,9 +112589,20 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L443",
+      "source_location": "L539",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_an_admins_key_reads_only_its_own_jobs",
+      "target": "backend_tests_extension_support_bearer"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_key_boundary.py",
+      "source_location": "L500",
+      "weight": 1.0,
+      "source": "backend_tests_test_key_boundary_test_the_key_routes_take_a_key_only_as_a_bearer",
       "target": "backend_tests_extension_support_bearer"
     },
     {
@@ -132686,6 +132737,16 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
+      "source_location": "L382",
+      "weight": 1.0,
+      "source": "backend_tests_test_key_boundary",
+      "target": "backend_tests_test_key_boundary_fingerprint",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_key_boundary.py",
       "source_location": "L121",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
@@ -132706,7 +132767,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L279",
+      "source_location": "L294",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
       "target": "backend_tests_test_key_boundary_key_inventory",
@@ -132716,7 +132777,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L177",
+      "source_location": "L180",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
       "target": "backend_tests_test_key_boundary_key_names",
@@ -132756,7 +132817,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L398",
+      "source_location": "L461",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
       "target": "backend_tests_test_key_boundary_test_a_key_is_refused_on_every_other_route",
@@ -132766,7 +132827,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L449",
+      "source_location": "L545",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
       "target": "backend_tests_test_key_boundary_test_a_key_submits_only_spotify_links_even_the_admins",
@@ -132776,7 +132837,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L428",
+      "source_location": "L524",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
       "target": "backend_tests_test_key_boundary_test_an_admins_key_reads_only_its_own_jobs",
@@ -132786,7 +132847,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L348",
+      "source_location": "L411",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
       "target": "backend_tests_test_key_boundary_test_every_route_has_a_method_to_test",
@@ -132796,7 +132857,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L371",
+      "source_location": "L434",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
       "target": "backend_tests_test_key_boundary_test_no_middleware_answers_on_its_own",
@@ -132816,7 +132877,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L157",
+      "source_location": "L160",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
       "target": "backend_tests_test_key_boundary_test_no_router_is_included_with_a_prefix_or_dependencies",
@@ -132826,7 +132887,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L388",
+      "source_location": "L451",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
       "target": "backend_tests_test_key_boundary_test_only_the_key_routes_accept_a_key",
@@ -132836,7 +132897,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L334",
+      "source_location": "L404",
+      "weight": 1.0,
+      "source": "backend_tests_test_key_boundary",
+      "target": "backend_tests_test_key_boundary_test_the_functions_that_read_a_key_are_unchanged",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_key_boundary.py",
+      "source_location": "L355",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
       "target": "backend_tests_test_key_boundary_test_the_key_machinery_is_touched_only_where_it_was",
@@ -132846,7 +132917,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L418",
+      "source_location": "L484",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
       "target": "backend_tests_test_key_boundary_test_the_key_routes_take_a_key_only_as_a_bearer",
@@ -132856,7 +132927,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L364",
+      "source_location": "L427",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
       "target": "backend_tests_test_key_boundary_test_the_methods_a_route_is_tested_with",
@@ -132866,7 +132937,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L378",
+      "source_location": "L441",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary",
       "target": "backend_tests_test_key_boundary_test_the_route_lists_are_complete",
@@ -132939,7 +133010,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L164",
+      "source_location": "L167",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_no_router_is_included_with_a_prefix_or_dependencies",
       "target": "backend_tests_test_key_boundary_wrappers",
@@ -133015,7 +133086,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L349",
+      "source_location": "L412",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_every_route_has_a_method_to_test",
       "target": "backend_tests_test_key_boundary_api_routes",
@@ -133026,7 +133097,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L391",
+      "source_location": "L454",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_only_the_key_routes_accept_a_key",
       "target": "backend_tests_test_key_boundary_api_routes",
@@ -133059,7 +133130,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L367",
+      "source_location": "L430",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_the_methods_a_route_is_tested_with",
       "target": "backend_tests_test_key_boundary_py_apiroute",
@@ -133102,7 +133173,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L349",
+      "source_location": "L412",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_every_route_has_a_method_to_test",
       "target": "backend_tests_test_key_boundary_methods",
@@ -133113,7 +133184,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L391",
+      "source_location": "L454",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_only_the_key_routes_accept_a_key",
       "target": "backend_tests_test_key_boundary_methods",
@@ -133124,7 +133195,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L368",
+      "source_location": "L431",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_the_methods_a_route_is_tested_with",
       "target": "backend_tests_test_key_boundary_methods",
@@ -133135,7 +133206,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L381",
+      "source_location": "L444",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_the_route_lists_are_complete",
       "target": "backend_tests_test_key_boundary_all_routes",
@@ -133157,7 +133228,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L391",
+      "source_location": "L454",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_only_the_key_routes_accept_a_key",
       "target": "backend_tests_test_key_boundary_depends_on",
@@ -133168,7 +133239,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L382",
+      "source_location": "L445",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_the_route_lists_are_complete",
       "target": "backend_tests_test_key_boundary_admin_routes",
@@ -133179,7 +133250,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L406",
+      "source_location": "L469",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_a_key_is_refused_on_every_other_route",
       "target": "backend_tests_test_key_boundary_fill",
@@ -133200,7 +133271,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L405",
+      "source_location": "L468",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_a_key_is_refused_on_every_other_route",
       "target": "backend_tests_test_key_boundary_key",
@@ -133211,7 +133282,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L455",
+      "source_location": "L551",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_a_key_submits_only_spotify_links_even_the_admins",
       "target": "backend_tests_test_key_boundary_key",
@@ -133222,7 +133293,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L442",
+      "source_location": "L538",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_an_admins_key_reads_only_its_own_jobs",
       "target": "backend_tests_test_key_boundary_key",
@@ -133233,7 +133304,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L421",
+      "source_location": "L496",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_the_key_routes_take_a_key_only_as_a_bearer",
       "target": "backend_tests_test_key_boundary_key",
@@ -133253,9 +133324,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L158",
+      "source_location": "L161",
       "weight": 1.0,
-      "source": "backend_tests_test_key_boundary_rationale_158",
+      "source": "backend_tests_test_key_boundary_rationale_161",
       "target": "backend_tests_test_key_boundary_test_no_router_is_included_with_a_prefix_or_dependencies",
       "confidence_score": 1.0
     },
@@ -133264,7 +133335,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L286",
+      "source_location": "L301",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_key_inventory",
       "target": "backend_tests_test_key_boundary_key_names",
@@ -133274,9 +133345,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L178",
+      "source_location": "L181",
       "weight": 1.0,
-      "source": "backend_tests_test_key_boundary_rationale_178",
+      "source": "backend_tests_test_key_boundary_rationale_181",
       "target": "backend_tests_test_key_boundary_key_names",
       "confidence_score": 1.0
     },
@@ -133285,7 +133356,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L343",
+      "source_location": "L364",
       "weight": 1.0,
       "source": "backend_tests_test_key_boundary_test_the_key_machinery_is_touched_only_where_it_was",
       "target": "backend_tests_test_key_boundary_key_inventory",
@@ -133295,9 +133366,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L335",
+      "source_location": "L356",
       "weight": 1.0,
-      "source": "backend_tests_test_key_boundary_rationale_335",
+      "source": "backend_tests_test_key_boundary_rationale_356",
       "target": "backend_tests_test_key_boundary_test_the_key_machinery_is_touched_only_where_it_was",
       "confidence_score": 1.0
     },
@@ -133305,9 +133376,40 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L365",
+      "source_location": "L383",
       "weight": 1.0,
-      "source": "backend_tests_test_key_boundary_rationale_365",
+      "source": "backend_tests_test_key_boundary_rationale_383",
+      "target": "backend_tests_test_key_boundary_fingerprint",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_key_boundary.py",
+      "source_location": "L408",
+      "weight": 1.0,
+      "source": "backend_tests_test_key_boundary_test_the_functions_that_read_a_key_are_unchanged",
+      "target": "backend_tests_test_key_boundary_fingerprint",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_key_boundary.py",
+      "source_location": "L405",
+      "weight": 1.0,
+      "source": "backend_tests_test_key_boundary_rationale_405",
+      "target": "backend_tests_test_key_boundary_test_the_functions_that_read_a_key_are_unchanged",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_key_boundary.py",
+      "source_location": "L428",
+      "weight": 1.0,
+      "source": "backend_tests_test_key_boundary_rationale_428",
       "target": "backend_tests_test_key_boundary_test_the_methods_a_route_is_tested_with",
       "confidence_score": 1.0
     },
@@ -133315,9 +133417,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L372",
+      "source_location": "L435",
       "weight": 1.0,
-      "source": "backend_tests_test_key_boundary_rationale_372",
+      "source": "backend_tests_test_key_boundary_rationale_435",
       "target": "backend_tests_test_key_boundary_test_no_middleware_answers_on_its_own",
       "confidence_score": 1.0
     },
@@ -133325,9 +133427,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L389",
+      "source_location": "L452",
       "weight": 1.0,
-      "source": "backend_tests_test_key_boundary_rationale_389",
+      "source": "backend_tests_test_key_boundary_rationale_452",
       "target": "backend_tests_test_key_boundary_test_only_the_key_routes_accept_a_key",
       "confidence_score": 1.0
     },
@@ -133335,9 +133437,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L399",
+      "source_location": "L462",
       "weight": 1.0,
-      "source": "backend_tests_test_key_boundary_rationale_399",
+      "source": "backend_tests_test_key_boundary_rationale_462",
       "target": "backend_tests_test_key_boundary_test_a_key_is_refused_on_every_other_route",
       "confidence_score": 1.0
     },
@@ -133345,9 +133447,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L419",
+      "source_location": "L485",
       "weight": 1.0,
-      "source": "backend_tests_test_key_boundary_rationale_419",
+      "source": "backend_tests_test_key_boundary_rationale_485",
       "target": "backend_tests_test_key_boundary_test_the_key_routes_take_a_key_only_as_a_bearer",
       "confidence_score": 1.0
     },
@@ -133355,9 +133457,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L429",
+      "source_location": "L525",
       "weight": 1.0,
-      "source": "backend_tests_test_key_boundary_rationale_429",
+      "source": "backend_tests_test_key_boundary_rationale_525",
       "target": "backend_tests_test_key_boundary_test_an_admins_key_reads_only_its_own_jobs",
       "confidence_score": 1.0
     },
@@ -133365,9 +133467,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_key_boundary.py",
-      "source_location": "L450",
+      "source_location": "L546",
       "weight": 1.0,
-      "source": "backend_tests_test_key_boundary_rationale_450",
+      "source": "backend_tests_test_key_boundary_rationale_546",
       "target": "backend_tests_test_key_boundary_test_a_key_submits_only_spotify_links_even_the_admins",
       "confidence_score": 1.0
     },
@@ -199695,5 +199797,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "59f562557f5fb842870f2db2e6c02c7ad9fbb65e"
+  "built_at_commit": "4e3e4c58c7fd9bfa09741bb3808ee1b8319c629e"
 }

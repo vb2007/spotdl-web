@@ -200,7 +200,7 @@
     "semantic_hash": "c56dbe8d4a14e59494c84de3f41ddfc6"
   },
   "backend/app/routers/auth.py": {
-    "mtime": 1793797564.1429496,
+    "mtime": 1793798033.160341,
     "ast_hash": "eba3e3c656917735a19efb1a9d6a434a",
     "semantic_hash": ""
   },
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1793797574.3913076,
-    "ast_hash": "48a921e52a73156a4db83455a451cca2",
+    "mtime": 1793798051.691113,
+    "ast_hash": "66812e38705c3e03e3a4f06568a55af9",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -2455,13 +2455,18 @@
     "semantic_hash": ""
   },
   "backend/tests/test_key_boundary.py": {
-    "mtime": 1793797538.7229083,
-    "ast_hash": "48aa093852b39590b427f4021f4f6a76",
+    "mtime": 1793797987.8145177,
+    "ast_hash": "89686ae5659f6ed1af68d9da9df19469",
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/f7f7f3d5999c0cd9.json": {
     "mtime": 1793787566.5151067,
     "ast_hash": "a55f0089d81f63c3bf0e5c36a5d88b81",
+    "semantic_hash": ""
+  },
+  "backend/tests/fixtures/key_readers.txt": {
+    "mtime": 1793798000.3119721,
+    "ast_hash": "c9c5af7a5ca220d1bb8657ea5cd80aee",
     "semantic_hash": ""
   }
 }
