@@ -812,6 +812,9 @@ def test_sync_lets_a_file_line_take_the_target_of_a_manual_proxy_being_deleted(d
     db_session.commit()
     monkeypatch.setattr(proxies, "SessionLocal", lambda: _NonClosingSession(db_session))
     monkeypatch.setattr(proxies.get_settings(), "proxy_file", str(proxy_file))
+    # v70: no real TCP probe of the test addresses (each one waited out its 2 s timeout, from
+    # whatever network the suite runs on); unreachable is what that probe answered.
+    monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: False)
 
     proxies.sync_from_file()
 
@@ -830,6 +833,9 @@ def test_sync_skips_a_file_url_identical_to_a_manual_proxy_being_deleted(db_sess
     db_session.commit()
     monkeypatch.setattr(proxies, "SessionLocal", lambda: _NonClosingSession(db_session))
     monkeypatch.setattr(proxies.get_settings(), "proxy_file", str(proxy_file))
+    # v70: no real TCP probe of the test addresses (each one waited out its 2 s timeout, from
+    # whatever network the suite runs on); unreachable is what that probe answered.
+    monkeypatch.setattr(proxies, "_probe_reachable", lambda url, timeout=2.0: False)
 
     proxies.sync_from_file()
 
