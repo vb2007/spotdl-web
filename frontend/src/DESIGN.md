@@ -1334,9 +1334,11 @@ Sans, the time mono). Hungarian runs longer: v46 and v47 checked every route at 
   title is all the same field, and Spotify doesn't say which; a wrong `lang` is worse than none,
   since it switches the screen reader's voice to the wrong language); text in an attribute (a
   chart's summary label and value text can't carry a `lang`); and a sentence built as a string
-  before it's shown ("clear log"'s failure, the masthead's disconnect failure, a Matrix send's
-  reason, a row notice joining an error to other text), which would need restructuring to mark
-  (a code-less error is a backend bug in itself: every user-facing error has a code).
+  before it's shown ("clear log"'s failure, a Matrix send's reason, a row notice joining an error
+  to other text), which would need restructuring to mark (a code-less error is a backend bug in
+  itself: every user-facing error has a code). *(v70: the masthead's disconnect failure was
+  restructured onto `ErrorSentence` (owner's choice), and the dashboard's two error spans v67
+  missed, the queue's read error and "load more"'s, carry `textLang()` like the submit error.)*
 - Forced colours: progress meters, job bars and `/stats`' charts keep their own colours under
   `forced-colors: active` (v44 for `/stats`, v47 for the rest).
 - **Landmarks and outline on `/` (v42, F29):** `header` (banner) → `nav[aria-label=Account]` →
