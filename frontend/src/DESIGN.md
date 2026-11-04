@@ -1338,7 +1338,10 @@ Sans, the time mono). Hungarian runs longer: v46 and v47 checked every route at 
   to other text), which would need restructuring to mark (a code-less error is a backend bug in
   itself: every user-facing error has a code). _(v70: the masthead's disconnect failure was
   restructured onto `ErrorSentence` (owner's choice), and the dashboard's two error spans v67
-  missed, the queue's read error and "load more"'s, carry `textLang()` like the submit error.)_
+  missed, the queue's read error and "load more"'s, carry `textLang()` like the submit error; the
+  review's sweep found the same in a job's track list (its three "couldn't load the tracks"
+  sentences, the screen-reader copy included) and on v69's `/users` (the list's load failure,
+  the add's field and form errors, the refresh failure), now marked the same way.)_
 - Forced colours: progress meters, job bars and `/stats`' charts keep their own colours under
   `forced-colors: active` (v44 for `/stats`, v47 for the rest).
 - **Landmarks and outline on `/` (v42, F29):** `header` (banner) → `nav[aria-label=Account]` →

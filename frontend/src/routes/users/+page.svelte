@@ -13,7 +13,8 @@
 	import { queue } from '$lib/stores/queue';
 	import { confirmAction, keepFocus, keepFocusOnHeading } from '$lib/stores/confirm';
 	import * as m from '$lib/paraglide/messages';
-	import { errorText } from '$lib/i18n/errors';
+	import { errorText, textLang } from '$lib/i18n/errors';
+	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { counted, formatDateTime } from '$lib/i18n/format';
 
 	let { data } = $props();
@@ -61,7 +62,9 @@
 			})
 			.catch((err) => {
 				if (queue.getResetCount() !== resets) return;
-				loadError = () => m.users_load_failed({ error: errorText(err) });
+				// v70 (U9): the failure's own text; the sentence is built where it's shown
+				// (ErrorSentence), so raw English from the server is marked lang="en".
+				loadError = () => errorText(err);
 			});
 	}
 
@@ -181,12 +184,19 @@
 								{adding ? m.users_adding() : m.users_add_button()}
 							</button>
 						</div>
-						<p id="users-add-error" class="field-error" role="alert">{fieldError?.()}</p>
+						<p
+							id="users-add-error"
+							class="field-error"
+							role="alert"
+							lang={textLang(fieldError?.())}
+						>
+							{fieldError?.()}
+						</p>
 						<p id="users-add-hint" class="field-hint">{m.users_add_hint()}</p>
 					</div>
 				</form>
 				<p class="save-state" role="status">{addStatus?.()}</p>
-				<p class="form-error" role="alert">{addError?.()}</p>
+				<p class="form-error" role="alert" lang={textLang(addError?.())}>{addError?.()}</p>
 			</section>
 
 			<section class="panel section" aria-labelledby="users-list-heading">
@@ -200,7 +210,12 @@
 				{#if rows === null}
 					{#if loadError}
 						<div class="load-failed">
-							<p>{loadError()}</p>
+							<p>
+								<ErrorSentence
+									sentence={(error) => m.users_load_failed({ error })}
+									error={loadError()}
+								/>
+							</p>
 							<button
 								type="button"
 								class="btn small"
@@ -266,7 +281,11 @@
 				<p class="save-state" role="status">{status?.()}</p>
 				<!-- A refresh that failed after an add or a remove: the list shown may be stale. -->
 				<p class="form-error" role="alert">
-					{error?.() ?? (rows !== null && loadError ? loadError() : '')}
+					{#if error}<span lang={textLang(error())}>{error()}</span
+						>{:else if rows !== null && loadError}<ErrorSentence
+							sentence={(failure) => m.users_load_failed({ error: failure })}
+							error={loadError()}
+						/>{/if}
 				</p>
 			</section>
 		{/if}
