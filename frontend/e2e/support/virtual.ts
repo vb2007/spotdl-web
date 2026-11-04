@@ -105,6 +105,13 @@ db.execute(text("""
 db.execute(text("insert into allowed_emails (email) values (:e) on conflict do nothing"), {"e": user.email})
 token = create_session(db, user.id).token
 db.commit()
+# v70: the reset moved the live job's rollup (cancelled back to waiting), so it's announced as
+# app code must (CLAUDE.md, job_status.publish_change after the commit): its Redis record then
+# says "waiting", and the spec's cancel carries a real prev_status, as every job since v62 does.
+# Without it a fresh stack's first run cancelled a job with no record (the store re-read its
+# counts) and every later run one already recorded "cancelled" (no job.status event at all).
+from app.services import job_status
+job_status.publish_change(db, ids[live_at])
 print(json.dumps({"token": token, "liveJobId": ids[live_at], "bigJobId": ids[big_at]}))
 `,
 		[
