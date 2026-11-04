@@ -12,7 +12,8 @@ DEFAULT_LADDER_SECONDS = [900, 3600, 14400, 43200, 86400]
 # v32: database names a dev-marked process (SPOTDL_ENV=dev, set only by
 # docker-compose.override.yml) must never connect to. `spotdlweb` is the real production
 # database on the shared Postgres server; `spotdl_web` is the name .env.example and
-# docs/DEPLOYMENT.md document for a fresh install. Keyed on "is it production", never on the
+# docs/DEPLOYMENT.md documented for a fresh install before v60 (X3; both say `spotdlweb` now, and the
+# old name stays refused for a copy made from them). Keyed on "is it production", never on the
 # dev database's own name (spotdlwebtest), so renaming the dev database never breaks this.
 PRODUCTION_DATABASE_NAMES = ("spotdlweb", "spotdl_web")
 

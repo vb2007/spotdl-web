@@ -6,7 +6,7 @@ Rules:
 - For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost). Its cache is per checkout (untracked since v70: it keys ids by absolute path).
 
 ## Project: spotdl-web
 
@@ -16,16 +16,16 @@ downloads everything in the background, treating YouTube-Music rate limiting as 
 **Core goal: get everything by dodging rate limits, even if it takes an extremely long time.** That inverts normal web-app priorities —
 durability beats throughput. A track may legitimately sit in the queue for days, and that is correct behavior, not a stall.
 
-**Status:** masters v1–v4 (v00–v48) are complete and shipping to `spotdl.vb2007.hu`. **Master v5 (v49–v70)
-is in progress**: close every open gotcha, a Firefox extension, an admin "others" view, new features.
+**Status:** masters v1–v5 (v00–v70) are complete and shipping to `spotdl.vb2007.hu`. v5 closed every open gotcha and added
+a Firefox extension, an admin "others" view, watched jobs, export, a PWA share target, notifications and `/users`.
 
 ### Where things are
 
 | What | Where |
 |---|---|
-| Current roadmap, open-items ledger, waves (and its Amendments) | `plan/master-v5/00-master-plan.md` |
+| Last roadmap, open-items ledger (all closed at v70), waves (and its Amendments) | `plan/master-v5/00-master-plan.md` |
 | Per-version plans (finished masters' are historical, never edited) | `plan/master-vN/vNN-*.md`; agent prompt template `plan/master-v5/IMPLEMENTATION_PROMPT.md` |
-| **Accumulated gotchas, v01–v48** | **`docs/GOTCHAS.md`** — read the relevant section (via its topic index, never end to end) before touching an area, and verify a referenced file or function still exists before acting on it |
+| **Accumulated gotchas, v01–v70** | **`docs/GOTCHAS.md`** — read the relevant section (via its topic index, never end to end) before touching an area, and verify a referenced file or function still exists before acting on it |
 | Deploy runbook (Debian host) / local dev runbook | `docs/DEPLOYMENT.md` / `docs/LOCAL_DEV.md` |
 | CI (self-hosted runner) / release pipeline (versioning, GHCR, deploy, rollback) | `docs/CI_SELF_HOSTED_RUNNER.md` / `docs/RELEASE_PIPELINE.md` |
 | Product brief / frontend design system | `PRODUCT.md` / `frontend/src/DESIGN.md` |
@@ -124,7 +124,7 @@ name and role; never copy one's into another.
 | Area | Decision |
 |---|---|
 | Parallel agents | ≤4 per wave, own worktree + compose project + **local Postgres container** each (never the LAN DB); `worker-dl` only under the host-wide realdl lock; owner merges a wave in slice order; version must rise |
-| Firefox extension | `extension/`, MV3, own semver (`manifest.json`), AMO-signed unlisted XPI; session cookie first, per-user API key fallback; keys only submit + `me`, never admin; Spotify-URL allowlist, cascades resolved server-side |
+| Firefox extension | `extension/`, MV3, own semver (`manifest.json`), AMO-signed unlisted XPI; session cookie first, per-user API key fallback; a key reaches only submit, its own jobs' read-back and `me`, never admin (deny-by-default, `test_key_boundary.py`); Spotify-URL allowlist, cascades resolved server-side |
 | Admin scope | `view = mine \| all \| others` (admin only; `all_users` = alias of `all`) |
 
 ## Architecture
@@ -167,7 +167,7 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
 - **Data separation is a security property; it fails silently.** Any change to queries, endpoints
   or events re-runs `pytest backend/tests/test_ownership.py` plus the gating cases in `test_jobs.py`,
   `test_settings_retention.py`, `test_proxies_router.py`, `test_worker.py`, `test_settings_router.py`,
-  `test_stats.py` and `test_admin_gating.py`, **and** `scripts/verify_separation_sse.sh` against a running stack, covering
+  `test_stats.py`, `test_admin_gating.py` and `test_key_boundary.py` (v70), **and** `scripts/verify_separation_sse.sh` on a running stack, covering
   **direct-id endpoints**. Non-owner access returns **404, not 403**. An admin route answers a non-admin
   404 (`require_admin_hidden`) where its path names an id, and on `/api/admin/stats`, `/api/admin/alerts`
   (v59) and the test-alert send; 403 (`require_admin`) on the other, id-free admin actions (v56). A module-level frontend store is a data surface
@@ -175,7 +175,7 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
 - **The SSE stream is a data surface.** `publish_*_event` takes the owning user as a **required**
   argument; verify by raw-capturing `curl -N /api/stream`, never via the UI. Every change that
   can move a job's rollup status also calls `job_status.publish_change` after its commit (once
-  per job), or the dashboard's off-page state chips drift silently (v62).
+  per job), or the dashboard's off-page state chips drift silently (v62); a test fixture poking a job's state too (v70).
 - **`downloaded_tracks` is never touched by archiving or retention** (a dropped ledger row means a
   re-download). **A `waiting` job is never archived on age alone**: eligibility is measured from the
   newest track `updated_at`, not `job.created_at`.
@@ -237,8 +237,8 @@ with 1 `LookupError` is "Done — 9 of 10", never "failed" or a bare green tick.
 
 ## Version roadmap
 
-Masters v1–v4 (v00–v48) are complete; master v5 (v49–v70, waves 0–6) is in progress. Slices live in
-`plan/master-vN/` (patch slices in that master's Amendments); findings in `docs/GOTCHAS.md`.
+Masters v1–v5 (v00–v70) are complete, and no master v6 is planned yet. Slices live in `plan/master-vN/`
+(patch slices in that master's Amendments); findings in `docs/GOTCHAS.md`.
 
 ## Maintaining this file
 

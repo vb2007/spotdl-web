@@ -459,7 +459,11 @@ what a fresh slot lacks:
   tracks the library sort moved, under `./test-library/agent fixture/`;
 - the e2e admin's history: 120 archived jobs (spec 14 pages through three pages of 50), a 14-track
   album (spec 14's twelve-or-more-track job) and a track whose attempt recorded a network path
-  (spec 3, which since v52 adds its own fixture when it finds none it can use).
+  (spec 3, which since v52 adds its own fixture when it finds none it can use);
+- v70: the e2e user's own completed attempt, moved to an hour ago on every run (spec 14's "my
+  stats" journey needs a chart, and a chart needs a track of the user's tried in the window).
+  Only `e2e` passes the user to the seed (it has loaded the slot's identities); a bare `seed`
+  skips it.
 
 A new spec that leans on more of the owner's data needs that data added to the seed too. Then `npm run test:e2e`
 runs from the worktree's
@@ -521,7 +525,9 @@ never SQLite:
   task function directly with committed sessions, as `test_jobs.py`'s does.
 - A race the move to Postgres exposes, or that a real-connection test reproduces before its
   owning slice fixes it, is an `xfail(strict=True)` naming that slice: the stale-track reclaim's
-  E2 is one, for v55 (`test_beat_task.py`).
+  E2 was one, for v55 (`test_beat_task.py`, removed when v55 fixed it). *(v70: the only strict
+  xfail left is a control, `test_library_race.py[without-lock]`: it proves the race test sees the
+  race when v57's lock is off.)*
 - **The SQLite engine path is removed, not kept behind a flag** (owner-visible decision, v51): a
   second dialect nobody runs by default is exactly where the "lock was requested" tests came from,
   and on Postgres the suite is no slower.
@@ -530,6 +536,11 @@ never SQLite:
   CI or locally. A concurrency test whose interleaving breaks fails after `concurrency.TIMEOUT`
   (15 s) instead of hanging. If a later slice pushes the run past the budget, mark its slow tests
   and record it here.
+  *(2026-11-04, v70: raised to **90 s** (owner's choice). The suite had grown to 1,655 tests and
+  73 s on merged main (67 s in CI), past 30 s since v60, unrecorded. Three tests waited on real
+  timeouts, a real `download_track.delay` (19 s of Celery broker retries) and two real 2 s TCP
+  proxy probes; stubbed, the run is 52 s with no test above 3 s. The rule that matters more: no
+  test waits on a real network or broker timeout. `pytest --durations=10` finds one.)*
 
 **Teardown and reset.** `down` stops and removes the slot (`worker-dl` included); the database
 and Redis volumes stay, so `up` comes back with the same data. `down --volumes` drops them, and
