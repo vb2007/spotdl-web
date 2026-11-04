@@ -213,6 +213,16 @@ async function offer(key: string, jobId: string) {
 	await show(jobId);
 }
 
+/** A settled job's notification text. v70 (U6, the surface v67 left): a one-track job whose
+ * track wasn't found says so, as its row badge does (JobRow's `oneNotFound`), never "Done — 0
+ * of 1"; every other job counts what it got. */
+export function notificationBody(counts: Record<string, number>): string {
+	const done = (counts.completed ?? 0) + (counts.skipped_duplicate ?? 0);
+	const total = Object.values(counts).reduce((sum, n) => sum + (n ?? 0), 0);
+	if (total === 1 && (counts.lookup_failed ?? 0) === 1) return m.notify_job_not_found();
+	return m.notify_job_done({ done: formatNumber(done), total: formatNumber(total) });
+}
+
 async function show(jobId: string) {
 	let job: api.Job;
 	try {
@@ -222,12 +232,9 @@ async function show(jobId: string) {
 		return;
 	}
 	if (!get(jobNotifications) || permission() !== 'granted') return;
-	const counts = job.track_counts;
-	const done = (counts.completed ?? 0) + (counts.skipped_duplicate ?? 0);
-	const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
 	// `renotify` is in the spec and Chromium, not in TypeScript's DOM types.
 	const options: NotificationOptions & { renotify?: boolean } = {
-		body: m.notify_job_done({ done: formatNumber(done), total: formatNumber(total) }),
+		body: notificationBody(job.track_counts),
 		tag: `spotdl-web-job-${job.id}`,
 		// A watched job (v63) settling again replaces its notification: say so, don't swap it in
 		// silently (review round 4).
