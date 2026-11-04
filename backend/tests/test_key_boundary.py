@@ -158,35 +158,86 @@ def test_no_router_is_included_with_a_prefix_or_dependencies():
     assert [i for i in included if i[1] or i[2]] == []
 
 
-def test_only_the_key_dependency_reads_a_key():
-    """A key is read in one place: `require_session_or_api_key` calls `api_keys.authenticate`
-    (and `_bearer_token`); no other call in the app is named either, however it's imported. A new dependency that authenticated a key another way, through the
-    same service or the bearer helper, would pass the route walk if it also refused a plain
-    `Bearer` request; this pins the call sites (review round 1)."""
+def _key_references() -> list[tuple[str, str, str]]:
+    """Every place in `app/` (module level included) that names something a key is read with:
+    `authenticate`/`_hash` (however imported or aliased), `_bearer_token`, `ApiKey.hash`, and
+    `require_session_or_api_key` used any way but as a `Depends(...)` argument. Each as
+    (file, enclosing function or "<module>", what)."""
     import ast
     from pathlib import Path
 
     import app as app_package
 
     root = Path(app_package.__file__).parent
-    callers = set()
-    for path in root.rglob("*.py"):
-        tree = ast.parse(path.read_text(), filename=str(path))
-        for fn in ast.walk(tree):
-            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                continue
-            for node in ast.walk(fn):
-                if not isinstance(node, ast.Call):
-                    continue
-                func = node.func
-                name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
-                # By name, whatever the module is imported as (`import ... as`, `from ... import`).
-                if name in ("authenticate", "_bearer_token"):
-                    callers.add((str(path.relative_to(root)), fn.name, name))
-    assert callers == {
-        ("routers/auth.py", "require_session_or_api_key", "authenticate"),
+    found = []
+
+    class Visitor(ast.NodeVisitor):
+        def __init__(self, rel):
+            self.rel, self.stack, self.depends_args = rel, [], set()
+
+        def _note(self, what):
+            found.append((self.rel, self.stack[-1] if self.stack else "<module>", what))
+
+        def visit_FunctionDef(self, node):
+            self.stack.append(node.name)
+            self.generic_visit(node)
+            self.stack.pop()
+
+        visit_AsyncFunctionDef = visit_FunctionDef
+
+        def visit_Call(self, node):
+            func = node.func
+            name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
+            if name == "Depends":
+                self.depends_args.update(id(arg) for arg in node.args)
+            self.generic_visit(node)
+
+        def visit_ImportFrom(self, node):
+            for alias in node.names:
+                if alias.name in ("authenticate", "_hash", "_bearer_token"):
+                    self._note(f"import {alias.name}")
+                # An alias would hide a direct call from the Name check below.
+                if alias.name == "require_session_or_api_key" and alias.asname:
+                    self._note(f"import require_session_or_api_key as {alias.asname}")
+
+        def visit_Attribute(self, node):
+            if node.attr in ("authenticate", "_hash", "_bearer_token"):
+                self._note(node.attr)
+            if node.attr == "hash" and isinstance(node.value, ast.Name) and node.value.id == "ApiKey":
+                self._note("ApiKey.hash")
+            self.generic_visit(node)
+
+        def visit_Name(self, node):
+            if node.id in ("authenticate", "_hash", "_bearer_token"):
+                self._note(node.id)
+            if node.id == "require_session_or_api_key" and id(node) not in self.depends_args:
+                self._note("require_session_or_api_key outside Depends")
+
+    for path in sorted(root.rglob("*.py")):
+        rel = str(path.relative_to(root))
+        if rel == "services/api_keys.py":
+            continue  # the key service itself: its own hashing and lookup
+        Visitor(rel).visit(ast.parse(path.read_text(), filename=str(path)))
+    return found
+
+
+def test_only_the_key_dependency_reads_a_key():
+    """A key is read in one place: `require_session_or_api_key` (`_bearer_token`, then
+    `api_keys.authenticate`), and that dependency is only ever a `Depends(...)` argument, so
+    no other dependency can call it under a condition of its own (an extra header, say). Review
+    rounds 1 and 2: aliases, a direct `ApiKey.hash` lookup, module-level code and a direct call
+    all fail here."""
+    assert sorted(set(_key_references())) == [
         ("routers/auth.py", "require_session_or_api_key", "_bearer_token"),
-    }
+        ("routers/auth.py", "require_session_or_api_key", "authenticate"),
+    ]
+
+
+def test_no_middleware_answers_on_its_own():
+    """A middleware runs before any route, so one that answered a request (an
+    `@app.middleware("http")` endpoint) would serve it with no gate and no route object for the
+    walk to see. The app has CORS only (review round 2)."""
+    assert [m.cls.__name__ for m in app.user_middleware] == ["CORSMiddleware"]
 
 
 def test_the_route_lists_are_complete():
@@ -206,14 +257,19 @@ def test_only_the_key_routes_accept_a_key():
     assert accepting == KEY_ROUTES
 
 
+@pytest.mark.parametrize(
+    "client_header", [None, "extension/1.0.2"], ids=["bearer", "bearer+extension"]
+)
 @pytest.mark.parametrize("holder", ["admin", "user"])
 @pytest.mark.parametrize("method,path", DENIED)
-def test_a_key_is_refused_on_every_other_route(request, client, holder, method, path):
+def test_a_key_is_refused_on_every_other_route(request, client, holder, client_header, method, path):
     """Behavioral, deny-by-default: every route outside the key and public ones answers a key
     401 `not_authenticated`, admin routes included (a key is no credential there, so it never
-    reaches the admin check, let alone passes it)."""
+    reaches the admin check, let alone passes it). Also as the extension sends it, with
+    `X-Spotdl-Client` (the app branches on that header; review round 2)."""
     raw = _key(request, holder)
-    response = client.request(method, _fill(path), headers=bearer(raw), json={})
+    headers = bearer(raw) | ({"X-Spotdl-Client": client_header} if client_header else {})
+    response = client.request(method, _fill(path), headers=headers, json={})
     assert response.status_code == 401, (method, path, response.status_code, response.text)
     assert response.json()["code"] == "not_authenticated", (method, path, response.text)
 

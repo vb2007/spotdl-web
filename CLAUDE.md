@@ -175,7 +175,7 @@ Cloudflare Tunnel ──> cloudflared ──> web (SvelteKit + nginx, same-origi
 - **The SSE stream is a data surface.** `publish_*_event` takes the owning user as a **required**
   argument; verify by raw-capturing `curl -N /api/stream`, never via the UI. Every change that
   can move a job's rollup status also calls `job_status.publish_change` after its commit (once
-  per job), or the dashboard's off-page state chips drift silently (v62); a test fixture poking a job's state too (v70).
+  per job), or the dashboard's off-page state chips drift silently (v62); a fixture resetting a job a spec then moves, too (v70).
 - **`downloaded_tracks` is never touched by archiving or retention** (a dropped ledger row means a
   re-download). **A `waiting` job is never archived on age alone**: eligibility is measured from the
   newest track `updated_at`, not `job.created_at`.

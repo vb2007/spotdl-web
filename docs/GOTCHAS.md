@@ -8109,7 +8109,12 @@ independently-found production bug from the same conversation)
   with an admin's key). `test_key_boundary.py` allows those three and pins them structurally (the
   set of routes depending on `require_session_or_api_key` must equal them). It also walks every
   route object, not only `APIRoute`s: a Starlette `Route` or `Mount` runs no FastAPI dependency, so
-  no session or key gate, and only FastAPI's docs pages may be one.
+  no session or key gate, and only FastAPI's docs pages may be one. Review rounds 1 and 2 widened
+  it: low-priority routes (`app.frontend()`), included routers' own prefix and dependencies, a
+  middleware stack of CORS only (an `@app.middleware("http")` endpoint has no route object at
+  all), the extension's `X-Spotdl-Client` header on every request, and a reference scan of
+  `app/` for anything that reads a key outside `require_session_or_api_key` (aliases, `_hash`,
+  `ApiKey.hash`, module level, a direct call of the dependency).
 - **Driving the signed extension in release Firefox 159** (extends v58's harness notes):
   - chrome context needs both `--remote-allow-system-access` and `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`;
   - `WebDriver:ExecuteScript`'s body isn't an async function: wrap it in an async IIFE that gets

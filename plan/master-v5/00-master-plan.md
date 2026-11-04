@@ -913,6 +913,13 @@ here.
     Share Target support there; not this app's to fix).
   - **Dropped:** D3's dialog half (a long-running Vite stops opening the confirmation dialog),
     never reproduced in v52 or since (owner: forget it unless it comes back).
+  - **Owner housekeeping, the answers (the checklist above stays as approved):** GitGuardian's two
+    incidents dismissed (#52's comment 5962546445); production's `MATRIX_*` set (its own app
+    alerts arrive); `moved_file_redownloads.sql` on production: 0 rows; `v48smoke@example.com` is
+    off production's allowlist (since v69 a table, not `.env`); the file-sourced proxies stay
+    enabled (owner's choice: 5 never succeeded, 2 not since 10-14, 3 work); the AMO secrets
+    exist (v61's signing runs succeeded); vb2007.hu-api still shares the runner user's Docker
+    config (its `release.yml` and vb2007.hu-vue's), an issue for that repo drafted for the owner.
   - **The prod smoke's identity:** production's allowlist held only real people, so v70 added
     `v5s4user@example.com` (one owner-approved INSERT) and the owner removed it on `/users` as the
     live-removal check.
