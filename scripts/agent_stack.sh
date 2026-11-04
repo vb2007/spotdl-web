@@ -590,7 +590,8 @@ print(sum(1 for i in ids if downloads(i)) + expanding)
 # scripts/agent_seed.py recreates both, idempotently.
 seed_fixture() {
 	stack_running || die "slot $SLOT isn't up: scripts/agent_stack.sh $SLOT up"
-	dc exec -T worker-meta python - <"$ROOT/scripts/agent_seed.py" ||
+	# v70: the e2e user, when load_e2e_credentials has run (e2e does), gets its own recent attempt.
+	dc exec -T -e SEED_USER_EMAIL="${E2E_USER_EMAIL:-}" worker-meta python - <"$ROOT/scripts/agent_seed.py" ||
 		die "seeding the e2e fixture failed in worker-meta: scripts/agent_stack.sh $SLOT logs worker-meta"
 }
 
