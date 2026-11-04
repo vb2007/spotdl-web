@@ -889,3 +889,30 @@ here.
     `AdminOnlyNotice.svelte` (the non-admin's `/users`); docstrings (`models/user.py`); and the tests
     the table and the stream changed (`conftest.py`, `test_admin_gating.py`, `test_api_keys.py`,
     `test_config.py`, `test_extension_jobs.py`, `test_jobs.py` (a query-count bound +1 for the per-request allowlist read), `test_stream.py`, `test_watch_jobs.py`); and, after the rebase onto v68, `frontend/e2e/support/virtual.ts`: v68's fixture account goes on the allowlist before its minted session.
+
+- **2026-11-04, v70: the close's findings and the owner's decisions.**
+  - **The key boundary has three routes.** The plan's "the two it's allowed on" predates v53's
+    owner decision that a key may read its own jobs back (`GET /api/jobs/{id}`, 404 for anyone
+    else's, an admin's key included). `test_key_boundary.py` allows those three, pins them
+    structurally, and fails any route object that isn't an `APIRoute`.
+  - **graphify's cache is untracked** (owner's choice): it keyed node ids by the absolute path of the
+    worktree that built them, so main's graph mixed about twenty deleted v5 worktrees' ids.
+  - **Fixed here, beyond the plan's tasks:** ledger U9's remainder (two dashboard error spans
+    without `textLang()`, the masthead's disconnect failure restructured onto `ErrorSentence`) and
+    U6's on the one surface v67 left (a one-track not-found job's notification), owner's choice;
+    two e2e specs that passed only on a slot earlier runs had filled (spec 14's my-stats journey,
+    spec 26's fixture); three tests waiting on real timeouts (a real Celery `.delay`, two real TCP
+    probes), and the v61 scratch workflow's four runs deleted from the Actions list (P12's
+    leftover, owner's choice).
+  - **v51's pytest budget is 90 s** (owner's choice): the suite is 2.7 times v51's, at 52 s once
+    the timeout waits were gone.
+  - **Carried past master v5:** v54.2's "library upgrade" slice (re-download the old AAC files as
+    Opus, with its never-delete exception), never scheduled in v55–v69; a future master plans it.
+  - **v65's real phone share, done by the owner:** Chrome on Android shares into the installed app
+    and queues the link; Firefox and IronFox on Android 16 never offer it as a target (no Web
+    Share Target support there; not this app's to fix).
+  - **Dropped:** D3's dialog half (a long-running Vite stops opening the confirmation dialog),
+    never reproduced in v52 or since (owner: forget it unless it comes back).
+  - **The prod smoke's identity:** production's allowlist held only real people, so v70 added
+    `v5s4user@example.com` (one owner-approved INSERT) and the owner removed it on `/users` as the
+    live-removal check.
