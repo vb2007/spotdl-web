@@ -6357,7 +6357,7 @@ independently-found production bug from the same conversation)
   401 `not_authenticated` (owner's decision, 2026-10-24: keep 401). `test_api_keys.py`
   parametrizes this over every route in the app, not only the admin ones. The job read was added
   on the owner's decision the same day (the master plan's "read their own submission status"):
-  through a key it's the key's user's own jobs only, an admin's too (404 otherwise). *(2026-10-26, v56 (A6): an admin route whose path names an id (priority, bump, one proxy) now answers a non-admin 404, like stats and the test-alert send; `tests/test_admin_gating.py` holds the table.)* *(2026-11-04, v70: the route walk moved from `test_api_keys.py` to `test_key_boundary.py`, which also tries a plain user's key, walks every route object (low-priority routes included), and pins the included routers' prefix and dependencies and the key-reading call sites.)*
+  through a key it's the key's user's own jobs only, an admin's too (404 otherwise). *(2026-10-26, v56 (A6): an admin route whose path names an id (priority, bump, one proxy) now answers a non-admin 404, like stats and the test-alert send; `tests/test_admin_gating.py` holds the table.)* *(2026-11-04, v70: the route walk moved from `test_api_keys.py` to `test_key_boundary.py`, which also tries a plain user's key, walks every route object (low-priority routes included), and pins the included routers' prefix and dependencies and an inventory of every place naming the key machinery.)*
 - **FastAPI keeps an included router as a lazy `_IncludedRouter` in `app.routes`** (0.162 in the slot's
   image, 0.141.1 in `uv.lock`/`requirements.txt`: both do). A test
   walking `app.routes` for `APIRoute`s finds only the four built-in docs routes; descend through
@@ -8109,20 +8109,23 @@ independently-found production bug from the same conversation)
   with an admin's key). `test_key_boundary.py` allows those three and pins them structurally (the
   set of routes depending on `require_session_or_api_key` must equal them). It also walks every
   route object, not only `APIRoute`s: a Starlette `Route` or `Mount` runs no FastAPI dependency, so
-  no session or key gate, and only FastAPI's docs pages may be one. Review rounds 1–4 widened
+  no session or key gate, and only FastAPI's docs pages may be one. Review rounds 1–7 widened
   it: low-priority routes (`app.frontend()`), included routers' own prefix and dependencies, a
   middleware stack of CORS only (an `@app.middleware("http")` endpoint has no route object at
   all), a second walk with every key carrier at once (`X-Spotdl-Client`, a `moz-extension://`
-  origin, `X-Api-Key`, `?key=`), routes serving only HEAD, and an **inventory**: every
+  origin, `X-Api-Key`, `?key=`, `?api_key=`), routes serving only HEAD, and an **inventory**: every
   (file, scope, name) in `app/` that names the key machinery at all (`ApiKey`, `api_keys`,
   `api_key`, `hash`, `_hash`, `authenticate`, `_bearer_token`, the dependency, and every
   top-level name the key service defines, read from it), import module paths included, plus any
   call's string argument naming the `api_keys` table or `ApiKey` (raw SQL, `relationship("…")`),
   pinned as a literal. Rounds 1–5 each found an ordinary spelling (an alias, `auth.dep(...)`,
   `filter_by(hash=)`, `from app import services`, a row's `.hash` compared in a new
-  dependency) that a scan *recognising* key reads missed; an inventory needs no recognising,
-  since new key code anywhere changes the set. The test then asks for a check and an update.
-  Out of reach, owner-accepted: code written to hide a name (`getattr` on a built string).
+  dependency) that a scan *recognising* key reads missed; an inventory needs far less recognising: new key code changes the set unless it hides a name
+  on purpose. Round 7 found the last ordinary gaps (SQL held in a constant or an f-string,
+  `metadata.tables[...]`): any non-docstring string naming the table counts now, and the
+  service's own names count only where the service is from-imported (another module's own
+  `KEY_PREFIX` was noise). The key routes also refuse a key carried as anything but the
+  bearer. The test then asks for a check and an update. Out of reach, owner-accepted: code written to hide a name (`getattr` on a built string).
 - **Driving the signed extension in release Firefox 159** (extends v58's harness notes):
   - chrome context needs both `--remote-allow-system-access` and `MOZ_REMOTE_ALLOW_SYSTEM_ACCESS=1`;
   - `WebDriver:ExecuteScript`'s body isn't an async function: wrap it in an async IIFE that gets

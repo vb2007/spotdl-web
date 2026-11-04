@@ -168,8 +168,9 @@ def test_no_router_is_included_with_a_prefix_or_dependencies():
 
 
 # Every name the key machinery goes by: the model, its modules, its hash, the lookup, the bearer
-# parse and the dependency. Matched by spelling anywhere (a name, an attribute, an import, a
-# keyword), whatever imports it, so a new place touching the machinery can't avoid naming one.
+# parse and the dependency. Matched by spelling (a name, an attribute, an import and its module
+# path, a keyword, a string naming the table), whatever imports it, so new code touching the
+# machinery names one in all but the owner-accepted cases (a name hidden on purpose).
 KEY_NAMES = {"ApiKey", "api_keys", "api_key", "hash", "_hash", "authenticate", "_bearer_token", "require_session_or_api_key"}
 
 
@@ -196,23 +197,13 @@ def _key_names() -> set[str]:
 KEY_INVENTORY = {
     ('models/__init__.py', '<module>', 'ApiKey'),
     ('models/__init__.py', '<module>', 'api_key'),
+    ('models/__init__.py', '<module>', 'string naming ApiKey'),
     ('models/api_key.py', 'ApiKey', 'hash'),
+    ('models/api_key.py', 'ApiKey', 'string naming api_keys'),
     ('routers/account_keys.py', '<module>', 'api_keys'),
-    ('routers/account_keys.py', 'create_api_key', 'ApiKeyLimitReached'),
-    ('routers/account_keys.py', 'create_api_key', 'LABEL_MAX_LENGTH'),
-    ('routers/account_keys.py', 'create_api_key', 'LabelInvalid'),
-    ('routers/account_keys.py', 'create_api_key', 'MAX_ACTIVE_KEYS'),
     ('routers/account_keys.py', 'create_api_key', 'api_keys'),
-    ('routers/account_keys.py', 'create_api_key', 'create_key'),
-    ('routers/account_keys.py', 'create_api_key', 'key_to_dict'),
-    ('routers/account_keys.py', 'create_api_key', 'normalize_label'),
-    ('routers/account_keys.py', 'list_api_keys', 'MAX_ACTIVE_KEYS'),
-    ('routers/account_keys.py', 'list_api_keys', 'active_keys'),
     ('routers/account_keys.py', 'list_api_keys', 'api_keys'),
-    ('routers/account_keys.py', 'list_api_keys', 'key_to_dict'),
     ('routers/account_keys.py', 'revoke_api_key', 'api_keys'),
-    ('routers/account_keys.py', 'revoke_api_key', 'key_to_dict'),
-    ('routers/account_keys.py', 'revoke_api_key', 'revoke_key'),
     ('routers/auth.py', '<module>', 'ApiKey'),
     ('routers/auth.py', '<module>', 'api_keys'),
     ('routers/auth.py', 'Principal', 'ApiKey'),
@@ -282,17 +273,6 @@ KEY_INVENTORY = {
     ('services/api_keys.py', 'normalize_label', '_collapse_spaces'),
     ('services/api_keys.py', 'normalize_label', '_ignorable'),
     ('services/api_keys.py', 'revoke_key', 'ApiKey'),
-    ('services/job_status.py', '<module>', 'KEY_PREFIX'),
-    ('services/job_status.py', '_key', 'KEY_PREFIX'),
-    ('services/rate_limit.py', '<module>', 'KEY_PREFIX'),
-    ('services/rate_limit.py', '_address_bucket', 'KEY_PREFIX'),
-    ('services/rate_limit.py', '_login_bucket', 'KEY_PREFIX'),
-    ('services/rate_limit.py', 'hit_job_create', 'KEY_PREFIX'),
-    ('services/rate_limit.py', 'hit_link_resolve', 'KEY_PREFIX'),
-    ('services/watch.py', '<module>', 'KEY_PREFIX'),
-    ('services/watch.py', 'claim_run', 'KEY_PREFIX'),
-    ('services/watch.py', 'release_run', 'KEY_PREFIX'),
-    ('services/watch.py', 'start_run', 'KEY_PREFIX'),
 }
 
 
@@ -303,15 +283,22 @@ def _key_inventory() -> set[tuple[str, str, str]]:
     import app as app_package
 
     root = Path(app_package.__file__).parent
-    names = _key_names()
+    service_names = _key_names() - KEY_NAMES
     table = re.compile(r"\b(api_keys|ApiKey)\b")
     found = set()
 
-    def walk(node, rel, scope):
+    def imports_the_service(tree) -> bool:
+        return any(
+            isinstance(n, ast.ImportFrom) and n.module == "app.services.api_keys" for n in ast.walk(tree)
+        )
+
+    def walk(node, rel, scope, names):
         for child in ast.iter_child_nodes(node):
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                walk(child, rel, child.name if scope == "<module>" else f"{scope}.{child.name}")
+                walk(child, rel, child.name if scope == "<module>" else f"{scope}.{child.name}", names)
                 continue
+            if isinstance(child, ast.Expr) and isinstance(child.value, ast.Constant) and isinstance(child.value.value, str):
+                continue  # a docstring (or a bare string statement): words, not code
             name = None
             if isinstance(child, ast.Name):
                 name = child.id
@@ -324,20 +311,23 @@ def _key_inventory() -> set[tuple[str, str, str]]:
                 found.update((rel, scope, part) for part in child.name.split(".") if part in names)
             elif isinstance(child, ast.ImportFrom) and child.module:
                 found.update((rel, scope, part) for part in child.module.split(".") if part in names)
-            elif isinstance(child, ast.Call):
-                # The table or model by name, in SQL or a string reference: text("... api_keys ..."),
-                # table("api_keys"), relationship("ApiKey") (review round 6). Docstrings aren't
-                # call arguments, so they don't count.
-                for arg in [*child.args, *[k.value for k in child.keywords]]:
-                    if isinstance(arg, ast.Constant) and isinstance(arg.value, str) and table.search(arg.value):
-                        found.add((rel, scope, f"string naming {table.search(arg.value).group(1)}"))
+            elif isinstance(child, ast.Constant) and isinstance(child.value, str) and table.search(child.value):
+                # The table or model by name in any string the code uses: SQL (a constant, an
+                # f-string's text, a .format template), `metadata.tables["api_keys"]`,
+                # `relationship("ApiKey")`, a second model's `__tablename__` (review rounds 6-7).
+                found.add((rel, scope, f"string naming {table.search(child.value).group(1)}"))
             if name in names:
                 found.add((rel, scope, name))
-            walk(child, rel, scope)
+            walk(child, rel, scope, names)
 
     for path in sorted(root.rglob("*.py")):
         rel = str(path.relative_to(root))
-        walk(ast.parse(path.read_text(), filename=str(path)), rel, "<module>")
+        tree = ast.parse(path.read_text(), filename=str(path))
+        # The key service's own names (KEY_PREFIX, create_key, ...) count where they can mean it:
+        # in the service, and in a file from-importing it (`api_keys.X` is seen everywhere as
+        # `api_keys`). Another module's own KEY_PREFIX isn't the key machinery (review round 7).
+        names = KEY_NAMES | service_names if rel == "services/api_keys.py" or imports_the_service(tree) else KEY_NAMES
+        walk(tree, rel, "<module>", names)
     return found
 
 
@@ -347,9 +337,9 @@ def test_the_key_machinery_is_touched_only_where_it_was():
     all. A change (a new dependency in auth.py hashing a header, a new helper in the key
     service, a route reaching `services.api_keys` some new way) fails here until someone checks
     that it reads a key only through `require_session_or_api_key` on a key route, and updates
-    the inventory. Review rounds 1-5 found the narrower scans before this one each missed an
-    ordinary spelling. Out of reach, by the owner's decision: code written to hide a name from
-    a scan (`getattr` on a built string, say)."""
+    the inventory. The narrower scans before it (review rounds 1-5) each missed an ordinary
+    spelling. Out of reach, by the owner's decision: code written to hide a name from
+    a scan (`getattr` on a built string, say). Review rounds 1-7 shaped it."""
     now = _key_inventory()
     assert not now - KEY_INVENTORY, f"new places name the key machinery: {sorted(now - KEY_INVENTORY)}"
     assert not KEY_INVENTORY - now, f"gone (update KEY_INVENTORY): {sorted(KEY_INVENTORY - now)}"
@@ -424,6 +414,17 @@ def test_a_key_is_refused_on_every_other_route(request, client, holder, carriers
 
 
 @pytest.mark.usefixtures("_identities")
+@pytest.mark.parametrize("carrier", ["x-api-key", "query-key", "query-api_key"])
+def test_the_key_routes_take_a_key_only_as_a_bearer(request, client, carrier):
+    """The key routes read a key from `Authorization: Bearer` only: a key in the URL would land
+    in nginx's and cloudflared's access logs (review round 7)."""
+    raw = _key(request, "user")
+    headers = {"X-Api-Key": raw} if carrier == "x-api-key" else {}
+    query = {"query-key": f"?key={raw}", "query-api_key": f"?api_key={raw}"}.get(carrier, "")
+    response = client.get(f"/api/auth/me{query}", headers=headers)
+    assert response.status_code == 401, (carrier, response.status_code)
+
+
 def test_an_admins_key_reads_only_its_own_jobs(request, client, session_cookie, monkeypatch):
     """The read key route treats an admin's key as a non-admin: another user's job is a 404,
     exactly as for a non-owner, though the admin's cookie reads it."""
