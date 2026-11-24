@@ -16,15 +16,15 @@ downloads everything in the background, treating YouTube-Music rate limiting as 
 **Core goal: get everything by dodging rate limits, even if it takes an extremely long time.** That inverts normal web-app priorities —
 durability beats throughput. A track may legitimately sit in the queue for days, and that is correct behavior, not a stall.
 
-**Status:** masters v1–v5 (v00–v70) are complete and shipping to `spotdl.vb2007.hu`. v5 closed every open gotcha and added
-a Firefox extension, an admin "others" view, watched jobs, export, a PWA share target, notifications and `/users`.
+**Status:** masters v1–v5 (v00–v70) are complete and shipping to `spotdl.vb2007.hu`. **Master v6 (v71+) is open**: it moves
+auth onto `vb2007.hu-api` v3 (MFA, then "Sign in with vb2007.hu", upstream status and API keys) and takes upstream changes as they come.
 
 ### Where things are
 
 | What | Where |
 |---|---|
-| Last roadmap, open-items ledger (all closed at v70), waves (and its Amendments) | `plan/master-v5/00-master-plan.md` |
-| Per-version plans (finished masters' are historical, never edited) | `plan/master-vN/vNN-*.md`; agent prompt template `plan/master-v5/IMPLEMENTATION_PROMPT.md` |
+| Current roadmap (open), upstream dependency ledger, Amendments / v5's slot model + rebase protocol | `plan/master-v6/00-master-plan.md` / `plan/master-v5/00-master-plan.md` |
+| Per-version plans (finished masters' are historical, never edited) | `plan/master-vN/vNN-*.md`; agent prompt template `plan/master-v6/IMPLEMENTATION_PROMPT.md` |
 | **Accumulated gotchas, v01–v70** | **`docs/GOTCHAS.md`** — read the relevant section (via its topic index, never end to end) before touching an area, and verify a referenced file or function still exists before acting on it |
 | Deploy runbook (Debian host) / local dev runbook | `docs/DEPLOYMENT.md` / `docs/LOCAL_DEV.md` |
 | CI (self-hosted runner) / release pipeline (versioning, GHCR, deploy, rollback) | `docs/CI_SELF_HOSTED_RUNNER.md` / `docs/RELEASE_PIPELINE.md` |
@@ -41,11 +41,11 @@ a Firefox extension, an admin "others" view, watched jobs, export, a PWA share t
   endpoint). Re-read the plan's list fresh before saying merge-ready.
 - **A PR isn't merge-ready until every change is re-tested against the real stack** (local compose,
   real Postgres, real network), not just `pytest`: unit tests pass while a fix fails on the real runtime.
-- **Mocked verification is not verification.** A feature touching the network, a proxy or the
-  database needs one real end-to-end run. Login included: at least one identity goes through the
-  real upstream `vb2007.hu-api` (local `host.docker.internal:3000` if running, else
-  `https://api.vb2007.hu`; register a fresh test account freely), not only the direct-session-mint
-  fallback (`docs/GOTCHAS.md` v15). Skip only if neither is reachable, and say so explicitly.
+- **Mocked verification is not verification.** A feature touching the network, a proxy or the database needs one real
+  end-to-end run. Login included: at least one identity goes through the real upstream `vb2007.hu-api` (local
+  `host.docker.internal:3000` if running, else `https://api.vb2007.hu`; registration mails a code now, so reuse slot identities
+  and never turn MFA on a shared one), not only the direct-session-mint fallback (GOTCHAS v15). Skip only if neither is reachable.
+- **Upstream code changes go in as detailed template issues** in `vb2007.hu-api`/`-vue` (a full IdP included); config-only ones go over SSH or to the owner.
 - **Context comes from graphify, not exploration agents** (`query`/`path`/`explain` first; `update .` after code changes).
 - **Every version slice bumps the one shared app version**: identical `major.minor.patch` (master . slice, e.g. v21 →
   `2.21.0`) in `backend/pyproject.toml` and `frontend/package.json`, both bumped even if one side changed, plus `uv lock`;
@@ -82,7 +82,7 @@ name and role; never copy one's into another.
 | Frontend | SvelteKit + TypeScript |
 | Live updates | SSE (WebSocket later if genuinely needed) |
 | Ingress | Cloudflare Tunnel only — no port forwarding, ever |
-| Auth | Server-to-server login proxy to `vb2007.hu-api`, own session cookie |
+| Auth | Own session cookie + allowlist; identity from `vb2007.hu-api`: v71 proxies password + MFA (TOTP/email/recovery), v73 replaces it with "Sign in with vb2007.hu" (auth code + PKCE, vb2007.hu-api#575). An off-list address never learns more than a wrong password tells it |
 | Rate-limit handling | Per-track ladder **+** global circuit breaker |
 | Proxy strategy | Direct first → on failure wait out the ladder → *then* proxy |
 | Dedup | Global ledger keyed on Spotify track ID + disk reconciliation |
@@ -95,7 +95,7 @@ name and role; never copy one's into another.
 | Area | Decision |
 |---|---|
 | User identity | Real `users` table, row created on first successful login. The `allowed_emails` table (v69, managed by the admin on `/users`; `ALLOWED_EMAILS` only seeds it once) gates *who may log in*; `users` governs *what they own and may do*. Removal ends sessions, streams and API keys at once and holds unstarted jobs |
-| Admin | `is_admin` column seeded from `ADMIN_EMAIL`, which is always allowed to sign in and can't be removed from the allowlist (v69) |
+| Admin | `is_admin`, always allowed to sign in and unremovable from the allowlist (v69). Source: `ADMIN_EMAIL` until v72, then upstream `isSuperuser` (a failed read never changes it; `ADMIN_EMAIL` dev-only). v74 syncs suspensions/deletions/usernames via client-authenticated status, never an `admin:read` key |
 | Data separation | **DB-level only.** Jobs/tracks are per-user; downloaded files stay in one shared library |
 | Dedup under multi-user | Stays global — a track another user already downloaded resolves instantly as `skipped_duplicate`. Never re-fetch the same audio per user |
 | Ownership column | On `jobs` only; tracks inherit via `job_id`. A denormalized copy would be a second source of truth that can drift |
@@ -124,7 +124,7 @@ name and role; never copy one's into another.
 | Area | Decision |
 |---|---|
 | Parallel agents | ≤4 per wave, own worktree + compose project + **local Postgres container** each (never the LAN DB); `worker-dl` only under the host-wide realdl lock; owner merges a wave in slice order; version must rise |
-| Firefox extension | `extension/`, MV3, own semver (`manifest.json`), AMO-signed unlisted XPI; session cookie first, per-user API key fallback; a key reaches only submit, its own jobs' read-back and `me`, never admin (deny-by-default, `test_key_boundary.py`); Spotify-URL allowlist, cascades resolved server-side |
+| Firefox extension | `extension/`, MV3, own semver (`manifest.json`), AMO-signed unlisted XPI; session cookie first, per-user API key fallback (`sdw_` until v75, then upstream `vbk_` keys with the spotdl scope, checked by client-authenticated introspection cached ~60 s); a key reaches only submit, its own jobs' read-back and `me`, never admin (deny-by-default, `test_key_boundary.py`); Spotify-URL allowlist, cascades resolved server-side |
 | Admin scope | `view = mine \| all \| others` (admin only; `all_users` = alias of `all`) |
 
 ## Architecture
@@ -237,8 +237,8 @@ with 1 `LookupError` is "Done — 9 of 10", never "failed" or a bare green tick.
 
 ## Version roadmap
 
-Masters v1–v5 (v00–v70) are complete, and no master v6 is planned yet. Slices live in `plan/master-vN/`
-(patch slices in that master's Amendments); findings in `docs/GOTCHAS.md`.
+Masters v1–v5 (v00–v70) are complete. Master v6 is open: v71 (upstream login, ships first) and v72 (identity) need no upstream
+change; v73–v75 wait on their upstream issues. Slices live in `plan/master-vN/` (Amendments); findings in `docs/GOTCHAS.md`.
 
 ## Maintaining this file
 
