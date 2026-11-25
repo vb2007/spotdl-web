@@ -698,9 +698,11 @@ cd /mnt/raid1/spotdl-web
 cp .env.example .env
 ```
 
-Fill in `DATABASE_URL`, `REDIS_PASSWORD`/`REDIS_URL`, `SESSION_SECRET`, `ADMIN_EMAIL` (v17+;
-always allowed to sign in), `ALLOWED_EMAILS` (optional since v69, an import source only: the first
-`migrate` copies it into the allowlist table, see "Adding a second (or third) user" below),
+Fill in `DATABASE_URL`, `REDIS_PASSWORD`/`REDIS_URL`, `SESSION_SECRET`, `ALLOWED_EMAILS` (optional
+since v69, an import source only: the first `migrate` copies it into the allowlist table, see "Adding
+a second (or third) user" below; on a fresh install list the admin's address in it, since v72 the
+admin is whoever vb2007.hu-api calls its superuser and an address with no row can't sign in to
+become it),
 `FRONTEND_ORIGINS`, `DOWNLOADS_DIR`, `LIBRARY_DIR` (v28 — see the
 "Upgrading" section's §3 for the chown step it needs too), and `CLOUDFLARE_TUNNEL_TOKEN` — see
 the "Upgrading" section above for what each should be for this app's real values, and
@@ -728,7 +730,16 @@ the person out everywhere at once (their open live stream included), revokes the
 keys, and holds their jobs that haven't started yet (lifecycle "held: owner removed", visible to the
 admin in the "others" view); jobs already started run to the end. Their `users` row, jobs and files
 stay, and adding the address again restores the same account and resumes the held jobs.
-`ADMIN_EMAIL` is always allowed and can't be removed.
+The admin is always allowed and can't be removed (v72: keyed on `users.is_admin`).
+
+**The admin follows the upstream (v72).** `is_admin` is set from vb2007.hu-api's `isSuperuser` on
+each login: `true` grants it, `false` revokes it (that user's admin pages answer 403/404 on their
+next request, and an open "all users" live view closes and comes back as their own), and a failed
+or odd read changes nothing. `ADMIN_EMAIL` is no longer read in production (only under
+`SPOTDL_ENV=dev`); the host `.env` line is harmless, and **keep it while a rollback to a release
+older than v72 is possible**: those require it and refuse to boot without it. If the admin is ever
+lost (the upstream superuser changed, or a mistaken read), the new superuser's next login grants it;
+by hand: `UPDATE users SET is_admin = true WHERE email = '<address>';`.
 
 **`ALLOWED_EMAILS` is import-only.** The v69 migration copied it (plus `ADMIN_EMAIL`) into the
 `allowed_emails` table once, on the first `migrate` of that release; after that the app ignores
@@ -741,8 +752,8 @@ on `/users` since is gone, so put the current list back into `.env` first. A fre
 new install) imports it the same way on its first `migrate`.
 
 The new person's `users` row is created automatically on their first successful login
-(`services.users.get_or_create_user`) — nothing to seed by hand. They are never admin unless their
-address also matches `ADMIN_EMAIL`. Confirm with:
+(`services.users.get_or_create_user`) — nothing to seed by hand. They are never admin unless
+vb2007.hu-api calls them its superuser (`isSuperuser`, v72). Confirm with:
 
 ```bash
 curl -sS -X POST http://localhost:8000/api/auth/login -H "Content-Type: application/json" \
