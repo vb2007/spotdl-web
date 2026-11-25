@@ -276,8 +276,11 @@ def _rejected_logging_out(session: str | None, *, clear_mfa: bool = False) -> JS
     return response
 
 
-async def _complete_login(db: Session, response: Response, email: str, address: str, username: str | None) -> dict:
-    """The login tail both the password and the second step end in (v71)."""
+async def _complete_login(
+    db: Session, response: Response, email: str, address: str, identity: upstream_auth.Identity
+) -> dict:
+    """The login tail both the password and the second step end in (v71). v72: `is_admin`
+    follows the identity's `isSuperuser` (`get_or_create_user`)."""
     await run_in_threadpool(rate_limit.clear_login_failures, email, address)
     # Read again, now locked (FOR SHARE) until this login commits its session, and only now: a
     # removal meanwhile waits for it, then ends that session with the others. Not across the
@@ -286,7 +289,12 @@ async def _complete_login(db: Session, response: Response, email: str, address: 
     if not await run_in_threadpool(allowlist.is_allowed, db, email, lock=True):
         db.rollback()
         raise _invalid_credentials()
-    user = get_or_create_user(db, email, username)
+    user = get_or_create_user(db, email, identity.username, identity.is_superuser)
+    if not user.is_admin and not allowlist.is_allowed(db, email):
+        # v72: allowed above only as the admin, and the upstream just said it no longer is (an
+        # admin with no row): the demotion is kept, the login refused like any off-list one.
+        db.commit()
+        raise _invalid_credentials()
     session = create_session(db, user.id)
     db.commit()
     _set_session_cookie(response, session.token)
@@ -337,8 +345,8 @@ async def login(
         _set_mfa_cookie(response, challenge_id)
         return {"mfa_required": True, "methods": methods}
 
-    username = await upstream_auth.finish(result.session)
-    return await _complete_login(db, response, payload.email, address, username)
+    identity = await upstream_auth.finish(result.session)
+    return await _complete_login(db, response, payload.email, address, identity)
 
 
 class MfaVerifyRequest(BaseModel):
@@ -398,9 +406,9 @@ async def mfa_verify(
     db.commit()
     if not allowed:
         return _rejected_logging_out(result.session, clear_mfa=True)
-    username = await upstream_auth.finish(result.session)
+    identity = await upstream_auth.finish(result.session)
     try:
-        answer = await _complete_login(db, response, email, rate_limit.client_address(request), username)
+        answer = await _complete_login(db, response, email, rate_limit.client_address(request), identity)
     except ApiError as refused:
         # Removed meanwhile (the locked re-check): its challenge is gone, so is its cookie.
         raise ApiError(

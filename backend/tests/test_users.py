@@ -28,15 +28,61 @@ def test_get_or_create_user_is_case_insensitive_and_reuses_the_row(db_session):
     assert db_session.query(User).count() == 1
 
 
-def test_get_or_create_user_grants_admin_from_admin_email(db_session):
-    # conftest.py sets ADMIN_EMAIL=admin@example.com for the whole suite.
+def test_production_ignores_admin_email(db_session):
+    """v72: conftest.py sets ADMIN_EMAIL=admin@example.com, but the suite runs without
+    SPOTDL_ENV=dev, so it's blanked: that address gets admin only from the upstream."""
+    assert get_settings().admin_email == ""
     user = get_or_create_user(db_session, "admin@example.com")
+    db_session.commit()
+    assert user.is_admin is False
+
+
+def test_upstream_superuser_true_grants_admin(db_session):
+    user = get_or_create_user(db_session, "allowed@example.com", "name", True)
+    db_session.commit()
+    assert user.is_admin is True
+
+
+def test_upstream_superuser_false_revokes_admin(db_session):
+    get_or_create_user(db_session, "allowed@example.com", None, True)
+    db_session.commit()
+    user = get_or_create_user(db_session, "allowed@example.com", None, False)
+    db_session.commit()
+    assert user.is_admin is False
+
+
+def test_an_unknown_upstream_flag_never_changes_is_admin(db_session):
+    """A failed or odd `GET /user` (None) leaves the flag as it was, both ways, and a new row
+    starts non-admin."""
+    assert get_or_create_user(db_session, "new@example.com", None, None).is_admin is False
+    get_or_create_user(db_session, "allowed@example.com", None, True)
+    db_session.commit()
+    assert get_or_create_user(db_session, "allowed@example.com", None, None).is_admin is True
+    get_or_create_user(db_session, "allowed@example.com", None, False)
+    db_session.commit()
+    assert get_or_create_user(db_session, "allowed@example.com", None, None).is_admin is False
+
+
+def test_an_upstream_grant_demotes_nobody_else(db_session):
+    """Only a read of their own may change a user's flag (CLAUDE.md: a failed or missing
+    upstream read never changes it), so the v17 single-admin sweep stays on the dev override."""
+    get_or_create_user(db_session, "first@example.com", None, True)
+    get_or_create_user(db_session, "second@example.com", None, True)
+    db_session.commit()
+    assert db_session.query(User).filter(User.is_admin.is_(True)).count() == 2
+
+
+def test_the_dev_override_wins_over_an_upstream_false(db_session, monkeypatch):
+    """Under SPOTDL_ENV=dev, ADMIN_EMAIL's identity is admin whatever its upstream says: no
+    dev test identity is api.vb2007.hu's superuser."""
+    monkeypatch.setattr(get_settings(), "admin_email", "Dev-Admin@Example.com", raising=False)
+    user = get_or_create_user(db_session, "dev-admin@example.com", None, False)
     db_session.commit()
     assert user.is_admin is True
 
 
 def test_get_or_create_user_reconciles_admin_flag_on_every_login(db_session, monkeypatch):
-    """Changing ADMIN_EMAIL must take effect on the next login, not need manual SQL --
+    """The dev override (v72): changing ADMIN_EMAIL must take effect on the next login, not need manual SQL --
     and exactly one admin must ever exist, so a stale admin who hasn't logged in since
     the change is demoted by the *other* identity's login, not just their own."""
     settings = get_settings()
