@@ -242,6 +242,15 @@ needed" claim — rather than silently deleted.
 - `api.vb2007.hu` refuses to register an address whose domain can't receive mail (every
   `example.com` one, since about 2026-11): new slot identities can't be registered; slot 3 reuses
   slot 5's saved accounts through `AGENT_ADMIN_EMAIL` → *v69*
+  *(2026-11-25, v71: every `v5s<slot>*@example.com` account now fails to log in on the live API too;
+  slot 1 signs in on a local `vb2007.hu-api` with `.test` identities, see v71.)*
+- Upstream v3 login: `202` + `__Host-VB-MFA` for an MFA account, the session cookie is
+  `__Host-VB-AUTH`, one upstream session per account (a spotdl login logs the user out of
+  vb2007.hu), and upstream sees spotdl's one address for every user → *v71*
+- An off-list address with a right password (plain, MFA or suspended) answers exactly a wrong
+  password's bytes; its upstream session is logged out after the answer is sent → *v71*
+- The slot identities: `.test` addresses on a local `vb2007.hu-api` (dev Mongo, code printed), the
+  dedicated live TOTP identity under `LIVE_MFA_*`; never MFA on a shared identity → *v71*
 - Admin routes: 404 (`require_admin_hidden`) where the path names an id, 403 elsewhere → *v56*
 - A `failed` job's cancel is the incoming overlay's "dismiss": a cancel rule must keep it → *v56*
 - A Firefox MV3 extension's background fetch carries the session cookie (loopback HTTP and HTTPS
@@ -1439,6 +1448,10 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
 - `POST /auth/login`, body `{ email, password }` → `200` + `Set-Cookie: VB-AUTH=<sessionToken>;
   Domain=localhost; Path=/` (`src/controllers/authentication.ts:39`). Errors: `400` missing
   fields, `404` unknown email, `403` wrong password.
+  *(2026-11-25, v71, upstream v3.4.0: the cookie is `__Host-VB-AUTH` (host-only, no `Domain`),
+  unknown address and wrong password are the same `403`, a suspended account answers `403`
+  "This account is suspended: …", and an account with MFA on answers `202 {"mfaRequired": true,
+  "methods": [...]}` with a `__Host-VB-MFA` challenge cookie and no session. See the v71 section.)*
 - `sessionToken = HMAC-SHA256(salt + "/" + userId, CRYPTO_SECRET_KEY)`, no expiry, stored in Mongo.
 - `GET /user` behind `isAuthenticated` validates the `VB-AUTH` cookie — no `/auth/me` exists
   upstream.
@@ -1607,7 +1620,14 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
   account (`POST /auth/register {username, email, password}` on either instance) is fine and
   expected — v17 did exactly this for its second identity. One caught gotcha while doing so: the
   register endpoint 500s on a hyphenated `username` (an upstream bug, not spotdl-web's); a plain
-  alphanumeric username works. The direct-session-mint fallback (two entries below) remains correct
+  alphanumeric username works.
+  *(2026-11-25, v71: registration is no longer one call. `POST /auth/register` mails a 6-digit code
+  (`202`), and `POST /auth/register/verify {email, code, username, password}` creates the account
+  (`201`, logged in). `api.vb2007.hu` refuses reserved and example domains (`example.com` has a
+  null MX), so a live identity needs a real mailbox the owner relays the code from. A local
+  `vb2007.hu-api` run without `SMTP_HOST`/`MAIL_FROM` (outside production) prints every mail, code
+  included, and takes `.test`/`.example`/`.invalid`/`.localhost` addresses. Reuse the slot's saved
+  identities (`.git/agent-stack/e2e.s<slot>.env`) rather than registering more.)* The direct-session-mint fallback (two entries below) remains correct
   for *additional* identities beyond the first, or when neither upstream is reachable at all.
 - **Adding a new core runtime dependency (e.g. `httpx` for `upstream_auth.py`) to
   `pyproject.toml` does not take effect in an already-running container** —
@@ -8161,3 +8181,60 @@ independently-found production bug from the same conversation)
   bullet): Chrome on Android lists the installed app in the share sheet and `/share` queues the
   link; Firefox and IronFox on Android 16 never offer the app as a target. That's the browser's
   missing `share_target` support, not the manifest; nothing to fix here.
+
+### v71 upstream-login gotchas (learned moving the login proxy onto upstream v3's MFA)
+
+- **The `202` contract.** With any MFA method on, `POST /auth/login` answers a right password with
+  `202 {"mfaRequired": true, "methods": [...]}` and a `__Host-VB-MFA=<userId>.<secret>` cookie, no
+  session. `methods` comes in upstream's order (`email`, `totp`, `passkey`, `recovery`); `passkey`
+  and `recovery` are backups, listed only beside `email` or `totp`. The second step is
+  `POST /auth/mfa/verify {method, code}` with that cookie: `200` + `__Host-VB-AUTH`; `400` with
+  `attemptsLeft` for a wrong code; `403` with `reason` (`noChallenge`, `triesUsedUp`, `expired`,
+  `ended`) once the challenge is gone. A challenge lives 10 minutes and 5 tries, one per account (a
+  newer login replaces it). Upstream mails nothing at login: `POST /auth/mfa/email` sends the code
+  (`429 resendCooldown` within 60 s, `mfaEmailLimit` over 10 a day). spotdl keeps the challenge in
+  Redis under a random id in `SPOTDL_MFA` (`services/upstream_auth.py`); it fails closed when Redis
+  is down, unlike the rate limits.
+- **The cookie names are exact.** `__Host-VB-AUTH` replaced `VB-AUTH` in upstream v2.6, and
+  `_fetch_username`'s substring match then silently fetched nothing for every login (usernames
+  degrade to `None` by design, so nothing failed). Both names are now matched anchored at the
+  header's start, and a `200` without the cookie is logged.
+- **One upstream session per account.** Every login replaces the account's single session, so a
+  spotdl login logs the user out of vb2007.hu until v73's identity provider. spotdl now logs its
+  own upstream session out right after the username fetch (`upstream_auth.finish`), so it leaves
+  none behind; `GET /user` with that token answers `403` afterwards.
+- **The address upstream sees is spotdl's, for every user.** Measured locally with upstream's own
+  Express and its `trust proxy` (`loopback, uniquelocal`) on a probe the slot `api` container
+  called: `req.ip` was the container's own bridge address (`172.19.0.7`), no `X-Forwarded-For`.
+  In production spotdl reaches `https://api.vb2007.hu` through Cloudflare, so upstream sees the
+  production host's one public address for every spotdl user (production line pending from the
+  owner). Upstream's per-IP limits (100 failed logins and 100 wrong codes per 15 minutes, 10 MFA
+  mails an hour) are therefore shared by all spotdl users. Interim risk until v73 moves login into
+  the user's own browser.
+- **Email MFA needs `emailVerified`.** `PUT /user/mfa/email` answers `409` unless the address is
+  confirmed, and accounts made before upstream v2.2 report `false`; a password reset or an e-mail
+  change confirms it. An account registered through the code (v2.2+) is confirmed.
+- **No oracle needs the allowlist read before the follow-ups.** An off-list address with a right
+  password must answer a wrong password's exact bytes, for a plain `200`, an MFA `202` and a
+  suspended `403` alike. The router reads the allowlist once upstream has answered, keeps no
+  challenge and sets no cookie for an off-list one, never fetches its username, and logs its
+  upstream session out in a background task after the response is sent (owner's call over the
+  plan's literal "fetch, then log out" order). `ApiError` drops whatever was set on the injected
+  `Response`, so the `SPOTDL_MFA` clear on `mfa_expired` travels in the error's own headers.
+- **Every slot identity broke upstream.** By 2026-11-25 all `v5s<slot>{admin,user}@example.com`
+  accounts answered `403` on the live API and on the local dev upstream, and neither registers
+  `example.com` (null MX). Slot 1 now points `UPSTREAM_AUTH_BASE_URL` (the worktree's `.env`) at a
+  local `vb2007.hu-api` (`host.docker.internal:3000`, dev Mongo, started with `SMTP_HOST=
+  MAIL_FROM= APP_IP=0.0.0.0` so it prints mail and the container reaches it) and signs in with
+  `v6s1{admin,user,mfa}@slot1.spotdl.test`, allowlisted through `AGENT_ADMIN_EMAIL` and
+  `AGENT_EXTRA_EMAILS` (both take `.test`). The MFA one has TOTP and email on. The dedicated live
+  TOTP identity (task 7) is under `LIVE_MFA_*` in the same file; its spent recovery codes are
+  removed from the list. Other slots need the same move before their e2e can sign in.
+- **TOTP in e2e is single-use per 30 s step.** Upstream takes a step once, and only one newer than
+  the last it took, so `e2e/support/totp.ts` waits for an unused step at least 5 s from its end,
+  and spec 28 runs in the desktop project only. Its wrong-code and recovery-code tests are opt-in
+  (`E2E_MFA_WRONG_CODE=1`, `E2E_MFA_RECOVERY_CODE=<code>`): an account takes 20 wrong codes a day
+  and has 10 recovery codes.
+- **A label that wraps its hint names the field with it.** `/login`'s code field sits in a
+  `<label>` with its hint, so its accessible name was the label plus the whole hint; it takes
+  `aria-labelledby` its label span, and the hint is its description.
