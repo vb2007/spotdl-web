@@ -47,31 +47,31 @@ def test_pacing_min_equal_to_max_is_allowed():
     assert settings.pacing_min_sec == settings.pacing_max_sec == 5
 
 
-def test_admin_email_missing_is_rejected(monkeypatch):
-    # conftest.py sets ADMIN_EMAIL in os.environ for every other test in the suite --
-    # Settings (a pydantic-settings BaseSettings) falls back to reading it from there
-    # for any field omitted from the constructor kwargs, so it must be unset here too
-    # for "missing" to actually mean missing.
+def test_production_boots_without_admin_email(monkeypatch):
+    """v72: production (SPOTDL_ENV unset) no longer needs ADMIN_EMAIL: `is_admin` follows the
+    upstream. conftest.py sets both env vars for the rest of the suite, so they're unset here
+    too, or "missing" wouldn't mean missing."""
     monkeypatch.delenv("ADMIN_EMAIL", raising=False)
+    monkeypatch.delenv("SPOTDL_ENV", raising=False)
     required = {k: v for k, v in _REQUIRED.items() if k != "ADMIN_EMAIL"}
-    with pytest.raises(ValidationError):
-        Settings(**required)
+    assert Settings(**required).admin_email == ""
 
 
-def test_admin_email_needs_no_place_in_allowed_emails(monkeypatch):
-    """v69: ALLOWED_EMAILS is an import source only, and optional; ADMIN_EMAIL is always
-    allowed to sign in (services/allowlist.py), so the v17 boot check that tied the two is
-    gone."""
-    settings = Settings(**{**_REQUIRED, "ADMIN_EMAIL": "not-in-the-list@example.com"})
-    assert settings.admin_email == "not-in-the-list@example.com"
+def test_production_ignores_admin_email_when_set(monkeypatch):
+    monkeypatch.delenv("SPOTDL_ENV", raising=False)
+    assert Settings(**_REQUIRED).admin_email == ""
+
+
+def test_dev_honors_admin_email():
+    settings = Settings(**{**_REQUIRED, "DATABASE_URL": _DEV_URL, "SPOTDL_ENV": "dev"})
+    assert settings.admin_email == "admin@example.com"
+
+
+def test_allowed_emails_is_optional(monkeypatch):
+    """v69: ALLOWED_EMAILS is an import source only, and optional."""
     monkeypatch.delenv("ALLOWED_EMAILS", raising=False)
     without = {k: v for k, v in _REQUIRED.items() if k != "ALLOWED_EMAILS"}
     assert Settings(**without).allowed_emails == []
-
-
-def test_admin_email_matching_is_allowed():
-    settings = Settings(**_REQUIRED)
-    assert settings.admin_email == "admin@example.com"
 
 
 _PROD_URL = "postgresql+psycopg://spotdlweb:pw@db.example:5432/spotdlweb"

@@ -85,12 +85,11 @@ class Settings(BaseSettings):
     )
     session_secret: str = Field(alias="SESSION_SECRET")
 
-    # Multi-user (v17) -- the one account services.users.get_or_create_user grants
-    # is_admin to. Required, not optional: an admin nobody can log in as is a
-    # deployment that silently has no working settings/proxies/worker controls, which
-    # is worse than a loud crash-loop at boot. v69: always allowed to sign in, whatever the
-    # allowlist table holds, and never removable from it.
-    admin_email: str = Field(alias="ADMIN_EMAIL")
+    # v72: a dev override only. In production `is_admin` follows the upstream's `isSuperuser`
+    # (services/users.get_or_create_user) and this is blanked (`_admin_email_dev_only`), set or
+    # not. Under SPOTDL_ENV=dev it makes that test identity admin, always allowed to sign in and
+    # never removable from the allowlist, since no dev identity is api.vb2007.hu's superuser.
+    admin_email: str = Field(default="", alias="ADMIN_EMAIL")
 
     # Frontend (v09) — origin(s) the SvelteKit static site is served from, for CORS. As of
     # v12, both production (nginx's /api/ proxy inside the `web` container) and local dev
@@ -220,6 +219,12 @@ class Settings(BaseSettings):
                 f"PACING_MIN_SEC ({self.pacing_min_sec}) must not exceed "
                 f"PACING_MAX_SEC ({self.pacing_max_sec})"
             )
+        return self
+
+    @model_validator(mode="after")
+    def _admin_email_dev_only(self) -> "Settings":
+        if (self.spotdl_env or "").strip().lower() != DEV_ENV_MARKER:
+            self.admin_email = ""
         return self
 
     @model_validator(mode="after")
