@@ -251,6 +251,8 @@ needed" claim — rather than silently deleted.
   password's bytes; its upstream session is logged out after the answer is sent → *v71*
 - The slot identities: `.test` addresses on a local `vb2007.hu-api` (dev Mongo, code printed), the
   dedicated live TOTP identity under `LIVE_MFA_*`; never MFA on a shared identity → *v71*
+- Never raise one module-level exception instance twice: each raise chains that request's
+  traceback onto it, keeping its frames (passwords, tokens) alive for the process → *v71*
 - Admin routes: 404 (`require_admin_hidden`) where the path names an id, 403 elsewhere → *v56*
 - A `failed` job's cancel is the incoming overlay's "dismiss": a cancel rule must keep it → *v56*
 - A Firefox MV3 extension's background fetch carries the session cookie (loopback HTTP and HTTPS
@@ -8243,3 +8245,10 @@ independently-found production bug from the same conversation)
 - **A label that wraps its hint names the field with it.** `/login`'s code field sits in a
   `<label>` with its hint, so its accessible name was the label plus the whole hint; it takes
   `aria-labelledby` its label span, and the hint is its description.
+- **A shared exception instance is a memory and secrets leak.** `routers/auth.py` raised one
+  module-level `ApiError` (`_INVALID_CREDENTIALS`, since v03) for every refusal. Raising the same
+  object again chains the new traceback onto its `__traceback__`, so every refused request's frames
+  stayed reachable for the life of the process: 20 raises kept 20 frames and all 20 submitted
+  passwords (and from v71 on, the upstream challenge and session tokens). Errors are now built per
+  raise (`_invalid_credentials()`, `_login_unavailable()`), and `test_auth.py` fails on any
+  exception instance held at module level in `app/routers/`. Found by v71's third diff review.
