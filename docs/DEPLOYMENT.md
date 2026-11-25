@@ -738,10 +738,12 @@ next request, and an open "all users" live view closes and comes back as their o
 or odd read changes nothing. `ADMIN_EMAIL` is no longer read in production (only under
 `SPOTDL_ENV=dev`); the host `.env` line is harmless, and **keep it while a rollback to a release
 older than v72 is possible**: those require it and refuse to boot without it. If the admin is ever
-lost (the upstream superuser changed, or a mistaken read), the new superuser's next login grants it,
-provided their address is on the allowlist (the login reads it before the upstream's answer); by
-hand: `UPDATE users SET is_admin = true WHERE email = '<address>';`, and add the address on
-`/users` too, or a later `isSuperuser: false` cuts them off. **Every admin is unremovable on
+lost, the cause is upstream: every login whose `GET /user` says `isSuperuser: false` clears the flag
+again, so **the durable fix is vb2007.hu-api's `SUPERUSER_EMAIL`** (config on the upstream host),
+after which that account's next login grants it, provided its address is on the allowlist (the
+login reads it before the upstream's answer). `UPDATE users SET is_admin = true WHERE email =
+'<address>';` only bridges until that account's next login. Give the address a row on `/users` too,
+or a later `isSuperuser: false` cuts it off. **Every admin is unremovable on
 `/users`** (v72 keys "the admin" on `is_admin`), so an admin the upstream no longer calls a
 superuser keeps admin until their next login (or v74's sync). To end it at once: add their address on `/users`
 first (201 if they had no row, 409 if they had one; either way they now have one), then by hand
