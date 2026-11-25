@@ -166,7 +166,7 @@ async def _event_stream(request: Request, user: User, view: View):
                 if kind == CONTROL_REVOKED:
                     yield REVOKED
                     break
-                if kind == CONTROL_ADMIN_LOST and use_pattern:
+                if kind == CONTROL_ADMIN_LOST:
                     break
                 continue
 

@@ -321,8 +321,7 @@ def cut_off(db: Session, user_id: uuid.UUID | None) -> Removal:
         )
     db.commit()
     logger.info(
-        "allowlist: an address was removed (user %s: %d session(s) ended, %d key(s) revoked, "
-        "%d job(s) held)",
+        "allowlist: user %s cut off (%d session(s) ended, %d key(s) revoked, %d job(s) held)",
         user_id,
         removal.sessions_ended,
         removal.keys_revoked,
@@ -350,10 +349,9 @@ def add(db: Session, email: str, by: User) -> Addition:
     address that already has a user row gets that same account back, and its held jobs resume
     in the same transaction: `held_at` is cleared and their `pending` tracks are claimed, then
     enqueued after the commit (`_send_resumed`). 422 `invalid_email`, 409
-    `email_already_allowed` (the admin's address included: it's always allowed)."""
+    `email_already_allowed`. v72: an admin with no row may be given one (they're allowed
+    anyway, but a later `isSuperuser: false` would otherwise cut them off)."""
     normalized = validate_email(email)
-    if is_admin_address(db, normalized):
-        raise ApiError(409, "email_already_allowed", "That address is already on the allowlist")
     inserted = db.execute(
         insert(AllowedEmail)
         .values(email=normalized, added_by=by.id)

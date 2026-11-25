@@ -738,8 +738,10 @@ next request, and an open "all users" live view closes and comes back as their o
 or odd read changes nothing. `ADMIN_EMAIL` is no longer read in production (only under
 `SPOTDL_ENV=dev`); the host `.env` line is harmless, and **keep it while a rollback to a release
 older than v72 is possible**: those require it and refuse to boot without it. If the admin is ever
-lost (the upstream superuser changed, or a mistaken read), the new superuser's next login grants it;
-by hand: `UPDATE users SET is_admin = true WHERE email = '<address>';`.
+lost (the upstream superuser changed, or a mistaken read), the new superuser's next login grants it,
+provided their address is on the allowlist (the login reads it before the upstream's answer); by
+hand: `UPDATE users SET is_admin = true WHERE email = '<address>';`, and add the address on
+`/users` too, or a later `isSuperuser: false` cuts them off.
 
 **`ALLOWED_EMAILS` is import-only.** The v69 migration copied it (plus `ADMIN_EMAIL`) into the
 `allowed_emails` table once, on the first `migrate` of that release; after that the app ignores

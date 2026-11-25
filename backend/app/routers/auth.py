@@ -300,8 +300,10 @@ async def _complete_login(
     session = create_session(db, user.id)
     db.commit()
     if was_admin and not user.is_admin:
-        # v72: their open admin-scoped streams close now; the re-check is the safety net.
-        events.publish_control(user.id, events.CONTROL_ADMIN_LOST)
+        # v72: their open streams close now, and each page's reconnect reloads it without the admin
+        # chrome; the re-check is the safety net. Off the event loop: a stalled Redis must not
+        # freeze every other request (review round 2).
+        await run_in_threadpool(events.publish_control, user.id, events.CONTROL_ADMIN_LOST)
     _set_session_cookie(response, session.token)
     return {"email": user.email, "username": user.username, "is_admin": user.is_admin}
 

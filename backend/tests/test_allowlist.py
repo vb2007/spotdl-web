@@ -192,13 +192,21 @@ def test_cannot_remove_admin_keys_on_is_admin(admin_client, admin_user, db_sessi
     assert admin_client.delete("/api/admin/allowlist/allowed@example.com").status_code == 204
 
 
-def test_the_dev_override_cannot_be_removed_or_added(admin_client, monkeypatch):
+def test_the_dev_override_cannot_be_removed(admin_client, monkeypatch):
     from app.config import get_settings
 
     monkeypatch.setattr(get_settings(), "admin_email", "allowed@example.com")
     response = admin_client.delete("/api/admin/allowlist/allowed@example.com")
     assert (response.status_code, response.json()["code"]) == (409, "cannot_remove_admin")
-    response = admin_client.post("/api/admin/allowlist", json={"email": "allowed@example.com"})
+
+
+def test_an_admin_without_a_row_can_be_given_one(admin_client, admin_user, db_session):
+    """Round 2: they're allowed anyway, but the row keeps them in once the upstream demotes them."""
+    db_session.query(AllowedEmail).filter(AllowedEmail.email == "admin@example.com").delete()
+    db_session.commit()
+    response = admin_client.post("/api/admin/allowlist", json={"email": "admin@example.com"})
+    assert response.status_code == 201 and response.json()["is_admin_email"] is True
+    response = admin_client.post("/api/admin/allowlist", json={"email": "admin@example.com"})
     assert (response.status_code, response.json()["code"]) == (409, "email_already_allowed")
 
 
@@ -426,14 +434,15 @@ def test_a_revoked_message_ends_the_stream_with_its_event(monkeypatch, view):
     assert sent == ['data: {"n": 1}\n\n', stream_router.REVOKED]
 
 
-@pytest.mark.parametrize(("view", "ends"), [("mine", False), ("all", True), ("others", True)])
-def test_admin_lost_ends_only_an_admin_scoped_stream(monkeypatch, view, ends):
-    """v72: closed without `session.revoked` (that would log the page out); the page reconnects."""
+@pytest.mark.parametrize("view", ["mine", "all", "others"])
+def test_admin_lost_ends_the_stream(monkeypatch, view):
+    """v72: closed without `session.revoked` (that would log the page out); the page reconnects,
+    and its `me` check reloads it without the admin chrome (a `mine` tab too: review round 2)."""
     user = User(id=uuid.uuid4(), email="a@example.com", is_admin=True)
     own = channel_for(user.id) if view != "others" else channel_for(uuid.uuid4())
     messages = [(control_channel_for(user.id), '{"type": "admin_lost"}'), (own, '{"n": 1}')]
     _, sent = _run_stream(monkeypatch, user, view, messages, polls=3)
-    assert sent == ([] if ends else ['data: {"n": 1}\n\n'])
+    assert sent == []
 
 
 def test_an_unknown_control_message_is_ignored(monkeypatch):
