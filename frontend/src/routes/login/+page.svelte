@@ -608,6 +608,8 @@
 	.hint {
 		font-size: var(--fs-detail);
 		color: var(--text-muted);
+		/* v71: the second step echoes the typed address, which may have no break point. */
+		overflow-wrap: anywhere;
 	}
 
 	/* The login's inputs are a touch taller than the settings forms': two fields, one task. */
