@@ -1400,5 +1400,5 @@
 			}
 		}
 	],
-	"login_mfa_cooldown_still_works": "A legutóbb kapott kódod még érvényes."
+	"login_mfa_cooldown_still_works": "A legutóbb küldött kód még érvényes."
 }

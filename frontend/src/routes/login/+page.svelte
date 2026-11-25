@@ -148,8 +148,9 @@
 		sending = true;
 		sendTried = true;
 		errorMessage = '';
-		// Emptied first, so the same sentence arriving again is announced again.
-		sentText = codeSent ? m.login_mfa_sent() : '';
+		// A sent code's line stays until this send is answered (a refused or lost resend leaves
+		// it true); any other line spoke of an earlier try.
+		if (!codeSent) sentText = '';
 		await tick();
 		try {
 			await api.sendMfaEmail();
