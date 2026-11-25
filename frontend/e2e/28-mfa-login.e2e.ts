@@ -78,8 +78,13 @@ test('an authenticator code finishes the sign-in, keyboard only', async ({ page,
 		await expect(authenticator).toBeFocused();
 		await page.keyboard.press('Enter');
 		await expect(authenticator).toHaveAttribute('aria-pressed', 'true');
-		while (!(await codeField(page).evaluate((el) => el === document.activeElement)))
+		for (
+			let i = 0;
+			i < 5 && !(await codeField(page).evaluate((el) => el === document.activeElement));
+			i++
+		)
 			await page.keyboard.press('Tab');
+		await expect(codeField(page)).toBeFocused();
 	}
 	await expect(codeField(page)).toHaveAttribute('inputmode', 'numeric');
 	await expect(codeField(page)).toHaveAttribute('autocomplete', 'one-time-code');

@@ -64,6 +64,8 @@
 	// The email code: sending, then the line saying it went; a resend waits out upstream's
 	// cooldown, counted down from the `retry_after` its 429 gave.
 	let sending = $state(false);
+	// A send for this challenge went through: its code works until the step ends.
+	let codeSent = $state(false);
 	let sentText = $state('');
 	let resendIn = $state(0);
 	let resendTimer: ReturnType<typeof setInterval> | undefined;
@@ -107,6 +109,7 @@
 		method = offered[0];
 		code = '';
 		sentText = '';
+		codeSent = false;
 		codeRejected = codeMissing = false;
 		await tick();
 		codeInput?.focus();
@@ -136,6 +139,7 @@
 		errorMessage = '';
 		try {
 			await api.sendMfaEmail();
+			codeSent = true;
 			sentText = m.login_mfa_sent();
 		} catch (err) {
 			if (err instanceof api.ApiError && err.code === 'mfa_expired') {
@@ -147,9 +151,9 @@
 			// cooldown was for an earlier sign-in, whose code no longer works: say so.
 			if (err instanceof api.ApiError && err.params.reason === 'resendCooldown') {
 				countDownResend(Number(err.params.retry_after) || 60);
-				if (!sentText) sentText = m.login_mfa_cooldown_earlier();
+				if (!codeSent) sentText = m.login_mfa_cooldown_earlier();
 			} else {
-				sentText = '';
+				// A failed resend leaves an earlier code of this challenge working (and its line).
 				errorMessage = failureText(err);
 			}
 		} finally {
@@ -415,7 +419,7 @@
 							? m.login_mfa_sending()
 							: resendIn > 0
 								? m.login_mfa_resend_in(counted(resendIn))
-								: sentText
+								: codeSent
 									? m.login_mfa_resend()
 									: m.login_mfa_send()}
 					</button>
