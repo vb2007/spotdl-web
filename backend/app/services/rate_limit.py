@@ -1,5 +1,6 @@
 """Redis-backed fixed-window rate limits (v53): failed logins per email and client address,
-job creates per user and per API key, and (v65) short link resolves per user.
+job creates per user and per API key, (v65) short link resolves per user, and (v71) the login's
+second step per challenge and client address.
 
 A window starts at a bucket's first counted event and lasts its `window` seconds (INCR, then
 EXPIRE NX), so `Retry-After` is the bucket's remaining TTL. Limits are best effort: a Redis
@@ -46,13 +47,18 @@ def _redis() -> redis.Redis:
     return _client
 
 
-def _rate_limited(retry_after: int) -> ApiError:
+def rate_limited(retry_after: int, reason: str | None = None) -> ApiError:
+    """The 429 every limit answers. v71: also the upstream's own 429s on login and MFA, with its
+    `reason` (`resendCooldown`, `mfaEmailLimit`) when it gave one."""
     retry_after = max(1, retry_after)
+    params: dict = {"retry_after": retry_after}
+    if reason:
+        params["reason"] = reason
     return ApiError(
         429,
         "rate_limited",
         "Too many requests; try again later",
-        {"retry_after": retry_after},
+        params,
         headers={"Retry-After": str(retry_after)},
     )
 
@@ -106,9 +112,9 @@ def _login_bucket(email: str, address: str) -> str:
     return f"{KEY_PREFIX}login:{digest}"
 
 
-def _address_bucket(address: str) -> str:
+def _address_bucket(address: str, kind: str = "login") -> str:
     digest = hashlib.sha256(_bucket_address(address).encode("utf-8", "surrogatepass")).hexdigest()
-    return f"{KEY_PREFIX}login-address:{digest}"
+    return f"{KEY_PREFIX}{kind}-address:{digest}"
 
 
 def hit_login(email: str, address: str) -> None:
@@ -124,21 +130,47 @@ def hit_login(email: str, address: str) -> None:
     limit = settings.login_rate_limit_failures
     if limit <= 0:
         return
-    window = settings.login_rate_limit_window_seconds
+    _hit(
+        ((_login_bucket(email, address), limit), (_address_bucket(address), limit * ADDRESS_LIMIT_FACTOR)),
+        settings.login_rate_limit_window_seconds,
+        "login attempt",
+    )
+
+
+def _hit(buckets, window: int, what: str) -> None:
+    """Counts one event in every (bucket, limit) and raises 429 when any is over its limit, with
+    the longest wait. A Redis error lets the event through (fail open, logged)."""
     retry_after = None
     try:
-        for bucket, bucket_limit in (
-            (_login_bucket(email, address), limit),
-            (_address_bucket(address), limit * ADDRESS_LIMIT_FACTOR),
-        ):
+        for bucket, bucket_limit in buckets:
             if _count(bucket, window) > bucket_limit:
                 ttl = _redis().ttl(bucket)
                 retry_after = max(retry_after or 0, ttl if ttl > 0 else 1)
     except redis.RedisError:
-        logger.warning("rate_limit: login attempt not counted, Redis unavailable")
+        logger.warning("rate_limit: %s not counted, Redis unavailable", what)
         return
     if retry_after is not None:
-        raise _rate_limited(retry_after)
+        raise rate_limited(retry_after)
+
+
+def hit_mfa(challenge_id: str, address: str) -> None:
+    """v71: counts one second-step request (`/api/auth/mfa/verify` or `/email`) against its
+    challenge and its client address, by the login limit and window: the challenge's bucket at
+    LOGIN_RATE_LIMIT_FAILURES (upstream allows only 5 tries anyway; this caps the resends and the
+    requests sent after the tries ran out), the address's ADDRESS_LIMIT_FACTOR times looser."""
+    settings = get_settings()
+    limit = settings.login_rate_limit_failures
+    if limit <= 0:
+        return
+    challenge = hashlib.sha256(challenge_id.encode("utf-8", "surrogatepass")).hexdigest()
+    _hit(
+        (
+            (f"{KEY_PREFIX}mfa:{challenge}", limit),
+            (_address_bucket(address, "mfa"), limit * ADDRESS_LIMIT_FACTOR),
+        ),
+        settings.login_rate_limit_window_seconds,
+        "MFA request",
+    )
 
 
 def clear_login_failures(email: str, address: str) -> None:
@@ -175,7 +207,7 @@ def hit_job_create(user_id: uuid.UUID, api_key_id: uuid.UUID | None) -> None:
         logger.warning("rate_limit: job create not counted, Redis unavailable")
         return
     if retry_after is not None:
-        raise _rate_limited(retry_after)
+        raise rate_limited(retry_after)
 
 
 def hit_link_resolve(user_id: uuid.UUID) -> None:
@@ -194,4 +226,4 @@ def hit_link_resolve(user_id: uuid.UUID) -> None:
     except redis.RedisError:
         logger.warning("rate_limit: link resolve not counted, Redis unavailable")
         return
-    raise _rate_limited(ttl if ttl > 0 else 1)
+    raise rate_limited(ttl if ttl > 0 else 1)
