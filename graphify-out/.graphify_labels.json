@@ -400,6 +400,7 @@
   "398": "get_downloader",
   "399": "is_proxy_transport_error",
   "400": "_FakeMarkers",
+  "401": "test_connection_failures_count_as_proxy_transport_only_on_a_proxied_attempt",
   "402": "_track",
   "403": "celery_app.py",
   "404": "_FakeRequest",

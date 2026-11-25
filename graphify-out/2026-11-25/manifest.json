@@ -365,8 +365,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
-    "mtime": 1795614504.9842198,
-    "ast_hash": "5fdb6afddd36e5c49074464401b9e1ca",
+    "mtime": 1795616342.3903866,
+    "ast_hash": "acbcc9ff3f57e06709d44138e356c22f",
     "semantic_hash": ""
   },
   "PRODUCT.md": {
@@ -1505,13 +1505,13 @@
     "semantic_hash": ""
   },
   "frontend/messages/en.json": {
-    "mtime": 1795614505.3789785,
-    "ast_hash": "b2ccfe20211dc3982411ab57cce74aa0",
+    "mtime": 1795616342.8323524,
+    "ast_hash": "5b8f2e54a1128b09fd25a07036fb5b56",
     "semantic_hash": ""
   },
   "frontend/messages/hu.json": {
-    "mtime": 1795614505.3980634,
-    "ast_hash": "1d8c7f6cb321b2fb6307486e962d5ac7",
+    "mtime": 1795616342.8523533,
+    "ast_hash": "840d0c5c56a7b1dafef90286935dd73b",
     "semantic_hash": ""
   },
   "frontend/project.inlang/settings.json": {
@@ -2120,8 +2120,8 @@
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/ddfcc3e2c6047561.json": {
-    "mtime": 1795614507.5614202,
-    "ast_hash": "54b25163d16d109e113e9a755c6f0652",
+    "mtime": 1795616345.0615125,
+    "ast_hash": "c101063804940db1e0454773f29f0c76",
     "semantic_hash": ""
   },
   "frontend/src/lib/nginxRoutes.test.ts": {
@@ -2480,13 +2480,13 @@
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/e37e13823d58701b.json": {
-    "mtime": 1795614547.4787214,
-    "ast_hash": "4f339a4e7cab4b80727fa37043afd4c5",
+    "mtime": 1795616376.3857315,
+    "ast_hash": "49faa654a91b49c70cd25fc7ca2ec66e",
     "semantic_hash": ""
   },
   "plan/master-v6/00-master-plan.md": {
-    "mtime": 1795601005.5264318,
-    "ast_hash": "f68592578d35a3d04ae356aef79a92bc",
+    "mtime": 1795616169.4682317,
+    "ast_hash": "f26a3081f4db2f2742bd81d3206ec1d8",
     "semantic_hash": ""
   },
   "plan/master-v6/IMPLEMENTATION_PROMPT.md": {
