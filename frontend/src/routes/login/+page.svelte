@@ -102,7 +102,10 @@
 		resendIn = seconds;
 		resendTimer = setInterval(() => {
 			resendIn = Math.max(0, Math.ceil((until - Date.now()) / 1000));
-			if (resendIn <= 0) clearInterval(resendTimer);
+			if (resendIn > 0) return;
+			clearInterval(resendTimer);
+			// The lines that said "when the countdown ends" are done.
+			sentText = codeSent ? m.login_mfa_sent() : '';
 		}, 1000);
 	}
 
@@ -171,8 +174,14 @@
 			// set the cooldown was for an earlier sign-in, whose code no longer works: say so.
 			if (err instanceof api.ApiError && err.params.reason === 'resendCooldown') {
 				countDownResend(Number(err.params.retry_after) || 60);
-				if (!codeSent)
-					sentText = triedBefore ? m.login_mfa_cooldown_wait() : m.login_mfa_cooldown_earlier();
+				// Emptied first, so the sentence is announced even when it repeats.
+				sentText = '';
+				await tick();
+				sentText = codeSent
+					? m.login_mfa_cooldown_still_works()
+					: triedBefore
+						? m.login_mfa_cooldown_wait()
+						: m.login_mfa_cooldown_earlier();
 			} else {
 				// A refused resend leaves the challenge's earlier code working (and its line); one whose
 				// answer was lost may have replaced it, which upstream alone knows.
