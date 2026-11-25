@@ -200,8 +200,8 @@
     "semantic_hash": "c56dbe8d4a14e59494c84de3f41ddfc6"
   },
   "backend/app/routers/auth.py": {
-    "mtime": 1795601891.8452117,
-    "ast_hash": "ab0500fdb0ffcb1a180cb14a7376428f",
+    "mtime": 1795610121.6313121,
+    "ast_hash": "8c31cc502779baefaec3a0a45b5bb9cd",
     "semantic_hash": ""
   },
   "backend/app/services/sessions.py": {
@@ -220,8 +220,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_auth.py": {
-    "mtime": 1795602099.753624,
-    "ast_hash": "e3e53e03a03c56255dd184d82f3e82fb",
+    "mtime": 1795610129.3415756,
+    "ast_hash": "6afbc3fbfb60ac11b3b6f713316d28eb",
     "semantic_hash": ""
   },
   "backend/app/routers/jobs.py": {
@@ -365,8 +365,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/login/+page.svelte": {
-    "mtime": 1795604631.795489,
-    "ast_hash": "e58c785510b3ae8e5d399534d3c919ab",
+    "mtime": 1795610121.631607,
+    "ast_hash": "899086a3690b2a26e8db1206a68f57c3",
     "semantic_hash": ""
   },
   "PRODUCT.md": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1795605334.175669,
-    "ast_hash": "b1a661749ceb09128bc10fc36d0783c2",
+    "mtime": 1795610343.1488574,
+    "ast_hash": "a2904247992d23aa2ffebdc3c499cb58",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -1505,13 +1505,13 @@
     "semantic_hash": ""
   },
   "frontend/messages/en.json": {
-    "mtime": 1795605399.7924016,
-    "ast_hash": "e8413a82b9035811cd1df8726b83864f",
+    "mtime": 1795608718.627758,
+    "ast_hash": "cbedb8b946d6b2dd9764ee2997e38e00",
     "semantic_hash": ""
   },
   "frontend/messages/hu.json": {
-    "mtime": 1795605399.7938764,
-    "ast_hash": "c2b726fe577b21ca415627db69f070b8",
+    "mtime": 1795608718.6596663,
+    "ast_hash": "9555a2dde193243720e27838e5527e3e",
     "semantic_hash": ""
   },
   "frontend/project.inlang/settings.json": {
@@ -1785,8 +1785,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/rate_limit.py": {
-    "mtime": 1795601740.0414903,
-    "ast_hash": "71fcb9e36e76b05dd3ae6b255e140818",
+    "mtime": 1795610121.6314566,
+    "ast_hash": "e26a37b32b4a4dd8fc268202dba498ac",
     "semantic_hash": ""
   },
   "backend/app/services/spotify_urls.py": {
@@ -2120,8 +2120,8 @@
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/ddfcc3e2c6047561.json": {
-    "mtime": 1795605404.5376105,
-    "ast_hash": "677ef8b8908abcff8a860b0621c8c98f",
+    "mtime": 1795608721.257595,
+    "ast_hash": "74e430fef87aa06a864bce4e249feace",
     "semantic_hash": ""
   },
   "frontend/src/lib/nginxRoutes.test.ts": {
@@ -2470,8 +2470,8 @@
     "semantic_hash": ""
   },
   "frontend/e2e/28-mfa-login.e2e.ts": {
-    "mtime": 1795604325.0189335,
-    "ast_hash": "c82d60488d7b1f03ccaca9948b5c70d2",
+    "mtime": 1795610129.6050081,
+    "ast_hash": "f7613477b088833327678f57a96e7222",
     "semantic_hash": ""
   },
   "frontend/e2e/support/totp.ts": {
@@ -2480,8 +2480,8 @@
     "semantic_hash": ""
   },
   "frontend/project.inlang/cache/paraglide-js/e37e13823d58701b.json": {
-    "mtime": 1795604064.8242738,
-    "ast_hash": "6e64e44d66d283071224113b2edba2e6",
+    "mtime": 1795608874.8521416,
+    "ast_hash": "5d5ed72e2b9d1d6d5ddf24ebf87130c6",
     "semantic_hash": ""
   },
   "plan/master-v6/00-master-plan.md": {
