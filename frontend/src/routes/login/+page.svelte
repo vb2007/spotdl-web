@@ -365,7 +365,8 @@
 			{/if}
 
 			<label class="form-field">
-				<span class="label">{m.login_mfa_code()}</span>
+				<!-- Named by its label alone: the hint inside this label describes it instead. -->
+				<span class="label" id="mfa-code-label">{m.login_mfa_code()}</span>
 				<input
 					bind:this={codeInput}
 					class="well code"
@@ -380,6 +381,7 @@
 					oninput={() => (codeMissing = false)}
 					disabled={submitting}
 					aria-invalid={codeRejected || codeMissing ? 'true' : undefined}
+					aria-labelledby="mfa-code-label"
 					aria-describedby="mfa-hint login-error"
 				/>
 				<span class="field-hint" id="mfa-hint">{METHOD_HINT[method]()}</span>
