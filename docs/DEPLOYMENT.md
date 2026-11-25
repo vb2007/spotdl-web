@@ -743,9 +743,12 @@ provided their address is on the allowlist (the login reads it before the upstre
 hand: `UPDATE users SET is_admin = true WHERE email = '<address>';`, and add the address on
 `/users` too, or a later `isSuperuser: false` cuts them off. **Every admin is unremovable on
 `/users`** (v72 keys "the admin" on `is_admin`), so an admin the upstream no longer calls a
-superuser keeps admin until their next login (or v74's sync); to end it at once, by hand:
-`UPDATE users SET is_admin = false WHERE email = '<address>';` (their open admin views close within
-15 s, the stream's re-check).
+superuser keeps admin until their next login (or v74's sync). To end it at once: add their address on `/users`
+first (201 if they had no row, 409 if they had one; either way they now have one), then by hand
+`UPDATE users SET is_admin = false WHERE email = '<address>';` (their open views close within 15 s,
+the stream's re-check), and, to cut them off entirely, remove the address on `/users`, which ends
+their sessions, revokes their keys and holds their unstarted jobs. A bare `UPDATE` on an admin with
+no row would leave them off the list with their keys and pending downloads untouched.
 
 **`ALLOWED_EMAILS` is import-only.** The v69 migration copied it (plus `ADMIN_EMAIL`) into the
 `allowed_emails` table once, on the first `migrate` of that release; after that the app ignores
