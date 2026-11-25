@@ -506,7 +506,8 @@
 			// page's header and admin chrome (one request per (re)connect, not per row).
 			try {
 				const now = await api.me();
-				if (now.email !== data.session?.email) {
+				// v72: or the same identity lost (or gained) admin: the page's chrome is the old one's.
+				if (now.email !== data.session?.email || now.is_admin !== isAdmin) {
 					stream.close();
 					window.location.reload();
 					return;

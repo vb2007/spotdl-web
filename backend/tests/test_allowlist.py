@@ -78,6 +78,25 @@ def test_the_admin_is_always_allowed_even_without_a_row(db_session, make_user):
     assert not allowlist.is_allowed(db_session, "allowed@example.com")
 
 
+def test_is_allowed_is_one_statement_on_or_off_the_list(db_session, count_queries):
+    """The login asks for every attempt, a wrong password included: an off-list address costs
+    what an on-list one does (review round 1)."""
+    for email in ("allowed@example.com", "stranger@example.com"):
+        with count_queries() as statements:
+            allowlist.is_allowed(db_session, email)
+        assert len(statements) == 1, (email, statements)
+
+
+def test_a_removal_rechecks_admin_after_its_delete(admin_client, db_session, monkeypatch):
+    """A login holding the row `FOR SHARE` may be granted admin before the removal's DELETE goes
+    on: the removal then rolls back with 409, and nothing is cut off (review round 1)."""
+    answers = iter([False, True])
+    monkeypatch.setattr(allowlist, "is_admin_address", lambda db, normalized: next(answers))
+    response = admin_client.delete("/api/admin/allowlist/allowed@example.com")
+    assert (response.status_code, response.json()["code"]) == (409, "cannot_remove_admin")
+    assert db_session.get(AllowedEmail, "allowed@example.com") is not None
+
+
 def test_the_dev_override_is_always_allowed_even_without_a_row(db_session, monkeypatch):
     from app.config import get_settings
 
@@ -405,6 +424,16 @@ def test_a_revoked_message_ends_the_stream_with_its_event(monkeypatch, view):
     pubsub, sent = _run_stream(monkeypatch, user, view, messages)
     assert control_channel_for(user.id) in pubsub.subscribed
     assert sent == ['data: {"n": 1}\n\n', stream_router.REVOKED]
+
+
+@pytest.mark.parametrize(("view", "ends"), [("mine", False), ("all", True), ("others", True)])
+def test_admin_lost_ends_only_an_admin_scoped_stream(monkeypatch, view, ends):
+    """v72: closed without `session.revoked` (that would log the page out); the page reconnects."""
+    user = User(id=uuid.uuid4(), email="a@example.com", is_admin=True)
+    own = channel_for(user.id) if view != "others" else channel_for(uuid.uuid4())
+    messages = [(control_channel_for(user.id), '{"type": "admin_lost"}'), (own, '{"n": 1}')]
+    _, sent = _run_stream(monkeypatch, user, view, messages, polls=3)
+    assert sent == ([] if ends else ['data: {"n": 1}\n\n'])
 
 
 def test_an_unknown_control_message_is_ignored(monkeypatch):

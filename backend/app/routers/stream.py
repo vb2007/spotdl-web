@@ -14,7 +14,13 @@ from app.db import get_db
 from app.models import User, UserSession
 from app.routers.auth import COOKIE_NAME, require_session_for_streaming
 from app.services import allowlist
-from app.services.events import ADMIN_CHANNEL_PATTERN, CONTROL_REVOKED, channel_for, control_channel_for
+from app.services.events import (
+    ADMIN_CHANNEL_PATTERN,
+    CONTROL_ADMIN_LOST,
+    CONTROL_REVOKED,
+    channel_for,
+    control_channel_for,
+)
 from app.services.sessions import SESSION_IDLE_TIMEOUT
 from app.services.view_scope import View, resolve_view
 
@@ -159,6 +165,8 @@ async def _event_stream(request: Request, user: User, view: View):
                     kind = None
                 if kind == CONTROL_REVOKED:
                     yield REVOKED
+                    break
+                if kind == CONTROL_ADMIN_LOST and use_pattern:
                     break
                 continue
 

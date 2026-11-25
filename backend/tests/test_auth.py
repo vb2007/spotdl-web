@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from app.config import get_settings
-from app.models import AllowedEmail, User, UserSession
+from app.models import AllowedEmail, Job, JobSourceType, JobState, Track, TrackState, UserSession
 from app.routers import auth
 from app.services import upstream_auth
 from extension_support import FakeRedis
@@ -145,19 +145,47 @@ def test_an_unknown_superuser_flag_changes_nothing(client, monkeypatch, start):
     assert response.status_code == 200 and response.json()["is_admin"] is start
 
 
-def test_a_demoted_admin_without_a_row_is_refused_and_stays_demoted(client, monkeypatch, db_session, make_user):
+def test_a_demoted_admin_without_a_row_is_refused_and_cut_off(client, monkeypatch, db_session, make_user):
     """Allowed only as the admin (no allowlist row), and the upstream says that's over: the
-    login is refused like an off-list one, and the demotion is kept."""
-    make_user(OFF_LIST, is_admin=True)
+    demotion is kept, they're cut off as a v69 removal would (their other sessions end, their
+    unstarted jobs are held, their streams are told), and the login is refused like an off-list
+    one (review round 1)."""
+    from app.services import allowlist, events
+    from app.services.sessions import create_session
+
+    user = make_user(OFF_LIST, is_admin=True)
+    create_session(db_session, user.id)
+    job = Job(source_url="https://open.spotify.com/album/x", source_type=JobSourceType.ALBUM, state=JobState.EXPANDED, user_id=user.id)
+    db_session.add(job)
+    db_session.flush()
+    db_session.add(Track(job_id=job.id, spotify_track_id="t1", song_json={"name": "Song"}, state=TrackState.PENDING))
     db_session.commit()
+    control = []
+    monkeypatch.setattr(events, "publish_control", lambda user_id, kind: control.append(kind))
+    monkeypatch.setattr(allowlist, "_announce_jobs", lambda *a: None)
     _mock_upstream_login(monkeypatch, ok=True, is_superuser=False)
     response = client.post("/api/auth/login", json={"email": OFF_LIST, "password": "correct"})
     assert response.status_code == 401 and response.json()["code"] == "invalid_credentials"
     assert "SPOTDL_SESSION" not in response.cookies
-    user = db_session.query(User).filter(User.email == OFF_LIST).one()
     db_session.refresh(user)
+    db_session.refresh(job)
     assert user.is_admin is False
     assert db_session.query(UserSession).filter(UserSession.user_id == user.id).count() == 0
+    assert job.held_at is not None
+    assert control == [events.CONTROL_REVOKED]
+
+
+def test_a_demoting_login_tells_the_open_streams(client, monkeypatch):
+    """The admin-scoped streams close at once (`admin_lost`), not only on their 15 s re-check;
+    a login that changes nothing, or grants, publishes nothing (review round 1)."""
+    from app.services import events
+
+    control = []
+    monkeypatch.setattr(events, "publish_control", lambda user_id, kind: control.append(kind))
+    for flag in (True, True, None, False, False):
+        _mock_upstream_login(monkeypatch, ok=True, is_superuser=flag)
+        assert client.post("/api/auth/login", json={"email": ALLOWED, "password": "correct"}).status_code == 200
+    assert control == [events.CONTROL_ADMIN_LOST]
 
 
 def test_an_admin_without_a_row_still_signs_in(client, monkeypatch, db_session, make_user):

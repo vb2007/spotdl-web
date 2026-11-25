@@ -242,7 +242,7 @@ KEY_INVENTORY = {
     ('routers/jobs.py', 'get_job', 'api_key'),
     ('routers/jobs.py', 'get_job', 'require_session_or_api_key'),
     ('services/allowlist.py', '<module>', 'ApiKey'),
-    ('services/allowlist.py', 'remove', 'ApiKey'),
+    ('services/allowlist.py', 'cut_off', 'ApiKey'),  # v72: remove's revoke, shared with a demoting login
     ('services/api_keys.py', '<module>', 'ApiKey'),
     ('services/api_keys.py', '<module>', 'KEY_PREFIX'),
     ('services/api_keys.py', '<module>', 'LABEL_MAX_LENGTH'),

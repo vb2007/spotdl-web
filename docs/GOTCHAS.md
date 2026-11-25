@@ -8293,15 +8293,23 @@ independently-found production bug from the same conversation)
   `all`/`others` once, so a demoted admin's open tab kept receiving everyone's events. Its 15 s
   re-check (`_session_status`, `needs_admin`) now reads `is_admin` too and ends a pattern-subscribed
   stream as `ended`; the page's `onerror` reconnects and `resolve_view` scopes the new one `mine`.
-  Deliberately no control publish: `CONTROL_REVOKED` sends `session.revoked`, which runs the page's
-  logout path, and the demoting login's own session shares that browser's cookie. Measured on slot 1:
-  closed 2 s after the demoting login (re-check timing), then a probe on another user's channel
-  never reached the reconnected `view=all` stream while one on the user's own did.
+  Not `CONTROL_REVOKED`: it sends `session.revoked`, which runs the page's logout path, and the
+  demoting login's own session shares that browser's cookie. *(Review round 1: the demoting login
+  now also publishes its own control kind, `admin_lost`, which closes only a pattern-subscribed
+  stream at once, so the re-check is the safety net as in v69; the page's reconnect `me` check
+  reloads it when `is_admin` changed, so the admin nav and view switch go too.)* Measured on slot 1:
+  with only the re-check, a probe on another user's channel still got through 4 s after the
+  demotion (live review); with `admin_lost` the open tab reloaded 3 s after the demoting login,
+  showing `stats|account` only, and the reconnected stream carried only the user's own channel.
 - **"Always allowed" now costs a query.** The admin was a string compare; `is_allowed` reads the row
   first (one query for almost every request) and asks `users.is_admin` only when there's none. An
   admin allowed only as the admin (no row) whom a login demotes is refused with
   `invalid_credentials` after the flag is saved, since the allowlist is read before `GET /user` (v71
-  Amendment). Production's admin has a row (read-only check, 2026-11-25, owner's OK).
+  Amendment), and cut off the way a removal cuts off (`allowlist.cut_off`: sessions, keys, held
+  jobs, `revoked` on their streams; review round 1). The unlocked `is_allowed` is one statement
+  (`EXISTS row OR EXISTS admin`), so an off-list address costs the login what an on-list one does,
+  and `remove` re-reads the admin flag after its DELETE (a login holding the row may just have been
+  granted admin). Production's admin has a row (read-only check, 2026-11-25, owner's OK).
 - **Bootstrap moved to `ALLOWED_EMAILS`.** The login reads the allowlist before `GET /user`, so on a
   fresh database the upstream superuser can't sign in to become admin unless their address was
   imported. `.env.example` says so.

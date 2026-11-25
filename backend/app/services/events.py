@@ -46,6 +46,9 @@ def channel_for(user_id: Any) -> str:
 # exact name (routers/stream.py).
 CONTROL_PREFIX = "spotdl:control:"
 CONTROL_REVOKED = "revoked"
+# v72: the owner lost `is_admin`: an admin-scoped stream (`all`/`others`) closes, and the page's
+# reconnect is scoped `mine`. Not `revoked`, which logs the page out.
+CONTROL_ADMIN_LOST = "admin_lost"
 # A dev-only test hook (SPOTDL_ENV=dev): while this Redis key exists, control publishes are
 # dropped, so the stream's heartbeat re-check can be shown to end a removed user's stream alone.
 SUPPRESS_CONTROL_KEY = "spotdl:test:suppress-control"

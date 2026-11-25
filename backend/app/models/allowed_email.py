@@ -11,7 +11,8 @@ class AllowedEmail(Base):
     """Who may sign in (v69): the login allowlist, managed by the admin in `/users`.
 
     Imported once from `ALLOWED_EMAILS` (plus `ADMIN_EMAIL`) by the migration that created it;
-    the env list is ignored after that. `ADMIN_EMAIL` itself is always allowed, row or not
+    the env list is ignored after that. The admin (v72: `users.is_admin`, from the upstream's
+    `isSuperuser`; the dev `ADMIN_EMAIL` override too) is always allowed, row or not
     (`services.allowlist.is_allowed`), and can't be removed. The `users` table still decides
     what someone owns and may do; this one only decides who gets in.
 

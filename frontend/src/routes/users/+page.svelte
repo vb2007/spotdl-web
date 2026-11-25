@@ -2,7 +2,7 @@
 	v69: who may sign in (the login allowlist), the admin's only. An address added here signs in
 	on its next attempt, with no restart; removing one signs that person out everywhere at once,
 	revokes their extension keys and holds their jobs that haven't started (the backend's
-	services/allowlist.py). ADMIN_EMAIL is always allowed and has no remove control.
+	services/allowlist.py). The admin (v72: is_admin) is always allowed and has no remove control.
 	Shaped with impeccable (v69): /account's API-key rows and form vocabulary, nothing new.
 -->
 <script lang="ts">

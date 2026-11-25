@@ -165,10 +165,25 @@ def is_allowed(db: Session, email: str, *, lock: bool = False) -> bool:
     normalized = normalize_email(email)
     if not storable(normalized):
         return False
-    stmt = select(AllowedEmail.email).where(AllowedEmail.email == normalized)
+    dev = admin_address()
+    if dev and normalized == dev:
+        return True
     if lock:
-        stmt = stmt.with_for_update(read=True)
-    return db.execute(stmt).first() is not None or is_admin_address(db, normalized)
+        if db.execute(select(AllowedEmail.email).where(AllowedEmail.email == normalized).with_for_update(read=True)).first():
+            return True
+        return is_admin_address(db, normalized)
+    # One statement whatever the answer: the login asks this for every attempt, a wrong password
+    # included, so an off-list address must not cost a second query (review round 1).
+    return bool(
+        db.execute(
+            select(
+                or_(
+                    exists().where(AllowedEmail.email == normalized),
+                    exists().where(User.email == normalized, User.is_admin.is_(True)),
+                )
+            )
+        ).scalar()
+    )
 
 
 def owner_allowed(
@@ -255,8 +270,22 @@ def remove(db: Session, email: str) -> Removal:
         db.rollback()
         raise ApiError(404, "allowed_email_not_found", "That address isn't on the allowlist")
 
+    # Again now the row is gone: a login that held it `FOR SHARE` may have just been granted admin
+    # (its `isSuperuser: true`), and an admin is never cut off (review round 1).
+    if is_admin_address(db, normalized):
+        db.rollback()
+        raise ApiError(409, "cannot_remove_admin", "The admin's address can't be removed")
+
     user_id = db.execute(select(User.id).where(User.email == normalized)).scalar_one_or_none()
+    return cut_off(db, user_id)
+
+
+def cut_off(db: Session, user_id: uuid.UUID | None) -> Removal:
+    """The rest of a removal, in the caller's transaction (committed here): the user's sessions
+    end, their keys are revoked and their unstarted jobs are held, then their streams are told.
+    v72: also a login that demotes an admin who was allowed only as the admin (no row)."""
     removal = Removal(user_id=user_id)
+    ended_tokens: list[str] = []
     if user_id is not None:
         _lock_user_jobs(db, user_id)
         ended_tokens = list(

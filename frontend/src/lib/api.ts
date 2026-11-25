@@ -844,7 +844,8 @@ export interface ApiKeyList {
 
 /** v69: one login allowlist row (`/users`, admin only). `last_login_at` null: never signed
  * in (no account yet); `added_by` null: imported from the old env list (`added_at` is then the
- * import's time, or null for an ADMIN_EMAIL with no row at all). */
+ * import's time, or null for an admin with no row at all). `is_admin_email` marks the admin (v72:
+ * `is_admin`, not ADMIN_EMAIL; the name predates it). */
 export interface AllowlistRow {
 	email: string;
 	added_at: string | null;

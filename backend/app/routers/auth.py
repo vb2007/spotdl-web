@@ -6,17 +6,17 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
 from app.db import get_db
 from app.errors import ApiError
 from app.models import ApiKey, User, UserSession
-from app.services import allowlist, api_keys, rate_limit, upstream_auth, user_settings
+from app.services import allowlist, api_keys, events, rate_limit, upstream_auth, user_settings
 from app.services.sessions import SESSION_IDLE_TIMEOUT, create_session, delete_session, get_valid_session
 from app.services.spotify_urls import storable
-from app.services.users import get_or_create_user
+from app.services.users import get_or_create_user, normalize_email
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -289,14 +289,19 @@ async def _complete_login(
     if not await run_in_threadpool(allowlist.is_allowed, db, email, lock=True):
         db.rollback()
         raise _invalid_credentials()
+    was_admin = db.execute(select(User.is_admin).where(User.email == normalize_email(email))).scalar()
     user = get_or_create_user(db, email, identity.username, identity.is_superuser)
     if not user.is_admin and not allowlist.is_allowed(db, email):
         # v72: allowed above only as the admin, and the upstream just said it no longer is (an
-        # admin with no row): the demotion is kept, the login refused like any off-list one.
-        db.commit()
+        # admin with no row): the demotion is kept, they're cut off as a removal would (their
+        # other sessions, keys and unstarted jobs), and the login is refused like an off-list one.
+        await run_in_threadpool(allowlist.cut_off, db, user.id)
         raise _invalid_credentials()
     session = create_session(db, user.id)
     db.commit()
+    if was_admin and not user.is_admin:
+        # v72: their open admin-scoped streams close now; the re-check is the safety net.
+        events.publish_control(user.id, events.CONTROL_ADMIN_LOST)
     _set_session_cookie(response, session.token)
     return {"email": user.email, "username": user.username, "is_admin": user.is_admin}
 
