@@ -1,6 +1,7 @@
 <script lang="ts">
 	import ErrorSentence from '$lib/components/ErrorSentence.svelte';
 	import { onMount, tick } from 'svelte';
+	import { VB2007_SITE } from '$lib/vb2007';
 	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import * as api from '$lib/api';
@@ -522,6 +523,15 @@
 			<p class="form-error" role="alert" lang={textLang(logoutError?.())}>{logoutError?.()}</p>
 		</section>
 
+		<!-- v72: the account's own security lives on vb2007.hu; spotdl links there, same tab. -->
+		<section class="panel section" aria-labelledby="upstream-heading">
+			<h2 id="upstream-heading" class="label">{m.account_upstream_heading()}</h2>
+			<p class="hint">{m.account_upstream_hint()}</p>
+			<!-- eslint-disable svelte/no-navigation-without-resolve -- an external vb2007.hu page, not a route of this app -->
+			<a class="btn upstream-link" href="{VB2007_SITE}/account">{m.account_upstream_manage()}</a>
+			<!-- eslint-enable svelte/no-navigation-without-resolve -->
+		</section>
+
 		<!-- Preferences: one group per setting. v45 added the keyboard-shortcut switch; v46 the
 		     language switch and the time format, as further groups. -->
 		<section class="panel section" aria-labelledby="preferences-heading">
@@ -794,6 +804,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
+	}
+
+	.upstream-link {
+		align-self: flex-start;
+		text-decoration: none;
 	}
 
 	.identity {
