@@ -104,8 +104,9 @@
 			resendIn = Math.max(0, Math.ceil((until - Date.now()) / 1000));
 			if (resendIn > 0) return;
 			clearInterval(resendTimer);
-			// The lines that said "when the countdown ends" are done.
-			sentText = codeSent ? m.login_mfa_sent() : '';
+			// The "earlier sign-in" and "on its way" lines spoke of this countdown; a sent code's
+			// line holds for the whole challenge, so it stays (a change would read as a new mail).
+			if (!codeSent) sentText = '';
 		}, 1000);
 	}
 

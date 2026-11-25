@@ -1400,5 +1400,5 @@
 			}
 		}
 	],
-	"login_mfa_cooldown_still_works": "A korábban küldött kód még érvényes. Ha lejár a visszaszámlálás, küldhetsz újat."
+	"login_mfa_cooldown_still_works": "A legutóbb kapott kódod még érvényes."
 }

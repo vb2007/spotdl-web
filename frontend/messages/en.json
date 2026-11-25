@@ -1482,5 +1482,5 @@
 			}
 		}
 	],
-	"login_mfa_cooldown_still_works": "The code sent earlier still works. You can send another when the countdown ends."
+	"login_mfa_cooldown_still_works": "Your most recent code still works."
 }
