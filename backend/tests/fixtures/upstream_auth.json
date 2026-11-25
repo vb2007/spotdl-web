@@ -1,0 +1,18 @@
+{
+  "_source": "vb2007.hu-api v3.4.0 (fe19ae2): src/constants/responses.ts, src/controllers/authentication.ts, docs/mfa.md. Re-check on an upstream bump.",
+  "invalid_credentials": {
+    "error": "Incorrect e-mail address or password. If you signed up with GitHub, log in with GitHub."
+  },
+  "account_suspended": {
+    "error": "This account is suspended: it can't log in until the superuser lifts the suspension."
+  },
+  "mfa_required": { "mfaRequired": true, "methods": ["email", "totp", "passkey", "recovery"] },
+  "wrong_code": {
+    "error": "The code is wrong, expired or already used: check it or request a new one.",
+    "attemptsLeft": 3
+  },
+  "challenge_ended": {
+    "error": "The login's second step expired, used up its tries or was never started: log in again."
+  },
+  "too_many_failures": { "error": "Too many failed attempts: try again later.", "retryAfter": 840 }
+}
