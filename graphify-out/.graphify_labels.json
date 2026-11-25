@@ -398,6 +398,7 @@
   "396": "lockfile-stamp.mjs",
   "397": "$lib/session",
   "398": "get_downloader",
+  "399": "is_proxy_transport_error",
   "400": "_FakeMarkers",
   "402": "_track",
   "403": "celery_app.py",

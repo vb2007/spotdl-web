@@ -2328,7 +2328,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_app_models_alert_outbox_alertoutbox",
-      "community": 333,
+      "community": 140,
       "norm_label": "alertoutbox"
     },
     {
@@ -2338,7 +2338,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_app_models_alert_outbox_rationale_22",
-      "community": 333,
+      "community": 140,
       "norm_label": "one row per alert raised (v59), the durable record of what was said to the matri"
     },
     {
@@ -5258,7 +5258,7 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "backend_app_routers_tracks_list_tracks",
-      "community": 67,
+      "community": 145,
       "norm_label": "list_tracks()"
     },
     {
@@ -5268,7 +5268,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_tracks_py_jobsourcetype",
-      "community": 67,
+      "community": 145,
       "norm_label": "jobsourcetype"
     },
     {
@@ -5388,7 +5388,7 @@
       "source_location": "L135",
       "_origin": "ast",
       "id": "backend_app_routers_tracks_rationale_135",
-      "community": 67,
+      "community": 145,
       "norm_label": "tracks across every job the caller can see, one page at a time, each with its"
     },
     {
@@ -5798,7 +5798,7 @@
       "source_location": "L291",
       "_origin": "ast",
       "id": "backend_app_services_alerts_category_enabled",
-      "community": 333,
+      "community": 140,
       "norm_label": "category_enabled()"
     },
     {
@@ -5808,7 +5808,7 @@
       "source_location": "L296",
       "_origin": "ast",
       "id": "backend_app_services_alerts_utcnow",
-      "community": 179,
+      "community": 140,
       "norm_label": "_utcnow()"
     },
     {
@@ -5858,7 +5858,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_session",
-      "community": 179,
+      "community": 147,
       "norm_label": "session"
     },
     {
@@ -5888,7 +5888,7 @@
       "source_location": "L497",
       "_origin": "ast",
       "id": "backend_app_services_alerts_backoff_seconds",
-      "community": 179,
+      "community": 140,
       "norm_label": "backoff_seconds()"
     },
     {
@@ -5908,7 +5908,7 @@
       "source_location": "L509",
       "_origin": "ast",
       "id": "backend_app_services_alerts_give_up_overdue",
-      "community": 179,
+      "community": 140,
       "norm_label": "_give_up_overdue()"
     },
     {
@@ -5918,7 +5918,7 @@
       "source_location": "L532",
       "_origin": "ast",
       "id": "backend_app_services_alerts_claim_next",
-      "community": 333,
+      "community": 140,
       "norm_label": "_claim_next()"
     },
     {
@@ -5928,7 +5928,7 @@
       "source_location": "L575",
       "_origin": "ast",
       "id": "backend_app_services_alerts_deliver_due",
-      "community": 179,
+      "community": 140,
       "norm_label": "deliver_due()"
     },
     {
@@ -5938,7 +5938,7 @@
       "source_location": "L689",
       "_origin": "ast",
       "id": "backend_app_services_alerts_prune_outbox",
-      "community": 179,
+      "community": 140,
       "norm_label": "prune_outbox()"
     },
     {
@@ -5948,7 +5948,7 @@
       "source_location": "L700",
       "_origin": "ast",
       "id": "backend_app_services_alerts_format_duration",
-      "community": 147,
+      "community": 179,
       "norm_label": "format_duration()"
     },
     {
@@ -5958,7 +5958,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_alerts_py_timedelta",
-      "community": 147,
+      "community": 179,
       "norm_label": "timedelta"
     },
     {
@@ -6188,7 +6188,7 @@
       "source_location": "L1114",
       "_origin": "ast",
       "id": "backend_app_services_alerts_watchdog_check_worker_down",
-      "community": 147,
+      "community": 179,
       "norm_label": "._check_worker_down()"
     },
     {
@@ -6338,7 +6338,7 @@
       "source_location": "L498",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_498",
-      "community": 179,
+      "community": 140,
       "norm_label": "the wait after the `attempts`-th failed send (1-based)."
     },
     {
@@ -6348,7 +6348,7 @@
       "source_location": "L533",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_533",
-      "community": 333,
+      "community": 140,
       "norm_label": "the oldest due row whose category has no older pending row, claimed: attempts +"
     },
     {
@@ -6358,7 +6358,7 @@
       "source_location": "L576",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_576",
-      "community": 179,
+      "community": 140,
       "norm_label": "one delivery pass: sends due outbox rows one at a time, each claimed in a short"
     },
     {
@@ -6368,7 +6368,7 @@
       "source_location": "L690",
       "_origin": "ast",
       "id": "backend_app_services_alerts_rationale_690",
-      "community": 179,
+      "community": 140,
       "norm_label": "rows older than alert_retention go, pending ones included (a pending row that ol"
     },
     {
@@ -15331,7 +15331,7 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "backend_tests_conftest_collect",
-      "community": 239,
+      "community": 193,
       "norm_label": "_collect"
     },
     {
@@ -15341,7 +15341,7 @@
       "source_location": "L173",
       "_origin": "ast",
       "id": "backend_tests_conftest_collect_init",
-      "community": 239,
+      "community": 193,
       "norm_label": ".__init__()"
     },
     {
@@ -15351,7 +15351,7 @@
       "source_location": "L177",
       "_origin": "ast",
       "id": "backend_tests_conftest_collect_emit",
-      "community": 239,
+      "community": 193,
       "norm_label": ".emit()"
     },
     {
@@ -15361,7 +15361,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_conftest_py_logrecord",
-      "community": 239,
+      "community": 193,
       "norm_label": "logrecord"
     },
     {
@@ -15501,7 +15501,7 @@
       "source_location": "L432",
       "_origin": "ast",
       "id": "backend_tests_conftest_client",
-      "community": 193,
+      "community": 239,
       "norm_label": "client()"
     },
     {
@@ -15511,7 +15511,7 @@
       "source_location": "L444",
       "_origin": "ast",
       "id": "backend_tests_conftest_login",
-      "community": 193,
+      "community": 239,
       "norm_label": "_login()"
     },
     {
@@ -15521,7 +15521,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "testclient",
-      "community": 193,
+      "community": 239,
       "norm_label": "testclient"
     },
     {
@@ -15531,7 +15531,7 @@
       "source_location": "L454",
       "_origin": "ast",
       "id": "backend_tests_conftest_authenticated_client",
-      "community": 193,
+      "community": 239,
       "norm_label": "authenticated_client()"
     },
     {
@@ -15541,7 +15541,7 @@
       "source_location": "L465",
       "_origin": "ast",
       "id": "backend_tests_conftest_owner",
-      "community": 193,
+      "community": 239,
       "norm_label": "owner()"
     },
     {
@@ -15551,7 +15551,7 @@
       "source_location": "L470",
       "_origin": "ast",
       "id": "backend_tests_conftest_admin_client",
-      "community": 193,
+      "community": 239,
       "norm_label": "admin_client()"
     },
     {
@@ -15561,7 +15561,7 @@
       "source_location": "L476",
       "_origin": "ast",
       "id": "backend_tests_conftest_admin_user",
-      "community": 193,
+      "community": 239,
       "norm_label": "admin_user()"
     },
     {
@@ -15701,7 +15701,7 @@
       "source_location": "L455",
       "_origin": "ast",
       "id": "backend_tests_conftest_rationale_455",
-      "community": 193,
+      "community": 239,
       "norm_label": "the shared `client`, logged in as a plain (non-admin) user via the real login"
     },
     {
@@ -16581,7 +16581,7 @@
       "source_location": "L412",
       "_origin": "ast",
       "id": "backend_tests_test_alert_outbox_test_deliver_due_is_a_noop_when_unconfigured",
-      "community": 333,
+      "community": 140,
       "norm_label": "test_deliver_due_is_a_noop_when_unconfigured()"
     },
     {
@@ -19351,7 +19351,7 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "backend_tests_test_auth_upstream_init",
-      "community": 193,
+      "community": 239,
       "norm_label": ".__init__()"
     },
     {
@@ -31271,7 +31271,7 @@
       "source_location": "L308",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_connection_failures_count_as_proxy_transport_only_on_a_proxied_attempt",
-      "community": 399,
+      "community": 59,
       "norm_label": "test_connection_failures_count_as_proxy_transport_only_on_a_proxied_attempt()"
     },
     {
@@ -31401,7 +31401,7 @@
       "source_location": "L309",
       "_origin": "ast",
       "id": "backend_tests_test_retry_rationale_309",
-      "community": 399,
+      "community": 59,
       "norm_label": "v40.1, found on the real stack: a proxy that accepts and drops the connection"
     },
     {
@@ -51260,7 +51260,7 @@
       "source_location": "L324",
       "_origin": "ast",
       "id": "frontend_src_lib_api_recordedwindow",
-      "community": 80,
+      "community": 6,
       "norm_label": "recordedwindow"
     },
     {
@@ -51270,7 +51270,7 @@
       "source_location": "L338",
       "_origin": "ast",
       "id": "frontend_src_lib_api_adminstats",
-      "community": 80,
+      "community": 6,
       "norm_label": "adminstats"
     },
     {
@@ -51280,7 +51280,7 @@
       "source_location": "L355",
       "_origin": "ast",
       "id": "frontend_src_lib_api_mystats",
-      "community": 80,
+      "community": 6,
       "norm_label": "mystats"
     },
     {
@@ -52879,7 +52879,7 @@
       "_origin": "ast",
       "source_location": "L1",
       "id": "frontend_src_lib_i18n_format",
-      "community": 155,
+      "community": 80,
       "norm_label": "$lib/i18n/format"
     },
     {
@@ -53159,7 +53159,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "reactivity",
-      "community": 217,
+      "community": 155,
       "norm_label": "svelte/reactivity"
     },
     {
@@ -53170,7 +53170,7 @@
       "_origin": "ast",
       "source_location": "L1",
       "id": "frontend_src_lib_stores_link",
-      "community": 287,
+      "community": 155,
       "norm_label": "$lib/stores/link"
     },
     {
@@ -53788,7 +53788,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_stats_completedcolumns",
-      "community": 140,
+      "community": 80,
       "norm_label": "$lib/components/stats/completedcolumns.svelte"
     },
     {
@@ -53798,7 +53798,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_completedcolumns_onpointermove",
-      "community": 140,
+      "community": 80,
       "norm_label": "onpointermove()"
     },
     {
@@ -53808,7 +53808,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_completedcolumns_onkeydown",
-      "community": 140,
+      "community": 80,
       "norm_label": "onkeydown()"
     },
     {
@@ -53818,7 +53818,7 @@
       "source_location": "L70",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_completedcolumns_height",
-      "community": 140,
+      "community": 80,
       "norm_label": "height()"
     },
     {
@@ -53828,7 +53828,7 @@
       "source_location": "L140",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_completedcolumns_flip",
-      "community": 140,
+      "community": 80,
       "norm_label": "flip"
     },
     {
@@ -53849,7 +53849,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_upstream_login_frontend_src_lib_components_stats_crosshair",
-      "community": 140,
+      "community": 80,
       "norm_label": "./crosshair"
     },
     {
@@ -53860,7 +53860,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_stats_failurechannels",
-      "community": 140,
+      "community": 80,
       "norm_label": "$lib/components/stats/failurechannels.svelte"
     },
     {
@@ -53870,7 +53870,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_failurechannels_heldseconds",
-      "community": 140,
+      "community": 80,
       "norm_label": "heldseconds"
     },
     {
@@ -53880,7 +53880,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_failurechannels_breakerline",
-      "community": 140,
+      "community": 80,
       "norm_label": "breakerline"
     },
     {
@@ -53890,7 +53890,7 @@
       "source_location": "L84",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_failurechannels_summary",
-      "community": 140,
+      "community": 80,
       "norm_label": "summary"
     },
     {
@@ -53900,7 +53900,7 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_failurechannels_onpointermove",
-      "community": 140,
+      "community": 80,
       "norm_label": "onpointermove()"
     },
     {
@@ -53910,7 +53910,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_failurechannels_shown",
-      "community": 140,
+      "community": 80,
       "norm_label": "shown"
     },
     {
@@ -53920,7 +53920,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_failurechannels_onkeydown",
-      "community": 140,
+      "community": 80,
       "norm_label": "onkeydown()"
     },
     {
@@ -53930,7 +53930,7 @@
       "source_location": "L136",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_failurechannels_reading",
-      "community": 140,
+      "community": 80,
       "norm_label": "reading"
     },
     {
@@ -53940,7 +53940,7 @@
       "source_location": "L150",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_failurechannels_height",
-      "community": 140,
+      "community": 80,
       "norm_label": "height()"
     },
     {
@@ -53960,7 +53960,7 @@
       "source_location": "L216",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_failurechannels_mono",
-      "community": 140,
+      "community": 80,
       "norm_label": "mono"
     },
     {
@@ -53970,7 +53970,7 @@
       "source_location": "L222",
       "_origin": "ast",
       "id": "frontend_src_lib_components_stats_failurechannels_classlang",
-      "community": 140,
+      "community": 80,
       "norm_label": "classlang()"
     },
     {
@@ -54251,7 +54251,7 @@
       "source_location": "L138",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_keepreadings",
-      "community": 155,
+      "community": 80,
       "norm_label": "keepreadings()"
     },
     {
@@ -56925,7 +56925,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_link_linkstate",
-      "community": 287,
+      "community": 155,
       "norm_label": "linkstate"
     },
     {
@@ -56935,7 +56935,7 @@
       "source_location": "L9",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_link_link",
-      "community": 287,
+      "community": 155,
       "norm_label": "link"
     },
     {
@@ -58106,7 +58106,7 @@
       "label": "if()",
       "file_type": "code",
       "source_file": "frontend/src/routes/login/+page.svelte",
-      "source_location": "L157",
+      "source_location": "L160",
       "_origin": "ast",
       "id": "frontend_src_routes_login_page_if",
       "community": 155,
@@ -187688,7 +187688,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/routes/login/+page.svelte",
-      "source_location": "L158",
+      "source_location": "L163",
       "weight": 1.0,
       "source": "frontend_src_routes_login_page_if",
       "target": "frontend_src_lib_i18n_errors_mfaexpiredtext"
@@ -193976,7 +193976,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/login/+page.svelte",
-      "source_location": "L164",
+      "source_location": "L160",
       "weight": 1.0,
       "source": "frontend_src_routes_login_page",
       "target": "frontend_src_routes_login_page_if",
@@ -206385,5 +206385,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "dce7ba35d1db89ec25f3a78d5f7ad26b28a40eb6"
+  "built_at_commit": "72919ed16308c62375152695c5195779377a7efe"
 }
