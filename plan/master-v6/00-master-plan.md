@@ -283,4 +283,5 @@ here, including new upstream changes that need spotdl work.
 - **A fresh install lists the superuser's address in `ALLOWED_EMAILS`.** The login reads the allowlist
   before it asks the upstream, so an unlisted superuser gets `invalid_credentials` like anyone else.
 - **An admin without an allowlist row can be given one** (`add` no longer answers `409`).
-- v74's sync demotion publishes `admin_lost` and calls `allowlist.cut_off`, the way v72's login does.
+- v74's sync demotion publishes `admin_lost`, and calls `allowlist.cut_off` when the demoted admin has
+  no allowlist row, the way v72's login does.
