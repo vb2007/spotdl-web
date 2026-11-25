@@ -26,6 +26,10 @@ _EMBEDDED_CREDENTIALED_URL_RE = re.compile(
 # v53: an API key (`sdw_<8-hex prefix>_<secret>`, services/api_keys.py). The prefix is kept,
 # since it's what /account shows to tell keys apart; the secret never survives.
 _API_KEY_RE = re.compile(r"(sdw_[0-9A-Za-z]{8})_[A-Za-z0-9_-]+")
+# v71: the upstream's session and MFA challenge cookies, and spotdl's own challenge id, as a
+# `Cookie`/`Set-Cookie` header carries them. No log line is known to hold one (the login proxy
+# logs statuses and exception types only); this is the net in case one ever does.
+_COOKIE_VALUE_RE = re.compile(r"""((?:__Host-VB-AUTH|__Host-VB-MFA|SPOTDL_MFA)="?)[^;,\s"']+""")
 
 
 def redact_text(text: str) -> str:
@@ -41,7 +45,13 @@ def redact_text(text: str) -> str:
         scheme, host, port = match.group(1), match.group(2), match.group(3)
         return f"{scheme}{host}:{port}" if port else f"{scheme}{host}"
 
-    return redact_api_keys(_EMBEDDED_CREDENTIALED_URL_RE.sub(_sub, text))
+    return redact_secrets(_EMBEDDED_CREDENTIALED_URL_RE.sub(_sub, text))
+
+
+def redact_secrets(text: str) -> str:
+    """The secrets half of `redact_text`, which app/logging_config.py's formatter adds to its own
+    credentialed-URL pattern: API keys (v53) and the login's cookie values (v71)."""
+    return _COOKIE_VALUE_RE.sub(r"\1[redacted]", redact_api_keys(text))
 
 
 def redact_api_keys(text: str) -> str:

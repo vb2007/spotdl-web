@@ -1341,5 +1341,64 @@
 				"*": "{email} hozzáadva. Most már be tud jelentkezni, és folytatódik {n} visszatartott feladata."
 			}
 		}
-	]
+	],
+	"login_mfa_heading": "MÁSODIK LÉPÉS",
+	"login_mfa_account": "Bejelentkezés ezzel: {email}.",
+	"login_mfa_methods": "Módszer",
+	"login_mfa_method_totp": "hitelesítő app",
+	"login_mfa_method_email": "e-mailes kód",
+	"login_mfa_method_recovery": "helyreállító kód",
+	"login_mfa_code": "Kód",
+	"login_mfa_hint_totp": "A hitelesítő alkalmazásod 6 jegyű kódja a vb2007.hu-hoz.",
+	"login_mfa_hint_email": "Küldess egy 6 jegyű kódot a fiókod e-mail-címére, aztán írd be ide.",
+	"login_mfa_hint_recovery": "Az egyik helyreállító kód, amit a második lépés bekapcsolásakor elmentettél. Mindegyik egyszer használható.",
+	"login_mfa_verify": "ellenőrzés",
+	"login_mfa_verifying": "ellenőrzés…",
+	"login_mfa_back": "vissza az e-mailhez és a jelszóhoz",
+	"login_mfa_send": "kód küldése",
+	"login_mfa_sending": "küldés…",
+	"login_mfa_resend": "újraküldés",
+	"login_mfa_sent": "Elküldtük a kódot. Nézd meg a postafiókodat.",
+	"login_mfa_missing": "Írd be a kódot.",
+	"login_mfa_wrong": "Hibás kód. Ellenőrizd, és próbáld újra.",
+	"login_mfa_expired_tries": "Túl sok hibás kód ennél a bejelentkezésnél. Jelentkezz be újra.",
+	"login_mfa_expired_time": "Lejárt a második lépés ideje. Jelentkezz be újra.",
+	"login_mfa_expired_ended": "Ez a második lépés véget ért (talán egy újabb bejelentkezés váltotta fel). Jelentkezz be újra.",
+	"login_error_suspended": "Ez a vb2007.hu-fiók fel van függesztve, így nem tud belépni. Kérdezd a vb2007.hu rendszergazdáját.",
+	"login_error_mail_unavailable": "A kódot most nem sikerült elküldeni. Próbáld újra később, vagy válassz másik módot.",
+	"login_error_mfa_method_off": "Ennél a fióknál ki vannak kapcsolva az e-mailes kódok. Válassz másik módot.",
+	"login_error_mfa_unsupported": "Ennek a fióknak a második lépése passkeyt kér, ezt ez az oldal még nem tudja használni. Kapcsold be a hitelesítő alkalmazást vagy az e-mailes kódokat a vb2007.hu-n, vagy lépj be helyreállító kóddal. A vb2007.hu-n keresztüli bejelentkezés hamarosan jön.",
+	"login_mfa_wrong_left": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "Hibás kód. Még {n} próbálkozásod van."
+			}
+		}
+	],
+	"login_mfa_resend_in": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "újraküldés {n} mp múlva"
+			}
+		}
+	],
+	"login_mfa_cooldown_earlier": "Kevesebb mint egy perce ment ki egy kód egy korábbi bejelentkezéshez, az már nem érvényes. Ha lejár a visszaszámlálás, kérj újat.",
+	"login_mfa_format_digits": "A kód 6 számjegyből áll.",
+	"login_mfa_format_recovery": "A helyreállító kód 10 karakter: a–z betűk és 2–7 számjegyek (a kötőjel nem számít), például abcde-23456.",
+	"login_mfa_send_first": "Előbb küldess kódot: a fiókod e-mail-címére érkezik.",
+	"login_mfa_cooldown_wait": "Lehet, hogy egy kód már úton van. Ha lejár a visszaszámlálás, küldhetsz újat.",
+	"login_mfa_send_in": [
+		{
+			"declarations": ["input count", "input n"],
+			"selectors": [],
+			"match": {
+				"*": "kód küldése {n} mp múlva"
+			}
+		}
+	],
+	"login_mfa_cooldown_still_works": "A legutóbb küldött kód még érvényes."
 }

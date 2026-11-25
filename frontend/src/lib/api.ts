@@ -544,7 +544,14 @@ export class ApiError extends Error {
 // registers the one handler (back to /login, saying why), so no page is left showing "Not
 // authenticated" with a retry that can only fail again. `/api/auth/me` is left to its callers:
 // the layout's own load already redirects on it.
-const SESSION_PATHS = new Set(['/api/auth/login', '/api/auth/logout', '/api/auth/me']);
+// v71: and the login's second step, whose 401 (`mfa_expired`) is the sign-in's own answer.
+const SESSION_PATHS = new Set([
+	'/api/auth/login',
+	'/api/auth/mfa/verify',
+	'/api/auth/mfa/email',
+	'/api/auth/logout',
+	'/api/auth/me'
+]);
 let unauthorizedHandler: (() => void) | null = null;
 // v47: set while this tab signs out (until the next sign-in): a request answered 401 in that
 // window is the sign-out itself, not a session that ended under the user.
@@ -714,11 +721,41 @@ function tracksQuery(params: ListTracksParams): string {
 	});
 }
 
-export async function login(email: string, password: string): Promise<SessionInfo> {
-	const session = await request<SessionInfo>('/api/auth/login', {
+/** v71: a second step the login proxy can answer, in upstream's order. */
+export type MfaMethod = 'totp' | 'email' | 'recovery';
+
+/** v71: a right password on an account with MFA on: no session yet, a second step to pass. */
+export interface MfaRequired {
+	mfa_required: true;
+	methods: MfaMethod[];
+}
+
+export async function login(email: string, password: string): Promise<SessionInfo | MfaRequired> {
+	const answer = await request<SessionInfo | MfaRequired>('/api/auth/login', {
 		method: 'POST',
 		body: JSON.stringify({ email, password })
 	});
+	// v71: a second step comes first; the session (and the other tabs' news of it) after it.
+	if ('mfa_required' in answer) return answer;
+	return signedIn(answer);
+}
+
+/** v71: the second step (an authenticator code, an emailed code or a recovery code). */
+export async function verifyMfa(method: MfaMethod, code: string): Promise<SessionInfo> {
+	return signedIn(
+		await request<SessionInfo>('/api/auth/mfa/verify', {
+			method: 'POST',
+			body: JSON.stringify({ method, code })
+		})
+	);
+}
+
+/** v71: mails a fresh code for the waiting second step. */
+export async function sendMfaEmail(): Promise<void> {
+	await request<{ status: string }>('/api/auth/mfa/email', { method: 'POST' });
+}
+
+function signedIn(session: SessionInfo): SessionInfo {
 	signingOut = false;
 	signedOut = false;
 	// v69: a new session starts with no leftover reason for the last one's end.

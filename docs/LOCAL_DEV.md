@@ -94,10 +94,21 @@ whichever test account should be the dev operator.
 The second identity's `users` row is created automatically on its first successful login — real
 login needs a real password against whichever upstream `UPSTREAM_AUTH_BASE_URL` points at
 (`host.docker.internal:3000` if the local `vb2007.hu-api` instance is running, otherwise the live
-`https://api.vb2007.hu`; see `docs/GOTCHAS.md`'s v17 standing rule). Registering a fresh test
-account against either is expected and fine — `POST /auth/register {username, email, password}`
-(plain alphanumeric username; a hyphenated one 500s on the upstream, a known upstream bug, not
-this app's). For a quick non-real-login identity instead (no password needed, but skips exercising
+`https://api.vb2007.hu`; see `docs/GOTCHAS.md`'s v17 standing rule). Reuse an existing test
+identity (a slot's are in `.git/agent-stack/e2e.s<slot>.env`) rather than registering one.
+
+> **2026-11-25 (v71): registration changed.** It's two steps now: `POST /auth/register
+> {username, email, password}` mails a 6-digit code (`202`), then `POST /auth/register/verify
+> {email, code, username, password}` creates the account (`201`). `api.vb2007.hu` refuses
+> reserved and example domains (every `example.com` address), so a live identity needs a real
+> mailbox and someone to relay its code. A local `vb2007.hu-api` started without `SMTP_HOST` and
+> `MAIL_FROM` (outside production) prints every mail, code included, and accepts `.test`,
+> `.example`, `.invalid` and `.localhost` addresses: `SMTP_HOST= MAIL_FROM= APP_IP=0.0.0.0 node
+> dist/index.js` in its checkout (after `yarn build`; `APP_IP` so the `api` container reaches it
+> at `host.docker.internal:3000`). Plain alphanumeric usernames (a hyphenated one used to 500).
+> Never turn MFA on for a shared identity: an MFA test account is its own (GOTCHAS v71).
+
+For a quick non-real-login identity instead (no password needed, but skips exercising
 the actual auth path), mint a session directly:
 
 ```bash

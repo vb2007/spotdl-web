@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import update
 from sqlalchemy.orm import Session
+from starlette.background import BackgroundTask
 
 from app.db import get_db
 from app.errors import ApiError
@@ -18,8 +21,20 @@ from app.services.users import get_or_create_user
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 COOKIE_NAME = "SPOTDL_SESSION"
+# v71: the id of a login's waiting second step (services/upstream_auth.py's challenge store).
+MFA_COOKIE_NAME = "SPOTDL_MFA"
 
-_INVALID_CREDENTIALS = ApiError(401, "invalid_credentials", "Invalid credentials")
+
+# v71: a fresh error per raise, never one shared instance: raising the same exception object
+# chains every raising request's traceback onto it, so its frames (passwords, upstream tokens)
+# would stay in memory for the process's life (review round 3).
+def _invalid_credentials() -> ApiError:
+    return ApiError(401, "invalid_credentials", "Invalid credentials")
+
+
+def _login_unavailable() -> ApiError:
+    """The second step can't go on (the upstream or the challenge store isn't answering)."""
+    return ApiError(503, "login_unavailable", "Sign-in is unavailable; try again later")
 
 
 def _no_session(db: Session, request: Request, token: str | None) -> ApiError:
@@ -217,42 +232,204 @@ def _set_session_cookie(response: Response, token: str) -> None:
     )
 
 
-@router.post("/login")
+def _set_mfa_cookie(response: Response, challenge_id: str) -> None:
+    response.set_cookie(
+        MFA_COOKIE_NAME,
+        challenge_id,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=upstream_auth.CHALLENGE_TTL_SECONDS,
+    )
+
+
+def _cleared_mfa_cookie() -> str:
+    """The `Set-Cookie` that removes `SPOTDL_MFA`, as a header an `ApiError` can carry (a raised
+    error drops whatever the route set on its injected `Response`)."""
+    cleared = Response()
+    cleared.delete_cookie(MFA_COOKIE_NAME, secure=True, httponly=True, samesite="lax")
+    return cleared.headers["set-cookie"]
+
+
+def _mfa_expired(reason: str) -> ApiError:
+    return ApiError(
+        401,
+        "mfa_expired",
+        "The sign-in's second step expired; sign in again",
+        {"reason": reason},
+        headers={"set-cookie": _cleared_mfa_cookie()},
+    )
+
+
+def _rejected_logging_out(session: str | None, *, clear_mfa: bool = False) -> JSONResponse:
+    """`invalid_credentials`, byte for byte what the raised error answers, for an upstream session
+    an off-list address got: it's logged out upstream once the answer is sent, so the refusal
+    takes no longer than a wrong password's (v71, owner's call over task 2's literal order)."""
+    refusal = _invalid_credentials()
+    response = JSONResponse(
+        {"detail": refusal.detail, "code": refusal.code},
+        status_code=refusal.status_code,
+        background=BackgroundTask(upstream_auth.logout, session),
+    )
+    if clear_mfa:
+        response.headers.append("set-cookie", _cleared_mfa_cookie())
+    return response
+
+
+async def _complete_login(db: Session, response: Response, email: str, address: str, username: str | None) -> dict:
+    """The login tail both the password and the second step end in (v71)."""
+    await run_in_threadpool(rate_limit.clear_login_failures, email, address)
+    # Read again, now locked (FOR SHARE) until this login commits its session, and only now: a
+    # removal meanwhile waits for it, then ends that session with the others. Not across the
+    # Redis call above (a stalled Redis would hold a removal for its retries). Off the event
+    # loop, since it may wait on a removal's row lock.
+    if not await run_in_threadpool(allowlist.is_allowed, db, email, lock=True):
+        db.rollback()
+        raise _invalid_credentials()
+    user = get_or_create_user(db, email, username)
+    session = create_session(db, user.id)
+    db.commit()
+    _set_session_cookie(response, session.token)
+    return {"email": user.email, "username": user.username, "is_admin": user.is_admin}
+
+
+@router.post("/login", response_model=None)
 async def login(
     payload: LoginRequest, request: Request, response: Response, db: Session = Depends(get_db)
-) -> dict:
+) -> dict | JSONResponse:
     # v53: failed logins are limited per email and client address, counted before the
     # upstream is asked at all. The Redis client is sync, so it runs off the event loop.
     # An email or password no one can have (a NUL, a lone surrogate) is rejected like any
     # wrong one, before it reaches a hash, the upstream or Postgres (each would be a 500).
     if not (storable(payload.email) and storable(payload.password)):
-        raise _INVALID_CREDENTIALS
+        raise _invalid_credentials()
     address = rate_limit.client_address(request)
     await run_in_threadpool(rate_limit.hit_login, payload.email, address)
 
-    upstream_ok, username = await upstream_auth.login(payload.email, payload.password)
+    result = await upstream_auth.login(payload.email, payload.password)
+    # Upstream limits failed logins before it checks the password, so its 429 says nothing about
+    # the address either way.
+    if isinstance(result, upstream_auth.RateLimited):
+        raise rate_limit.rate_limited(result.retry_after)
     # v69: the allowlist table, read now (never cached), so an address added in /users signs
-    # in on its next attempt.
+    # in on its next attempt. Read for every answer, so each takes the same path.
     allowed = await run_in_threadpool(allowlist.is_allowed, db, payload.email)
     db.commit()
 
-    # Upstream failure and allowlist rejection must be indistinguishable to the caller.
-    if not upstream_ok or not allowed:
-        raise _INVALID_CREDENTIALS
+    # v71: no oracle. Upstream answers a session, an MFA challenge or "suspended" only after a
+    # right password; for an off-list address each is exactly a wrong password's answer: no
+    # challenge kept, no SPOTDL_MFA cookie, no upstream session left. An unreachable upstream
+    # reads as a refusal too, as before (`login_error_rejected` says the service may be down).
+    if not allowed or isinstance(result, (upstream_auth.Invalid, upstream_auth.Unavailable)):
+        if isinstance(result, upstream_auth.Ok):
+            return _rejected_logging_out(result.session)
+        raise _invalid_credentials()
+    if isinstance(result, upstream_auth.Suspended):
+        raise ApiError(403, "account_suspended", "This vb2007.hu account is suspended")
+    if isinstance(result, upstream_auth.MfaRequired):
+        methods = upstream_auth.proxied_methods(result.methods)
+        if not methods:
+            raise ApiError(403, "mfa_unsupported", "This account's second step can't be used here yet")
+        try:
+            challenge_id = await run_in_threadpool(upstream_auth.store_challenge, result.challenge, payload.email)
+        except upstream_auth.ChallengeStoreError:
+            raise _login_unavailable() from None
+        _set_mfa_cookie(response, challenge_id)
+        return {"mfa_required": True, "methods": methods}
 
-    await run_in_threadpool(rate_limit.clear_login_failures, payload.email, address)
-    # Read again, now locked (FOR SHARE) until this login commits its session, and only now: a
-    # removal meanwhile waits for it, then ends that session with the others. Not across the
-    # Redis call above (a stalled Redis would hold a removal for its retries). Off the event
-    # loop, since it may wait on a removal's row lock.
-    if not await run_in_threadpool(allowlist.is_allowed, db, payload.email, lock=True):
-        db.rollback()
-        raise _INVALID_CREDENTIALS
-    user = get_or_create_user(db, payload.email, username)
-    session = create_session(db, user.id)
+    username = await upstream_auth.finish(result.session)
+    return await _complete_login(db, response, payload.email, address, username)
+
+
+class MfaVerifyRequest(BaseModel):
+    method: Literal["totp", "email", "recovery"]
+    code: str
+
+
+async def _stored_challenge(request: Request) -> tuple[str, str, str]:
+    """(SPOTDL_MFA id, upstream challenge, email) for an `/api/auth/mfa` request, counted by the
+    limits first. Its cookie is the only credential these routes take: never a session or a key."""
+    challenge_id = request.cookies.get(MFA_COOKIE_NAME)
+    if not challenge_id:
+        raise _mfa_expired("noChallenge")
+    await run_in_threadpool(rate_limit.hit_mfa, challenge_id, rate_limit.client_address(request))
+    try:
+        stored = await run_in_threadpool(upstream_auth.load_challenge, challenge_id)
+    except upstream_auth.ChallengeStoreError:
+        raise _login_unavailable() from None
+    if stored is None:
+        raise _mfa_expired("expired")
+    return challenge_id, *stored
+
+
+async def _ended(challenge_id: str, reason: str) -> ApiError:
+    await run_in_threadpool(upstream_auth.drop_challenge, challenge_id)
+    return _mfa_expired(reason)
+
+
+@router.post("/mfa/verify", response_model=None)
+async def mfa_verify(
+    payload: MfaVerifyRequest, request: Request, response: Response, db: Session = Depends(get_db)
+) -> dict | JSONResponse:
+    """v71: the login's second step (TOTP, an emailed code or a recovery code), forwarded to
+    upstream with the challenge `login` stored."""
+    challenge_id, upstream_challenge, email = await _stored_challenge(request)
+    if not storable(payload.code):
+        raise ApiError(400, "mfa_code_invalid", "Wrong code")
+    result = await upstream_auth.verify(upstream_challenge, payload.method, payload.code)
+    if isinstance(result, upstream_auth.CodeRejected):
+        params = {} if result.attempts_left is None else {"attempts_left": result.attempts_left}
+        headers = None
+        if result.attempts_left == 0:
+            # That was the last try: upstream has ended the challenge, so it goes here too.
+            await run_in_threadpool(upstream_auth.drop_challenge, challenge_id)
+            headers = {"set-cookie": _cleared_mfa_cookie()}
+        raise ApiError(400, "mfa_code_invalid", "Wrong code", params, headers=headers)
+    if isinstance(result, upstream_auth.ChallengeEnded):
+        raise await _ended(challenge_id, result.reason)
+    if isinstance(result, upstream_auth.RateLimited):
+        raise rate_limit.rate_limited(result.retry_after)
+    if not isinstance(result, upstream_auth.Ok):
+        raise _login_unavailable()
+
+    await run_in_threadpool(upstream_auth.drop_challenge, challenge_id)
+    # Off the allowlist since the password step (a removal in those minutes): refused like then.
+    allowed = await run_in_threadpool(allowlist.is_allowed, db, email)
     db.commit()
-    _set_session_cookie(response, session.token)
-    return {"email": user.email, "username": user.username, "is_admin": user.is_admin}
+    if not allowed:
+        return _rejected_logging_out(result.session, clear_mfa=True)
+    username = await upstream_auth.finish(result.session)
+    try:
+        answer = await _complete_login(db, response, email, rate_limit.client_address(request), username)
+    except ApiError as refused:
+        # Removed meanwhile (the locked re-check): its challenge is gone, so is its cookie.
+        raise ApiError(
+            refused.status_code,
+            refused.code,
+            refused.detail,
+            refused.params,
+            headers={**(refused.headers or {}), "set-cookie": _cleared_mfa_cookie()},
+        ) from None
+    response.delete_cookie(MFA_COOKIE_NAME, secure=True, httponly=True, samesite="lax")
+    return answer
+
+
+@router.post("/mfa/email")
+async def mfa_email(request: Request) -> dict:
+    """v71: mails a fresh code for the waiting second step (upstream's 1 a minute, 10 a day)."""
+    challenge_id, upstream_challenge, _ = await _stored_challenge(request)
+    result = await upstream_auth.send_email_code(upstream_challenge)
+    if isinstance(result, upstream_auth.Sent):
+        return {"status": "sent"}
+    if isinstance(result, upstream_auth.MethodOff):
+        raise ApiError(400, "mfa_method_off", "Email codes are off for this account")
+    if isinstance(result, upstream_auth.MailUnavailable):
+        raise ApiError(503, "mail_unavailable", "The code couldn't be mailed; try again later")
+    if isinstance(result, upstream_auth.ChallengeEnded):
+        raise await _ended(challenge_id, result.reason)
+    if isinstance(result, upstream_auth.RateLimited):
+        raise rate_limit.rate_limited(result.retry_after, result.reason)
+    raise _login_unavailable()
 
 
 @router.post("/logout")

@@ -1420,5 +1420,67 @@
 				"countPlural=*": "Added {email}. They can sign in now, and their {n} held jobs resume."
 			}
 		}
-	]
+	],
+	"login_mfa_heading": "SECOND STEP",
+	"login_mfa_account": "Signing in as {email}.",
+	"login_mfa_methods": "Method",
+	"login_mfa_method_totp": "authenticator",
+	"login_mfa_method_email": "email code",
+	"login_mfa_method_recovery": "recovery code",
+	"login_mfa_code": "Code",
+	"login_mfa_hint_totp": "The 6-digit code your authenticator app shows for vb2007.hu.",
+	"login_mfa_hint_email": "Send a 6-digit code to your account's email address, then enter it here.",
+	"login_mfa_hint_recovery": "One of the recovery codes you saved when you turned on the second step. Each works once.",
+	"login_mfa_verify": "verify",
+	"login_mfa_verifying": "verifying…",
+	"login_mfa_back": "back to email and password",
+	"login_mfa_send": "send code",
+	"login_mfa_sending": "sending…",
+	"login_mfa_resend": "send again",
+	"login_mfa_sent": "Code sent. Check your inbox.",
+	"login_mfa_missing": "Enter the code.",
+	"login_mfa_wrong": "Wrong code. Check it and try again.",
+	"login_mfa_expired_tries": "Too many wrong codes for that sign-in. Sign in again.",
+	"login_mfa_expired_time": "The second step timed out. Sign in again.",
+	"login_mfa_expired_ended": "That second step ended (a newer sign-in may have replaced it). Sign in again.",
+	"login_error_suspended": "This vb2007.hu account is suspended, so it can't sign in. Ask the vb2007.hu admin.",
+	"login_error_mail_unavailable": "The code couldn't be mailed right now. Try again later, or pick another method.",
+	"login_error_mfa_method_off": "Email codes are off for this account. Pick another method.",
+	"login_error_mfa_unsupported": "This account's second step needs a passkey, which this page can't use yet. Turn on an authenticator app or email codes on vb2007.hu, or sign in with a recovery code. Signing in through vb2007.hu itself is on its way.",
+	"login_mfa_wrong_left": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "Wrong code. {n} try left.",
+				"countPlural=*": "Wrong code. {n} tries left."
+			}
+		}
+	],
+	"login_mfa_resend_in": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "send again in {n} s",
+				"countPlural=*": "send again in {n} s"
+			}
+		}
+	],
+	"login_mfa_cooldown_earlier": "A code went out under a minute ago for an earlier sign-in, and it no longer works. Send a new one when the countdown ends.",
+	"login_mfa_format_digits": "The code is 6 digits.",
+	"login_mfa_format_recovery": "A recovery code is 10 characters, letters a–z and digits 2–7 (a dash doesn't count), like abcde-23456.",
+	"login_mfa_send_first": "Send a code first: it comes to your account's email address.",
+	"login_mfa_cooldown_wait": "A code may already be on its way. You can send another when the countdown ends.",
+	"login_mfa_send_in": [
+		{
+			"declarations": ["input count", "local countPlural = count: plural", "input n"],
+			"selectors": ["countPlural"],
+			"match": {
+				"countPlural=one": "send code in {n} s",
+				"countPlural=*": "send code in {n} s"
+			}
+		}
+	],
+	"login_mfa_cooldown_still_works": "Your most recent code still works."
 }
