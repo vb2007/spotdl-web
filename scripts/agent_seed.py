@@ -121,6 +121,8 @@ for spotify_id, folder in ledger:
 db.commit()
 
 email = normalize_email(settings.admin_email)
+if not email:
+    sys.exit("seed: no admin to seed for: ADMIN_EMAIL is a dev-only override (v72), set it and SPOTDL_ENV=dev")
 admin = db.query(User).filter(User.email == email).one_or_none() or get_or_create_user(db, email)
 if db.query(Job).filter(Job.user_id == admin.id, Job.source_url.like("%/agentfixture%")).first():
     print(f"seed: {email}'s history is already there")
