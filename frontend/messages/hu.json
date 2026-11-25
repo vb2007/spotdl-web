@@ -1344,7 +1344,7 @@
 	],
 	"login_mfa_heading": "MÁSODIK LÉPÉS",
 	"login_mfa_account": "Bejelentkezés ezzel: {email}.",
-	"login_mfa_methods": "Második lépés ezzel",
+	"login_mfa_methods": "Módszer",
 	"login_mfa_method_totp": "hitelesítő app",
 	"login_mfa_method_email": "e-mailes kód",
 	"login_mfa_method_recovery": "helyreállító kód",
