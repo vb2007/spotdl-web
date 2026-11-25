@@ -173,19 +173,20 @@ def test_a_results_repr_never_shows_a_token():
     assert "uid.secret" not in repr(upstream_auth.MfaRequired(("totp",), "uid.secret"))
 
 
-# --- finish: the username, then the upstream logout ------------------------------------------------
+# --- finish: the identity (username, isSuperuser), then the upstream logout ------------------------
 
 
+@pytest.mark.parametrize("flag", [True, False])
 @pytest.mark.asyncio
-async def test_finish_fetches_the_username_then_logs_the_upstream_session_out(monkeypatch):
+async def test_finish_fetches_the_identity_then_logs_the_upstream_session_out(monkeypatch, flag):
     def handler(request):
         if request.url.path == "/user":
-            return _answer(200, {"username": "cooluser", "email": "a@b.com"})
+            return _answer(200, {"username": "cooluser", "email": "a@b.com", "isSuperuser": flag})
         return _answer(200, {"message": "Logged out successfully."})
 
     seen = _install_transport(monkeypatch, handler)
 
-    assert await upstream_auth.finish("tok123") == "cooluser"
+    assert await upstream_auth.finish("tok123") == upstream_auth.Identity("cooluser", flag)
     assert [(r.method, r.url.path) for r in seen] == [("GET", "/user"), ("POST", "/auth/logout")]
     assert all(r.headers["cookie"] == "__Host-VB-AUTH=tok123" for r in seen)
 
@@ -215,8 +216,19 @@ async def test_a_failed_username_fetch_is_none_and_still_logs_out(monkeypatch, u
 
     seen = _install_transport(monkeypatch, handler)
 
-    assert await upstream_auth.finish("tok123") is None
+    assert await upstream_auth.finish("tok123") == upstream_auth.Identity()
     assert [r.url.path for r in seen] == ["/user", "/auth/logout"]
+
+
+@pytest.mark.parametrize("flag", [None, "true", 1, 0, "false", [], {}])
+@pytest.mark.asyncio
+async def test_an_odd_superuser_flag_is_unknown(monkeypatch, flag):
+    """v72: only a JSON boolean counts; anything else (missing included) is None, which never
+    changes `is_admin`. The username beside it is still used."""
+    body = {"username": "cooluser"} if flag is None else {"username": "cooluser", "isSuperuser": flag}
+    _install_transport(monkeypatch, lambda r: _answer(200, body))
+
+    assert await upstream_auth.finish("tok123") == upstream_auth.Identity("cooluser", None)
 
 
 @pytest.mark.asyncio
@@ -228,14 +240,14 @@ async def test_a_failed_logout_never_fails_the_finish(monkeypatch):
 
     _install_transport(monkeypatch, handler)
 
-    assert await upstream_auth.finish("tok123") == "cooluser"
+    assert (await upstream_auth.finish("tok123")).username == "cooluser"
 
 
 @pytest.mark.asyncio
 async def test_finish_without_a_session_asks_nothing(monkeypatch):
     seen = _install_transport(monkeypatch, lambda r: _answer(200, {}))
 
-    assert await upstream_auth.finish(None) is None
+    assert await upstream_auth.finish(None) == upstream_auth.Identity()
     await upstream_auth.logout(None)
     assert seen == []
 

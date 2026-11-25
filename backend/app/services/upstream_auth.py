@@ -4,7 +4,7 @@ spotdl never forwards an upstream cookie to the browser. The upstream session (`
 and the MFA challenge (`__Host-VB-MFA`) are read from the raw `Set-Cookie` header and replayed by
 hand, never through httpx's cookie jar (v25: its RFC 6265 domain matching silently dropped the
 token). Neither token is ever logged, returned or stored in Postgres: the session lives only for
-the username fetch and its logout, the challenge only in Redis (`store_challenge`), keyed by a
+the identity fetch and its logout, the challenge only in Redis (`store_challenge`), keyed by a
 random id the browser holds in `SPOTDL_MFA`.
 
 Interim until v73 replaces this proxy with "Sign in with vb2007.hu". Upstream keeps one session
@@ -109,6 +109,15 @@ class MethodOff:
 @dataclass(frozen=True)
 class MailUnavailable:
     pass
+
+
+@dataclass(frozen=True)
+class Identity:
+    """What `GET /user` told a login (v72). Each field is None when the read failed or the value
+    was odd: the username stays as known, and `is_superuser` None never changes `is_admin`."""
+
+    username: str | None = None
+    is_superuser: bool | None = None
 
 
 def _cookie(response: httpx.Response, pattern: re.Pattern[str]) -> str | None:
@@ -252,14 +261,15 @@ def _reason(body: dict) -> str:
     return reason if reason in _REASONS else "ended"
 
 
-async def finish(session: str | None) -> str | None:
-    """For an allowed address's `Ok`: the username (`GET /user`), then the upstream session is
-    logged out, so spotdl leaves none behind. Both best effort: never fails the login."""
+async def finish(session: str | None) -> Identity:
+    """For an allowed address's `Ok`: the username and superuser flag (`GET /user`), then the
+    upstream session is logged out, so spotdl leaves none behind. Both best effort: never fails
+    the login."""
     if session is None:
-        return None
-    username = await _fetch_username(session)
+        return Identity()
+    identity = await _fetch_identity(session)
     await logout(session)
-    return username
+    return identity
 
 
 async def logout(session: str | None) -> None:
@@ -271,7 +281,7 @@ async def logout(session: str | None) -> None:
         logger.warning("Upstream logout answered %s", response.status_code)
 
 
-async def _fetch_username(session: str) -> str | None:
+async def _fetch_identity(session: str) -> Identity:
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             response = await client.get(
@@ -279,14 +289,19 @@ async def _fetch_username(session: str) -> str | None:
             )
     except httpx.HTTPError as exc:
         logger.warning("Upstream GET /user failed: %s", type(exc).__name__)
-        return None
+        return Identity()
     if response.status_code != 200:
         logger.warning("Upstream GET /user returned %s", response.status_code)
-        return None
-    # A body that parses but isn't an object, or an empty name, degrades like a failure: one odd
-    # answer must never 500 a login or blank a known-good name (`get_or_create_user`).
-    username = _body(response).get("username")
-    return username if isinstance(username, str) and username else None
+        return Identity()
+    # A body that parses but isn't an object, an empty name or a non-boolean flag degrades like a
+    # failure: one odd answer must never 500 a login, blank a known-good name or touch `is_admin`.
+    body = _body(response)
+    username = body.get("username")
+    is_superuser = body.get("isSuperuser")
+    return Identity(
+        username=username if isinstance(username, str) and username else None,
+        is_superuser=is_superuser if isinstance(is_superuser, bool) else None,
+    )
 
 
 # --- The MFA challenge store -------------------------------------------------------------------
