@@ -2548,7 +2548,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "backend_app_models_job_job",
-      "community": 22,
+      "community": 19,
       "norm_label": "job"
     },
     {
@@ -2558,7 +2558,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_models_job_rationale_27",
-      "community": 22,
+      "community": 19,
       "norm_label": "one row per submitted url (album/playlist/artist/track)."
     },
     {
@@ -2748,7 +2748,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_trackattempt",
-      "community": 76,
+      "community": 10,
       "norm_label": "trackattempt"
     },
     {
@@ -2768,7 +2768,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_rationale_40",
-      "community": 76,
+      "community": 10,
       "norm_label": "one row per `download_track` invocation (v24) -- what it tried (direct vs. which"
     },
     {
@@ -5668,7 +5668,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "exception",
-      "community": 17,
+      "community": 138,
       "norm_label": "exception"
     },
     {
@@ -10768,7 +10768,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "backend_app_services_retry_exception_chain",
-      "community": 75,
+      "community": 143,
       "norm_label": "_exception_chain()"
     },
     {
@@ -10778,7 +10778,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retry_py_baseexception",
-      "community": 75,
+      "community": 143,
       "norm_label": "baseexception"
     },
     {
@@ -10788,7 +10788,7 @@
       "source_location": "L95",
       "_origin": "ast",
       "id": "backend_app_services_retry_is_proxy_transport_error",
-      "community": 75,
+      "community": 143,
       "norm_label": "is_proxy_transport_error()"
     },
     {
@@ -10798,7 +10798,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "backend_app_services_retry_classify_error",
-      "community": 17,
+      "community": 75,
       "norm_label": "classify_error()"
     },
     {
@@ -10978,7 +10978,7 @@
       "source_location": "L80",
       "_origin": "ast",
       "id": "backend_app_services_retry_rationale_80",
-      "community": 75,
+      "community": 143,
       "norm_label": "`exc` and everything it was raised from. also follows yt-dlp's downloaderror, wh"
     },
     {
@@ -10988,7 +10988,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "backend_app_services_retry_rationale_96",
-      "community": 75,
+      "community": 143,
       "norm_label": "true if `exc` (or anything it was raised from) shows the request never got throu"
     },
     {
@@ -11818,7 +11818,7 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "backend_app_services_spotify_urls_cascadenotfound",
-      "community": 17,
+      "community": 138,
       "norm_label": "cascadenotfound"
     },
     {
@@ -11988,7 +11988,7 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "backend_app_services_spotify_urls_rationale_112",
-      "community": 17,
+      "community": 138,
       "norm_label": "spotify has no such track or album."
     },
     {
@@ -15211,7 +15211,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "backend_tests_concurrency_thread",
-      "community": 76,
+      "community": 22,
       "norm_label": "thread"
     },
     {
@@ -15331,7 +15331,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "backend_tests_concurrency_rationale_87",
-      "community": 76,
+      "community": 22,
       "norm_label": "runs `fn(*args, **kwargs)` in a daemon thread at once. `join()` returns its resu"
     },
     {
@@ -19411,7 +19411,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_archive",
-      "community": 143,
+      "community": 19,
       "norm_label": "test_archive.py"
     },
     {
@@ -19421,7 +19421,7 @@
       "source_location": "L7",
       "_origin": "ast",
       "id": "backend_tests_test_archive_owner",
-      "community": 143,
+      "community": 19,
       "norm_label": "_owner()"
     },
     {
@@ -19431,7 +19431,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_tests_test_archive_make_job",
-      "community": 143,
+      "community": 19,
       "norm_label": "_make_job()"
     },
     {
@@ -19441,7 +19441,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_archive_py_job",
-      "community": 143,
+      "community": 19,
       "norm_label": "job"
     },
     {
@@ -19451,7 +19451,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_archives_only_settled_failed_or_cancelled_jobs_for_the_owner",
-      "community": 143,
+      "community": 19,
       "norm_label": "test_archive_jobs_archives_only_settled_failed_or_cancelled_jobs_for_the_owner()"
     },
     {
@@ -19461,7 +19461,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_never_archives_a_waiting_job_regardless_of_age",
-      "community": 143,
+      "community": 19,
       "norm_label": "test_archive_jobs_never_archives_a_waiting_job_regardless_of_age()"
     },
     {
@@ -19471,7 +19471,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_age_is_measured_from_newest_track_activity_not_job_created_at",
-      "community": 143,
+      "community": 19,
       "norm_label": "test_archive_jobs_age_is_measured_from_newest_track_activity_not_job_created_at()"
     },
     {
@@ -19481,7 +19481,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_sweep_archives_settled_jobs_past_the_threshold",
-      "community": 143,
+      "community": 19,
       "norm_label": "test_archive_jobs_sweep_archives_settled_jobs_past_the_threshold()"
     },
     {
@@ -19491,7 +19491,7 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_with_job_ids_restricts_to_the_given_ids",
-      "community": 143,
+      "community": 19,
       "norm_label": "test_archive_jobs_with_job_ids_restricts_to_the_given_ids()"
     },
     {
@@ -19501,7 +19501,7 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_ignores_job_ids_belonging_to_another_user",
-      "community": 143,
+      "community": 19,
       "norm_label": "test_archive_jobs_ignores_job_ids_belonging_to_another_user()"
     },
     {
@@ -19511,7 +19511,7 @@
       "source_location": "L123",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_archive_jobs_never_touches_downloaded_tracks",
-      "community": 143,
+      "community": 19,
       "norm_label": "test_archive_jobs_never_touches_downloaded_tracks()"
     },
     {
@@ -19521,7 +19521,7 @@
       "source_location": "L140",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_unarchive_jobs_restores_only_owned_archived_jobs",
-      "community": 143,
+      "community": 19,
       "norm_label": "test_unarchive_jobs_restores_only_owned_archived_jobs()"
     },
     {
@@ -19531,7 +19531,7 @@
       "source_location": "L155",
       "_origin": "ast",
       "id": "backend_tests_test_archive_test_unarchive_jobs_on_a_non_archived_job_is_a_noop",
-      "community": 143,
+      "community": 19,
       "norm_label": "test_unarchive_jobs_on_a_non_archived_job_is_a_noop()"
     },
     {
@@ -20341,7 +20341,7 @@
       "source_location": "L411",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_test_reclaim_leaves_a_track_completed_after_its_snapshot_on_real_connections",
-      "community": 76,
+      "community": 46,
       "norm_label": "test_reclaim_leaves_a_track_completed_after_its_snapshot_on_real_connections()"
     },
     {
@@ -20351,7 +20351,7 @@
       "source_location": "L465",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_test_reclaim_leaves_a_queued_track_that_started_downloading_after_its_snapshot",
-      "community": 76,
+      "community": 46,
       "norm_label": "test_reclaim_leaves_a_queued_track_that_started_downloading_after_its_snapshot()"
     },
     {
@@ -20401,7 +20401,7 @@
       "source_location": "L412",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_rationale_412",
-      "community": 76,
+      "community": 46,
       "norm_label": "v51, on two real connections: the stale sweep reads its snapshot (the track is"
     },
     {
@@ -20411,7 +20411,7 @@
       "source_location": "L466",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_rationale_466",
-      "community": 76,
+      "community": 46,
       "norm_label": "v55 (e2), the other snapshotted state: the sweep snapshots a track stuck `queued"
     },
     {
@@ -21781,7 +21781,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_fakeprogresshandler",
-      "community": 76,
+      "community": 2,
       "norm_label": "_fakeprogresshandler"
     },
     {
@@ -21801,7 +21801,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_fakedownloader_init",
-      "community": 76,
+      "community": 2,
       "norm_label": ".__init__()"
     },
     {
@@ -21851,7 +21851,7 @@
       "source_location": "L142",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_fakedownloadssettings",
-      "community": 76,
+      "community": 2,
       "norm_label": "_fakedownloadssettings"
     },
     {
@@ -21861,7 +21861,7 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_fakedownloadssettings_init",
-      "community": 76,
+      "community": 2,
       "norm_label": ".__init__()"
     },
     {
@@ -22461,7 +22461,7 @@
       "source_location": "L1912",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_a_redelivery_before_the_first_deliverys_ack_is_a_noop_on_real_connections",
-      "community": 76,
+      "community": 2,
       "norm_label": "test_a_redelivery_before_the_first_deliverys_ack_is_a_noop_on_real_connections()"
     },
     {
@@ -22851,7 +22851,7 @@
       "source_location": "L1915",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_rationale_1915",
-      "community": 76,
+      "community": 2,
       "norm_label": "v51, the test above on real connections: the first delivery commits completed an"
     },
     {
@@ -26631,7 +26631,7 @@
       "source_location": "L492",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_committed_job",
-      "community": 76,
+      "community": 19,
       "norm_label": "_committed_job()"
     },
     {
@@ -26641,7 +26641,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_py_jobstate",
-      "community": 76,
+      "community": 19,
       "norm_label": "jobstate"
     },
     {
@@ -26661,7 +26661,7 @@
       "source_location": "L508",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_cancel_job_row_lock_holds_off_a_concurrent_expanded_commit",
-      "community": 76,
+      "community": 19,
       "norm_label": "test_cancel_job_row_lock_holds_off_a_concurrent_expanded_commit()"
     },
     {
@@ -26671,7 +26671,7 @@
       "source_location": "L549",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_committed_expanded_job_with_track",
-      "community": 76,
+      "community": 19,
       "norm_label": "_committed_expanded_job_with_track()"
     },
     {
@@ -26681,7 +26681,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_py_trackstate",
-      "community": 76,
+      "community": 19,
       "norm_label": "trackstate"
     },
     {
@@ -26701,7 +26701,7 @@
       "source_location": "L600",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_cancel_job_that_wins_the_race_cancels_the_job_and_its_track",
-      "community": 76,
+      "community": 19,
       "norm_label": "test_cancel_job_that_wins_the_race_cancels_the_job_and_its_track()"
     },
     {
@@ -26721,7 +26721,7 @@
       "source_location": "L627",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_job_listing_snapshot_hides_a_job_committed_mid_listing",
-      "community": 76,
+      "community": 19,
       "norm_label": "test_job_listing_snapshot_hides_a_job_committed_mid_listing()"
     },
     {
@@ -26811,7 +26811,7 @@
       "source_location": "L509",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_rationale_509",
-      "community": 76,
+      "community": 19,
       "norm_label": "v51, the test above on two real connections: cancel_job holds the job's row lock"
     },
     {
@@ -26831,7 +26831,7 @@
       "source_location": "L601",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_rationale_601",
-      "community": 76,
+      "community": 19,
       "norm_label": "the other order: the cancel commits first, so the job and its last track are"
     },
     {
@@ -26851,7 +26851,7 @@
       "source_location": "L628",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_rationale_628",
-      "community": 76,
+      "community": 19,
       "norm_label": "v51, the test above on two real connections: a job committed between the listing"
     },
     {
@@ -31291,7 +31291,7 @@
       "source_location": "L383",
       "_origin": "ast",
       "id": "backend_tests_test_removal_holds_test_race_the_track_commits_downloading_first_and_the_job_runs_on",
-      "community": 76,
+      "community": 47,
       "norm_label": "test_race_the_track_commits_downloading_first_and_the_job_runs_on()"
     },
     {
@@ -31301,7 +31301,7 @@
       "source_location": "L417",
       "_origin": "ast",
       "id": "backend_tests_test_removal_holds_test_race_the_removal_commits_first_and_the_track_never_starts",
-      "community": 76,
+      "community": 47,
       "norm_label": "test_race_the_removal_commits_first_and_the_track_never_starts()"
     },
     {
@@ -34671,7 +34671,7 @@
       "source_location": "L876",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_test_a_proxy_delete_waits_for_an_attempt_being_recorded_on_real_connections",
-      "community": 76,
+      "community": 10,
       "norm_label": "test_a_proxy_delete_waits_for_an_attempt_being_recorded_on_real_connections()"
     },
     {
@@ -34921,7 +34921,7 @@
       "source_location": "L877",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_rationale_877",
-      "community": 76,
+      "community": 10,
       "norm_label": "v56 (a4): record_attempt reads the proxy locked (for no key update), so an admin"
     },
     {
@@ -51770,7 +51770,7 @@
       "source_location": "L324",
       "_origin": "ast",
       "id": "frontend_src_lib_api_recordedwindow",
-      "community": 80,
+      "community": 6,
       "norm_label": "recordedwindow"
     },
     {
@@ -51780,7 +51780,7 @@
       "source_location": "L338",
       "_origin": "ast",
       "id": "frontend_src_lib_api_adminstats",
-      "community": 80,
+      "community": 6,
       "norm_label": "adminstats"
     },
     {
@@ -51790,7 +51790,7 @@
       "source_location": "L355",
       "_origin": "ast",
       "id": "frontend_src_lib_api_mystats",
-      "community": 80,
+      "community": 6,
       "norm_label": "mystats"
     },
     {
@@ -53284,7 +53284,7 @@
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "id": "frontend_src_lib_components_apikeys",
-      "community": 175,
+      "community": 153,
       "norm_label": "$lib/components/apikeys.svelte"
     },
     {
@@ -53294,7 +53294,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "frontend_src_lib_components_apikeys_load",
-      "community": 175,
+      "community": 153,
       "norm_label": "load()"
     },
     {
@@ -53304,7 +53304,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "frontend_src_lib_components_apikeys_oncreate",
-      "community": 175,
+      "community": 153,
       "norm_label": "oncreate()"
     },
     {
@@ -53314,7 +53314,7 @@
       "source_location": "L130",
       "_origin": "ast",
       "id": "frontend_src_lib_components_apikeys_focusnameorheading",
-      "community": 175,
+      "community": 153,
       "norm_label": "focusnameorheading()"
     },
     {
@@ -53324,7 +53324,7 @@
       "source_location": "L136",
       "_origin": "ast",
       "id": "frontend_src_lib_components_apikeys_copykey",
-      "community": 175,
+      "community": 153,
       "norm_label": "copykey()"
     },
     {
@@ -53334,7 +53334,7 @@
       "source_location": "L205",
       "_origin": "ast",
       "id": "frontend_src_lib_components_apikeys_if",
-      "community": 175,
+      "community": 153,
       "norm_label": "if()"
     },
     {
@@ -53389,7 +53389,7 @@
       "_origin": "ast",
       "source_location": "L1",
       "id": "frontend_src_lib_i18n_format",
-      "community": 36,
+      "community": 80,
       "norm_label": "$lib/i18n/format"
     },
     {
@@ -54601,7 +54601,7 @@
       "source_location": "L189",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_errors_textlang",
-      "community": 175,
+      "community": 153,
       "norm_label": "textlang()"
     },
     {
@@ -54631,7 +54631,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_browserregion",
-      "community": 36,
+      "community": 80,
       "norm_label": "browserregion()"
     },
     {
@@ -54641,7 +54641,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_formatlocale",
-      "community": 36,
+      "community": 80,
       "norm_label": "formatlocale()"
     },
     {
@@ -54651,7 +54651,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_pairsupported",
-      "community": 36,
+      "community": 80,
       "norm_label": "pairsupported()"
     },
     {
@@ -54661,7 +54661,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_regionlocale",
-      "community": 36,
+      "community": 80,
       "norm_label": "regionlocale()"
     },
     {
@@ -54671,7 +54671,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_clockoptions",
-      "community": 36,
+      "community": 80,
       "norm_label": "clockoptions()"
     },
     {
@@ -54681,7 +54681,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_regionclockoptions",
-      "community": 36,
+      "community": 80,
       "norm_label": "regionclockoptions()"
     },
     {
@@ -54691,7 +54691,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_formatnumber",
-      "community": 175,
+      "community": 80,
       "norm_label": "formatnumber()"
     },
     {
@@ -54711,7 +54711,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_todate",
-      "community": 36,
+      "community": 80,
       "norm_label": "todate()"
     },
     {
@@ -54721,7 +54721,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_formatclock",
-      "community": 36,
+      "community": 80,
       "norm_label": "formatclock()"
     },
     {
@@ -54731,7 +54731,7 @@
       "source_location": "L105",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_formattime",
-      "community": 36,
+      "community": 80,
       "norm_label": "formattime()"
     },
     {
@@ -54741,7 +54741,7 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_formatdatetime",
-      "community": 36,
+      "community": 80,
       "norm_label": "formatdatetime()"
     },
     {
@@ -54751,7 +54751,7 @@
       "source_location": "L125",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_clockexample",
-      "community": 36,
+      "community": 80,
       "norm_label": "clockexample()"
     },
     {
@@ -54761,7 +54761,7 @@
       "source_location": "L138",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_keepreadings",
-      "community": 36,
+      "community": 80,
       "norm_label": "keepreadings()"
     },
     {
@@ -54881,7 +54881,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_locale_svelte_browserlanguages",
-      "community": 36,
+      "community": 80,
       "norm_label": "browserlanguages()"
     },
     {
@@ -55021,7 +55021,7 @@
       "source_location": "L168",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_locale_svelte_clockpreference",
-      "community": 36,
+      "community": 80,
       "norm_label": "clockpreference"
     },
     {
@@ -57425,7 +57425,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_confirm_keepfocusonheading",
-      "community": 175,
+      "community": 153,
       "norm_label": "keepfocusonheading()"
     },
     {
@@ -57996,7 +57996,7 @@
       "source_location": "L1985",
       "_origin": "ast",
       "id": "frontend_src_lib_stores_queue_queue",
-      "community": 175,
+      "community": 153,
       "norm_label": "queue"
     },
     {
@@ -58610,7 +58610,7 @@
       "source_location": "L106",
       "_origin": "ast",
       "id": "frontend_src_routes_library_page_formatwhen",
-      "community": 36,
+      "community": 80,
       "norm_label": "formatwhen()"
     },
     {
@@ -60875,7 +60875,7 @@
       "label": "Firewall / network notes",
       "file_type": "document",
       "source_file": "docs/DEPLOYMENT.md",
-      "source_location": "L772",
+      "source_location": "L775",
       "_origin": "ast",
       "id": "docs_deployment_firewall_network_notes",
       "community": 131,
@@ -60885,7 +60885,7 @@
       "label": "IPv6 escalation rung (v29) \u2014 production rollout",
       "file_type": "document",
       "source_file": "docs/DEPLOYMENT.md",
-      "source_location": "L794",
+      "source_location": "L797",
       "_origin": "ast",
       "id": "docs_deployment_ipv6_escalation_rung_v29_production_rollout",
       "community": 131,
@@ -60895,7 +60895,7 @@
       "label": "Backups",
       "file_type": "document",
       "source_file": "docs/DEPLOYMENT.md",
-      "source_location": "L884",
+      "source_location": "L887",
       "_origin": "ast",
       "id": "docs_deployment_backups",
       "community": 131,
@@ -60905,7 +60905,7 @@
       "label": "Restart-survival test",
       "file_type": "document",
       "source_file": "docs/DEPLOYMENT.md",
-      "source_location": "L968",
+      "source_location": "L971",
       "_origin": "ast",
       "id": "docs_deployment_restart_survival_test",
       "community": 131,
@@ -60915,7 +60915,7 @@
       "label": "Troubleshooting",
       "file_type": "document",
       "source_file": "docs/DEPLOYMENT.md",
-      "source_location": "L1028",
+      "source_location": "L1031",
       "_origin": "ast",
       "id": "docs_deployment_troubleshooting",
       "community": 131,
@@ -197881,7 +197881,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/DEPLOYMENT.md",
-      "source_location": "L884",
+      "source_location": "L887",
       "weight": 1.0,
       "source": "docs_deployment_deploying_spotdl_web_to_the_debian_12_host",
       "target": "docs_deployment_backups",
@@ -197891,7 +197891,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/DEPLOYMENT.md",
-      "source_location": "L772",
+      "source_location": "L775",
       "weight": 1.0,
       "source": "docs_deployment_deploying_spotdl_web_to_the_debian_12_host",
       "target": "docs_deployment_firewall_network_notes",
@@ -197931,7 +197931,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/DEPLOYMENT.md",
-      "source_location": "L968",
+      "source_location": "L971",
       "weight": 1.0,
       "source": "docs_deployment_deploying_spotdl_web_to_the_debian_12_host",
       "target": "docs_deployment_restart_survival_test",
@@ -197951,7 +197951,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/DEPLOYMENT.md",
-      "source_location": "L1028",
+      "source_location": "L1031",
       "weight": 1.0,
       "source": "docs_deployment_deploying_spotdl_web_to_the_debian_12_host",
       "target": "docs_deployment_troubleshooting",
@@ -198131,7 +198131,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/DEPLOYMENT.md",
-      "source_location": "L794",
+      "source_location": "L797",
       "weight": 1.0,
       "source": "docs_deployment_firewall_network_notes",
       "target": "docs_deployment_ipv6_escalation_rung_v29_production_rollout",
@@ -208067,5 +208067,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "7592877a74e8986ba058f5c05a75d9986770b613"
+  "built_at_commit": "d0a04708a9b44c224f8b10c491c5cc20ad7c4e4b"
 }
