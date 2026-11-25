@@ -253,3 +253,20 @@ real network, and each Done-when bullet evidenced individually this session. v6-
 
 The plan above is the approved text, kept verbatim. Changes directed after approval are recorded
 here, including new upstream changes that need spotdl work.
+
+### 2026-11-25 (v71, owner-directed)
+
+- **The login proxy reads the allowlist before the username fetch.** Task 2's literal order
+  (`GET /user`, then `POST /auth/logout`, on every upstream `200`) would give an off-list address
+  with a right password a longer path than a wrong password, against "Critical interactions". The
+  owner chose: `upstream_auth.login` returns the upstream session, the router reads the allowlist,
+  an allowed address gets `finish()` (username, then logout), and an off-list one its byte-identical
+  `invalid_credentials` with the upstream logout in a background task after the answer is sent.
+- **Every saved slot identity is dead upstream.** All `v5s<slot>{admin,user}@example.com` accounts
+  answer `403` on `api.vb2007.hu` and on the local dev upstream, and `example.com` can't be
+  registered any more. With the owner's OK, slot 1 now signs in on a local `vb2007.hu-api`
+  (`host.docker.internal:3000`, dev Mongo) with `.test` identities (`v6s1{admin,user,mfa,mfb}`),
+  allowlisted through `AGENT_ADMIN_EMAIL`/`AGENT_EXTRA_EMAILS`; the dedicated live TOTP identity
+  (task 7) is kept under `LIVE_MFA_*`. **v72 and v73 need the same move** for whatever slot they
+  use (GOTCHAS v71); v73's e2e against the real authorize page will need an identity on the
+  upstream its dev client is registered with.
