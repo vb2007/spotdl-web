@@ -8241,7 +8241,11 @@ independently-found production bug from the same conversation)
   the last it took, so `e2e/support/totp.ts` waits for an unused step at least 5 s from its end,
   and spec 28 runs in the desktop project only. Its wrong-code and recovery-code tests are opt-in
   (`E2E_MFA_WRONG_CODE=1`, `E2E_MFA_RECOVERY_CODE=<code>`): an account takes 20 wrong codes a day
-  and has 10 recovery codes.
+  and has 10 recovery codes. v71's own review rounds used the first local MFA identity's 20: past
+  them upstream answers every verify `429` for the rest of the 24 h, a right TOTP included, so
+  spec 28 fails. Slot 1 moved to a second one (`v6s1mfb@slot1.spotdl.test`; the capped one is kept
+  commented in the file). A live reviewer gets a wrong-code budget, and the page now refuses a
+  misshapen code, or an email code before any was sent, without asking upstream.
 - **A label that wraps its hint names the field with it.** `/login`'s code field sits in a
   `<label>` with its hint, so its accessible name was the label plus the whole hint; it takes
   `aria-labelledby` its label span, and the hint is its description.
