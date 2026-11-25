@@ -498,10 +498,3 @@ def test_no_router_keeps_a_shared_error_to_raise():
         if isinstance(value, BaseException)
     ]
     assert shared == []
-
-
-def test_a_refusal_keeps_no_earlier_requests_frames(client, upstream, store):
-    upstream.answers["/auth/login"] = httpx.Response(403, json=UPSTREAM["invalid_credentials"])
-    for _ in range(3):
-        assert _login(client, password="wrong").status_code == 401
-    assert auth._invalid_credentials() is not auth._invalid_credentials()

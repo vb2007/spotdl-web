@@ -25,7 +25,6 @@ COOKIE_NAME = "SPOTDL_SESSION"
 MFA_COOKIE_NAME = "SPOTDL_MFA"
 
 
-
 # v71: a fresh error per raise, never one shared instance: raising the same exception object
 # chains every raising request's traceback onto it, so its frames (passwords, upstream tokens)
 # would stay in memory for the process's life (review round 3).

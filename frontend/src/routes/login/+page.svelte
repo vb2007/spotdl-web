@@ -42,10 +42,11 @@
 		// Read once: cleared from this history entry, so Back to it later (after a deliberate
 		// sign-out) doesn't say the session ended.
 		if (page.state.sessionEnded) replaceState('', {});
-		const timer = setTimeout(
-			() => (endedText = accessRemoved ? m.login_access_removed() : m.login_session_ended()),
-			250
-		);
+		const timer = setTimeout(() => {
+			// A fast password step may already have answered it (v71's second step).
+			if (step === 'password')
+				endedText = accessRemoved ? m.login_access_removed() : m.login_session_ended();
+		}, 250);
 		return () => clearTimeout(timer);
 	});
 	// v47: which field the form's own check found empty, for aria-invalid.
@@ -64,8 +65,10 @@
 	// The email code: sending, then the line saying it went; a resend waits out upstream's
 	// cooldown, counted down from the `retry_after` its 429 gave.
 	let sending = $state(false);
-	// A send for this challenge went through: its code works until the step ends.
+	// A send for this challenge went through (its code works until the step ends), or was at
+	// least tried (its answer may be lost while upstream mailed a code all the same).
 	let codeSent = $state(false);
+	let sendTried = $state(false);
 	let sentText = $state('');
 	let resendIn = $state(0);
 	let resendTimer: ReturnType<typeof setInterval> | undefined;
@@ -94,9 +97,11 @@
 
 	function countDownResend(seconds: number) {
 		clearInterval(resendTimer);
+		// To a deadline, not by ticks: a phone suspends the tab while its mail app is open.
+		const until = Date.now() + seconds * 1000;
 		resendIn = seconds;
 		resendTimer = setInterval(() => {
-			resendIn -= 1;
+			resendIn = Math.max(0, Math.ceil((until - Date.now()) / 1000));
 			if (resendIn <= 0) clearInterval(resendTimer);
 		}, 1000);
 	}
@@ -109,7 +114,7 @@
 		method = offered[0];
 		code = '';
 		sentText = '';
-		codeSent = false;
+		codeSent = sendTried = false;
 		codeRejected = codeMissing = false;
 		await tick();
 		codeInput?.focus();
@@ -135,11 +140,18 @@
 	}
 
 	async function sendCode() {
+		const triedBefore = sendTried;
 		sending = true;
+		sendTried = true;
 		errorMessage = '';
+		// Emptied first, so the same sentence arriving again is announced again.
+		sentText = codeSent ? m.login_mfa_sent() : '';
+		await tick();
 		try {
 			await api.sendMfaEmail();
 			codeSent = true;
+			sentText = '';
+			await tick();
 			sentText = m.login_mfa_sent();
 		} catch (err) {
 			if (err instanceof api.ApiError && err.code === 'mfa_expired') {
@@ -147,11 +159,12 @@
 				return;
 			}
 			// Upstream's cooldown belongs to the account, not this challenge. With a code sent for
-			// this challenge, it still works and its line stays; with none, the mail that set the
-			// cooldown was for an earlier sign-in, whose code no longer works: say so.
+			// this challenge, it still works and its line stays; with none even tried, the mail that
+			// set the cooldown was for an earlier sign-in, whose code no longer works: say so.
 			if (err instanceof api.ApiError && err.params.reason === 'resendCooldown') {
 				countDownResend(Number(err.params.retry_after) || 60);
-				if (!codeSent) sentText = m.login_mfa_cooldown_earlier();
+				if (!codeSent)
+					sentText = triedBefore ? m.login_mfa_cooldown_wait() : m.login_mfa_cooldown_earlier();
 			} else {
 				// A failed resend leaves an earlier code of this challenge working (and its line).
 				errorMessage = failureText(err);
@@ -258,6 +271,7 @@
 	}
 
 	async function verify() {
+		if (sending) return;
 		if (!code.trim()) {
 			errorMessage = '';
 			await tick();
@@ -269,6 +283,16 @@
 		// The shape upstream accepts (spaces, and a recovery code's dash, don't count): anything
 		// else would only spend one of the challenge's 5 tries.
 		const bare = code.replace(method === 'recovery' ? /[\s-]/g : /\s/g, '');
+		// An email code only exists once one was sent for this challenge: before that, any code is
+		// a wrong one upstream, a try spent for nothing.
+		if (method === 'email' && !sendTried) {
+			errorMessage = '';
+			await tick();
+			errorMessage = m.login_mfa_send_first();
+			codeMissing = true;
+			codeInput?.focus();
+			return;
+		}
 		if (method === 'recovery' ? !/^[a-z2-7]{10}$/i.test(bare) : !/^\d{6}$/.test(bare)) {
 			errorMessage = '';
 			await tick();
@@ -418,7 +442,7 @@
 						{sending
 							? m.login_mfa_sending()
 							: resendIn > 0
-								? m.login_mfa_resend_in(counted(resendIn))
+								? (codeSent ? m.login_mfa_resend_in : m.login_mfa_send_in)(counted(resendIn))
 								: codeSent
 									? m.login_mfa_resend()
 									: m.login_mfa_send()}
@@ -462,7 +486,12 @@
 			</label>
 		{/if}
 
-		<button type="submit" class="btn connect" disabled={submitting} bind:this={connectButton}>
+		<button
+			type="submit"
+			class="btn connect"
+			disabled={submitting || sending}
+			bind:this={connectButton}
+		>
 			{#if step === 'mfa'}
 				{submitting ? m.login_mfa_verifying() : m.login_mfa_verify()}
 			{:else}
