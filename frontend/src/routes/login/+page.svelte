@@ -101,6 +101,8 @@
 
 	async function toSecondStep(offered: api.MfaMethod[]) {
 		step = 'mfa';
+		// The password was accepted: "your session ended" has been answered.
+		endedText = '';
 		methods = offered;
 		method = offered[0];
 		code = '';
@@ -125,7 +127,6 @@
 		if (next === method) return;
 		method = next;
 		code = '';
-		sentText = '';
 		errorMessage = '';
 		codeRejected = codeMissing = false;
 	}
@@ -141,9 +142,12 @@
 				await toPasswordStep(mfaExpiredText(String(err.params.reason ?? '')));
 				return;
 			}
-			// Within the cooldown the last code still works: its line stays.
+			// Upstream's cooldown belongs to the account, not this challenge. With a code sent for
+			// this challenge, it still works and its line stays; with none, the mail that set the
+			// cooldown was for an earlier sign-in, whose code no longer works: say so.
 			if (err instanceof api.ApiError && err.params.reason === 'resendCooldown') {
 				countDownResend(Number(err.params.retry_after) || 60);
+				if (!sentText) sentText = m.login_mfa_cooldown_earlier();
 			} else {
 				sentText = '';
 				errorMessage = failureText(err);
@@ -258,6 +262,18 @@
 			codeInput?.focus();
 			return;
 		}
+		// The shape upstream accepts (spaces, and a recovery code's dash, don't count): anything
+		// else would only spend one of the challenge's 5 tries.
+		const bare = code.replace(method === 'recovery' ? /[\s-]/g : /\s/g, '');
+		if (method === 'recovery' ? !/^[a-z2-7]{10}$/i.test(bare) : !/^\d{6}$/.test(bare)) {
+			errorMessage = '';
+			await tick();
+			errorMessage =
+				method === 'recovery' ? m.login_mfa_format_recovery() : m.login_mfa_format_digits();
+			codeMissing = true;
+			codeInput?.focus();
+			return;
+		}
 		codeMissing = codeRejected = false;
 		submitting = true;
 		errorMessage = '';
@@ -356,7 +372,7 @@
 							<button
 								type="button"
 								aria-pressed={method === option}
-								disabled={submitting}
+								disabled={submitting || sending}
 								onclick={() => chooseMethod(option)}>{METHOD_LABEL[option]()}</button
 							>
 						{/each}
@@ -451,7 +467,12 @@
 		</button>
 
 		{#if step === 'mfa'}
-			<button type="button" class="back" disabled={submitting} onclick={() => toPasswordStep()}>
+			<button
+				type="button"
+				class="back"
+				disabled={submitting || sending}
+				onclick={() => toPasswordStep()}
+			>
 				{m.login_mfa_back()}
 			</button>
 		{/if}
@@ -647,6 +668,27 @@
 		min-width: 0;
 		padding-inline: var(--space-2);
 		text-wrap: balance;
+	}
+
+	/* A phone's narrow card can't hold "authenticator" or "helyreállító kód" in a third of its
+	   width: the segments stack, one per line, the edge between them on top instead. */
+	@media (max-width: 24rem) {
+		.methods .choice-group {
+			flex-direction: column;
+		}
+
+		.methods .choice-group button + button {
+			border-left: none;
+			border-top: 1px solid var(--line-control);
+		}
+
+		.methods .choice-group button:first-child {
+			border-radius: 3px 3px 0 0;
+		}
+
+		.methods .choice-group button:last-child {
+			border-radius: 0 0 3px 3px;
+		}
 	}
 
 	/* A 6-digit code is a reading: mono, spaced, so a mistyped digit stands out. */

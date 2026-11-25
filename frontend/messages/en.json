@@ -1466,5 +1466,8 @@
 				"countPlural=*": "send again in {n} s"
 			}
 		}
-	]
+	],
+	"login_mfa_cooldown_earlier": "A code went out under a minute ago for an earlier sign-in, and it no longer works. Send a new one when the countdown ends.",
+	"login_mfa_format_digits": "The code is 6 digits.",
+	"login_mfa_format_recovery": "A recovery code is 10 letters and digits, like abcde-23456."
 }

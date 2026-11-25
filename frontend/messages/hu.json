@@ -1385,5 +1385,8 @@
 				"*": "újraküldés {n} mp múlva"
 			}
 		}
-	]
+	],
+	"login_mfa_cooldown_earlier": "Kevesebb mint egy perce ment ki egy kód egy korábbi bejelentkezéshez, az már nem érvényes. Ha lejár a visszaszámlálás, kérj újat.",
+	"login_mfa_format_digits": "A kód 6 számjegyből áll.",
+	"login_mfa_format_recovery": "A helyreállító kód 10 betűből és számjegyből áll, például abcde-23456."
 }
