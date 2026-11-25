@@ -8209,8 +8209,13 @@ independently-found production bug from the same conversation)
   In production spotdl reaches `https://api.vb2007.hu` through Cloudflare, so upstream sees the
   production host's one public address for every spotdl user (production line pending from the
   owner). Upstream's per-IP limits (100 failed logins and 100 wrong codes per 15 minutes, 10 MFA
-  mails an hour) are therefore shared by all spotdl users. Interim risk until v73 moves login into
-  the user's own browser.
+  mails an hour) are therefore shared by all spotdl users. Its per-email-and-IP limit is the cheap
+  one: 10 failed logins for one address in 15 minutes (`FAILED_ATTEMPTS_PER_ACCOUNT`, keyed by
+  email and spotdl's one IP) lock that person out of spotdl for the window, and spotdl's own
+  limit (10 per email and the caller's address) lets those 10 through; anyone can repeat it. It
+  already held before v71 (read as "rejected"); now it reads as the rate-limited message. spotdl
+  never sends upstream's `VB-DEVICE` cookie, so its logins also share the device-less per-email
+  bucket with any direct sprayer. Interim risk until v73 moves login into the user's own browser.
 - **Email MFA needs `emailVerified`.** `PUT /user/mfa/email` answers `409` unless the address is
   confirmed, and accounts made before upstream v2.2 report `false`; a password reset or an e-mail
   change confirms it. An account registered through the code (v2.2+) is confirmed.

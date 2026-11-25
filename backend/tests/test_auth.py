@@ -285,10 +285,11 @@ def test_an_off_list_right_password_is_byte_identical_to_a_wrong_password(client
     assert "set-cookie" not in off_list.headers
     assert store.values == {}
     # No username fetched for it; a session it got is logged out (after the answer was sent).
-    assert "/user" not in upstream.paths()
-    if upstream.paths() != ["/auth/login"]:
+    if answer is _ok:
         assert upstream.paths() == ["/auth/login", "/auth/logout"]
         assert upstream.seen[1].headers["cookie"] == "__Host-VB-AUTH=sess-secret-1"
+    else:
+        assert upstream.paths() == ["/auth/login"]
 
 
 # --- The second step -------------------------------------------------------------------------------
@@ -335,6 +336,18 @@ def test_a_wrong_code_answers_the_tries_left_and_keeps_the_challenge(client, ups
     assert response.json()["code"] == "mfa_code_invalid"
     assert response.json()["params"] == {"attempts_left": 3}
     assert len(store.values) == 1
+
+
+def test_the_last_wrong_code_drops_the_challenge(client, upstream, store):
+    _start_mfa(client, upstream)
+    upstream.answers["/auth/mfa/verify"] = httpx.Response(400, json={**UPSTREAM["wrong_code"], "attemptsLeft": 0})
+
+    response = _verify(client, "000000")
+
+    assert (response.status_code, response.json()["params"]) == (400, {"attempts_left": 0})
+    cleared = response.headers["set-cookie"]
+    assert cleared.startswith("SPOTDL_MFA=") and "Max-Age=0" in cleared
+    assert store.values == {}
 
 
 @pytest.mark.parametrize("reason", ["noChallenge", "triesUsedUp", "expired", "ended"])

@@ -370,7 +370,12 @@ async def mfa_verify(
     result = await upstream_auth.verify(upstream_challenge, payload.method, payload.code)
     if isinstance(result, upstream_auth.CodeRejected):
         params = {} if result.attempts_left is None else {"attempts_left": result.attempts_left}
-        raise ApiError(400, "mfa_code_invalid", "Wrong code", params)
+        headers = None
+        if result.attempts_left == 0:
+            # That was the last try: upstream has ended the challenge, so it goes here too.
+            await run_in_threadpool(upstream_auth.drop_challenge, challenge_id)
+            headers = {"set-cookie": _cleared_mfa_cookie()}
+        raise ApiError(400, "mfa_code_invalid", "Wrong code", params, headers=headers)
     if isinstance(result, upstream_auth.ChallengeEnded):
         raise await _ended(challenge_id, result.reason)
     if isinstance(result, upstream_auth.RateLimited):
