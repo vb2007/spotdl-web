@@ -31271,7 +31271,7 @@
       "source_location": "L308",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_connection_failures_count_as_proxy_transport_only_on_a_proxied_attempt",
-      "community": 59,
+      "community": 401,
       "norm_label": "test_connection_failures_count_as_proxy_transport_only_on_a_proxied_attempt()"
     },
     {
@@ -31401,7 +31401,7 @@
       "source_location": "L309",
       "_origin": "ast",
       "id": "backend_tests_test_retry_rationale_309",
-      "community": 59,
+      "community": 401,
       "norm_label": "v40.1, found on the real stack: a proxy that accepts and drops the connection"
     },
     {
@@ -58106,7 +58106,7 @@
       "label": "if()",
       "file_type": "code",
       "source_file": "frontend/src/routes/login/+page.svelte",
-      "source_location": "L161",
+      "source_location": "L162",
       "_origin": "ast",
       "id": "frontend_src_routes_login_page_if",
       "community": 155,
@@ -187698,7 +187698,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "frontend/src/routes/login/+page.svelte",
-      "source_location": "L164",
+      "source_location": "L165",
       "weight": 1.0,
       "source": "frontend_src_routes_login_page_if",
       "target": "frontend_src_lib_i18n_errors_mfaexpiredtext"
@@ -193986,7 +193986,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "frontend/src/routes/login/+page.svelte",
-      "source_location": "L161",
+      "source_location": "L162",
       "weight": 1.0,
       "source": "frontend_src_routes_login_page",
       "target": "frontend_src_routes_login_page_if",
@@ -206405,5 +206405,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "6c250aea741c515e470adb34542bd8908fb2789b"
+  "built_at_commit": "81f6117b4ee1e31e7435559b0494f9c9a63300a3"
 }

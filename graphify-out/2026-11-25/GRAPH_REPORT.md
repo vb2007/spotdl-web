@@ -1,16 +1,16 @@
 # Graph Report - dev-upstream-login  (2026-11-25)
 
 ## Corpus Check
-- 473 files · ~726,258 words
+- 473 files · ~726,272 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 7145 nodes · 12889 edges · 416 communities (329 shown, 87 thin omitted)
+- 7145 nodes · 12889 edges · 417 communities (329 shown, 88 thin omitted)
 - Extraction: 89% EXTRACTED · 11% INFERRED · 0% AMBIGUOUS · INFERRED: 1403 edges (avg confidence: 0.76)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `6c250aea`
+- Built from commit: `81f6117b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -381,6 +381,7 @@
 - [[_COMMUNITY_get_downloader|get_downloader]]
 - [[_COMMUNITY_is_proxy_transport_error|is_proxy_transport_error]]
 - [[_COMMUNITY__FakeMarkers|_FakeMarkers]]
+- [[_COMMUNITY_test_connection_failures_count_as_proxy_transport_only_on_a_proxied_attempt|test_connection_failures_count_as_proxy_transport_only_on_a_proxied_attempt]]
 - [[_COMMUNITY__track|_track]]
 - [[_COMMUNITY_celery_app.py|celery_app.py]]
 - [[_COMMUNITY__FakeRequest|_FakeRequest]]
@@ -424,7 +425,7 @@
 - **CI PR-checks pipeline (pytest, publish-report, compose-config, frontend)** — github_workflows_ci_pytest_job, github_workflows_ci_publish_report_job, github_workflows_ci_compose_config_job, github_workflows_ci_frontend_job [EXTRACTED 1.00]
 - **Docker Compose layered configuration (base/override/prod)** — docker_compose_doc, docker_compose_override_doc, docker_compose_prod_doc [EXTRACTED 1.00]
 
-## Communities (416 total, 87 thin omitted)
+## Communities (417 total, 88 thin omitted)
 
 ### Community 0 - "Session Auth Routes"
 Cohesion: 0.00
@@ -615,8 +616,8 @@ Cohesion: 0.08
 Nodes (57): Row created on first successful login (v17). The allowlist (v69: the `allowed_em, User, create_api_key(), CreateApiKeyRequest, list_api_keys(), Session, UUID, `/api/account/api-keys` (v53): a user's own API keys, for the browser extension. (+49 more)
 
 ### Community 59 - "Downloader Version Doc"
-Cohesion: 0.11
-Nodes (34): _aware(), _breaker_events(), _make_track(), _owner(), datetime, v23: NO_OUTPUT is spotdl swallowing a real AudioProviderError internally (see, v40.1, the production wedge: the streak used to survive the trip, so after every, v40.1, found on the real stack: a proxy that accepts and drops the connection (+26 more)
+Cohesion: 0.12
+Nodes (32): _aware(), _breaker_events(), _make_track(), _owner(), datetime, v23: NO_OUTPUT is spotdl swallowing a real AudioProviderError internally (see, v40.1, the production wedge: the streak used to survive the trip, so after every, v44: the stats page's breaker history is written at the trip point itself, in th (+24 more)
 
 ### Community 60 - "Proxy Cooldown Backoff"
 Cohesion: 0.06
@@ -1593,7 +1594,7 @@ Nodes (29): begin_snapshot(), get_db(), Session, Ends `db`'s current transaction
 ## Knowledge Gaps
 - **2231 isolated node(s):** `spotdl-web-backend`, `CASCADES`, `deps`, `remembering`, `manifest_version` (+2226 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **87 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **88 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
