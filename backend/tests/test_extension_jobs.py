@@ -353,7 +353,7 @@ def test_a_keys_creates_count_against_its_user_too(client, authenticated_client,
 
 def _fail_upstream(monkeypatch):
     async def fake(email, password):
-        return (password == "right"), None
+        return auth_router.upstream_auth.Ok("upstream-session") if password == "right" else auth_router.upstream_auth.Invalid()
 
     monkeypatch.setattr(auth_router.upstream_auth, "login", fake)
 
@@ -449,7 +449,7 @@ def test_a_login_attempt_counts_before_the_upstream_is_asked(client, monkeypatch
 
     async def fake(email, password):
         seen.append(sum(v for k, v in fake_redis.values.items() if k.startswith("spotdl:ratelimit:login:")))
-        return False, None
+        return auth_router.upstream_auth.Invalid()
 
     monkeypatch.setattr(auth_router.upstream_auth, "login", fake)
     for _ in range(2):
@@ -576,7 +576,7 @@ def test_an_impossible_login_is_invalid_credentials_not_a_500(client, monkeypatc
 
     async def fake(e, p):
         asked.append(e)
-        return True, None
+        return auth_router.upstream_auth.Ok("upstream-session")
 
     monkeypatch.setattr(auth_router.upstream_auth, "login", fake)
     monkeypatch.setattr(get_settings(), "login_rate_limit_failures", 10)
@@ -596,7 +596,7 @@ def test_one_address_spraying_many_emails_is_limited(client, monkeypatch, low_li
     from app.services import rate_limit
 
     async def fake(email, password):
-        return False, None
+        return auth_router.upstream_auth.Invalid()
 
     monkeypatch.setattr(auth_router.upstream_auth, "login", fake)
     allowed = low_limits.login_rate_limit_failures * rate_limit.ADDRESS_LIMIT_FACTOR
@@ -685,7 +685,7 @@ def test_an_ipv6_host_shares_one_login_bucket_across_its_64(client, monkeypatch,
     """Review round 5: one host holds a whole /64 and could rotate through it."""
 
     async def fake(email, password):
-        return False, None
+        return auth_router.upstream_auth.Invalid()
 
     monkeypatch.setattr(auth_router.upstream_auth, "login", fake)
     statuses = [

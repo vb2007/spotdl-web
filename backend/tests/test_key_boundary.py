@@ -31,7 +31,14 @@ pytestmark = pytest.mark.usefixtures("fake_redis")
 # extension's "how is my submission doing", and `me`).
 KEY_ROUTES = {("POST", "/api/jobs"), ("GET", "/api/jobs/{job_id}"), ("GET", "/api/auth/me")}
 # Routes that need no credential at all.
-PUBLIC_ROUTES = {("GET", "/api/health"), ("POST", "/api/auth/login")}
+# v71: the login's second step, keyed by its own `SPOTDL_MFA` cookie and nothing else.
+PUBLIC_ROUTES = {
+    ("GET", "/api/health"),
+    ("POST", "/api/auth/login"),
+    ("POST", "/api/auth/mfa/verify"),
+    ("POST", "/api/auth/mfa/email"),
+}
+MFA_ROUTES = sorted(r for r in PUBLIC_ROUTES if r[1].startswith("/api/auth/mfa/"))
 # FastAPI's own schema and docs pages (plain Starlette routes): no data, the same to anyone,
 # and outside nginx's `/api/` location.
 FRAMEWORK_ROUTES = {"/openapi.json", "/docs", "/docs/oauth2-redirect", "/redoc"}
@@ -481,6 +488,19 @@ def test_a_key_is_refused_on_every_other_route(request, client, holder, carriers
     assert response.status_code == 401, (method, path, response.status_code, response.text)
     if method != "HEAD":  # a HEAD answer has no body (review round 5)
         assert response.json()["code"] == "not_authenticated", (method, path, response.text)
+
+
+@pytest.mark.parametrize("holder", ["admin", "user"])
+@pytest.mark.parametrize(("method", "path"), MFA_ROUTES)
+def test_the_second_step_routes_refuse_a_key(request, client, holder, method, path):
+    """v71: a key (on every carrier at once) is no challenge: the answer is the no-cookie one,
+    and no session comes of it."""
+    raw = _key(request, holder)
+    headers = bearer(raw) | {"X-Spotdl-Client": "extension/1.0.2", "Origin": "moz-extension://a1b2c3", "X-Api-Key": raw}
+    response = client.request(method, f"{path}?key={raw}&api_key={raw}", headers=headers, json={"method": "totp", "code": "123456"})
+    assert response.status_code == 401, response.text
+    assert response.json()["code"] == "mfa_expired"
+    assert "SPOTDL_SESSION" not in response.cookies
 
 
 @pytest.mark.parametrize(

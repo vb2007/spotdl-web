@@ -60,7 +60,7 @@ def published(monkeypatch):
 
 def _upstream_ok(monkeypatch, ok=True):
     async def fake_login(email, password):
-        return ok, None
+        return auth_router.upstream_auth.Ok("upstream-session") if ok else auth_router.upstream_auth.Invalid()
 
     monkeypatch.setattr(auth_router.upstream_auth, "login", fake_login)
 

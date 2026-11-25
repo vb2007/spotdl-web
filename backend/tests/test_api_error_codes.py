@@ -47,7 +47,7 @@ def test_auth_errors_carry_codes(client, monkeypatch):
     from app.routers import auth
 
     async def rejected(email: str, password: str):
-        return False, None
+        return auth.upstream_auth.Invalid()
 
     monkeypatch.setattr(auth.upstream_auth, "login", rejected)
     _error(client.post("/api/auth/login", json={"email": "a@example.com", "password": "x"}), 401, "invalid_credentials")

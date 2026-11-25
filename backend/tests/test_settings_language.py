@@ -4,8 +4,8 @@ from app.routers import auth
 
 
 def _mock_upstream_login(monkeypatch) -> None:
-    async def fake_login(email: str, password: str) -> tuple[bool, str | None]:
-        return True, None
+    async def fake_login(email: str, password: str):
+        return auth.upstream_auth.Ok("upstream-session")
 
     monkeypatch.setattr(auth.upstream_auth, "login", fake_login)
 

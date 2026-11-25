@@ -285,6 +285,25 @@ def _rate_limits_off(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _upstream_offline(monkeypatch):
+    """v71: no test reaches a real `vb2007.hu-api` (its default is the live one). A login fake's
+    `Ok` makes the router fetch the username and log the upstream session out; those calls get a
+    connection error here, which they shrug off. A test giving its own transport keeps it."""
+    import httpx
+
+    real = httpx.AsyncClient
+
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("upstream offline in tests", request=request)
+
+    def offline(*args, **kwargs):
+        kwargs.setdefault("transport", httpx.MockTransport(refuse))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", offline)
+
+
+@pytest.fixture(autouse=True)
 def _ipv6_routable(monkeypatch):
     """v55 (E12): download_track's rung choice asks network_path.ipv6_routable(), a real
     socket probe of the machine running the suite. Pinned to "routable" so the ladder's rungs
@@ -423,8 +442,8 @@ def client(db_session):
 
 
 def _login(client: TestClient, monkeypatch, email: str) -> None:
-    async def fake_login(email_: str, password: str) -> tuple[bool, str | None]:
-        return True, None
+    async def fake_login(email_: str, password: str):
+        return auth_router.upstream_auth.Ok("upstream-session")
 
     monkeypatch.setattr(auth_router.upstream_auth, "login", fake_login)
     response = client.post("/api/auth/login", json={"email": email, "password": "x"})
