@@ -45,10 +45,28 @@ const PATHS_OVERLAP: Record<string, () => string> = {
 		m.error_library_paths_quarantine_downloads_contains
 };
 
+/** v71: why the login's second step ended (upstream's `reason`), said on the password step. */
+export function mfaExpiredText(reason: string): string {
+	if (reason === 'triesUsedUp') return m.login_mfa_expired_tries();
+	if (reason === 'expired' || reason === 'noChallenge') return m.login_mfa_expired_time();
+	return m.login_mfa_expired_ended();
+}
+
 const BY_CODE: Record<string, (params: Params) => string> = {
 	invalid_credentials: () => m.error_invalid_credentials(),
 	// v69: /users, the login allowlist; a request from a session a removal ended.
 	access_removed: () => m.login_access_removed(),
+	// v71: the login proxy's answers to an MFA account (/login's second step).
+	account_suspended: () => m.login_error_suspended(),
+	mfa_unsupported: () => m.login_error_mfa_unsupported(),
+	mfa_code_invalid: (p) =>
+		p.attempts_left === undefined
+			? m.login_mfa_wrong()
+			: m.login_mfa_wrong_left(counted(Number(p.attempts_left))),
+	mfa_expired: (p) => mfaExpiredText(String(p.reason ?? '')),
+	mfa_method_off: () => m.login_error_mfa_method_off(),
+	mail_unavailable: () => m.login_error_mail_unavailable(),
+	login_unavailable: () => m.login_error_server(),
 	invalid_email: () => m.error_invalid_email(),
 	email_already_allowed: () => m.error_email_already_allowed(),
 	cannot_remove_admin: () => m.error_cannot_remove_admin(),

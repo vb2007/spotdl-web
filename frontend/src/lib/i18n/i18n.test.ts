@@ -306,7 +306,15 @@ const BACKEND_CODES = [
 	'invalid_email',
 	'email_already_allowed',
 	'cannot_remove_admin',
-	'allowed_email_not_found'
+	'allowed_email_not_found',
+	// v71
+	'account_suspended',
+	'mfa_unsupported',
+	'mfa_code_invalid',
+	'mfa_expired',
+	'mfa_method_off',
+	'mail_unavailable',
+	'login_unavailable'
 ];
 const CLIENT_CODES = [
 	'request_invalid',
