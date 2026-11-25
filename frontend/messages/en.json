@@ -1469,7 +1469,7 @@
 	],
 	"login_mfa_cooldown_earlier": "A code went out under a minute ago for an earlier sign-in, and it no longer works. Send a new one when the countdown ends.",
 	"login_mfa_format_digits": "The code is 6 digits.",
-	"login_mfa_format_recovery": "A recovery code is 10 characters, letters a–z and digits 2–7, like abcde-23456.",
+	"login_mfa_format_recovery": "A recovery code is 10 characters, letters a–z and digits 2–7 (a dash doesn't count), like abcde-23456.",
 	"login_mfa_send_first": "Send a code first: it comes to your account's email address.",
 	"login_mfa_cooldown_wait": "A code may already be on its way. You can send another when the countdown ends.",
 	"login_mfa_send_in": [

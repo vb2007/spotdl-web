@@ -155,9 +155,17 @@
 			sentText = m.login_mfa_sent();
 		} catch (err) {
 			if (err instanceof api.ApiError && err.code === 'mfa_expired') {
+				// Re-enabled first: the password step's focus goes to CONNECT.
+				sending = false;
 				await toPasswordStep(mfaExpiredText(String(err.params.reason ?? '')));
 				return;
 			}
+			// A definite "nothing was mailed" (a 400, a 429, the mail not sent) leaves no code for
+			// this challenge; only an answer that never arrived may have mailed one.
+			const definite =
+				err instanceof api.ApiError &&
+				(err.status === 400 || err.status === 429 || err.code === 'mail_unavailable');
+			if (definite) sendTried = triedBefore;
 			// Upstream's cooldown belongs to the account, not this challenge. With a code sent for
 			// this challenge, it still works and its line stays; with none even tried, the mail that
 			// set the cooldown was for an earlier sign-in, whose code no longer works: say so.
@@ -166,7 +174,8 @@
 				if (!codeSent)
 					sentText = triedBefore ? m.login_mfa_cooldown_wait() : m.login_mfa_cooldown_earlier();
 			} else {
-				// A failed resend leaves an earlier code of this challenge working (and its line).
+				// A refused resend leaves the challenge's earlier code working (and its line); one whose
+				// answer was lost may have replaced it, which upstream alone knows.
 				errorMessage = failureText(err);
 			}
 		} finally {
@@ -272,6 +281,15 @@
 
 	async function verify() {
 		if (sending) return;
+		// An email code only exists once one was sent for this challenge: before that, any code is
+		// a wrong one upstream, a try spent for nothing.
+		if (method === 'email' && !sendTried) {
+			errorMessage = '';
+			await tick();
+			errorMessage = m.login_mfa_send_first();
+			codeInput?.focus();
+			return;
+		}
 		if (!code.trim()) {
 			errorMessage = '';
 			await tick();
@@ -283,16 +301,6 @@
 		// The shape upstream accepts (spaces, and a recovery code's dash, don't count): anything
 		// else would only spend one of the challenge's 5 tries.
 		const bare = code.replace(method === 'recovery' ? /[\s-]/g : /\s/g, '');
-		// An email code only exists once one was sent for this challenge: before that, any code is
-		// a wrong one upstream, a try spent for nothing.
-		if (method === 'email' && !sendTried) {
-			errorMessage = '';
-			await tick();
-			errorMessage = m.login_mfa_send_first();
-			codeMissing = true;
-			codeInput?.focus();
-			return;
-		}
 		if (method === 'recovery' ? !/^[a-z2-7]{10}$/i.test(bare) : !/^\d{6}$/.test(bare)) {
 			errorMessage = '';
 			await tick();
