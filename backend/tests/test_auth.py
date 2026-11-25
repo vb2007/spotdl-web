@@ -439,7 +439,7 @@ def test_a_removal_at_the_locked_recheck_clears_the_cookie_and_nothing_else(clie
 
     assert (refused.status_code, refused.json()["code"]) == (401, "invalid_credentials")
     assert refused.headers["set-cookie"].startswith("SPOTDL_MFA=")
-    # The shared refusal is untouched: a plain wrong password still answers without a cookie.
+    # Only that refusal carries it: a plain wrong password still answers without a cookie.
     upstream.answers["/auth/login"] = httpx.Response(403, json=UPSTREAM["invalid_credentials"])
     wrong = _login(client, password="wrong")
     assert "set-cookie" not in wrong.headers
@@ -480,3 +480,28 @@ def test_the_email_code_send_maps_upstreams_answers(client, upstream, store, ans
         assert response.json().get("params") == params
     assert upstream.seen[0].headers["cookie"] == "__Host-VB-MFA=uid.mfa-secret-1"
     _assert_no_upstream_token(response, "mfa-secret-1")
+
+
+def test_no_router_keeps_a_shared_error_to_raise():
+    """v71 (review round 3): a module-level exception raised again and again chains each raising
+    request's traceback onto itself, keeping its frames (a password, an upstream token) alive for
+    the process's life. Every error is built per raise."""
+    import importlib
+    import pkgutil
+
+    import app.routers
+
+    shared = [
+        f"{info.name}.{name}"
+        for info in pkgutil.iter_modules(app.routers.__path__)
+        for name, value in vars(importlib.import_module(f"app.routers.{info.name}")).items()
+        if isinstance(value, BaseException)
+    ]
+    assert shared == []
+
+
+def test_a_refusal_keeps_no_earlier_requests_frames(client, upstream, store):
+    upstream.answers["/auth/login"] = httpx.Response(403, json=UPSTREAM["invalid_credentials"])
+    for _ in range(3):
+        assert _login(client, password="wrong").status_code == 401
+    assert auth._invalid_credentials() is not auth._invalid_credentials()

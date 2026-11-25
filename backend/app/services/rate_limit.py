@@ -169,7 +169,7 @@ def hit_mfa(challenge_id: str, address: str) -> None:
             (f"{KEY_PREFIX}mfa:{challenge}", limit),
             (_address_bucket(address, "mfa"), limit * ADDRESS_LIMIT_FACTOR),
         ),
-        # Never a wait longer than the challenge lives: after it, only a new sign-in helps.
+        # A wait of at most a challenge's whole life (its window starts at the first request).
         min(settings.login_rate_limit_window_seconds, CHALLENGE_TTL_SECONDS),
         "MFA request",
     )

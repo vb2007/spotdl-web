@@ -24,9 +24,18 @@ COOKIE_NAME = "SPOTDL_SESSION"
 # v71: the id of a login's waiting second step (services/upstream_auth.py's challenge store).
 MFA_COOKIE_NAME = "SPOTDL_MFA"
 
-_INVALID_CREDENTIALS = ApiError(401, "invalid_credentials", "Invalid credentials")
-# v71: the second step can't go on (the upstream or the challenge store isn't answering).
-_LOGIN_UNAVAILABLE = ApiError(503, "login_unavailable", "Sign-in is unavailable; try again later")
+
+
+# v71: a fresh error per raise, never one shared instance: raising the same exception object
+# chains every raising request's traceback onto it, so its frames (passwords, upstream tokens)
+# would stay in memory for the process's life (review round 3).
+def _invalid_credentials() -> ApiError:
+    return ApiError(401, "invalid_credentials", "Invalid credentials")
+
+
+def _login_unavailable() -> ApiError:
+    """The second step can't go on (the upstream or the challenge store isn't answering)."""
+    return ApiError(503, "login_unavailable", "Sign-in is unavailable; try again later")
 
 
 def _no_session(db: Session, request: Request, token: str | None) -> ApiError:
@@ -257,9 +266,10 @@ def _rejected_logging_out(session: str | None, *, clear_mfa: bool = False) -> JS
     """`invalid_credentials`, byte for byte what the raised error answers, for an upstream session
     an off-list address got: it's logged out upstream once the answer is sent, so the refusal
     takes no longer than a wrong password's (v71, owner's call over task 2's literal order)."""
+    refusal = _invalid_credentials()
     response = JSONResponse(
-        {"detail": _INVALID_CREDENTIALS.detail, "code": _INVALID_CREDENTIALS.code},
-        status_code=_INVALID_CREDENTIALS.status_code,
+        {"detail": refusal.detail, "code": refusal.code},
+        status_code=refusal.status_code,
         background=BackgroundTask(upstream_auth.logout, session),
     )
     if clear_mfa:
@@ -276,7 +286,7 @@ async def _complete_login(db: Session, response: Response, email: str, address: 
     # loop, since it may wait on a removal's row lock.
     if not await run_in_threadpool(allowlist.is_allowed, db, email, lock=True):
         db.rollback()
-        raise _INVALID_CREDENTIALS
+        raise _invalid_credentials()
     user = get_or_create_user(db, email, username)
     session = create_session(db, user.id)
     db.commit()
@@ -293,7 +303,7 @@ async def login(
     # An email or password no one can have (a NUL, a lone surrogate) is rejected like any
     # wrong one, before it reaches a hash, the upstream or Postgres (each would be a 500).
     if not (storable(payload.email) and storable(payload.password)):
-        raise _INVALID_CREDENTIALS
+        raise _invalid_credentials()
     address = rate_limit.client_address(request)
     await run_in_threadpool(rate_limit.hit_login, payload.email, address)
 
@@ -314,7 +324,7 @@ async def login(
     if not allowed or isinstance(result, (upstream_auth.Invalid, upstream_auth.Unavailable)):
         if isinstance(result, upstream_auth.Ok):
             return _rejected_logging_out(result.session)
-        raise _INVALID_CREDENTIALS
+        raise _invalid_credentials()
     if isinstance(result, upstream_auth.Suspended):
         raise ApiError(403, "account_suspended", "This vb2007.hu account is suspended")
     if isinstance(result, upstream_auth.MfaRequired):
@@ -324,7 +334,7 @@ async def login(
         try:
             challenge_id = await run_in_threadpool(upstream_auth.store_challenge, result.challenge, payload.email)
         except upstream_auth.ChallengeStoreError:
-            raise _LOGIN_UNAVAILABLE from None
+            raise _login_unavailable() from None
         _set_mfa_cookie(response, challenge_id)
         return {"mfa_required": True, "methods": methods}
 
@@ -347,7 +357,7 @@ async def _stored_challenge(request: Request) -> tuple[str, str, str]:
     try:
         stored = await run_in_threadpool(upstream_auth.load_challenge, challenge_id)
     except upstream_auth.ChallengeStoreError:
-        raise _LOGIN_UNAVAILABLE from None
+        raise _login_unavailable() from None
     if stored is None:
         raise _mfa_expired("expired")
     return challenge_id, *stored
@@ -381,7 +391,7 @@ async def mfa_verify(
     if isinstance(result, upstream_auth.RateLimited):
         raise rate_limit.rate_limited(result.retry_after)
     if not isinstance(result, upstream_auth.Ok):
-        raise _LOGIN_UNAVAILABLE
+        raise _login_unavailable()
 
     await run_in_threadpool(upstream_auth.drop_challenge, challenge_id)
     # Off the allowlist since the password step (a removal in those minutes): refused like then.
@@ -393,8 +403,7 @@ async def mfa_verify(
     try:
         answer = await _complete_login(db, response, email, rate_limit.client_address(request), username)
     except ApiError as refused:
-        # Removed meanwhile (the locked re-check): its challenge is gone, so is its cookie. A
-        # copy, never the shared `_INVALID_CREDENTIALS` itself, whose bytes every refusal shares.
+        # Removed meanwhile (the locked re-check): its challenge is gone, so is its cookie.
         raise ApiError(
             refused.status_code,
             refused.code,
@@ -421,7 +430,7 @@ async def mfa_email(request: Request) -> dict:
         raise await _ended(challenge_id, result.reason)
     if isinstance(result, upstream_auth.RateLimited):
         raise rate_limit.rate_limited(result.retry_after, result.reason)
-    raise _LOGIN_UNAVAILABLE
+    raise _login_unavailable()
 
 
 @router.post("/logout")
