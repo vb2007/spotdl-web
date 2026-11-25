@@ -103,7 +103,7 @@ def _drive(monkeypatch, user: User, view: str, messages=None, status: str = "ok"
     fake_client = _FakeRedisClient(messages)
     monkeypatch.setattr(aioredis.Redis, "from_url", lambda url: fake_client)
     # v69: the periodic session re-check (its own tests are in test_allowlist.py).
-    monkeypatch.setattr(stream_router, "_session_status", lambda request, token, user_id: status)
+    monkeypatch.setattr(stream_router, "_session_status", lambda request, token, user_id, needs_admin: status)
     sent: list[str] = []
 
     async def _run():
