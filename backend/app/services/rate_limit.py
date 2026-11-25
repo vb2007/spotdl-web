@@ -24,6 +24,7 @@ from fastapi import Request
 
 from app.config import get_settings
 from app.errors import ApiError
+from app.services.upstream_auth import CHALLENGE_TTL_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -168,7 +169,8 @@ def hit_mfa(challenge_id: str, address: str) -> None:
             (f"{KEY_PREFIX}mfa:{challenge}", limit),
             (_address_bucket(address, "mfa"), limit * ADDRESS_LIMIT_FACTOR),
         ),
-        settings.login_rate_limit_window_seconds,
+        # Never a wait longer than the challenge lives: after it, only a new sign-in helps.
+        min(settings.login_rate_limit_window_seconds, CHALLENGE_TTL_SECONDS),
         "MFA request",
     )
 

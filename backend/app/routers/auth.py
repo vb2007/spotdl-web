@@ -390,7 +390,18 @@ async def mfa_verify(
     if not allowed:
         return _rejected_logging_out(result.session, clear_mfa=True)
     username = await upstream_auth.finish(result.session)
-    answer = await _complete_login(db, response, email, rate_limit.client_address(request), username)
+    try:
+        answer = await _complete_login(db, response, email, rate_limit.client_address(request), username)
+    except ApiError as refused:
+        # Removed meanwhile (the locked re-check): its challenge is gone, so is its cookie. A
+        # copy, never the shared `_INVALID_CREDENTIALS` itself, whose bytes every refusal shares.
+        raise ApiError(
+            refused.status_code,
+            refused.code,
+            refused.detail,
+            refused.params,
+            headers={**(refused.headers or {}), "set-cookie": _cleared_mfa_cookie()},
+        ) from None
     response.delete_cookie(MFA_COOKIE_NAME, secure=True, httponly=True, samesite="lax")
     return answer
 

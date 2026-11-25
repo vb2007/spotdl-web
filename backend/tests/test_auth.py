@@ -427,6 +427,24 @@ def test_an_address_removed_during_the_second_step_is_refused_and_logged_out(cli
     assert upstream.paths() == ["/auth/mfa/verify", "/auth/logout"]
 
 
+def test_a_removal_at_the_locked_recheck_clears_the_cookie_and_nothing_else(client, upstream, store, monkeypatch):
+    from app.services import allowlist
+
+    _start_mfa(client, upstream)
+    upstream.answers["/auth/mfa/verify"] = _ok("sess-secret-4")
+    real = allowlist.is_allowed
+    monkeypatch.setattr(allowlist, "is_allowed", lambda db, email, lock=False: False if lock else real(db, email))
+
+    refused = _verify(client)
+
+    assert (refused.status_code, refused.json()["code"]) == (401, "invalid_credentials")
+    assert refused.headers["set-cookie"].startswith("SPOTDL_MFA=")
+    # The shared refusal is untouched: a plain wrong password still answers without a cookie.
+    upstream.answers["/auth/login"] = httpx.Response(403, json=UPSTREAM["invalid_credentials"])
+    wrong = _login(client, password="wrong")
+    assert "set-cookie" not in wrong.headers
+
+
 @pytest.mark.parametrize(
     ("answer", "status", "code", "params"),
     [
