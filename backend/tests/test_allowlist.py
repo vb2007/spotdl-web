@@ -68,10 +68,22 @@ def _upstream_ok(monkeypatch, ok=True):
 # --- is_allowed -------------------------------------------------------------------------
 
 
-def test_admin_email_is_always_allowed_even_without_a_row(db_session):
-    db_session.query(AllowedEmail).filter(AllowedEmail.email == "admin@example.com").delete()
+def test_the_admin_is_always_allowed_even_without_a_row(db_session, make_user):
+    """v72: keyed on `is_admin`, not ADMIN_EMAIL (blanked in this production-config suite)."""
+    db_session.query(AllowedEmail).filter(AllowedEmail.email.in_(["admin@example.com", "allowed@example.com"])).delete()
+    make_user("admin@example.com", is_admin=True)
+    make_user("allowed@example.com")
     db_session.flush()
     assert allowlist.is_allowed(db_session, "  Admin@Example.COM ")
+    assert not allowlist.is_allowed(db_session, "allowed@example.com")
+
+
+def test_the_dev_override_is_always_allowed_even_without_a_row(db_session, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "admin_email", "Dev@Example.com")
+    assert allowlist.is_allowed(db_session, " dev@example.COM")
+    assert not allowlist.is_allowed(db_session, "stranger@example.com")
 
 
 def test_a_row_allows_its_address_case_and_spaces_aside(db_session):
@@ -141,10 +153,34 @@ def test_a_malformed_address_is_422(admin_client, email):
     assert response.json()["code"] == "invalid_email"
 
 
-def test_removing_admin_email_is_409(admin_client):
+def test_removing_the_admin_is_409(admin_client):
     response = admin_client.delete("/api/admin/allowlist/Admin@Example.com")
     assert response.status_code == 409
     assert response.json()["code"] == "cannot_remove_admin"
+
+
+def test_cannot_remove_admin_keys_on_is_admin(admin_client, admin_user, db_session, make_user):
+    """v72: any user with `is_admin` is protected (a second upstream superuser too), and the
+    address of one who lost it can be removed like anyone's."""
+    other = make_user("allowed@example.com")
+    other.is_admin = True
+    db_session.commit()
+    response = admin_client.delete("/api/admin/allowlist/allowed@example.com")
+    assert (response.status_code, response.json()["code"]) == (409, "cannot_remove_admin")
+
+    other.is_admin = False
+    db_session.commit()
+    assert admin_client.delete("/api/admin/allowlist/allowed@example.com").status_code == 204
+
+
+def test_the_dev_override_cannot_be_removed_or_added(admin_client, monkeypatch):
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "admin_email", "allowed@example.com")
+    response = admin_client.delete("/api/admin/allowlist/allowed@example.com")
+    assert (response.status_code, response.json()["code"]) == (409, "cannot_remove_admin")
+    response = admin_client.post("/api/admin/allowlist", json={"email": "allowed@example.com"})
+    assert (response.status_code, response.json()["code"]) == (409, "email_already_allowed")
 
 
 def test_removing_an_unknown_address_is_404(admin_client):
@@ -162,7 +198,8 @@ def test_the_list_is_one_query_with_every_field(admin_client, admin_user, db_ses
     with count_queries() as statements:
         response = admin_client.get("/api/admin/allowlist")
     assert response.status_code == 200
-    assert len([s for s in statements if "allowed_emails" in s]) == 1
+    # The list, plus the request's own allowlist check (v72: the admin's is a row read too).
+    assert len([s for s in statements if "allowed_emails" in s]) == 2
 
     rows = {row["email"]: row for row in response.json()["items"]}
     assert response.json()["items"][0]["email"] == "admin@example.com"
@@ -178,12 +215,24 @@ def test_the_list_is_one_query_with_every_field(admin_client, admin_user, db_ses
     }
 
 
-def test_admin_email_is_listed_even_without_a_row(admin_client, db_session):
+def test_the_admin_is_listed_even_without_a_row(admin_client, db_session):
     db_session.query(AllowedEmail).filter(AllowedEmail.email == "admin@example.com").delete()
     db_session.commit()
     items = admin_client.get("/api/admin/allowlist").json()["items"]
     assert items[0]["email"] == "admin@example.com" and items[0]["is_admin_email"] is True
     assert items[0]["added_at"] is None
+    assert len([item for item in items if item["email"] == "admin@example.com"]) == 1
+
+
+def test_the_dev_override_is_listed_once_without_a_row(admin_client, monkeypatch):
+    """The dev admin who never signed in has no user row; once signed in, it isn't listed twice."""
+    from app.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "admin_email", "Dev@Example.com")
+    items = admin_client.get("/api/admin/allowlist").json()["items"]
+    dev = [item for item in items if item["email"] == "dev@example.com"]
+    assert len(dev) == 1 and dev[0]["is_admin_email"] is True and dev[0]["last_login_at"] is None
+    assert [item["email"] for item in items if item["is_admin_email"]] == ["admin@example.com", "dev@example.com"]
 
 
 # --- boundaries -------------------------------------------------------------------------
@@ -329,7 +378,7 @@ class _PubSub:
 def _run_stream(monkeypatch, user, view, messages, status="ok", polls=10):
     pubsub = _PubSub(messages)
     monkeypatch.setattr(aioredis.Redis, "from_url", lambda url: SimpleNamespace(pubsub=lambda: pubsub, aclose=_noop))
-    monkeypatch.setattr(stream_router, "_session_status", lambda request, token, user_id: status)
+    monkeypatch.setattr(stream_router, "_session_status", lambda request, token, user_id, needs_admin: status)
     sent = []
 
     async def run():
@@ -390,6 +439,41 @@ def test_the_recheck_reads_the_database_on_a_session_of_its_own(client, db_sessi
     db_session.query(UserSession).filter(UserSession.user_id == user.id).delete()
     db_session.commit()
     assert stream_router._session_status(request, token, user.id) == "revoked"
+
+
+def test_the_recheck_ends_an_admin_scoped_stream_once_admin_is_lost(client, db_session, session_cookie):
+    """v72: a stream subscribed to everyone's events (`needs_admin`) ends once its owner lost
+    `is_admin` (a login whose upstream read said `isSuperuser: false`); the page reconnects,
+    and the new stream is scoped `mine`. A `mine` stream goes on."""
+    cookie = session_cookie("allowed@example.com", is_admin=True)
+    user = db_session.query(User).filter(User.email == "allowed@example.com").one()
+    request = SimpleNamespace(app=client.app)
+    token = cookie["SPOTDL_SESSION"]
+
+    assert stream_router._session_status(request, token, user.id, True) == "ok"
+    user.is_admin = False
+    db_session.commit()
+    assert stream_router._session_status(request, token, user.id, True) == "ended"
+    assert stream_router._session_status(request, token, user.id, False) == "ok"
+
+
+@pytest.mark.parametrize(("view", "needs_admin"), [("mine", False), ("all", True), ("others", True)])
+def test_an_admin_scoped_stream_asks_the_recheck_for_admin(monkeypatch, view, needs_admin):
+    user = User(id=uuid.uuid4(), email="a@example.com", is_admin=True)
+    asked = []
+    clock = iter(range(0, 10_000, 20))
+    monkeypatch.setattr(stream_router.time, "monotonic", lambda: next(clock))
+    pubsub = _PubSub([])
+    monkeypatch.setattr(aioredis.Redis, "from_url", lambda url: SimpleNamespace(pubsub=lambda: pubsub, aclose=_noop))
+    monkeypatch.setattr(
+        stream_router, "_session_status", lambda request, token, user_id, admin: asked.append(admin) or "ended"
+    )
+
+    async def run():
+        return [chunk async for chunk in stream_router._event_stream(_Request(5), user, view)]
+
+    assert asyncio.run(run()) == [stream_router.HEARTBEAT]
+    assert asked == [needs_admin]
 
 
 # --- the startup warning ----------------------------------------------------------------

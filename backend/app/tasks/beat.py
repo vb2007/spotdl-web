@@ -172,7 +172,7 @@ def _dispatch_due_watched_jobs(db) -> None:
         db.execute(
             select(Job)
             # v69: only jobs whose owner may still sign in, started or not: a re-expansion's
-            # new tracks are new work. One join; ADMIN_EMAIL is allowed without a row. A job
+            # new tracks are new work. One join; the admin is allowed without a row. A job
             # skipped here stays due, and its next tick after the address is added again runs it.
             .join(User, User.id == Job.user_id)
             .outerjoin(AllowedEmail, AllowedEmail.email == User.email)
@@ -182,7 +182,7 @@ def _dispatch_due_watched_jobs(db) -> None:
                 Job.archived_at.is_(None),
                 Job.state == JobState.EXPANDED,
                 Job.source_type.in_(watch.WATCHABLE_SOURCE_TYPES),
-                allowlist.owner_allowed(User.email, AllowedEmail.email),
+                allowlist.owner_allowed(User.email, User.is_admin, AllowedEmail.email),
             )
             .order_by(Job.next_expand_at.asc())
             # Room for jobs whose marker is held (skipped below) without locking every due row.

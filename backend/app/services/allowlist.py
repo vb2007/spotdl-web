@@ -2,8 +2,9 @@
 
 Before v69 this was the `ALLOWED_EMAILS` env list. The migration that created the table
 imported it (plus `ADMIN_EMAIL`) once; since then the env list is ignored (`warn_if_env_ignored`
-says so at api startup when it holds an address the table doesn't). `ADMIN_EMAIL` stays in env,
-is always allowed whether or not it has a row, and can't be removed.
+says so at api startup when it holds an address the table doesn't). **The admin** (v72: a user
+with `is_admin`, which follows the upstream's `isSuperuser`; under SPOTDL_ENV=dev also the
+`ADMIN_EMAIL` override) is always allowed whether or not it has a row, and can't be removed.
 
 **Read on every check, never cached:** an address added in `/users` signs in on its very next
 attempt, with no restart.
@@ -32,7 +33,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import case, delete, exists, func, literal, null, or_, select, union_all, update
+from sqlalchemy import case, delete, exists, false, func, literal, null, or_, select, union, union_all, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy.sql.elements import ColumnElement
@@ -140,27 +141,47 @@ IGNORED_ENV_WARNING = (
 
 
 def admin_address() -> str:
+    """The dev override (`ADMIN_EMAIL` under SPOTDL_ENV=dev), normalized; "" in production."""
     return normalize_email(get_settings().admin_email)
 
 
-def is_allowed(db: Session, email: str, *, lock: bool = False) -> bool:
-    """Whether `email` may sign in: it's `ADMIN_EMAIL`, or it has a row. Read from the database
-    every time. `lock` (the login) takes `FOR SHARE` on the row until the caller's transaction
-    ends, so a removal committing meanwhile waits for that login's session to exist, and then
-    deletes it with the others (`remove`)."""
-    normalized = normalize_email(email)
-    if normalized == admin_address():
+def is_admin_address(db: Session, normalized: str) -> bool:
+    """Whether a normalized address is the admin's: the dev override, or a user with `is_admin`."""
+    dev = admin_address()
+    if dev and normalized == dev:
         return True
+    return (
+        db.execute(select(User.id).where(User.email == normalized, User.is_admin.is_(True))).first()
+        is not None
+    )
+
+
+def is_allowed(db: Session, email: str, *, lock: bool = False) -> bool:
+    """Whether `email` may sign in: it has a row, or it's the admin's (`is_admin_address`). Read
+    from the database every time. `lock` (the login) takes `FOR SHARE` on the row until the
+    caller's transaction ends, so a removal committing meanwhile waits for that login's session
+    to exist, and then deletes it with the others (`remove`). The row is read first: most
+    callers have one, so a request costs one query."""
+    normalized = normalize_email(email)
+    if not storable(normalized):
+        return False
     stmt = select(AllowedEmail.email).where(AllowedEmail.email == normalized)
     if lock:
         stmt = stmt.with_for_update(read=True)
-    return db.execute(stmt).first() is not None
+    return db.execute(stmt).first() is not None or is_admin_address(db, normalized)
 
 
-def owner_allowed(user_email: ColumnElement, allowed_email: ColumnElement) -> ColumnElement:
+def owner_allowed(
+    user_email: ColumnElement, user_is_admin: ColumnElement, allowed_email: ColumnElement
+) -> ColumnElement:
     """The condition for a query that joins `users` and outer-joins `allowed_emails` on the
     user's address: the owner may sign in (beat's watched-job selection, `tasks/beat.py`)."""
-    return or_(allowed_email.is_not(None), user_email == admin_address())
+    dev = admin_address()
+    return or_(
+        allowed_email.is_not(None),
+        user_is_admin.is_(True),
+        user_email == dev if dev else false(),
+    )
 
 
 def validate_email(email: str) -> str:
@@ -217,14 +238,14 @@ class Removal:
 
 def remove(db: Session, email: str) -> Removal:
     """Takes `email` off the allowlist and cuts its user off, in one transaction (committed
-    here), then tells their open streams. `ADMIN_EMAIL` is 409 `cannot_remove_admin`; an
-    address with no row is 404 `allowed_email_not_found`."""
+    here), then tells their open streams. The admin's address (`is_admin_address`) is 409
+    `cannot_remove_admin`; an address with no row is 404 `allowed_email_not_found`."""
     normalized = normalize_email(email) if isinstance(email, str) else ""
-    if normalized == admin_address():
-        raise ApiError(409, "cannot_remove_admin", "The admin's address can't be removed")
     # An address Postgres can't even compare (a NUL) is on no list.
     if not storable(normalized):
         raise ApiError(404, "allowed_email_not_found", "That address isn't on the allowlist")
+    if is_admin_address(db, normalized):
+        raise ApiError(409, "cannot_remove_admin", "The admin's address can't be removed")
     # The row first: a login holding it `FOR SHARE` (is_allowed's lock) commits its session
     # before this goes on, so the session delete below sees it.
     deleted = db.execute(
@@ -300,9 +321,9 @@ def add(db: Session, email: str, by: User) -> Addition:
     address that already has a user row gets that same account back, and its held jobs resume
     in the same transaction: `held_at` is cleared and their `pending` tracks are claimed, then
     enqueued after the commit (`_send_resumed`). 422 `invalid_email`, 409
-    `email_already_allowed` (`ADMIN_EMAIL` included: it's always allowed)."""
+    `email_already_allowed` (the admin's address included: it's always allowed)."""
     normalized = validate_email(email)
-    if normalized == admin_address():
+    if is_admin_address(db, normalized):
         raise ApiError(409, "email_already_allowed", "That address is already on the allowlist")
     inserted = db.execute(
         insert(AllowedEmail)
@@ -438,20 +459,27 @@ def _send_resumed(db: Session, track_ids: list[uuid.UUID], lease: datetime) -> i
 
 def list_rows(db: Session) -> list[dict]:
     """Every allowlist row for `/users`, in one query: the address, when and by whom it was
-    added, and the account behind it (none yet: never signed in). `ADMIN_EMAIL` is always
-    listed, with or without a row. No held-jobs count (owner's decision, 2026-11-02): a listed
-    address never has a held job, since a hold exists only while its address is off the list."""
-    admin = admin_address()
+    added, and the account behind it (none yet: never signed in). The admin (`is_admin`, or the
+    dev override) is always listed, with or without a row; `is_admin_email` marks it (the name
+    predates v72). No held-jobs count (owner's decision, 2026-11-02): a listed address never has
+    a held job, since a hold exists only while its address is off the list."""
+    dev = admin_address()
+    admins = select(User.email.label("email")).where(User.is_admin.is_(True))
+    if dev:
+        admins = union(admins, select(literal(dev).label("email")))
+    admins = admins.subquery("admins")
     rows = union_all(
         select(AllowedEmail.email, AllowedEmail.added_at, AllowedEmail.added_by),
         select(
-            literal(admin).label("email"),
+            admins.c.email,
             null().label("added_at"),
             null().label("added_by"),
-        ).where(~exists().where(AllowedEmail.email == admin)),
+        ).where(~exists().where(AllowedEmail.email == admins.c.email)),
     ).subquery("rows")
     adder = aliased(User)
-    is_admin_email = rows.c.email == admin
+    is_admin_email = func.coalesce(User.is_admin, False)
+    if dev:
+        is_admin_email = or_(is_admin_email, rows.c.email == dev)
     result = db.execute(
         select(
             rows.c.email,
