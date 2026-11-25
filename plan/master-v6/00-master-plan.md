@@ -266,7 +266,9 @@ here, including new upstream changes that need spotdl work.
   answer `403` on `api.vb2007.hu` and on the local dev upstream, and `example.com` can't be
   registered any more. With the owner's OK, slot 1 now signs in on a local `vb2007.hu-api`
   (`host.docker.internal:3000`, dev Mongo) with `.test` identities (`v6s1{admin,user,mfa,mfb}`),
-  allowlisted through `AGENT_ADMIN_EMAIL`/`AGENT_EXTRA_EMAILS`; the dedicated live TOTP identity
-  (task 7) is kept under `LIVE_MFA_*`. **v72 and v73 need the same move** for whatever slot they
-  use (GOTCHAS v71); v73's e2e against the real authorize page will need an identity on the
-  upstream its dev client is registered with.
+  allowlisted through `AGENT_ADMIN_EMAIL`/`AGENT_EXTRA_EMAILS`. The dedicated live TOTP identity
+  (task 7) is shared by every implementation agent in `.git/agent-stack/live-mfa.env` (owner). The
+  dead accounts were removed (owner): slots 2–5 have no saved identities, so **a slice using any
+  other slot first registers `.test` identities on the local upstream** (GOTCHAS v71); v73's e2e
+  against the real authorize page will need an identity on the upstream its dev client is
+  registered with.

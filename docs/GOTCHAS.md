@@ -249,8 +249,9 @@ needed" claim — rather than silently deleted.
   vb2007.hu), and upstream sees spotdl's one address for every user → *v71*
 - An off-list address with a right password (plain, MFA or suspended) answers exactly a wrong
   password's bytes; its upstream session is logged out after the answer is sent → *v71*
-- The slot identities: `.test` addresses on a local `vb2007.hu-api` (dev Mongo, code printed), the
-  dedicated live TOTP identity under `LIVE_MFA_*`; never MFA on a shared identity → *v71*
+- The slot identities: `.test` addresses on a local `vb2007.hu-api` (dev Mongo, code printed); slots
+  2–5 have none saved (the dead ones were removed); the live TOTP identity is shared by every agent in
+  `.git/agent-stack/live-mfa.env`; never MFA on a shared identity → *v71*
 - Never raise one module-level exception instance twice: each raise chains that request's
   traceback onto it, keeping its frames (passwords, tokens) alive for the process → *v71*
 - Admin routes: 404 (`require_admin_hidden`) where the path names an id, 403 elsewhere → *v56*
@@ -8235,8 +8236,12 @@ independently-found production bug from the same conversation)
   MAIL_FROM= APP_IP=0.0.0.0` so it prints mail and the container reaches it) and signs in with
   `v6s1{admin,user,mfa}@slot1.spotdl.test`, allowlisted through `AGENT_ADMIN_EMAIL` and
   `AGENT_EXTRA_EMAILS` (both take `.test`). The MFA one has TOTP and email on. The dedicated live
-  TOTP identity (task 7) is under `LIVE_MFA_*` in the same file; its spent recovery codes are
-  removed from the list. Other slots need the same move before their e2e can sign in.
+  TOTP identity (task 7) is shared by every implementation agent (owner, 2026-11-25) in
+  `.git/agent-stack/live-mfa.env`, one copy, so a spent recovery code is removed in one place; a
+  stack using it allowlists it and points `UPSTREAM_AUTH_BASE_URL` at `https://api.vb2007.hu`. The
+  dead accounts were cleaned up with the owner's OK: slots 2–5's saved files are deleted, so
+  `agent_stack.sh <slot> e2e` stops with "no … register slot <slot>'s two test identities" until a
+  slot gets `.test` identities on the local upstream the way slot 1 did.
 - **TOTP in e2e is single-use per 30 s step.** Upstream takes a step once, and only one newer than
   the last it took, so `e2e/support/totp.ts` waits for an unused step at least 5 s from its end,
   and spec 28 runs in the desktop project only. Its wrong-code and recovery-code tests are opt-in
