@@ -110,8 +110,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/+page.svelte": {
-    "mtime": 1795622370.9902725,
-    "ast_hash": "7423322dabcc956756c42551da032001",
+    "mtime": 1795625920.392523,
+    "ast_hash": "d169974a7e2058701bc9e3cdf9b559b8",
     "semantic_hash": ""
   },
   "frontend/tsconfig.json": {
@@ -200,8 +200,8 @@
     "semantic_hash": "c56dbe8d4a14e59494c84de3f41ddfc6"
   },
   "backend/app/routers/auth.py": {
-    "mtime": 1795622824.4554913,
-    "ast_hash": "30307ec371b0ef66a979b2b13e964f37",
+    "mtime": 1795625907.9845183,
+    "ast_hash": "b94d6a0dfd3ff6ef356de569abbae040",
     "semantic_hash": ""
   },
   "backend/app/services/sessions.py": {
@@ -220,8 +220,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_auth.py": {
-    "mtime": 1795623109.9624925,
-    "ast_hash": "f85782ef434b92cbda9d1b52fd1bbff2",
+    "mtime": 1795626083.605412,
+    "ast_hash": "60114c824e8c45119c30420681d0a799",
     "semantic_hash": ""
   },
   "backend/app/routers/jobs.py": {
@@ -325,13 +325,13 @@
     "semantic_hash": ""
   },
   "backend/app/routers/stream.py": {
-    "mtime": 1795622838.279987,
-    "ast_hash": "d6ea56584c0fc26910834df4ecc44ad9",
+    "mtime": 1795625901.944532,
+    "ast_hash": "09aca4059828bb87fb13180d6e0ce3cb",
     "semantic_hash": ""
   },
   "backend/app/services/events.py": {
-    "mtime": 1795622370.917943,
-    "ast_hash": "25a73f1d1f19829392af624b930db4a6",
+    "mtime": 1795625901.9444218,
+    "ast_hash": "89eeb6e5820d1675b8e951a2652de6c3",
     "semantic_hash": ""
   },
   "backend/tests/test_events.py": {
@@ -345,8 +345,8 @@
     "semantic_hash": ""
   },
   "frontend/src/lib/api.ts": {
-    "mtime": 1795622370.9759455,
-    "ast_hash": "960b76b3329bc98edcee9894357a3fe8",
+    "mtime": 1795625920.3922448,
+    "ast_hash": "50995bfee390801e49243b7c9e03857a",
     "semantic_hash": ""
   },
   "frontend/src/lib/components/Countdown.svelte": {
@@ -370,8 +370,8 @@
     "semantic_hash": ""
   },
   "PRODUCT.md": {
-    "mtime": 1795622370.9109428,
-    "ast_hash": "dd3e0451d3893e731331779f9a91b41e",
+    "mtime": 1795625920.391718,
+    "ast_hash": "b9e27a611c9caf8400313929303d747b",
     "semantic_hash": ""
   },
   "frontend/src/DESIGN.md": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1795623759.3169005,
-    "ast_hash": "e60c6fd327584b20448c9c89e140cc0e",
+    "mtime": 1795629988.7726662,
+    "ast_hash": "480b19d47578c85f02fe5f8950b81f85",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -2415,8 +2415,8 @@
     "semantic_hash": ""
   },
   "backend/app/models/allowed_email.py": {
-    "mtime": 1795622370.914673,
-    "ast_hash": "9e5fae63f0c811dcd558983947babd11",
+    "mtime": 1795625920.3920026,
+    "ast_hash": "24cce8154619b3ebbfea80b6ed6effd4",
     "semantic_hash": ""
   },
   "backend/app/routers/admin_users.py": {
@@ -2425,13 +2425,13 @@
     "semantic_hash": ""
   },
   "backend/app/services/allowlist.py": {
-    "mtime": 1795622815.7166777,
-    "ast_hash": "8cc8c4cc4279d216f8584868cb757b28",
+    "mtime": 1795625901.9446075,
+    "ast_hash": "5726f216435036e880f612955c759cdb",
     "semantic_hash": ""
   },
   "backend/tests/test_allowlist.py": {
-    "mtime": 1795623131.670893,
-    "ast_hash": "5f5e4405fdecbbc4ce4fe1af365d5387",
+    "mtime": 1795625964.0069065,
+    "ast_hash": "8819bc31a44cd26169087f05389e472a",
     "semantic_hash": ""
   },
   "backend/tests/test_removal_holds.py": {
@@ -2445,8 +2445,8 @@
     "semantic_hash": ""
   },
   "frontend/src/routes/users/+page.svelte": {
-    "mtime": 1795622370.9929461,
-    "ast_hash": "cf60f27cc305402811bbbdf9662e3943",
+    "mtime": 1795625920.3923361,
+    "ast_hash": "555fd2fba5ecf4f7424bbefe574abebf",
     "semantic_hash": ""
   },
   "frontend/src/routes/users/+page.ts": {
@@ -2455,8 +2455,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_key_boundary.py": {
-    "mtime": 1795622370.9269435,
-    "ast_hash": "ab0dadc5f58d80b0f4899ba822edd9b4",
+    "mtime": 1795626025.6030664,
+    "ast_hash": "b69944c9d0cf350065d67d6e87c351d5",
     "semantic_hash": ""
   },
   "backend/tests/fixtures/key_readers.txt": {

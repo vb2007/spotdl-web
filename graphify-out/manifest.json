@@ -155,8 +155,8 @@
     "semantic_hash": ""
   },
   "docs/DEPLOYMENT.md": {
-    "mtime": 1795623720.6417086,
-    "ast_hash": "cb92e9a7a70fb0a095789714e22945bb",
+    "mtime": 1795632469.125155,
+    "ast_hash": "9ad08b889d19e93bdd31db1cfcfdcaa1",
     "semantic_hash": ""
   },
   "docs/LOCAL_DEV.md": {
@@ -200,8 +200,8 @@
     "semantic_hash": "c56dbe8d4a14e59494c84de3f41ddfc6"
   },
   "backend/app/routers/auth.py": {
-    "mtime": 1795625907.9845183,
-    "ast_hash": "b94d6a0dfd3ff6ef356de569abbae040",
+    "mtime": 1795630580.2407894,
+    "ast_hash": "2f39f74d012e12533e6462bba2f959b0",
     "semantic_hash": ""
   },
   "backend/app/services/sessions.py": {
@@ -325,13 +325,13 @@
     "semantic_hash": ""
   },
   "backend/app/routers/stream.py": {
-    "mtime": 1795625901.944532,
-    "ast_hash": "09aca4059828bb87fb13180d6e0ce3cb",
+    "mtime": 1795632469.1248472,
+    "ast_hash": "27afa61c874bf3b8bc4a7364649a1d28",
     "semantic_hash": ""
   },
   "backend/app/services/events.py": {
-    "mtime": 1795625901.9444218,
-    "ast_hash": "89eeb6e5820d1675b8e951a2652de6c3",
+    "mtime": 1795630580.2409177,
+    "ast_hash": "c81f5cee6fe1c87290297d2947ed2cef",
     "semantic_hash": ""
   },
   "backend/tests/test_events.py": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1795629988.7726662,
-    "ast_hash": "480b19d47578c85f02fe5f8950b81f85",
+    "mtime": 1795632576.5195498,
+    "ast_hash": "7cb2c9626c22cb72f0ce788351b72a39",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -2425,13 +2425,13 @@
     "semantic_hash": ""
   },
   "backend/app/services/allowlist.py": {
-    "mtime": 1795625901.9446075,
-    "ast_hash": "5726f216435036e880f612955c759cdb",
+    "mtime": 1795630580.2410307,
+    "ast_hash": "39d85c4825ffdaf07b9bb9eb1ddccfe7",
     "semantic_hash": ""
   },
   "backend/tests/test_allowlist.py": {
-    "mtime": 1795625964.0069065,
-    "ast_hash": "8819bc31a44cd26169087f05389e472a",
+    "mtime": 1795632469.1249495,
+    "ast_hash": "bb7bcb5d1c5f32d5b692dc90ddb90b02",
     "semantic_hash": ""
   },
   "backend/tests/test_removal_holds.py": {
