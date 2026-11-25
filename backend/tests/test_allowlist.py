@@ -495,9 +495,14 @@ def test_the_recheck_ends_an_admin_scoped_stream_once_admin_is_lost(client, db_s
     assert stream_router._session_status(request, token, user.id, False) == "ok"
 
 
-@pytest.mark.parametrize(("view", "needs_admin"), [("mine", False), ("all", True), ("others", True)])
-def test_an_admin_scoped_stream_asks_the_recheck_for_admin(monkeypatch, view, needs_admin):
-    user = User(id=uuid.uuid4(), email="a@example.com", is_admin=True)
+@pytest.mark.parametrize(
+    ("view", "is_admin"), [("mine", True), ("all", True), ("others", True), ("mine", False), ("all", False)]
+)
+def test_an_admins_stream_asks_the_recheck_for_admin(monkeypatch, view, is_admin):
+    """Any stream an admin opened, `mine` too (review round 3): a lost `admin_lost` must not leave
+    a `mine` tab's admin chrome up. A non-admin's stream never asks."""
+    user = User(id=uuid.uuid4(), email="a@example.com", is_admin=is_admin)
+    needs_admin = is_admin
     asked = []
     clock = iter(range(0, 10_000, 20))
     monkeypatch.setattr(stream_router.time, "monotonic", lambda: next(clock))

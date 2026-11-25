@@ -47,8 +47,9 @@ SESSION_RECHECK_SEC = HEARTBEAT_INTERVAL_SEC
 
 def _session_status(request: Request, token: str | None, user_id, needs_admin: bool = False) -> str:
     """`ok`, `revoked` (the owner's address is off the allowlist) or `ended` (the session is
-    gone or idle past its timeout: a sign-out, an expiry; v72: or `needs_admin` and the owner
-    lost `is_admin`, so an admin-scoped stream closes and the page reconnects as `mine`). Read-only, on a short-lived database
+    gone or idle past its timeout: a sign-out, an expiry; v72: or `needs_admin`, the stream was
+    opened by an admin, and the owner lost `is_admin`, so it closes and the page reconnects as
+    `mine`: the safety net for a lost `admin_lost`). Read-only, on a short-lived database
     session that is closed before this returns, never one held for the stream's life (v31's
     idle-in-transaction bug, docs/GOTCHAS.md v23/v31), resolved as require_session_for_streaming
     resolves it so a test's override applies. Doesn't touch `last_seen_at`: an open tab isn't a
@@ -124,7 +125,9 @@ async def _event_stream(request: Request, user: User, view: View):
             if now - last_checked >= SESSION_RECHECK_SEC:
                 last_checked = now
                 try:
-                    status = await run_in_threadpool(_session_status, request, token, user.id, use_pattern)
+                    # v72: any stream an admin opened, `mine` included: its page's reconnect
+                    # reloads it without the admin chrome (review round 3).
+                    status = await run_in_threadpool(_session_status, request, token, user.id, user.is_admin)
                 except Exception:
                     # Postgres unreachable says nothing about the session: keep streaming, and
                     # ask again next time.

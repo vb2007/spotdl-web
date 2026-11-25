@@ -8297,7 +8297,8 @@ independently-found production bug from the same conversation)
   demoting login's own session shares that browser's cookie. *(Review round 1: the demoting login
   now also publishes its own control kind, `admin_lost` (off the event loop), which closes every
   stream of theirs at once (round 2: a `mine` tab too, or its admin chrome stayed), so the re-check
-  is the safety net as in v69; the page's reconnect `me` check
+  is the safety net as in v69, and since round 3 it checks every stream an admin opened, `mine`
+  included, so a lost publish can't leave a `mine` tab's admin chrome up; the page's reconnect `me` check
   reloads it when `is_admin` changed, so the admin nav and view switch go too.)* Measured on slot 1:
   with only the re-check, a probe on another user's channel still got through 4 s after the
   demotion (live review); with `admin_lost` the open tab reloaded 3 s after the demoting login,
@@ -8312,6 +8313,12 @@ independently-found production bug from the same conversation)
   and `remove` re-reads the admin flag after its DELETE (a login holding the row may just have been
   granted admin). Round 2: `add` gives a row-less admin a row (it no longer answers them 409), so a
   later demotion leaves them a plain user instead of cutting them off. Production's admin has a row (read-only check, 2026-11-25, owner's OK).
+- **Every admin is unremovable.** v69 protected the one `ADMIN_EMAIL`; keyed on `is_admin`, two
+  upstream superusers can't remove each other, and an admin the upstream stopped calling one keeps
+  admin until their next login (v74's sync closes that). DEPLOYMENT.md has the hand `UPDATE`.
+- **Only the queue page reloads on a lost admin.** `/account`, `/library` and `/users` tabs keep
+  the admin nav until the next navigation (their requests already answer 403/404); `/account` and
+  `/users` hold no stream to learn it from (live review round 2, left as is).
 - **Bootstrap moved to `ALLOWED_EMAILS`.** The login reads the allowlist before `GET /user`, so on a
   fresh database the upstream superuser can't sign in to become admin unless their address was
   imported. `.env.example` says so.

@@ -741,7 +741,11 @@ older than v72 is possible**: those require it and refuse to boot without it. If
 lost (the upstream superuser changed, or a mistaken read), the new superuser's next login grants it,
 provided their address is on the allowlist (the login reads it before the upstream's answer); by
 hand: `UPDATE users SET is_admin = true WHERE email = '<address>';`, and add the address on
-`/users` too, or a later `isSuperuser: false` cuts them off.
+`/users` too, or a later `isSuperuser: false` cuts them off. **Every admin is unremovable on
+`/users`** (v72 keys "the admin" on `is_admin`), so an admin the upstream no longer calls a
+superuser keeps admin until their next login (or v74's sync); to end it at once, by hand:
+`UPDATE users SET is_admin = false WHERE email = '<address>';` (their open admin views close within
+15 s, the stream's re-check).
 
 **`ALLOWED_EMAILS` is import-only.** The v69 migration copied it (plus `ADMIN_EMAIL`) into the
 `allowed_emails` table once, on the first `migrate` of that release; after that the app ignores
