@@ -14,7 +14,13 @@ from app.db import get_db
 from app.models import User, UserSession
 from app.routers.auth import COOKIE_NAME, require_session_for_streaming
 from app.services import allowlist
-from app.services.events import ADMIN_CHANNEL_PATTERN, CONTROL_REVOKED, channel_for, control_channel_for
+from app.services.events import (
+    ADMIN_CHANNEL_PATTERN,
+    CONTROL_ADMIN_LOST,
+    CONTROL_REVOKED,
+    channel_for,
+    control_channel_for,
+)
 from app.services.sessions import SESSION_IDLE_TIMEOUT
 from app.services.view_scope import View, resolve_view
 
@@ -39,9 +45,11 @@ REVOKED = 'data: {"type": "session.revoked"}\n\n'
 SESSION_RECHECK_SEC = HEARTBEAT_INTERVAL_SEC
 
 
-def _session_status(request: Request, token: str | None, user_id) -> str:
+def _session_status(request: Request, token: str | None, user_id, needs_admin: bool = False) -> str:
     """`ok`, `revoked` (the owner's address is off the allowlist) or `ended` (the session is
-    gone or idle past its timeout: a sign-out, an expiry). Read-only, on a short-lived database
+    gone or idle past its timeout: a sign-out, an expiry; v72: or `needs_admin`, the stream was
+    opened by an admin, and the owner lost `is_admin`, so it closes and the page reconnects as
+    `mine`: the safety net for a lost `admin_lost`). Read-only, on a short-lived database
     session that is closed before this returns, never one held for the stream's life (v31's
     idle-in-transaction bug, docs/GOTCHAS.md v23/v31), resolved as require_session_for_streaming
     resolves it so a test's override applies. Doesn't touch `last_seen_at`: an open tab isn't a
@@ -52,7 +60,8 @@ def _session_status(request: Request, token: str | None, user_id) -> str:
     try:
         # The owner first: a removal deletes the session too, and the page should still learn
         # that it was the access, not the session, that ended.
-        email = db.execute(select(User.email).where(User.id == user_id)).scalar_one_or_none()
+        row = db.execute(select(User.email, User.is_admin).where(User.id == user_id)).one_or_none()
+        email, is_admin = row if row is not None else (None, False)
         last_seen_at = None
         if token is not None and "\x00" not in token:
             last_seen_at = db.execute(
@@ -62,7 +71,7 @@ def _session_status(request: Request, token: str | None, user_id) -> str:
             ).scalar_one_or_none()
         if email is None or not allowlist.is_allowed(db, email):
             status = "revoked"
-        elif last_seen_at is None:
+        elif last_seen_at is None or (needs_admin and not is_admin):
             status = "ended"
         else:
             if last_seen_at.tzinfo is None:
@@ -116,7 +125,9 @@ async def _event_stream(request: Request, user: User, view: View):
             if now - last_checked >= SESSION_RECHECK_SEC:
                 last_checked = now
                 try:
-                    status = await run_in_threadpool(_session_status, request, token, user.id)
+                    # v72: any stream an admin opened, `mine` included: its page's reconnect
+                    # reloads it without the admin chrome (review round 3).
+                    status = await run_in_threadpool(_session_status, request, token, user.id, user.is_admin)
                 except Exception:
                     # Postgres unreachable says nothing about the session: keep streaming, and
                     # ask again next time.
@@ -157,6 +168,8 @@ async def _event_stream(request: Request, user: User, view: View):
                     kind = None
                 if kind == CONTROL_REVOKED:
                     yield REVOKED
+                    break
+                if kind == CONTROL_ADMIN_LOST:
                     break
                 continue
 

@@ -17,7 +17,8 @@
 #                       slot's Postgres on 127.0.0.1:<port>; AGENT_EXTRA_EMAILS=a@x,b@y allowlists
 #                       more test identities; AGENT_ADMIN_EMAIL=a@x replaces the slot's
 #                       v5s<slot>admin@example.com as ADMIN_EMAIL (v69: a slot whose upstream
-#                       admin account was lost). All three are remembered on later runs.
+#                       admin account was lost). All three are remembered on later runs. v72:
+#                       ADMIN_EMAIL is a dev-only override (the slot runs SPOTDL_ENV=dev).
 #   up                  build and start the stack (worker-dl stays off), wait until it's healthy
 #   down [--volumes]    stop and remove it; --volumes also drops its database and Redis
 #   ps | logs [args]    docker compose ps/logs for the slot

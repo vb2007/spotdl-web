@@ -95,7 +95,7 @@ name and role; never copy one's into another.
 | Area | Decision |
 |---|---|
 | User identity | Real `users` table, row created on first successful login. The `allowed_emails` table (v69, managed by the admin on `/users`; `ALLOWED_EMAILS` only seeds it once) gates *who may log in*; `users` governs *what they own and may do*. Removal ends sessions, streams and API keys at once and holds unstarted jobs |
-| Admin | `is_admin`, always allowed to sign in and unremovable from the allowlist (v69). Source: `ADMIN_EMAIL` until v72, then upstream `isSuperuser` (a failed read never changes it; `ADMIN_EMAIL` dev-only). v74 syncs suspensions/deletions/usernames via client-authenticated status, never an `admin:read` key |
+| Admin | `is_admin`, always allowed to sign in and unremovable from the allowlist (v69). Source (v72): upstream `isSuperuser`, read at each login (`false` revokes, a failed read never changes it); `ADMIN_EMAIL` is a dev-only override under `SPOTDL_ENV=dev`. v74 syncs suspensions/deletions/usernames via client-authenticated status, never an `admin:read` key |
 | Data separation | **DB-level only.** Jobs/tracks are per-user; downloaded files stay in one shared library |
 | Dedup under multi-user | Stays global — a track another user already downloaded resolves instantly as `skipped_duplicate`. Never re-fetch the same audio per user |
 | Ownership column | On `jobs` only; tracks inherit via `job_id`. A denormalized copy would be a second source of truth that can drift |

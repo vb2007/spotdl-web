@@ -272,3 +272,16 @@ here, including new upstream changes that need spotdl work.
   other slot first registers `.test` identities on the local upstream** (GOTCHAS v71); v73's e2e
   against the real authorize page will need an identity on the upstream its dev client is
   registered with.
+
+### 2026-11-25 (v72, owner-confirmed)
+
+- **No admin is removable on `/users`**, including one the upstream stopped calling superuser who
+  hasn't signed in since (their `is_admin` stays set until their next login). DEPLOYMENT.md has the
+  hand demotion steps.
+- **An upstream grant demotes nobody.** The pre-v72 "one admin, demote the rest" sweep applies only
+  to the dev `ADMIN_EMAIL` override.
+- **A fresh install lists the superuser's address in `ALLOWED_EMAILS`.** The login reads the allowlist
+  before it asks the upstream, so an unlisted superuser gets `invalid_credentials` like anyone else.
+- **An admin without an allowlist row can be given one** (`add` no longer answers `409`).
+- v74's sync demotion publishes `admin_lost`, and calls `allowlist.cut_off` when the demoted admin has
+  no allowlist row, the way v72's login does.

@@ -12,8 +12,9 @@ The project owner plus a small, explicitly allowlisted circle of trusted people 
 each authenticated via a server-to-server proxied login against the owner's existing
 `vb2007.hu-api` account system and checked against an allowlist afterward. Since v69 the admin
 manages that allowlist on `/users` (the env's `ALLOWED_EMAILS` only seeded it once); removing an
-address signs the person out everywhere at once, and their jobs and files stay. One designated
-`ADMIN_EMAIL` account is the operator, always allowed; everyone else is a plain user.
+address signs the person out everywhere at once, and their jobs and files stay. The operator is
+the account vb2007.hu calls its superuser (v72; `ADMIN_EMAIL` only in dev), always allowed; everyone
+else is a plain user.
 
 Confirmed (master v2, v16–v22): every allowlisted user gets their own real `users` row and their
 own job/track history — `jobs.user_id` scopes ownership, enforced on every list and direct-id

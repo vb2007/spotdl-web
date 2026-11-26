@@ -5,7 +5,7 @@ import httpx
 import pytest
 
 from app.config import get_settings
-from app.models import AllowedEmail
+from app.models import AllowedEmail, Job, JobSourceType, JobState, Track, TrackState, UserSession
 from app.routers import auth
 from app.services import upstream_auth
 from extension_support import FakeRedis
@@ -16,8 +16,10 @@ ALLOWED = "allowed@example.com"
 OFF_LIST = "someone-else@example.com"
 
 
-def _mock_upstream_login(monkeypatch, *, ok: bool, username: str | None = None) -> list[str]:
-    """`login` answers Ok (or Invalid) and `finish` the username; returns the sessions finished."""
+def _mock_upstream_login(
+    monkeypatch, *, ok: bool, username: str | None = None, is_superuser: bool | None = None
+) -> list[str]:
+    """`login` answers Ok (or Invalid) and `finish` the identity; returns the sessions finished."""
     finished: list[str] = []
 
     async def fake_login(email: str, password: str):
@@ -25,7 +27,7 @@ def _mock_upstream_login(monkeypatch, *, ok: bool, username: str | None = None) 
 
     async def fake_finish(session):
         finished.append(session)
-        return username
+        return upstream_auth.Identity(username, is_superuser)
 
     monkeypatch.setattr(auth.upstream_auth, "login", fake_login)
     monkeypatch.setattr(auth.upstream_auth, "finish", fake_finish)
@@ -100,6 +102,98 @@ def test_logout_clears_session(client, monkeypatch):
 
     assert client.post("/api/auth/logout").status_code == 200
     assert client.get("/api/auth/me").status_code == 401
+
+
+# --- v72: is_admin follows the upstream's isSuperuser ---------------------------------------------
+
+
+def _admin_answers(client, cookies=None) -> tuple[int, int]:
+    """A hidden admin route (404 for a non-admin, v56) and an id-free one (403)."""
+    stats = client.get("/api/admin/stats", cookies=cookies)
+    proxies = client.get("/api/proxies", cookies=cookies)
+    if stats.status_code == 404:
+        assert stats.json() == {"detail": "Not Found"}
+    if proxies.status_code == 403:
+        assert proxies.json()["code"] == "admin_required"
+    return stats.status_code, proxies.status_code
+
+
+def test_is_superuser_true_grants_admin_and_false_revokes_it(client, monkeypatch, db_session, session_cookie):
+    _mock_upstream_login(monkeypatch, ok=True, is_superuser=True)
+    response = client.post("/api/auth/login", json={"email": ALLOWED, "password": "correct"})
+    assert response.json()["is_admin"] is True
+    assert _admin_answers(client) == (200, 200)
+    # Another device's session of the same user: the flag is the user's, not the session's.
+    other_device = session_cookie(ALLOWED)
+    assert _admin_answers(client, other_device) == (200, 200)
+
+    _mock_upstream_login(monkeypatch, ok=True, is_superuser=False)
+    response = client.post("/api/auth/login", json={"email": ALLOWED, "password": "correct"})
+    assert response.status_code == 200 and response.json()["is_admin"] is False
+    assert _admin_answers(client) == (404, 403)
+    assert _admin_answers(client, other_device) == (404, 403)
+    assert client.get("/api/auth/me", cookies=other_device).json()["is_admin"] is False
+
+
+@pytest.mark.parametrize("start", [True, False])
+def test_an_unknown_superuser_flag_changes_nothing(client, monkeypatch, start):
+    """A failed or odd `GET /user` (upstream_auth's Identity with None) keeps the flag, either way."""
+    _mock_upstream_login(monkeypatch, ok=True, is_superuser=start)
+    client.post("/api/auth/login", json={"email": ALLOWED, "password": "correct"})
+    _mock_upstream_login(monkeypatch, ok=True, is_superuser=None)
+    response = client.post("/api/auth/login", json={"email": ALLOWED, "password": "correct"})
+    assert response.status_code == 200 and response.json()["is_admin"] is start
+
+
+def test_a_demoted_admin_without_a_row_is_refused_and_cut_off(client, monkeypatch, db_session, make_user):
+    """Allowed only as the admin (no allowlist row), and the upstream says that's over: the
+    demotion is kept, they're cut off as a v69 removal would (their other sessions end, their
+    unstarted jobs are held, their streams are told), and the login is refused like an off-list
+    one (review round 1)."""
+    from app.services import allowlist, events
+    from app.services.sessions import create_session
+
+    user = make_user(OFF_LIST, is_admin=True)
+    create_session(db_session, user.id)
+    job = Job(source_url="https://open.spotify.com/album/x", source_type=JobSourceType.ALBUM, state=JobState.EXPANDED, user_id=user.id)
+    db_session.add(job)
+    db_session.flush()
+    db_session.add(Track(job_id=job.id, spotify_track_id="t1", song_json={"name": "Song"}, state=TrackState.PENDING))
+    db_session.commit()
+    control = []
+    monkeypatch.setattr(events, "publish_control", lambda user_id, kind: control.append(kind))
+    monkeypatch.setattr(allowlist, "_announce_jobs", lambda *a: None)
+    _mock_upstream_login(monkeypatch, ok=True, is_superuser=False)
+    response = client.post("/api/auth/login", json={"email": OFF_LIST, "password": "correct"})
+    assert response.status_code == 401 and response.json()["code"] == "invalid_credentials"
+    assert "SPOTDL_SESSION" not in response.cookies
+    db_session.refresh(user)
+    db_session.refresh(job)
+    assert user.is_admin is False
+    assert db_session.query(UserSession).filter(UserSession.user_id == user.id).count() == 0
+    assert job.held_at is not None
+    assert control == [events.CONTROL_REVOKED]
+
+
+def test_a_demoting_login_tells_the_open_streams(client, monkeypatch):
+    """The admin-scoped streams close at once (`admin_lost`), not only on their 15 s re-check;
+    a login that changes nothing, or grants, publishes nothing (review round 1)."""
+    from app.services import events
+
+    control = []
+    monkeypatch.setattr(events, "publish_control", lambda user_id, kind: control.append(kind))
+    for flag in (True, True, None, False, False):
+        _mock_upstream_login(monkeypatch, ok=True, is_superuser=flag)
+        assert client.post("/api/auth/login", json={"email": ALLOWED, "password": "correct"}).status_code == 200
+    assert control == [events.CONTROL_ADMIN_LOST]
+
+
+def test_an_admin_without_a_row_still_signs_in(client, monkeypatch, db_session, make_user):
+    make_user(OFF_LIST, is_admin=True)
+    db_session.commit()
+    _mock_upstream_login(monkeypatch, ok=True, is_superuser=True)
+    response = client.post("/api/auth/login", json={"email": OFF_LIST, "password": "correct"})
+    assert response.status_code == 200 and response.json()["is_admin"] is True
 
 
 # --- v71: the real proxy behind the router, upstream mocked at the transport ---------------------

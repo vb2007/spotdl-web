@@ -6,17 +6,17 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from starlette.background import BackgroundTask
 
 from app.db import get_db
 from app.errors import ApiError
 from app.models import ApiKey, User, UserSession
-from app.services import allowlist, api_keys, rate_limit, upstream_auth, user_settings
+from app.services import allowlist, api_keys, events, rate_limit, upstream_auth, user_settings
 from app.services.sessions import SESSION_IDLE_TIMEOUT, create_session, delete_session, get_valid_session
 from app.services.spotify_urls import storable
-from app.services.users import get_or_create_user
+from app.services.users import get_or_create_user, normalize_email
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -276,8 +276,11 @@ def _rejected_logging_out(session: str | None, *, clear_mfa: bool = False) -> JS
     return response
 
 
-async def _complete_login(db: Session, response: Response, email: str, address: str, username: str | None) -> dict:
-    """The login tail both the password and the second step end in (v71)."""
+async def _complete_login(
+    db: Session, response: Response, email: str, address: str, identity: upstream_auth.Identity
+) -> dict:
+    """The login tail both the password and the second step end in (v71). v72: `is_admin`
+    follows the identity's `isSuperuser` (`get_or_create_user`)."""
     await run_in_threadpool(rate_limit.clear_login_failures, email, address)
     # Read again, now locked (FOR SHARE) until this login commits its session, and only now: a
     # removal meanwhile waits for it, then ends that session with the others. Not across the
@@ -286,9 +289,21 @@ async def _complete_login(db: Session, response: Response, email: str, address: 
     if not await run_in_threadpool(allowlist.is_allowed, db, email, lock=True):
         db.rollback()
         raise _invalid_credentials()
-    user = get_or_create_user(db, email, username)
+    was_admin = db.execute(select(User.is_admin).where(User.email == normalize_email(email))).scalar()
+    user = get_or_create_user(db, email, identity.username, identity.is_superuser)
+    if not user.is_admin and not allowlist.is_allowed(db, email):
+        # v72: allowed above only as the admin, and the upstream just said it no longer is (an
+        # admin with no row): the demotion is kept, they're cut off as a removal would (their
+        # other sessions, keys and unstarted jobs), and the login is refused like an off-list one.
+        await run_in_threadpool(allowlist.cut_off, db, user.id)
+        raise _invalid_credentials()
     session = create_session(db, user.id)
     db.commit()
+    if was_admin and not user.is_admin:
+        # v72: their open streams close now, and each page's reconnect reloads it without the admin
+        # chrome; the re-check is the safety net. Off the event loop: a stalled Redis must not
+        # freeze every other request (review round 2).
+        await run_in_threadpool(events.publish_control, user.id, events.CONTROL_ADMIN_LOST)
     _set_session_cookie(response, session.token)
     return {"email": user.email, "username": user.username, "is_admin": user.is_admin}
 
@@ -337,8 +352,8 @@ async def login(
         _set_mfa_cookie(response, challenge_id)
         return {"mfa_required": True, "methods": methods}
 
-    username = await upstream_auth.finish(result.session)
-    return await _complete_login(db, response, payload.email, address, username)
+    identity = await upstream_auth.finish(result.session)
+    return await _complete_login(db, response, payload.email, address, identity)
 
 
 class MfaVerifyRequest(BaseModel):
@@ -398,9 +413,9 @@ async def mfa_verify(
     db.commit()
     if not allowed:
         return _rejected_logging_out(result.session, clear_mfa=True)
-    username = await upstream_auth.finish(result.session)
+    identity = await upstream_auth.finish(result.session)
     try:
-        answer = await _complete_login(db, response, email, rate_limit.client_address(request), username)
+        answer = await _complete_login(db, response, email, rate_limit.client_address(request), identity)
     except ApiError as refused:
         # Removed meanwhile (the locked re-check): its challenge is gone, so is its cookie.
         raise ApiError(

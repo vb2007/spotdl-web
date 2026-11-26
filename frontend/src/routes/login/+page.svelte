@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import { VB2007_SITE } from '$lib/vb2007';
 	import { goto, replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import { consumeSessionEnded } from '$lib/stores/sessionEnded';
@@ -533,6 +534,16 @@
 		<p id="login-error" class="error" role="alert">
 			{errorMessage}
 		</p>
+
+		<!-- v72: the account itself is vb2007.hu's (same tab); access stays by invitation. -->
+		{#if step !== 'mfa'}
+			<!-- eslint-disable svelte/no-navigation-without-resolve -- an external vb2007.hu page, not a route of this app -->
+			<p class="account-links">
+				<a href="{VB2007_SITE}/reset-password">{m.login_forgot_password()}</a>
+				<a href="{VB2007_SITE}/register">{m.login_create_account()}</a>
+			</p>
+			<!-- eslint-enable svelte/no-navigation-without-resolve -->
+		{/if}
 	</form>
 </main>
 
@@ -813,5 +824,22 @@
 		min-height: 1.25rem;
 		color: var(--fail);
 		font-size: var(--fs-detail);
+	}
+
+	/* v72: quiet, under the error line: the card's job is signing in. */
+	.account-links {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: space-between;
+		gap: var(--space-2) var(--space-4);
+		font-size: var(--fs-detail);
+	}
+
+	.account-links a {
+		color: var(--text-muted);
+	}
+
+	.account-links a:hover {
+		color: var(--text-primary);
 	}
 </style>

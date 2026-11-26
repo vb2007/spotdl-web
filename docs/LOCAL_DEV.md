@@ -28,7 +28,9 @@ cp .env.dev.example .env
 Fill in the real Postgres password for the dev database's role (the URL's database name must
 stay `spotdlwebtest`, see [Dedicated dev database](#dedicated-dev-database)) and `ADMIN_EMAIL`, a
 **test account**, never the owner's real admin address (v17+; always allowed to sign in since
-v69, so it no longer has to appear in `ALLOWED_EMAILS`, which only seeds a fresh database). Everything else in `.env.dev.example` is already dev-appropriate out of the box —
+v69, so it no longer has to appear in `ALLOWED_EMAILS`, which only seeds a fresh database; since
+v72 a dev-only override, honored only under `SPOTDL_ENV=dev`, which the override compose file sets:
+production follows the upstream's `isSuperuser`, and no test identity is api.vb2007.hu's superuser). Everything else in `.env.dev.example` is already dev-appropriate out of the box —
 notably `LADDER_SECONDS` is pre-shortened to seconds instead of hours, since testing the real
 retry ladder shouldn't take literal days.
 
@@ -228,7 +230,8 @@ docker compose up -d
 ```
 
 **A fresh dev database means fresh `users` rows.** Every identity gets its row again on its first
-successful login, and `is_admin` comes from the local `.env`'s `ADMIN_EMAIL` (a test account).
+successful login, and `is_admin` comes from the local `.env`'s `ADMIN_EMAIL` (a test account; v72:
+the dev override, while every other identity's follows its upstream `isSuperuser`).
 File-sourced proxies come back on `worker-meta`'s next boot through `sync_from_file()`. Manual
 (UI-added) proxies, jobs and settings start empty.
 
@@ -580,7 +583,7 @@ from before v52 needs nothing by hand.
 | `web` fails with `Bind for 127.0.0.1:5173 failed: port is already allocated`, even though nothing else is using that port | `docker-compose.override.yml`'s `ports:` list *merges* with `docker-compose.yml`'s instead of replacing it (list-type keys merge by default across compose files — `command`/`build` don't, so this is easy to miss), so `web` ends up with two host bindings to the same address | Confirmed fixed for `web` via the `!override` merge tag on its `ports:` key — if you add a *new* port mapping to any service in the override, check `docker compose config` for duplicates rather than assuming a plain list will replace the base file's |
 | Stack was working, comes back broken after `docker compose down && up` with no config changes | Check `docker compose config` for the resolved service definitions before assuming it's a code regression — compose-file merge behavior is a common source of surprises that look like app bugs | |
 | `migrate` exits at boot (and api/workers/beat never start, since they wait on it) with `SPOTDL_ENV=dev but DATABASE_URL points at the production database …` or `… can't be parsed` / `… names no database` (v32) | The local `.env`'s `DATABASE_URL` points at production's database, or is malformed. The dev guard refuses rather than risk production rows | Point `DATABASE_URL` at `spotdlwebtest` (see [Dedicated dev database](#dedicated-dev-database)). Never remove `SPOTDL_ENV` from the override to get past it |
-| `migrate` fails at boot (api/workers/beat never start) with a `pydantic.ValidationError` naming `ADMIN_EMAIL` (v17+) | `ADMIN_EMAIL` is unset in `.env` (required at startup, by design; since v69 it needn't be in `ALLOWED_EMAILS`) | Add `ADMIN_EMAIL=you@example.com` to `.env` |
+| Signed in on the dev stack, but no admin pages (v72+; before v72 a missing `ADMIN_EMAIL` failed `migrate` with a `pydantic.ValidationError` instead) | `ADMIN_EMAIL` is unset in `.env`, or the process doesn't run under `SPOTDL_ENV=dev` (a plain `-f docker-compose.yml` invocation): production ignores it | Add `ADMIN_EMAIL=you@example.com` to `.env`, recreate the backend containers, sign in again |
 | After editing a backend file, `api` logs `Waiting for connections to close` and stops answering (v48) | `uvicorn --reload` waits for every open response before restarting, and an `/api/stream` SSE response (a browser tab, a `curl -N`, a Playwright run) never ends on its own | Fixed in v52: the dev `api` runs with `--timeout-graceful-shutdown 3`, so the reload goes ahead after 3 s and open streams reconnect. If it still hangs, `docker compose restart api` |
 | A backend change works through `api` but a task still runs the old code | Before v52, Celery workers didn't hot-reload: they keep the Python they imported at boot | Fixed in v52 for `worker-dl`, `worker-meta` and `worker-expand`: `scripts/dev/reload.py` restarts them on a `.py` change under `backend/app` (their logs show `dev-reload: changed: …`). `beat` isn't wrapped: `docker compose restart beat` after editing its schedule. A worker whose edit broke its import exits, and Docker restarts it until the edit is fixed (`dev-reload: celery exited on its own (…)` in its log). A `docker compose run` one-off on a worker service that isn't a `celery … worker` command is `exec`ed as is, never watched |
 | A frontend dependency change doesn't show up in `web` (v46) | `web`'s `node_modules` is a volume (`docker-compose.override.yml`), which outlives an image rebuild | Since v52, `docker compose restart web`: the dev command compares `package-lock.json` with the stamp of the lockfile `node_modules` was installed from, and runs `npm ci` into the volume when they differ (its log says so). A plain `up -d` doesn't restart a container whose image didn't change, so restart it. No `--renew-anon-volumes` |

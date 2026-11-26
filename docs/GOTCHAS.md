@@ -24,6 +24,11 @@ needed" claim — rather than silently deleted.
 - `ALLOWED_EMAILS` is import-only since v69: the first `migrate` copies it (plus `ADMIN_EMAIL`)
   into `allowed_emails`; a later edit does nothing but a startup warning. A slot or dev DB that
   needs a new identity adds it on `/users`, or is reset (`down --volumes`) → *v69*
+  *(2026-11-25, v72: `ADMIN_EMAIL` is blank outside `SPOTDL_ENV=dev`, so a production migrate imports
+  `ALLOWED_EMAILS` alone; a fresh install lists the upstream superuser there, see v72.)*
+- `ADMIN_EMAIL` is a dev-only override since v72: production blanks it and follows the upstream's
+  `isSuperuser`; pytest (slot and CI) runs without `SPOTDL_ENV`, so conftest's fake upstream makes
+  `admin@example.com` the superuser instead → *v72*
 - `pydantic-settings` auto-JSON-decodes `list[...]` fields; any new list-typed setting needs
   `Annotated[list[str], NoDecode]` or the app won't start → *v01*
 - Adding a runtime dependency needs `docker compose build`, not `restart` → *v03*
@@ -254,6 +259,11 @@ needed" claim — rather than silently deleted.
   `.git/agent-stack/live-mfa.env`; never MFA on a shared identity → *v71*
 - Never raise one module-level exception instance twice: each raise chains that request's
   traceback onto it, keeping its frames (passwords, tokens) alive for the process → *v71*
+- `is_admin` follows a login's `GET /user` `isSuperuser` (a JSON boolean only; anything else changes
+  nothing); losing it closes an admin-scoped stream on its 15 s re-check, and an admin allowed only
+  as the admin (no row) is refused once demoted → *v72*
+- To test grant/revoke for real, start the local `vb2007.hu-api` with `SUPERUSER_EMAIL=<slot
+  identity>`, then restart it without → *v72*
 - Admin routes: 404 (`require_admin_hidden`) where the path names an id, 403 elsewhere → *v56*
 - A `failed` job's cancel is the incoming overlay's "dismiss": a cancel rule must keep it → *v56*
 - A Firefox MV3 extension's background fetch carries the session cookie (loopback HTTP and HTTPS
@@ -8261,3 +8271,63 @@ independently-found production bug from the same conversation)
   passwords (and from v71 on, the upstream challenge and session tokens). Errors are now built per
   raise (`_invalid_credentials()`, `_login_unavailable()`), and `test_auth.py` fails on any
   exception instance held at module level in `app/routers/`. Found by v71's third diff review.
+
+### v72 upstream-identity gotchas (learned moving `is_admin` onto the upstream's `isSuperuser`)
+
+- **`ADMIN_EMAIL` is blanked, not removed.** `config.py` keeps the field (default `""`) and a
+  validator blanks it unless `SPOTDL_ENV=dev`, because the v69 migration and `conftest.py` still
+  normalize `settings.admin_email`: `None` would crash a fresh `migrate`, while a blank is dropped by
+  both. Every comparison goes through `allowlist.admin_address()`, which is `""` in production and
+  only ever matched when non-blank (`is_admin_address`, `owner_allowed`), or a login for `""` would
+  read as the admin's.
+- **The test suite is production config.** Both the slot's `pytest` (a clean `os.execve`
+  environment) and CI's run without `SPOTDL_ENV`, so conftest's `ADMIN_EMAIL=admin@example.com` is
+  ignored. `conftest._login` fakes `upstream_auth.finish` too, with `admin@example.com` as the fake
+  upstream's superuser; a test of the dev override monkeypatches `settings.admin_email`. A test
+  asserting the production behavior fails under a `SPOTDL_ENV=dev` shell, by design.
+- **Only a read of their own changes a user's flag.** The v17 "demote every other admin" sweep stays
+  on the dev override (changing `ADMIN_EMAIL` still takes effect on the next login), but an upstream
+  grant demotes nobody: that would change other users' flags without a read of theirs, which the
+  master's locked decision forbids. A second upstream superuser would be a second admin.
+- **The open stream's admin scope is fixed at connect.** `_event_stream` pattern-subscribes for
+  `all`/`others` once, so a demoted admin's open tab kept receiving everyone's events. Its 15 s
+  re-check (`_session_status`, `needs_admin`) now reads `is_admin` too and ends a pattern-subscribed
+  stream as `ended`; the page's `onerror` reconnects and `resolve_view` scopes the new one `mine`.
+  Not `CONTROL_REVOKED`: it sends `session.revoked`, which runs the page's logout path, and the
+  demoting login's own session shares that browser's cookie. *(Review round 1: the demoting login
+  now also publishes its own control kind, `admin_lost` (off the event loop), which closes every
+  stream of theirs at once (round 2: a `mine` tab too, or its admin chrome stayed), so the re-check
+  is the safety net as in v69, and since round 3 it checks every stream an admin opened, `mine`
+  included, so a lost publish can't leave a `mine` tab's admin chrome up; the page's reconnect `me` check
+  reloads it when `is_admin` changed, so the admin nav and view switch go too.)* Measured on slot 1:
+  with only the re-check, a probe on another user's channel still got through 4 s after the
+  demotion (live review); with `admin_lost` the open tab reloaded 3 s after the demoting login,
+  showing `stats|account` only, and the reconnected stream carried only the user's own channel.
+- **"Always allowed" now costs a query.** The admin was a string compare; `is_allowed` reads the row
+  first (one query for almost every request) and asks `users.is_admin` only when there's none. An
+  admin allowed only as the admin (no row) whom a login demotes is refused with
+  `invalid_credentials` after the flag is saved, since the allowlist is read before `GET /user` (v71
+  Amendment), and cut off the way a removal cuts off (`allowlist.cut_off`: sessions, keys, held
+  jobs, `revoked` on their streams; review round 1). The unlocked `is_allowed` is one statement
+  (`EXISTS row OR EXISTS admin`), so an off-list address costs the login what an on-list one does,
+  and `remove` re-reads the admin flag after its DELETE (a login holding the row may just have been
+  granted admin). Round 2: `add` gives a row-less admin a row (it no longer answers them 409), so a
+  later demotion leaves them a plain user instead of cutting them off. Production's admin has a row (read-only check, 2026-11-25, owner's OK).
+- **Every admin is unremovable.** v69 protected the one `ADMIN_EMAIL`; keyed on `is_admin`, two
+  upstream superusers can't remove each other, and an admin the upstream stopped calling one keeps
+  admin until their next login (v74's sync closes that). DEPLOYMENT.md has the hand `UPDATE`.
+- **Only the queue page reloads on a lost admin.** `/account`, `/library` and `/users` tabs keep
+  the admin nav until the next navigation (their requests already answer 403/404); `/account` and
+  `/users` hold no stream to learn it from (live review round 2, left as is).
+- **Bootstrap moved to `ALLOWED_EMAILS`.** The login reads the allowlist before `GET /user`, so on a
+  fresh database the upstream superuser can't sign in to become admin unless their address was
+  imported. `.env.example` says so.
+- **Rollback needs the host's `ADMIN_EMAIL` line.** Releases before 6.72.0 require it (pydantic
+  required field) and crash-loop without it; it's ignored from 6.72.0 on, so it stays in the host
+  `.env`.
+- **External links need a scoped lint exception.** `svelte/no-navigation-without-resolve` flags any
+  non-literal `href`, external ones included; the vb2007.hu links carry an
+  `eslint-disable`/`eslint-enable` pair with the reason, as `share/` does. The base URL is
+  `$lib/vb2007.ts`'s `VB2007_SITE`, and its three paths (`/account`, `/register`,
+  `/reset-password`) are `vb2007.hu-vue`'s router routes (the SPA answers 200 for any path, so a
+  `curl` proves nothing).

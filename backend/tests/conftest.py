@@ -445,7 +445,13 @@ def _login(client: TestClient, monkeypatch, email: str) -> None:
     async def fake_login(email_: str, password: str):
         return auth_router.upstream_auth.Ok("upstream-session")
 
+    # v72: `is_admin` follows the upstream's `isSuperuser`; this fake upstream's superuser is
+    # admin@example.com (ADMIN_EMAIL is a dev-only override, blanked in this suite).
+    async def fake_finish(session):
+        return auth_router.upstream_auth.Identity(is_superuser=email.strip().lower() == "admin@example.com")
+
     monkeypatch.setattr(auth_router.upstream_auth, "login", fake_login)
+    monkeypatch.setattr(auth_router.upstream_auth, "finish", fake_finish)
     response = client.post("/api/auth/login", json={"email": email, "password": "x"})
     assert response.status_code == 200
 
