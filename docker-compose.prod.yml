@@ -158,7 +158,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          # v72.1: 384M, not 256M. Beat idles at ~215-222 MiB (it imports the whole app), and
+          # with the host's swap full a limit is a hard RAM cap: 256M left ~34 MiB of room.
+          memory: 384M
           cpus: "0.25"
 
   web:
