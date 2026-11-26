@@ -356,8 +356,8 @@ Lines from that json-file era weren't migrated and are gone. Local dev keeps jso
 
 ### Memory limits (v72.1)
 
-`docker-compose.prod.yml` caps every service. Compose also gives each capped container a swap
-allowance equal to its limit, but **the limits are sized to fit without swap**: this host's swap
+`docker-compose.prod.yml` caps every long-running service (the one-shot `migrate` has no limit).
+Docker gives each capped container a swap allowance equal to its limit by default, but **the limits are sized to fit without swap**: this host's swap
 fills (975/975 MiB on 2026-11-26), and then each limit is a hard RAM cap. Before v72.1,
 `worker-meta`'s boot peaked at 827 MiB against 768M and only fit while swap had room. On
 2026-11-26 it OOM-looped through a deploy and its rollback (docs/GOTCHAS.md, v72.1).

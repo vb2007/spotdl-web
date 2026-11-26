@@ -242,8 +242,8 @@ needed" claim — rather than silently deleted.
   for `node_modules` (reinstalled when `package-lock.json` changes), the compiled messages and
   `.svelte-kit`; `up -d` doesn't restart an unchanged container, so a lockfile change needs
   `docker compose restart web` → *v52*
-- A prod memory limit only holds while the host's swap has room: compose gives every limited
-  container a swap allowance equal to its limit, and a full host swap turns the limit into a hard
+- A prod memory limit only holds while the host's swap has room: Docker gives every limited
+  container a swap allowance equal to its limit by default, and a full host swap turns the limit into a hard
   RAM cap. A boot that passed yesterday proves nothing once swap filled since → *v72.1*
 - A healthcheck runs inside its container's memory limit, every 5 s during `start_period` until its
   first success (Docker's `start_interval` default), so it overlaps the boot: a `celery -A app…`
@@ -8360,8 +8360,8 @@ independently-found production bug from the same conversation)
   minutes, until `docker update --memory 2g --memory-swap 2g spotdl-web-worker-meta-1` (it lasts
   until the next recreate). `6.71.0` had booted fine the day before: the difference was the host's
   swap, full (975/975 MiB) by then.
-- **Limits are swap-backed.** Compose's `deploy.resources.limits.memory` gives a container a swap
-  allowance equal to the limit (`HostConfig.MemorySwap` = 2× `Memory`). With the host's swap full the
+- **Limits are swap-backed.** With `deploy.resources.limits.memory` and no swap limit set, Docker
+  gives a container a swap allowance equal to the limit (`HostConfig.MemorySwap` = 2× `Memory`). With the host's swap full the
   allowance is empty and the limit is a hard RAM cap. Size limits for a boot **without** swap, and
   read the real peak from the cgroup (`memory.peak`, see `docs/DEPLOYMENT.md`).
 - **What a `worker-meta` boot costs** (23,049 ledger rows, production's count): the main process and
