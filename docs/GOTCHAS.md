@@ -124,6 +124,8 @@ needed" claim — rather than silently deleted.
   once resolved to an unambiguous commit SHA → *v21*
 - A service with no explicit Celery `--concurrency` defaults to `os.cpu_count()` prefork
   children — reliably OOMs a heavy-dependency worker on a resource-limited container → *v21*
+  *(2026-11-26: the 768M that fit after this fix relied on swap; with the host's swap full the boot
+  OOM-looped again, see v72.1.)*
 - A hardcoded absolute path in a script/doc is a claim about the real host's layout — verify it
   against the host, since a stray `mkdir -p` into a "normal-looking" path (e.g. `/srv`) is easy
   to miss and can land on the wrong disk entirely → *v21*
@@ -239,6 +241,16 @@ needed" claim — rather than silently deleted.
   for `node_modules` (reinstalled when `package-lock.json` changes), the compiled messages and
   `.svelte-kit`; `up -d` doesn't restart an unchanged container, so a lockfile change needs
   `docker compose restart web` → *v52*
+- A prod memory limit only holds while the host's swap has room: compose gives every limited
+  container a swap allowance equal to its limit, and a full host swap turns the limit into a hard
+  RAM cap. A boot that passed yesterday proves nothing once swap filled since → *v72.1*
+- A healthcheck runs inside its container's memory limit, every 5 s until its first success
+  (Docker's `start_interval` default), so it overlaps the boot: a `celery -A app…` probe cost
+  ~233 MiB there, an app-less one ~47. Keep the broker URL in the probe's environment, never argv
+  (CI's `check_healthchecks.py`) → *v72.1*
+- Reproducing a prod OOM locally needs the prod limit with **no swap** (`memswap_limit` = `mem_limit`),
+  `cpus`, no dev reload wrapper, **and Matrix on**: the alert watchdog is a separate ~88 MiB
+  process that only starts with alerts configured → *v72.1*
 
 **Auth, cookies & sessions**
 - A removal deletes the user's sessions, but a login that read the allowlist just before it would
@@ -3628,6 +3640,9 @@ automated deploy-to-host)
   A pre-existing bug outside this slice's stated scope became in-scope the moment it started
   blocking the very thing being built — worth remembering next time a "flag for later" item
   turns out to sit on the critical path.
+  *(2026-11-26: `--concurrency=2` brought the boot under the limit only with swap behind it. v72.1
+  measured the boot at 827 MiB against 768M once swap was full, and fixed the healthcheck probe and
+  `reconcile_disk` instead of raising the limit.)*
 - **A "reasonable-looking" hardcoded default path can be silently wrong for the real host, and
   nothing will tell you until it's already created something** — `scripts/pg_backup.sh`'s
   original default (`/srv/spotdl-web/backups`, inherited from this doc's own original,
@@ -8331,3 +8346,37 @@ independently-found production bug from the same conversation)
   `$lib/vb2007.ts`'s `VB2007_SITE`, and its three paths (`/account`, `/register`,
   `/reset-password`) are `vb2007.hu-vue`'s router routes (the SPA answers 200 for any path, so a
   `curl` proves nothing).
+
+### v72.1 worker-boot-memory gotchas (learned from the 2026-11-26 OOM loop)
+
+- **The incident.** The `6.72.0` deploy failed its health wait: `worker-meta` was OOM-killed about
+  every 20 s (183 restarts, Docker events `oom` then `die 137`), and the rollback to `6.71.0` looped
+  the same way. Beat's `dispatch_due_tracks` runs there, so no download was dispatched for 76
+  minutes, until `docker update --memory 2g --memory-swap 2g spotdl-web-worker-meta-1` (it lasts
+  until the next recreate). `6.71.0` had booted fine the day before: the difference was the host's
+  swap, full (975/975 MiB) by then.
+- **Limits are swap-backed.** Compose's `deploy.resources.limits.memory` gives a container a swap
+  allowance equal to the limit (`HostConfig.MemorySwap` = 2× `Memory`). With the host's swap full the
+  allowance is empty and the limit is a hard RAM cap. Size limits for a boot **without** swap, and
+  read the real peak from the cgroup (`memory.peak`, see `docs/DEPLOYMENT.md`).
+- **What a `worker-meta` boot costs** (23,049 ledger rows, production's count): the main process and
+  two prefork children, plus the alert watchdog (`python -m app.services.alert_watchdog`, ~88 MiB,
+  only with Matrix configured), plus `reconcile_disk` (+72 MiB as ORM rows, +28 as two columns), plus
+  the healthcheck probe. With `celery -A app.tasks.celery_app inspect ping` that probe was 233 MiB; it
+  runs every 5 s until the first success, so it always overlapped the boot. Measured on slot 5 under
+  768m with no swap and one CPU: `main` OOM-looped (7 OOM events per 180 s, every probe exit 137,
+  exactly production's health log); v72.1 peaked at 570–572 MiB over three recreates.
+- **The app-less probe.** `CELERY_BROKER_URL="$$REDIS_URL" celery inspect ping -d <name>@$$HOSTNAME`
+  answers the same `pong` (exit 0) and exits 69 for a name that isn't online, at ~55 MiB. Celery reads
+  `CELERY_BROKER_URL` when no app is given. A `VAR=value` prefix in the probe's shell never reaches
+  argv; `-b "$$REDIS_URL"` would put the Redis password in `ps` (an in-container `/proc/*/cmdline` scan
+  caught it in 20 of 22 scans; the real probe in 0). CI's compose-config job runs
+  `.github/scripts/check_healthchecks.py` on both rendered projects.
+- **A local repro misses the watchdog by default.** Slots run with Matrix unconfigured, so the
+  watchdog never starts and `main` peaked at 719 MiB, under the limit. The repro used a throwaway
+  overlay (never committed) with a fake, unreachable homeserver (`http://127.0.0.1:9`, room
+  `!repro:invalid`) to start it without any send reaching a room.
+- **Sandboxed shells can't see container processes.** A host-side `/proc` scan from the agent's
+  shell saw none of the container's processes (its own PID namespace), so it "found" nothing even for
+  a planted `-b` URL. Scan inside the container (`docker exec … grep -l … /proc/[0-9]*/cmdline`), with
+  a positive control, and never search for the literal string the `grep` itself carries.

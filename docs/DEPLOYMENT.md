@@ -354,6 +354,31 @@ Lines from that json-file era weren't migrated and are gone. Local dev keeps jso
   one budget. This stack writes a few thousand lines a day; a dropped burst shows up in the
   journal as "Suppressed N messages from docker.service".
 
+### Memory limits (v72.1)
+
+`docker-compose.prod.yml` caps every service. Compose also gives each capped container a swap
+allowance equal to its limit, but **the limits are sized to fit without swap**: this host's swap
+fills (975/975 MiB on 2026-11-26), and then each limit is a hard RAM cap. Before v72.1,
+`worker-meta`'s boot peaked at 827 MiB against 768M and only fit while swap had room. On
+2026-11-26 it OOM-looped through a deploy and its rollback (docs/GOTCHAS.md, v72.1).
+
+- **Spot an OOM loop:** a container whose `RestartCount` keeps climbing, with `oom` events:
+  ```bash
+  docker inspect -f 'restarts={{.RestartCount}} health={{.State.Health.Status}}' spotdl-web-worker-meta-1
+  docker events --since 30m --filter container=spotdl-web-worker-meta-1 --filter event=oom
+  ```
+- **Read a container's real peak** (the cgroup's high-water mark since it started; cgroup v2):
+  ```bash
+  C=$(docker inspect -f '{{.Id}}' spotdl-web-worker-meta-1)
+  cat /sys/fs/cgroup/system.slice/docker-$C.scope/memory.peak   # bytes
+  ```
+  Expect about 570–620 MiB for `worker-meta` since v72.1, and about 220 MiB for `beat`.
+- **Stopgap for a loop** (a rollback target older than `6.72.1` still has the heavy probe): raise
+  the running container's limit in place. It lasts until the next recreate, a deploy included:
+  ```bash
+  docker update --memory 2g --memory-swap 2g spotdl-web-worker-meta-1
+  ```
+
 ---
 
 ## Rollback / recovery (v21, v33)
