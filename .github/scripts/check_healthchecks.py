@@ -12,8 +12,9 @@ the host shows; the URL goes in the probe's environment (CELERY_BROKER_URL) inst
 Reads `docker compose ... config --format json` on stdin, so it checks the merged services exactly
 as they deploy. Limits: it guards against accidents, not deliberate obfuscation (a probe that never
 spells "celery", e.g. `cel''ery` or a glob, isn't matched; review is the backstop), and it sees only
-the rendered environment: a Dockerfile `ENV` or a variable in the host's real `.env` (CI renders with
-`.env.example`) is invisible to it. Stdlib-only, like check_version.py.
+the rendered environment: a Dockerfile `ENV`, a variable in the host's real `.env` (CI renders with
+`.env.example`), or a `celeryconfig.py` in the probe's working directory (celery's default loader
+imports it: 235 MiB, measured) is invisible to it. Stdlib-only, like check_version.py.
 
 Usage:
     docker compose -f docker-compose.yml -f docker-compose.prod.yml config --format json \\
