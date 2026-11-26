@@ -4,8 +4,8 @@ URL in argv (v72.1).
 
 A healthcheck runs inside its container's memory limit. `celery -A app.tasks.celery_app inspect
 ping` imports the whole app (~233 MiB against ~47 for an app-less ping), and Docker runs it every 5 s
-until the first success, so it overlaps the worker's boot: on 2026-11-26 that pushed worker-meta
-past its 768M limit into an OOM-restart loop once the host's swap was full (docs/GOTCHAS.md,
+during `start_period` until the first success, so it overlaps the worker's boot: on 2026-11-26 that,
+with the alert watchdog and reconcile_disk, pushed worker-meta past its 768M limit into an OOM-restart loop once the host's swap was full (docs/GOTCHAS.md,
 v72.1). `-b`/`--broker` would avoid the import but put the Redis password in argv, which `ps` on
 the host shows; the URL goes in the probe's environment (CELERY_BROKER_URL) instead.
 
@@ -48,12 +48,29 @@ def offending_flags(test: list[str] | str) -> list[str]:
     return found
 
 
+# Celery's CLI reads these as -A / -b defaults (celery/bin/celery.py), so a matching probe would still
+# import the app, or take a URL from somewhere other than CELERY_BROKER_URL.
+_CELERY_CLI_ENV = ("APP", "CELERY_APP", "BROKER_URL", "CELERY_BROKER")
+
+
+def refused_environment(environment: dict | list | None) -> list[str]:
+    """The celery CLI defaults set in a service's rendered environment."""
+    if isinstance(environment, list):
+        names = [item.split("=", 1)[0] for item in environment]
+    else:
+        names = list(environment or {})
+    return [f"{name} in its environment" for name in names if name in _CELERY_CLI_ENV]
+
+
 def main() -> int:
     services = json.load(sys.stdin).get("services", {})
     bad = []
     for name, service in sorted(services.items()):
         test = (service.get("healthcheck") or {}).get("test")
-        if test and (flags := offending_flags(test)):
+        flags = offending_flags(test) if test else []
+        if test and "celery" in " ".join(test if isinstance(test, list) else [test]).lower():
+            flags += refused_environment(service.get("environment"))
+        if flags:
             bad.append(f"{name}: {', '.join(flags)}")
     if bad:
         print("healthchecks refused (see .github/scripts/check_healthchecks.py and docs/GOTCHAS.md, v72.1):")
@@ -91,4 +108,7 @@ if __name__ == "__main__":
         "a redis URL",
         *celery_only,
     ]
+    assert refused_environment({"APP": "app.tasks.celery_app", "REDIS_URL": "x"}) == ["APP in its environment"]
+    assert refused_environment(["BROKER_URL=x", "RUN_DISK_RECONCILE=true"]) == ["BROKER_URL in its environment"]
+    assert refused_environment(None) == []
     sys.exit(main())
