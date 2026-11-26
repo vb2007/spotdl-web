@@ -10,7 +10,10 @@ v72.1). `-b`/`--broker` would avoid the import but put the Redis password in arg
 the host shows; the URL goes in the probe's environment (CELERY_BROKER_URL) instead.
 
 Reads `docker compose ... config --format json` on stdin, so it checks the merged services exactly
-as they deploy. Stdlib-only, like check_version.py.
+as they deploy. Limits: it guards against accidents, not deliberate obfuscation (a probe that never
+spells "celery", e.g. `cel''ery` or a glob, isn't matched; review is the backstop), and it sees only
+the rendered environment: a Dockerfile `ENV` or a variable in the host's real `.env` (CI renders with
+`.env.example`) is invisible to it. Stdlib-only, like check_version.py.
 
 Usage:
     docker compose -f docker-compose.yml -f docker-compose.prod.yml config --format json \\
@@ -48,9 +51,21 @@ def offending_flags(test: list[str] | str) -> list[str]:
     return found
 
 
-# Celery's CLI reads these as -A / -b defaults (celery/bin/celery.py), so a matching probe would still
-# import the app, or take a URL from somewhere other than CELERY_BROKER_URL.
-_CELERY_CLI_ENV = ("APP", "CELERY_APP", "BROKER_URL", "CELERY_BROKER")
+# Celery's CLI and default loader read these (celery/bin/celery.py, celery/loaders): set on a probed
+# service, the template would still import the app (APP, CONFIG_MODULE, LOADER: ~235 MiB, measured)
+# or take a URL from somewhere other than CELERY_BROKER_URL.
+_CELERY_CLI_ENV = (
+    "APP",
+    "CELERY_APP",
+    "CONFIG_MODULE",
+    "CELERY_CONFIG_MODULE",
+    "LOADER",
+    "CELERY_LOADER",
+    "BROKER_URL",
+    "CELERY_BROKER",
+    "RESULT_BACKEND",
+    "CELERY_RESULT_BACKEND",
+)
 
 
 def refused_environment(environment: dict | list | None) -> list[str]:
@@ -111,4 +126,7 @@ if __name__ == "__main__":
     assert refused_environment({"APP": "app.tasks.celery_app", "REDIS_URL": "x"}) == ["APP in its environment"]
     assert refused_environment(["BROKER_URL=x", "RUN_DISK_RECONCILE=true"]) == ["BROKER_URL in its environment"]
     assert refused_environment(None) == []
+    assert refused_environment({"CELERY_CONFIG_MODULE": "app.tasks.celery_app"}) == [
+        "CELERY_CONFIG_MODULE in its environment"
+    ]
     sys.exit(main())
