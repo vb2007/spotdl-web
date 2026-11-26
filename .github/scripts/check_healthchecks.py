@@ -51,21 +51,12 @@ def offending_flags(test: list[str] | str) -> list[str]:
     return found
 
 
-# Celery's CLI and default loader read these (celery/bin/celery.py, celery/loaders): set on a probed
-# service, the template would still import the app (APP, CONFIG_MODULE, LOADER: ~235 MiB, measured)
-# or take a URL from somewhere other than CELERY_BROKER_URL.
-_CELERY_CLI_ENV = (
-    "APP",
-    "CELERY_APP",
-    "CONFIG_MODULE",
-    "CELERY_CONFIG_MODULE",
-    "LOADER",
-    "CELERY_LOADER",
-    "BROKER_URL",
-    "CELERY_BROKER",
-    "RESULT_BACKEND",
-    "CELERY_RESULT_BACKEND",
-)
+# Celery's CLI declares these bare names (celery/bin/celery.py: --app, --broker, --result-backend,
+# --loader, --config) and also reads every option as CELERY_<OPTION> (auto_envvar_prefix), while its
+# loader reads CELERY_CONFIG_MODULE and CELERY_LOADER. Set on a probed service, the template would still
+# import the app (~235 MiB, measured with APP and CONFIG_MODULE) or take a URL from elsewhere. Every
+# CELERY_* name is refused rather than a list of them (a list missed CELERY_CONFIG in review).
+_CELERY_CLI_ENV = ("APP", "BROKER_URL", "RESULT_BACKEND", "LOADER", "CONFIG_MODULE")
 
 
 def refused_environment(environment: dict | list | None) -> list[str]:
@@ -74,7 +65,7 @@ def refused_environment(environment: dict | list | None) -> list[str]:
         names = [item.split("=", 1)[0] for item in environment]
     else:
         names = list(environment or {})
-    return [f"{name} in its environment" for name in names if name in _CELERY_CLI_ENV]
+    return [f"{name} in its environment" for name in names if name in _CELERY_CLI_ENV or name.startswith("CELERY_")]
 
 
 def main() -> int:
@@ -126,6 +117,9 @@ if __name__ == "__main__":
     assert refused_environment({"APP": "app.tasks.celery_app", "REDIS_URL": "x"}) == ["APP in its environment"]
     assert refused_environment(["BROKER_URL=x", "RUN_DISK_RECONCILE=true"]) == ["BROKER_URL in its environment"]
     assert refused_environment(None) == []
+    assert refused_environment({"CELERY_CONFIG": "app.tasks.celery_app", "SPOTDL_ENV": "dev"}) == [
+        "CELERY_CONFIG in its environment"
+    ]
     assert refused_environment({"CELERY_CONFIG_MODULE": "app.tasks.celery_app"}) == [
         "CELERY_CONFIG_MODULE in its environment"
     ]

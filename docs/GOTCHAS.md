@@ -2634,7 +2634,10 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
 - **`celery inspect ping` is real, non-trivial work — a fresh interpreter importing
   `app.tasks.*`, which transitively drags in spotdl/yt-dlp — and must not be run every
   few seconds forever as a healthcheck.** `worker-dl`/`worker-meta`'s healthchecks use a
-  120s interval and 90s `start_period` specifically to keep this cost rare. It does
+  120s interval and 90s `start_period` specifically to keep this cost rare
+  *(2026-11-26, v72.1: no longer true on either count. Docker's 5 s `start_interval` default runs
+  the probe every 5 s during `start_period`, so it overlapped every boot, and the app import cost
+  ~233 MiB inside the worker's limit; the probes are app-less since v72.1, ~55 MiB)*. It does
   respond promptly even mid-download despite `--concurrency=1`, since control/pidbox
   messages are handled by the worker's MainProcess consumer loop, not the (possibly busy)
   prefork child. `beat` deliberately has **no** healthcheck at all — it's a single
@@ -8392,9 +8395,10 @@ independently-found production bug from the same conversation)
   (`-Aapp`, `-b$URL`, a subshell, backticks, `env VAR=…`), so `check_healthchecks.py` now accepts a
   healthcheck mentioning `celery` only if it is exactly the app-less template, and refuses any rendered
   `redis://`. A new probe shape fails CI until the template is deliberately widened. The template
-  alone isn't enough: celery's CLI and loader read `APP`, `CONFIG_MODULE`, `LOADER`, `BROKER_URL` (and
-  `CELERY_` forms) from the environment, and `CONFIG_MODULE=app.tasks.celery_app` made the exact
-  template import the app again (235 MiB), so the guard refuses those on a probed service. It can't
+  alone isn't enough: celery's CLI reads `APP`, `BROKER_URL`, `RESULT_BACKEND`, `LOADER`,
+  `CONFIG_MODULE` and every option as `CELERY_<OPTION>` (`CELERY_CONFIG` included, which a name list
+  missed), and `CONFIG_MODULE=app.tasks.celery_app` made the exact template import the app again
+  (235 MiB). The guard refuses those five and every `CELERY_*` name on a probed service. It can't
   see a Dockerfile `ENV` or the host's real `.env`, and it doesn't stop deliberate obfuscation.
 - **Ledger memory still grows.** `reconcile_disk` holds two columns per row: about 1 MiB per 1,000
   rows (+28 MiB at 23k, +112 at 110k, against +72 and +335 as ORM rows). A live review booted
