@@ -8391,7 +8391,11 @@ independently-found production bug from the same conversation)
 - **The CI guard is deny-by-default.** Review found a shell-parsing guard missing shape after shape
   (`-Aapp`, `-b$URL`, a subshell, backticks, `env VAR=…`), so `check_healthchecks.py` now accepts a
   healthcheck mentioning `celery` only if it is exactly the app-less template, and refuses any rendered
-  `redis://`. A new probe shape fails CI until the template is deliberately widened.
+  `redis://`. A new probe shape fails CI until the template is deliberately widened. The template
+  alone isn't enough: celery's CLI and loader read `APP`, `CONFIG_MODULE`, `LOADER`, `BROKER_URL` (and
+  `CELERY_` forms) from the environment, and `CONFIG_MODULE=app.tasks.celery_app` made the exact
+  template import the app again (235 MiB), so the guard refuses those on a probed service. It can't
+  see a Dockerfile `ENV` or the host's real `.env`, and it doesn't stop deliberate obfuscation.
 - **Ledger memory still grows.** `reconcile_disk` holds two columns per row: about 1 MiB per 1,000
   rows (+28 MiB at 23k, +112 at 110k, against +72 and +335 as ORM rows). A live review booted
   worker-meta at 110k rows under 768m with no swap and the watchdog on, peak 660 MiB; roughly 200k

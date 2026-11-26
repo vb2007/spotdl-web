@@ -130,8 +130,8 @@
     "semantic_hash": ""
   },
   "docker-compose.yml": {
-    "mtime": 1795689906.945874,
-    "ast_hash": "a941562a2a86fcaa213459bd9f3a24b6",
+    "mtime": 1795695653.421454,
+    "ast_hash": "801409115a5f3590c6da567ee05c0d69",
     "semantic_hash": ""
   },
   "frontend/README.md": {
@@ -155,8 +155,8 @@
     "semantic_hash": ""
   },
   "docs/DEPLOYMENT.md": {
-    "mtime": 1795690955.0772822,
-    "ast_hash": "4e7d13a2328fc09989a4dca9c493b5da",
+    "mtime": 1795691672.826242,
+    "ast_hash": "acff1c038bf26fe6a955e6c63dfa93ec",
     "semantic_hash": ""
   },
   "docs/LOCAL_DEV.md": {
@@ -255,8 +255,8 @@
     "semantic_hash": ""
   },
   "backend/app/services/dedup.py": {
-    "mtime": 1795689947.318733,
-    "ast_hash": "3329185fa419e5cd245b2d1f9c548d98",
+    "mtime": 1795694471.7512858,
+    "ast_hash": "e9acfa6dca70ebdb51e2e7ed2f5cfd33",
     "semantic_hash": ""
   },
   "backend/app/services/downloads.py": {
@@ -270,8 +270,8 @@
     "semantic_hash": ""
   },
   "backend/tests/test_dedup.py": {
-    "mtime": 1795689979.3862913,
-    "ast_hash": "d817f15018aea274a83162d702870f26",
+    "mtime": 1795694456.9281552,
+    "ast_hash": "a83f77a52f1f7ba14098f4778ece8e64",
     "semantic_hash": ""
   },
   "backend/tests/test_download_task.py": {
@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1795690941.1715586,
-    "ast_hash": "e0137910297e475c5f67f0f18fbea38e",
+    "mtime": 1795696796.8198068,
+    "ast_hash": "f3d96307c9770522423b3a44db9b7eed",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -2520,8 +2520,8 @@
     "semantic_hash": ""
   },
   ".github/scripts/check_healthchecks.py": {
-    "mtime": 1795690118.4159713,
-    "ast_hash": "62067777674f7b1e7a45bfe375ea039f",
+    "mtime": 1795696789.0358474,
+    "ast_hash": "06f2cd7b7942ebaf77f90d22f1eade44",
     "semantic_hash": ""
   },
   "plan/master-v6/v72.1-worker-boot-memory.md": {
