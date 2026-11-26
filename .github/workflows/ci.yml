@@ -396,6 +396,16 @@ jobs:
       - name: Validate prod compose (base + prod overlay, the real deploy invocation)
         run: docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel config --quiet
 
+      # v72.1: a celery healthcheck that imports the app ran inside worker-meta's memory limit
+      # during its boot and pushed it into an OOM-restart loop (docs/GOTCHAS.md, v72.1).
+      - name: Check celery healthchecks are app-less and keep the broker URL out of argv
+        run: |
+          set -o pipefail
+          docker compose -f docker-compose.yml -f docker-compose.override.yml config --format json \
+            | python3 .github/scripts/check_healthchecks.py
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile tunnel config --format json \
+            | python3 .github/scripts/check_healthchecks.py
+
       - name: Validate nginx config syntax
         # frontend/nginx.conf is authored by hand (not generated), so a plain syntax check
         # against the real nginx binary the image ships catches a typo before it reaches
