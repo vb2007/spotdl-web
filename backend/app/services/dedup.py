@@ -14,7 +14,7 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
-from sqlalchemy import text
+from sqlalchemy import delete, select, text
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import Session
 
@@ -286,7 +286,11 @@ def reconcile_disk() -> None:
 
     db = SessionLocal()
     try:
-        rows = db.query(DownloadedTrack).all()
+        # v72.1: two columns, not ORM rows. This runs on every worker-meta boot inside the
+        # container's memory limit, and the ledger only grows. Both passes below need every row
+        # (a root's sentinel is decided on all its files before anything under it is pruned), so
+        # the result is held, as plain tuples.
+        rows = db.execute(select(DownloadedTrack.spotify_track_id, DownloadedTrack.file_path)).all()
         roots = managed_roots(db)
         db.commit()
 
@@ -294,8 +298,8 @@ def reconcile_disk() -> None:
         # an outer root judged only on the rows whose most specific root it is could look empty,
         # get a sentinel while its volume is unattached, and vouch for every root inside it.
         under: dict[Path, list[Path]] = {root: [] for root in roots}
-        for row in rows:
-            path = Path(row.file_path)
+        for _, file_path in rows:
+            path = Path(file_path)
             for root in roots:
                 if path.is_relative_to(root):
                     under[root].append(path)
@@ -311,8 +315,8 @@ def reconcile_disk() -> None:
 
         removed = 0
         skipped: dict[Path, int] = {}
-        for row in rows:
-            path = Path(row.file_path)
+        for track_id, file_path in rows:
+            path = Path(file_path)
             root = unmounted_root(path)
             if root is not None:
                 skipped[root] = skipped.get(root, 0) + 1
@@ -324,11 +328,12 @@ def reconcile_disk() -> None:
                 # path read above may just have moved: re-read the row and check its
                 # current path before deleting. Deleting on the stale path would drop a
                 # freshly moved track's ledger row and re-download it (the v3 invariant).
-                try:
-                    db.refresh(row)
-                except InvalidRequestError:
+                current = db.execute(
+                    select(DownloadedTrack.file_path).where(DownloadedTrack.spotify_track_id == track_id)
+                ).scalar()
+                if current is None:
                     continue  # row already gone
-                fresh = Path(row.file_path)
+                fresh = Path(current)
                 if fresh.exists():
                     continue
                 # The same unmounted-root guard as above, for the path it moved *to*.
@@ -336,8 +341,13 @@ def reconcile_disk() -> None:
                 if root is not None:
                     skipped[root] = skipped.get(root, 0) + 1
                     continue
-                db.delete(row)
-                removed += 1
+                # Only the path just checked: a repoint landing after the re-read keeps its row.
+                removed += db.execute(
+                    delete(DownloadedTrack).where(
+                        DownloadedTrack.spotify_track_id == track_id,
+                        DownloadedTrack.file_path == current,
+                    )
+                ).rowcount
         db.commit()
         for root, count in skipped.items():
             logger.error(

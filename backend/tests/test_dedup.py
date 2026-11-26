@@ -662,6 +662,47 @@ def test_reconcile_disk_recheck_respects_the_unmounted_root_guard(db_session, mo
     assert db_session.get(DownloadedTrack, "moving-id") is not None
 
 
+def test_reconcile_disk_skips_a_row_deleted_after_the_read(db_session, monkeypatch, tmp_path, caplog):
+    """v72.1: reconcile reads two columns up front, not ORM rows. A row another process deletes
+    between that read and the re-check is skipped (not counted, no error), and the rest of the
+    pass still runs."""
+    from sqlalchemy import delete
+
+    monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
+    downloads_dir = _mount(tmp_path / "downloads")
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(downloads_dir)))
+    for track_id in ("vanishing-id", "stale-id"):
+        db_session.add(
+            DownloadedTrack(
+                spotify_track_id=track_id,
+                file_path=str(downloads_dir / f"{track_id}.mp3"),
+                format="mp3",
+                bitrate="320k",
+            )
+        )
+    db_session.commit()
+
+    class _DeletedHere(type(dedup.Path())):
+        def exists(self):
+            if str(self) == str(downloads_dir / "vanishing-id.mp3"):
+                db_session.execute(
+                    delete(DownloadedTrack)
+                    .where(DownloadedTrack.spotify_track_id == "vanishing-id")
+                    .execution_options(synchronize_session=False)
+                )
+                return False
+            return super().exists()
+
+    monkeypatch.setattr(dedup, "Path", _DeletedHere)
+
+    with caplog.at_level(logging.INFO, logger="app.services.dedup"):
+        dedup.reconcile_disk()
+
+    assert db_session.get(DownloadedTrack, "vanishing-id") is None
+    assert db_session.get(DownloadedTrack, "stale-id") is None
+    assert "reconcile_disk: checked 2 ledger rows, removed 1 with missing files" in caplog.messages
+
+
 def test_record_download_upserts_the_row_as_not_yet_filed(db_session, tmp_path):
     """worker-dl's upsert (v57, L3, moved here from download_track): in_library is reset, so a
     re-downloaded library file is swept again (v48)."""
