@@ -129,8 +129,8 @@ services:
       # matches Celery's %h substitution since Docker sets $HOSTNAME to the same container
       # hostname.
       # v72.1: app-less (no `-A`). The probe runs inside this container's memory limit, every
-      # 5 s until the first success (Docker's start_interval default), so it overlaps the
-      # boot: importing the app cost ~233 MiB per probe against ~47 broker-only, and that
+      # 5 s during start_period until its first success (Docker's start_interval default), so
+      # it overlaps the boot: importing the app cost ~233 MiB per probe against ~47 broker-only, and that
       # alone pushed worker-meta's boot past its 768M limit once the host's swap was full
       # (docs/GOTCHAS.md, v72.1). Celery reads CELERY_BROKER_URL for an app-less call; the
       # URL carries the Redis password, so it goes in the probe's environment, never in

@@ -124,8 +124,9 @@ needed" claim — rather than silently deleted.
   once resolved to an unambiguous commit SHA → *v21*
 - A service with no explicit Celery `--concurrency` defaults to `os.cpu_count()` prefork
   children — reliably OOMs a heavy-dependency worker on a resource-limited container → *v21*
-  *(2026-11-26: the 768M that fit after this fix relied on swap; with the host's swap full the boot
-  OOM-looped again, see v72.1.)*
+  *(2026-11-26: the boot has grown since, notably v36's ~88 MiB watchdog process and a 23k-row
+  ledger. By 2026-11-26 it peaked at 827 MiB against 768M and fit only while the host's swap had
+  room; with swap full it OOM-looped again, see v72.1.)*
 - A hardcoded absolute path in a script/doc is a claim about the real host's layout — verify it
   against the host, since a stray `mkdir -p` into a "normal-looking" path (e.g. `/srv`) is easy
   to miss and can land on the wrong disk entirely → *v21*
@@ -244,9 +245,9 @@ needed" claim — rather than silently deleted.
 - A prod memory limit only holds while the host's swap has room: compose gives every limited
   container a swap allowance equal to its limit, and a full host swap turns the limit into a hard
   RAM cap. A boot that passed yesterday proves nothing once swap filled since → *v72.1*
-- A healthcheck runs inside its container's memory limit, every 5 s until its first success
-  (Docker's `start_interval` default), so it overlaps the boot: a `celery -A app…` probe cost
-  ~233 MiB there, an app-less one ~47. Keep the broker URL in the probe's environment, never argv
+- A healthcheck runs inside its container's memory limit, every 5 s during `start_period` until its
+  first success (Docker's `start_interval` default), so it overlaps the boot: a `celery -A app…`
+  probe cost ~233 MiB there, an app-less one ~50. Keep the broker URL in the probe's environment, never argv
   (CI's `check_healthchecks.py`) → *v72.1*
 - Reproducing a prod OOM locally needs the prod limit with **no swap** (`memswap_limit` = `mem_limit`),
   `cpus`, no dev reload wrapper, **and Matrix on**: the alert watchdog is a separate ~88 MiB
@@ -3640,8 +3641,9 @@ automated deploy-to-host)
   A pre-existing bug outside this slice's stated scope became in-scope the moment it started
   blocking the very thing being built — worth remembering next time a "flag for later" item
   turns out to sit on the critical path.
-  *(2026-11-26: `--concurrency=2` brought the boot under the limit only with swap behind it. v72.1
-  measured the boot at 827 MiB against 768M once swap was full, and fixed the healthcheck probe and
+  *(2026-11-26: `--concurrency=2` brought the boot under 768M then. The boot grew afterwards
+  (v36's alert watchdog is a separate ~88 MiB process, and the ledger reached 23k rows), and v72.1
+  measured it at 827 MiB, fitting only while swap had room. It fixed the healthcheck probe and
   `reconcile_disk` instead of raising the limit.)*
 - **A "reasonable-looking" hardcoded default path can be silently wrong for the real host, and
   nothing will tell you until it's already created something** — `scripts/pg_backup.sh`'s
@@ -8361,17 +8363,21 @@ independently-found production bug from the same conversation)
   read the real peak from the cgroup (`memory.peak`, see `docs/DEPLOYMENT.md`).
 - **What a `worker-meta` boot costs** (23,049 ledger rows, production's count): the main process and
   two prefork children, plus the alert watchdog (`python -m app.services.alert_watchdog`, ~88 MiB,
-  only with Matrix configured), plus `reconcile_disk` (+72 MiB as ORM rows, +28 as two columns), plus
-  the healthcheck probe. With `celery -A app.tasks.celery_app inspect ping` that probe was 233 MiB; it
-  runs every 5 s until the first success, so it always overlapped the boot. Measured on slot 5 under
+  only with Matrix configured), plus `reconcile_disk` (+72 MiB as ORM rows, +28 as two columns,
+  measured in the worker container; the plan's +83 was a host-venv measurement), plus the healthcheck
+  probe. With `celery -A app.tasks.celery_app inspect ping` that probe was 233 MiB; it runs every 5 s
+  during the 90 s `start_period` until its first success, so it always overlapped the boot. Measured on slot 5 under
   768m with no swap and one CPU: `main` OOM-looped (7 OOM events per 180 s, every probe exit 137,
   exactly production's health log); v72.1 peaked at 570–572 MiB over three recreates.
 - **The app-less probe.** `CELERY_BROKER_URL="$$REDIS_URL" celery inspect ping -d <name>@$$HOSTNAME`
-  answers the same `pong` (exit 0) and exits 69 for a name that isn't online, at ~55 MiB. Celery reads
+  answers the same `pong` (exit 0) and exits 69 for a name that isn't online, at ~50 MiB (47 in a host
+  venv, 55 in the worker container). Celery reads
   `CELERY_BROKER_URL` when no app is given. A `VAR=value` prefix in the probe's shell never reaches
   argv; `-b "$$REDIS_URL"` would put the Redis password in `ps` (an in-container `/proc/*/cmdline` scan
   caught it in 20 of 22 scans; the real probe in 0). CI's compose-config job runs
-  `.github/scripts/check_healthchecks.py` on both rendered projects.
+  `.github/scripts/check_healthchecks.py` on both rendered projects. It also fails on any `redis://`
+  in a rendered test: a single-`$` `${REDIS_URL}` is filled in by Compose from the root `.env` and
+  would put the password in argv and in `docker inspect`.
 - **A local repro misses the watchdog by default.** Slots run with Matrix unconfigured, so the
   watchdog never starts and `main` peaked at 719 MiB, under the limit. The repro used a throwaway
   overlay (never committed) with a fake, unreachable homeserver (`http://127.0.0.1:9`, room
