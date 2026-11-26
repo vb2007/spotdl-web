@@ -134,6 +134,7 @@ spotdl's production and dev clients, their secrets and redirect URIs.
 |---|---|---|---|---|
 | **v71** | `dev-upstream-login` | 0 / 1 | none | **Ships first.** Interim proxy: the cookie rename, the MFA second step (TOTP, email code, recovery), suspended/429 answers, no dangling upstream session, test identities and docs |
 | **v72** | `dev-upstream-identity` | 1 / 1 | none | `is_admin` from `isSuperuser`; `ADMIN_EMAIL` becomes dev-only; vb2007.hu account links on `/account` and `/login` |
+| **v72.1** | `dev-worker-boot-memory` | patch / 5 | none | **Inserted 2026-11-26 (incident).** Worker healthchecks stop importing the app; `reconcile_disk` streams two columns; `beat` 384M. Ships before any other deploy |
 | **v73** | `dev-idp-login` | 2 / 1 | API-1, VUE-1 | "Sign in with vb2007.hu"; v71's proxy deleted; passkeys, GitHub and the MFA link work; the e2e harness signs in through the real authorize page |
 | **v74** | `dev-upstream-status-sync` | 3 / 2 | API-3 | A beat task syncs suspension/deletion (ends sessions, streams and keys), usernames and `is_admin` |
 | **v75** | `dev-upstream-api-keys` | 3 / 3 | API-2, VUE-2 | `sdw_` keys → upstream `vbk_` keys via introspection; the extension switches and ships a signed release |
@@ -285,3 +286,16 @@ here, including new upstream changes that need spotdl work.
 - **An admin without an allowlist row can be given one** (`add` no longer answers `409`).
 - v74's sync demotion publishes `admin_lost`, and calls `allowlist.cut_off` when the demoted admin has
   no allowlist row, the way v72's login does.
+
+### 2026-11-26 (v72.1, owner-directed)
+
+- **v72.1 inserted as a patch before v73** (`plan/master-v6/v72.1-worker-boot-memory.md`). The
+  `6.72.0` deploy failed and its rollback to `6.71.0` looped too. `worker-meta` was OOM-killed every
+  ~20 s, and downloads weren't dispatched for 76 minutes, until the owner raised its limit by hand.
+  - Its boot peaks at 827 MiB against a 768M limit. That only fit while the host's swap had room,
+    and the swap is now full.
+  - Most of the peak is the healthcheck probe, which imports the whole app inside the cgroup
+    (233 MiB against 47 MiB broker-only).
+- **Any deploy before v72.1 ships hits the same loop**, rollbacks included. v73 waits for it.
+- The host's memory (the Elasticsearch heap, swap) is the owner's, not the slice's. The fix must
+  hold with no swap.
