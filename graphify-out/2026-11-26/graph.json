@@ -47,31 +47,51 @@
       "label": "offending_flags()",
       "file_type": "code",
       "source_file": ".github/scripts/check_healthchecks.py",
-      "source_location": "L30",
+      "source_location": "L39",
       "_origin": "ast",
       "id": "github_scripts_check_healthchecks_offending_flags",
       "community": 420,
       "norm_label": "offending_flags()"
     },
     {
+      "label": "refused_environment()",
+      "file_type": "code",
+      "source_file": ".github/scripts/check_healthchecks.py",
+      "source_location": "L71",
+      "_origin": "ast",
+      "id": "github_scripts_check_healthchecks_refused_environment",
+      "community": 420,
+      "norm_label": "refused_environment()"
+    },
+    {
       "label": "main()",
       "file_type": "code",
       "source_file": ".github/scripts/check_healthchecks.py",
-      "source_location": "L53",
+      "source_location": "L80",
       "_origin": "ast",
       "id": "github_scripts_check_healthchecks_main",
       "community": 420,
       "norm_label": "main()"
     },
     {
-      "label": "The forbidden celery flags in one healthcheck `test`, in the order they appear.",
+      "label": "Why a healthcheck `test` is refused, or [] when it is fine.",
       "file_type": "rationale",
       "source_file": ".github/scripts/check_healthchecks.py",
-      "source_location": "L31",
+      "source_location": "L40",
       "_origin": "ast",
-      "id": "github_scripts_check_healthchecks_rationale_31",
+      "id": "github_scripts_check_healthchecks_rationale_40",
       "community": 420,
-      "norm_label": "the forbidden celery flags in one healthcheck `test`, in the order they appear."
+      "norm_label": "why a healthcheck `test` is refused, or [] when it is fine."
+    },
+    {
+      "label": "The celery CLI defaults set in a service's rendered environment.",
+      "file_type": "rationale",
+      "source_file": ".github/scripts/check_healthchecks.py",
+      "source_location": "L72",
+      "_origin": "ast",
+      "id": "github_scripts_check_healthchecks_rationale_72",
+      "community": 420,
+      "norm_label": "the celery cli defaults set in a service's rendered environment."
     },
     {
       "label": "check_required_env.py",
@@ -2008,7 +2028,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_db",
-      "community": 69,
+      "community": 45,
       "norm_label": "db.py"
     },
     {
@@ -2038,7 +2058,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_app_db_begin_snapshot",
-      "community": 69,
+      "community": 558,
       "norm_label": "begin_snapshot()"
     },
     {
@@ -2048,7 +2068,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_db_py_session",
-      "community": 69,
+      "community": 558,
       "norm_label": "session"
     },
     {
@@ -2058,7 +2078,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_db_get_db",
-      "community": 69,
+      "community": 558,
       "norm_label": "get_db()"
     },
     {
@@ -2068,7 +2088,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "backend_app_db_rationale_23",
-      "community": 69,
+      "community": 558,
       "norm_label": "ends `db`'s current transaction and starts a repeatable read one, so every state"
     },
     {
@@ -2098,7 +2118,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "httpexception",
-      "community": 558,
+      "community": 317,
       "norm_label": "httpexception"
     },
     {
@@ -2348,7 +2368,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_alert_outbox",
-      "community": 69,
+      "community": 45,
       "norm_label": "alert_outbox.py"
     },
     {
@@ -2428,7 +2448,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_api_key",
-      "community": 69,
+      "community": 266,
       "norm_label": "api_key.py"
     },
     {
@@ -2458,7 +2478,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_app_settings",
-      "community": 69,
+      "community": 45,
       "norm_label": "app_settings.py"
     },
     {
@@ -2528,7 +2548,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_downloaded_track",
-      "community": 69,
+      "community": 45,
       "norm_label": "downloaded_track.py"
     },
     {
@@ -2608,7 +2628,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_library_sort_run",
-      "community": 69,
+      "community": 157,
       "norm_label": "library_sort_run.py"
     },
     {
@@ -2628,7 +2648,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_models_library_sort_run_librarysortrun",
-      "community": 76,
+      "community": 157,
       "norm_label": "librarysortrun"
     },
     {
@@ -2638,7 +2658,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_models_library_sort_run_rationale_17",
-      "community": 76,
+      "community": 157,
       "norm_label": "single-row table (v28) tracking the admin-triggered library sort & move sweep --"
     },
     {
@@ -2678,7 +2698,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_session",
-      "community": 69,
+      "community": 45,
       "norm_label": "session.py"
     },
     {
@@ -2788,7 +2808,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_trackattempt",
-      "community": 76,
+      "community": 10,
       "norm_label": "trackattempt"
     },
     {
@@ -2808,7 +2828,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_app_models_track_attempt_rationale_40",
-      "community": 76,
+      "community": 10,
       "norm_label": "one row per `download_track` invocation (v24) -- what it tried (direct vs. which"
     },
     {
@@ -2818,7 +2838,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_user",
-      "community": 69,
+      "community": 45,
       "norm_label": "user.py"
     },
     {
@@ -2848,7 +2868,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_user_settings",
-      "community": 69,
+      "community": 45,
       "norm_label": "user_settings.py"
     },
     {
@@ -2878,7 +2898,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_models_worker_state",
-      "community": 69,
+      "community": 45,
       "norm_label": "worker_state.py"
     },
     {
@@ -3018,7 +3038,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "backend_app_routers_admin_require_admin_hidden",
-      "community": 558,
+      "community": 317,
       "norm_label": "require_admin_hidden()"
     },
     {
@@ -3058,7 +3078,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_app_routers_admin_rationale_17",
-      "community": 558,
+      "community": 317,
       "norm_label": "admin-only, answering a non-admin exactly like a route that doesn't exist (v44's"
     },
     {
@@ -3268,7 +3288,7 @@
       "source_location": "L111",
       "_origin": "ast",
       "id": "backend_app_routers_auth_require_admin",
-      "community": 56,
+      "community": 30,
       "norm_label": "require_admin()"
     },
     {
@@ -3278,7 +3298,7 @@
       "source_location": "L119",
       "_origin": "ast",
       "id": "backend_app_routers_auth_require_admin_hidden",
-      "community": 558,
+      "community": 317,
       "norm_label": "require_admin_hidden()"
     },
     {
@@ -3538,7 +3558,7 @@
       "source_location": "L112",
       "_origin": "ast",
       "id": "backend_app_routers_auth_rationale_112",
-      "community": 56,
+      "community": 30,
       "norm_label": "v56 (a6): for an admin action whose path names no id (settings, worker controls,"
     },
     {
@@ -3548,7 +3568,7 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "backend_app_routers_auth_rationale_120",
-      "community": 558,
+      "community": 317,
       "norm_label": "v56 (a6): for an admin route whose path names an id (a job's priority or bump, o"
     },
     {
@@ -3928,7 +3948,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_py_jobsourcetype",
-      "community": 69,
+      "community": 32,
       "norm_label": "jobsourcetype"
     },
     {
@@ -4008,7 +4028,7 @@
       "source_location": "L265",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_list_jobs",
-      "community": 69,
+      "community": 32,
       "norm_label": "list_jobs()"
     },
     {
@@ -4158,7 +4178,7 @@
       "source_location": "L281",
       "_origin": "ast",
       "id": "backend_app_routers_jobs_rationale_281",
-      "community": 69,
+      "community": 32,
       "norm_label": "`scope=track` (the master plan's job/track toggle, \"tracks\" position) delegates"
     },
     {
@@ -5118,7 +5138,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_routers_stats",
-      "community": 69,
+      "community": 558,
       "norm_label": "stats.py"
     },
     {
@@ -5128,7 +5148,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_app_routers_stats_my_stats",
-      "community": 69,
+      "community": 558,
       "norm_label": "my_stats()"
     },
     {
@@ -5138,7 +5158,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_stats_py_session",
-      "community": 69,
+      "community": 558,
       "norm_label": "session"
     },
     {
@@ -5148,7 +5168,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "backend_app_routers_stats_rationale_25",
-      "community": 69,
+      "community": 558,
       "norm_label": "v66: the session user's own downloads, open to every user, aggregated in sql in"
     },
     {
@@ -5318,7 +5338,7 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "backend_app_routers_tracks_list_tracks",
-      "community": 67,
+      "community": 69,
       "norm_label": "list_tracks()"
     },
     {
@@ -5328,7 +5348,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_routers_tracks_py_jobsourcetype",
-      "community": 67,
+      "community": 69,
       "norm_label": "jobsourcetype"
     },
     {
@@ -5448,7 +5468,7 @@
       "source_location": "L135",
       "_origin": "ast",
       "id": "backend_app_routers_tracks_rationale_135",
-      "community": 67,
+      "community": 69,
       "norm_label": "tracks across every job the caller can see, one page at a time, each with its"
     },
     {
@@ -8338,7 +8358,7 @@
       "source_location": "L235",
       "_origin": "ast",
       "id": "backend_app_services_downloads_download_one",
-      "community": 17,
+      "community": 76,
       "norm_label": "download_one()"
     },
     {
@@ -8348,7 +8368,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_downloads_py_song",
-      "community": 17,
+      "community": 76,
       "norm_label": "song"
     },
     {
@@ -8418,7 +8438,7 @@
       "source_location": "L236",
       "_origin": "ast",
       "id": "backend_app_services_downloads_rationale_236",
-      "community": 17,
+      "community": 76,
       "norm_label": "must be called from a plain sync context \u2014 search_and_download raises     downlo"
     },
     {
@@ -8438,7 +8458,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_app_services_events_channel_for",
-      "community": 203,
+      "community": 360,
       "norm_label": "channel_for()"
     },
     {
@@ -8458,7 +8478,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "backend_app_services_events_control_channel_for",
-      "community": 203,
+      "community": 360,
       "norm_label": "control_channel_for()"
     },
     {
@@ -9328,7 +9348,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_job_listing",
-      "community": 69,
+      "community": 363,
       "norm_label": "job_listing.py"
     },
     {
@@ -9338,7 +9358,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_invalidlistparams",
-      "community": 69,
+      "community": 363,
       "norm_label": "invalidlistparams"
     },
     {
@@ -9348,7 +9368,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "valueerror",
-      "community": 69,
+      "community": 349,
       "norm_label": "valueerror"
     },
     {
@@ -9358,7 +9378,7 @@
       "source_location": "L38",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_list_jobs",
-      "community": 69,
+      "community": 363,
       "norm_label": "list_jobs()"
     },
     {
@@ -9368,7 +9388,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_py_session",
-      "community": 69,
+      "community": 363,
       "norm_label": "session"
     },
     {
@@ -9378,7 +9398,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_py_jobsourcetype",
-      "community": 69,
+      "community": 363,
       "norm_label": "jobsourcetype"
     },
     {
@@ -9388,7 +9408,7 @@
       "source_location": "L175",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_sort_key",
-      "community": 69,
+      "community": 363,
       "norm_label": "_sort_key()"
     },
     {
@@ -9398,7 +9418,7 @@
       "source_location": "L187",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_sort_value",
-      "community": 69,
+      "community": 363,
       "norm_label": "_sort_value()"
     },
     {
@@ -9408,7 +9428,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_job_listing_rationale_1",
-      "community": 69,
+      "community": 363,
       "norm_label": "paginated/filtered/sorted/searchable job listing (v18) -- `get /api/jobs` (scope"
     },
     {
@@ -10808,7 +10828,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "backend_app_services_retry_exception_chain",
-      "community": 75,
+      "community": 406,
       "norm_label": "_exception_chain()"
     },
     {
@@ -10818,7 +10838,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_retry_py_baseexception",
-      "community": 75,
+      "community": 406,
       "norm_label": "baseexception"
     },
     {
@@ -10828,7 +10848,7 @@
       "source_location": "L95",
       "_origin": "ast",
       "id": "backend_app_services_retry_is_proxy_transport_error",
-      "community": 75,
+      "community": 406,
       "norm_label": "is_proxy_transport_error()"
     },
     {
@@ -11018,7 +11038,7 @@
       "source_location": "L80",
       "_origin": "ast",
       "id": "backend_app_services_retry_rationale_80",
-      "community": 75,
+      "community": 406,
       "norm_label": "`exc` and everything it was raised from. also follows yt-dlp's downloaderror, wh"
     },
     {
@@ -11028,7 +11048,7 @@
       "source_location": "L96",
       "_origin": "ast",
       "id": "backend_app_services_retry_rationale_96",
-      "community": 75,
+      "community": 406,
       "norm_label": "true if `exc` (or anything it was raised from) shows the request never got throu"
     },
     {
@@ -11068,7 +11088,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_app_services_rollup_status_key",
-      "community": 350,
+      "community": 28,
       "norm_label": "status_key()"
     },
     {
@@ -11098,7 +11118,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "backend_app_services_rollup_rollup_key",
-      "community": 350,
+      "community": 126,
       "norm_label": ".key()"
     },
     {
@@ -11328,7 +11348,7 @@
       "source_location": "L59",
       "_origin": "ast",
       "id": "backend_app_services_rollup_rationale_59",
-      "community": 350,
+      "community": 28,
       "norm_label": "the wire/filter form: `settled:partial`, or the bare lifecycle name otherwise."
     },
     {
@@ -11578,7 +11598,7 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "backend_app_services_serializers_track_song_meta",
-      "community": 398,
+      "community": 67,
       "norm_label": "track_song_meta()"
     },
     {
@@ -11678,7 +11698,7 @@
       "source_location": "L95",
       "_origin": "ast",
       "id": "backend_app_services_serializers_rationale_95",
-      "community": 398,
+      "community": 67,
       "norm_label": "title/artists/album straight from a track's `song_json` -- the single field"
     },
     {
@@ -12118,7 +12138,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "backend_app_services_stats_epoch_bucket",
-      "community": 169,
+      "community": 401,
       "norm_label": "epoch_bucket"
     },
     {
@@ -12128,7 +12148,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "functionelement",
-      "community": 169,
+      "community": 401,
       "norm_label": "functionelement"
     },
     {
@@ -12138,7 +12158,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "backend_app_services_stats_epoch_bucket_init",
-      "community": 169,
+      "community": 401,
       "norm_label": ".__init__()"
     },
     {
@@ -12258,7 +12278,7 @@
       "source_location": "L170",
       "_origin": "ast",
       "id": "backend_app_services_stats_bucket_starts",
-      "community": 169,
+      "community": 401,
       "norm_label": "_bucket_starts()"
     },
     {
@@ -12268,7 +12288,7 @@
       "source_location": "L176",
       "_origin": "ast",
       "id": "backend_app_services_stats_failure_series",
-      "community": 169,
+      "community": 401,
       "norm_label": "_failure_series()"
     },
     {
@@ -12278,7 +12298,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_stats_py_session",
-      "community": 169,
+      "community": 401,
       "norm_label": "session"
     },
     {
@@ -12298,7 +12318,7 @@
       "source_location": "L358",
       "_origin": "ast",
       "id": "backend_app_services_stats_owned_attempts",
-      "community": 169,
+      "community": 401,
       "norm_label": "_owned_attempts()"
     },
     {
@@ -12308,7 +12328,7 @@
       "source_location": "L366",
       "_origin": "ast",
       "id": "backend_app_services_stats_contributed_files",
-      "community": 169,
+      "community": 401,
       "norm_label": "contributed_files()"
     },
     {
@@ -12318,7 +12338,7 @@
       "source_location": "L380",
       "_origin": "ast",
       "id": "backend_app_services_stats_measure_files",
-      "community": 169,
+      "community": 401,
       "norm_label": "measure_files()"
     },
     {
@@ -12328,7 +12348,7 @@
       "source_location": "L397",
       "_origin": "ast",
       "id": "backend_app_services_stats_my_stats",
-      "community": 169,
+      "community": 401,
       "norm_label": "my_stats()"
     },
     {
@@ -12348,7 +12368,7 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "backend_app_services_stats_rationale_65",
-      "community": 169,
+      "community": 401,
       "norm_label": "`floor((epoch seconds of <timestamp> + <offset>) / <seconds>)`: the index of the"
     },
     {
@@ -12408,7 +12428,7 @@
       "source_location": "L179",
       "_origin": "ast",
       "id": "backend_app_services_stats_rationale_179",
-      "community": 169,
+      "community": 401,
       "norm_label": "failed attempts per bucket, one series per error_type that occurred, in one grou"
     },
     {
@@ -12418,7 +12438,7 @@
       "source_location": "L359",
       "_origin": "ast",
       "id": "backend_app_services_stats_rationale_359",
-      "community": 169,
+      "community": 401,
       "norm_label": "`trackattempt` rows of the user's own tracks: the one predicate that narrows the"
     },
     {
@@ -12428,7 +12448,7 @@
       "source_location": "L367",
       "_origin": "ast",
       "id": "backend_app_services_stats_rationale_367",
-      "community": 169,
+      "community": 401,
       "norm_label": "the files the user's own jobs downloaded, all time: the ledger rows behind their"
     },
     {
@@ -12438,7 +12458,7 @@
       "source_location": "L381",
       "_origin": "ast",
       "id": "backend_app_services_stats_rationale_381",
-      "community": 169,
+      "community": 401,
       "norm_label": "the contribution's count and size. the size isn't recorded anywhere, so it's rea"
     },
     {
@@ -12448,7 +12468,7 @@
       "source_location": "L406",
       "_origin": "ast",
       "id": "backend_app_services_stats_rationale_406",
-      "community": 169,
+      "community": 401,
       "norm_label": "v66: one user's own downloads over a window (the admin page's windows and bucket"
     },
     {
@@ -12568,7 +12588,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_track_listing",
-      "community": 69,
+      "community": 349,
       "norm_label": "track_listing.py"
     },
     {
@@ -12578,7 +12598,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_invalidlistparams",
-      "community": 69,
+      "community": 349,
       "norm_label": "invalidlistparams"
     },
     {
@@ -12588,7 +12608,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_list_tracks",
-      "community": 69,
+      "community": 349,
       "norm_label": "list_tracks()"
     },
     {
@@ -12598,7 +12618,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_session",
-      "community": 69,
+      "community": 349,
       "norm_label": "session"
     },
     {
@@ -12608,7 +12628,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_jobsourcetype",
-      "community": 69,
+      "community": 349,
       "norm_label": "jobsourcetype"
     },
     {
@@ -12618,7 +12638,7 @@
       "source_location": "L151",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_sort_key",
-      "community": 69,
+      "community": 349,
       "norm_label": "_sort_key()"
     },
     {
@@ -12628,7 +12648,7 @@
       "source_location": "L159",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_sort_value",
-      "community": 69,
+      "community": 349,
       "norm_label": "_sort_value()"
     },
     {
@@ -12638,7 +12658,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_py_track",
-      "community": 69,
+      "community": 349,
       "norm_label": "track"
     },
     {
@@ -12648,7 +12668,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_services_track_listing_rationale_1",
-      "community": 69,
+      "community": 349,
       "norm_label": "paginated/filtered/sorted/searchable track listing shared by `get /api/tracks` a"
     },
     {
@@ -13768,7 +13788,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_alerts",
-      "community": 412,
+      "community": 45,
       "norm_label": "alerts.py"
     },
     {
@@ -13778,7 +13798,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "backend_app_tasks_alerts_deliver_alerts",
-      "community": 412,
+      "community": 45,
       "norm_label": "deliver_alerts()"
     },
     {
@@ -13788,7 +13808,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "backend_app_tasks_alerts_prune_alert_outbox",
-      "community": 412,
+      "community": 45,
       "norm_label": "prune_alert_outbox()"
     },
     {
@@ -13798,7 +13818,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_app_tasks_alerts_send_alert",
-      "community": 412,
+      "community": 45,
       "norm_label": "send_alert()"
     },
     {
@@ -13808,7 +13828,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "backend_app_tasks_alerts_rationale_12",
-      "community": 412,
+      "community": 45,
       "norm_label": "v59: beat's delivery pass over the alert outbox (worker-meta, every tick). the a"
     },
     {
@@ -13818,7 +13838,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "backend_app_tasks_alerts_rationale_20",
-      "community": 412,
+      "community": 45,
       "norm_label": "v59: hourly, keeps alert_retention (30 days) of outbox rows."
     },
     {
@@ -13928,7 +13948,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app",
-      "community": 360,
+      "community": 419,
       "norm_label": "celery_app.py"
     },
     {
@@ -13938,7 +13958,7 @@
       "source_location": "L101",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app_reconcile_disk_on_boot",
-      "community": 360,
+      "community": 419,
       "norm_label": "_reconcile_disk_on_boot()"
     },
     {
@@ -13948,7 +13968,7 @@
       "source_location": "L113",
       "_origin": "ast",
       "id": "backend_app_tasks_celery_app_sync_proxies_on_boot",
-      "community": 360,
+      "community": 419,
       "norm_label": "_sync_proxies_on_boot()"
     },
     {
@@ -14748,7 +14768,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_proxies",
-      "community": 69,
+      "community": 45,
       "norm_label": "proxies.py"
     },
     {
@@ -14758,7 +14778,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "backend_app_tasks_proxies_finalize_proxy_deletions",
-      "community": 69,
+      "community": 45,
       "norm_label": "finalize_proxy_deletions()"
     },
     {
@@ -14768,7 +14788,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_app_tasks_proxies_rationale_1",
-      "community": 69,
+      "community": 45,
       "norm_label": "v56 (a4, owner's decision): the deferred proxy delete. an admin's delete of a ma"
     },
     {
@@ -15161,7 +15181,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_concurrency",
-      "community": 76,
+      "community": 22,
       "norm_label": "concurrency.py"
     },
     {
@@ -15171,7 +15191,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "backend_tests_concurrency_interleavingbroke",
-      "community": 76,
+      "community": 22,
       "norm_label": "interleavingbroke"
     },
     {
@@ -15181,7 +15201,7 @@
       "source_location": "L49",
       "_origin": "ast",
       "id": "backend_tests_concurrency_gate",
-      "community": 76,
+      "community": 22,
       "norm_label": "gate"
     },
     {
@@ -15191,7 +15211,7 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "backend_tests_concurrency_gate_init",
-      "community": 76,
+      "community": 22,
       "norm_label": ".__init__()"
     },
     {
@@ -15201,7 +15221,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "backend_tests_concurrency_gate_call",
-      "community": 76,
+      "community": 22,
       "norm_label": ".__call__()"
     },
     {
@@ -15211,7 +15231,7 @@
       "source_location": "L65",
       "_origin": "ast",
       "id": "backend_tests_concurrency_gate_wrap",
-      "community": 76,
+      "community": 22,
       "norm_label": ".wrap()"
     },
     {
@@ -15221,7 +15241,7 @@
       "source_location": "L74",
       "_origin": "ast",
       "id": "backend_tests_concurrency_gate_wait_reached",
-      "community": 76,
+      "community": 22,
       "norm_label": ".wait_reached()"
     },
     {
@@ -15231,7 +15251,7 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "backend_tests_concurrency_gate_reached",
-      "community": 76,
+      "community": 22,
       "norm_label": ".reached()"
     },
     {
@@ -15241,7 +15261,7 @@
       "source_location": "L82",
       "_origin": "ast",
       "id": "backend_tests_concurrency_gate_open",
-      "community": 76,
+      "community": 22,
       "norm_label": ".open()"
     },
     {
@@ -15251,7 +15271,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "backend_tests_concurrency_thread",
-      "community": 76,
+      "community": 22,
       "norm_label": "thread"
     },
     {
@@ -15281,7 +15301,7 @@
       "source_location": "L110",
       "_origin": "ast",
       "id": "backend_tests_concurrency_thread_join",
-      "community": 76,
+      "community": 22,
       "norm_label": ".join()"
     },
     {
@@ -15291,7 +15311,7 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "backend_tests_concurrency_lock_waiters",
-      "community": 76,
+      "community": 22,
       "norm_label": "lock_waiters()"
     },
     {
@@ -15301,7 +15321,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "engine",
-      "community": 76,
+      "community": 22,
       "norm_label": "engine"
     },
     {
@@ -15311,7 +15331,7 @@
       "source_location": "L136",
       "_origin": "ast",
       "id": "backend_tests_concurrency_blocked_or_done",
-      "community": 76,
+      "community": 22,
       "norm_label": "blocked_or_done()"
     },
     {
@@ -15321,7 +15341,7 @@
       "source_location": "L149",
       "_origin": "ast",
       "id": "backend_tests_concurrency_release_all",
-      "community": 76,
+      "community": 22,
       "norm_label": "release_all()"
     },
     {
@@ -15331,7 +15351,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_concurrency_rationale_1",
-      "community": 76,
+      "community": 22,
       "norm_label": "real-concurrency helpers for tests on postgres (v51).  a race needs two real ses"
     },
     {
@@ -15341,7 +15361,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "backend_tests_concurrency_rationale_43",
-      "community": 76,
+      "community": 22,
       "norm_label": "the interleaving itself failed (a gate never reached or opened, a thread that ne"
     },
     {
@@ -15351,7 +15371,7 @@
       "source_location": "L50",
       "_origin": "ast",
       "id": "backend_tests_concurrency_rationale_50",
-      "community": 76,
+      "community": 22,
       "norm_label": "a point one thread stops at until the test calls `open()`. callable with any arg"
     },
     {
@@ -15361,7 +15381,7 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "backend_tests_concurrency_rationale_66",
-      "community": 76,
+      "community": 22,
       "norm_label": "`fn`, stopping at this gate before it runs."
     },
     {
@@ -15371,7 +15391,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "backend_tests_concurrency_rationale_87",
-      "community": 76,
+      "community": 22,
       "norm_label": "runs `fn(*args, **kwargs)` in a daemon thread at once. `join()` returns its resu"
     },
     {
@@ -15381,7 +15401,7 @@
       "source_location": "L121",
       "_origin": "ast",
       "id": "backend_tests_concurrency_rationale_121",
-      "community": 76,
+      "community": 22,
       "norm_label": "backend pids in this run's database that are waiting on a lock right now. the ru"
     },
     {
@@ -15391,7 +15411,7 @@
       "source_location": "L137",
       "_origin": "ast",
       "id": "backend_tests_concurrency_rationale_137",
-      "community": 76,
+      "community": 22,
       "norm_label": "waits until `thread` has finished (\"done\") or a session in this database waits o"
     },
     {
@@ -15401,7 +15421,7 @@
       "source_location": "L150",
       "_origin": "ast",
       "id": "backend_tests_concurrency_rationale_150",
-      "community": 76,
+      "community": 22,
       "norm_label": "opens every gate the test made and waits for every thread it started, so none is"
     },
     {
@@ -15621,7 +15641,7 @@
       "source_location": "L403",
       "_origin": "ast",
       "id": "backend_tests_conftest_committed_db",
-      "community": 76,
+      "community": 22,
       "norm_label": "committed_db()"
     },
     {
@@ -15821,7 +15841,7 @@
       "source_location": "L404",
       "_origin": "ast",
       "id": "backend_tests_conftest_rationale_404",
-      "community": 76,
+      "community": 22,
       "norm_label": "a sessionmaker on this run's database whose sessions really commit, so several o"
     },
     {
@@ -17441,7 +17461,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_sent",
-      "community": 406,
+      "community": 57,
       "norm_label": "sent()"
     },
     {
@@ -17581,7 +17601,7 @@
       "source_location": "L197",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_track",
-      "community": 402,
+      "community": 57,
       "norm_label": "_track()"
     },
     {
@@ -17591,7 +17611,7 @@
       "source_location": "L212",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_attempt",
-      "community": 402,
+      "community": 57,
       "norm_label": "_attempt()"
     },
     {
@@ -17601,7 +17621,7 @@
       "source_location": "L229",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_spike_fires_on_n_consecutive_same_type_failures",
-      "community": 402,
+      "community": 57,
       "norm_label": "test_spike_fires_on_n_consecutive_same_type_failures()"
     },
     {
@@ -17611,7 +17631,7 @@
       "source_location": "L249",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_spike_needs_one_error_type_and_the_window",
-      "community": 402,
+      "community": 57,
       "norm_label": "test_spike_needs_one_error_type_and_the_window()"
     },
     {
@@ -17621,7 +17641,7 @@
       "source_location": "L263",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_lookup_failures_never_make_a_spike",
-      "community": 402,
+      "community": 57,
       "norm_label": "test_lookup_failures_never_make_a_spike()"
     },
     {
@@ -17631,7 +17651,7 @@
       "source_location": "L275",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_proxy_transport_failures_never_make_a_spike",
-      "community": 402,
+      "community": 57,
       "norm_label": "test_proxy_transport_failures_never_make_a_spike()"
     },
     {
@@ -17681,7 +17701,7 @@
       "source_location": "L341",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_test_library_alert_texts",
-      "community": 57,
+      "community": 157,
       "norm_label": "test_library_alert_texts()"
     },
     {
@@ -17781,7 +17801,7 @@
       "source_location": "L34",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_rationale_34",
-      "community": 406,
+      "community": 57,
       "norm_label": "captures every put send_now makes instead of reaching the network."
     },
     {
@@ -17791,7 +17811,7 @@
       "source_location": "L276",
       "_origin": "ast",
       "id": "backend_tests_test_alerts_rationale_276",
-      "community": 402,
+      "community": 57,
       "norm_label": "v40.1: a dead proxy pool fails attempts back to back as `other`, which says noth"
     },
     {
@@ -17801,7 +17821,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_allowlist.py"
     },
     {
@@ -17881,7 +17901,7 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_published",
-      "community": 14,
+      "community": 49,
       "norm_label": "published()"
     },
     {
@@ -17891,7 +17911,7 @@
       "source_location": "L61",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_upstream_ok",
-      "community": 14,
+      "community": 49,
       "norm_label": "_upstream_ok()"
     },
     {
@@ -17931,7 +17951,7 @@
       "source_location": "L100",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_the_dev_override_is_always_allowed_even_without_a_row",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_the_dev_override_is_always_allowed_even_without_a_row()"
     },
     {
@@ -17941,7 +17961,7 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_a_row_allows_its_address_case_and_spaces_aside",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_a_row_allows_its_address_case_and_spaces_aside()"
     },
     {
@@ -17961,7 +17981,7 @@
       "source_location": "L122",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_migration",
-      "community": 14,
+      "community": 49,
       "norm_label": "_migration()"
     },
     {
@@ -17971,7 +17991,7 @@
       "source_location": "L133",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_the_migration_import_list_is_normalized",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_the_migration_import_list_is_normalized()"
     },
     {
@@ -17981,7 +18001,7 @@
       "source_location": "L145",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_add_answers_201_with_the_normalized_row",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_add_answers_201_with_the_normalized_row()"
     },
     {
@@ -17991,7 +18011,7 @@
       "source_location": "L157",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_a_duplicate_is_409",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_a_duplicate_is_409()"
     },
     {
@@ -18001,7 +18021,7 @@
       "source_location": "L169",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_a_malformed_address_is_422",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_a_malformed_address_is_422()"
     },
     {
@@ -18011,7 +18031,7 @@
       "source_location": "L175",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_removing_the_admin_is_409",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_removing_the_admin_is_409()"
     },
     {
@@ -18021,7 +18041,7 @@
       "source_location": "L181",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_cannot_remove_admin_keys_on_is_admin",
-      "community": 34,
+      "community": 49,
       "norm_label": "test_cannot_remove_admin_keys_on_is_admin()"
     },
     {
@@ -18031,7 +18051,7 @@
       "source_location": "L195",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_the_dev_override_cannot_be_removed",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_the_dev_override_cannot_be_removed()"
     },
     {
@@ -18051,7 +18071,7 @@
       "source_location": "L213",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_removing_an_unknown_address_is_404",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_removing_an_unknown_address_is_404()"
     },
     {
@@ -18111,7 +18131,7 @@
       "source_location": "L291",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_login_rejection_stays_indistinguishable",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_login_rejection_stays_indistinguishable()"
     },
     {
@@ -18121,7 +18141,7 @@
       "source_location": "L300",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_an_added_address_signs_in_on_its_next_attempt",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_an_added_address_signs_in_on_its_next_attempt()"
     },
     {
@@ -18141,7 +18161,7 @@
       "source_location": "L338",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_re_adding_restores_the_same_user",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_re_adding_restores_the_same_user()"
     },
     {
@@ -18151,7 +18171,7 @@
       "source_location": "L349",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_a_removed_address_cant_sign_in",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_a_removed_address_cant_sign_in()"
     },
     {
@@ -18161,7 +18181,7 @@
       "source_location": "L361",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_the_control_channel_never_matches_the_admins_pattern",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_the_control_channel_never_matches_the_admins_pattern()"
     },
     {
@@ -18281,7 +18301,7 @@
       "source_location": "L405",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_run_stream",
-      "community": 203,
+      "community": 360,
       "norm_label": "_run_stream()"
     },
     {
@@ -18301,7 +18321,7 @@
       "source_location": "L425",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_a_revoked_message_ends_the_stream_with_its_event",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_a_revoked_message_ends_the_stream_with_its_event()"
     },
     {
@@ -18311,7 +18331,7 @@
       "source_location": "L438",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_admin_lost_ends_the_stream",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_admin_lost_ends_the_stream()"
     },
     {
@@ -18321,7 +18341,7 @@
       "source_location": "L448",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_an_unknown_control_message_is_ignored",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_an_unknown_control_message_is_ignored()"
     },
     {
@@ -18331,7 +18351,7 @@
       "source_location": "L456",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_the_recheck_ends_a_stream_whose_access_or_session_is_gone",
-      "community": 203,
+      "community": 49,
       "norm_label": "test_the_recheck_ends_a_stream_whose_access_or_session_is_gone()"
     },
     {
@@ -18351,7 +18371,7 @@
       "source_location": "L482",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_the_recheck_ends_an_admin_scoped_stream_once_admin_is_lost",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_the_recheck_ends_an_admin_scoped_stream_once_admin_is_lost()"
     },
     {
@@ -18371,7 +18391,7 @@
       "source_location": "L525",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_the_startup_warning_counts_and_never_names_an_address",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_the_startup_warning_counts_and_never_names_an_address()"
     },
     {
@@ -18381,7 +18401,7 @@
       "source_location": "L540",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_no_startup_warning_when_every_env_address_is_imported",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_no_startup_warning_when_every_env_address_is_imported()"
     },
     {
@@ -18401,7 +18421,7 @@
       "source_location": "L558",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_removing_an_unstorable_address_is_404",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_removing_an_unstorable_address_is_404()"
     },
     {
@@ -18431,7 +18451,7 @@
       "source_location": "L591",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_a_removal_announces_each_held_job",
-      "community": 34,
+      "community": 49,
       "norm_label": "test_a_removal_announces_each_held_job()"
     },
     {
@@ -18451,7 +18471,7 @@
       "source_location": "L615",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_test_the_revoked_record_lives_as_long_as_a_session_could",
-      "community": 14,
+      "community": 49,
       "norm_label": "test_the_revoked_record_lives_as_long_as_a_session_could()"
     },
     {
@@ -18491,7 +18511,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_rationale_1",
-      "community": 14,
+      "community": 49,
       "norm_label": "v69: the login allowlist as a table the admin manages (`/users`), and what a rem"
     },
     {
@@ -18511,7 +18531,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_rationale_54",
-      "community": 14,
+      "community": 49,
       "norm_label": "the control publishes and status moves a removal or an addition makes."
     },
     {
@@ -18561,7 +18581,7 @@
       "source_location": "L182",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_rationale_182",
-      "community": 34,
+      "community": 49,
       "norm_label": "v72: any user with `is_admin` is protected (a second upstream superuser too), an"
     },
     {
@@ -18591,7 +18611,7 @@
       "source_location": "L439",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_rationale_439",
-      "community": 203,
+      "community": 360,
       "norm_label": "v72: closed without `session.revoked` (that would log the page out); the page re"
     },
     {
@@ -18601,7 +18621,7 @@
       "source_location": "L457",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_rationale_457",
-      "community": 203,
+      "community": 49,
       "norm_label": "the safety net: no control message arrives at all, and the periodic re-check end"
     },
     {
@@ -18621,7 +18641,7 @@
       "source_location": "L483",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_rationale_483",
-      "community": 14,
+      "community": 49,
       "norm_label": "v72: a stream subscribed to everyone's events (`needs_admin`) ends once its owne"
     },
     {
@@ -18671,7 +18691,7 @@
       "source_location": "L592",
       "_origin": "ast",
       "id": "backend_tests_test_allowlist_rationale_592",
-      "community": 34,
+      "community": 49,
       "norm_label": "review round 4: an admin's open row re-reads its status on `job.state`."
     },
     {
@@ -19001,7 +19021,7 @@
       "source_location": "L127",
       "_origin": "ast",
       "id": "backend_tests_test_api_keys_test_me_with_a_key_reports_only_who_it_belongs_to",
-      "community": 37,
+      "community": 18,
       "norm_label": "test_me_with_a_key_reports_only_who_it_belongs_to()"
     },
     {
@@ -20261,7 +20281,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_py_job",
-      "community": 76,
+      "community": 46,
       "norm_label": "job"
     },
     {
@@ -20381,7 +20401,7 @@
       "source_location": "L411",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_test_reclaim_leaves_a_track_completed_after_its_snapshot_on_real_connections",
-      "community": 76,
+      "community": 46,
       "norm_label": "test_reclaim_leaves_a_track_completed_after_its_snapshot_on_real_connections()"
     },
     {
@@ -20391,7 +20411,7 @@
       "source_location": "L465",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_test_reclaim_leaves_a_queued_track_that_started_downloading_after_its_snapshot",
-      "community": 76,
+      "community": 46,
       "norm_label": "test_reclaim_leaves_a_queued_track_that_started_downloading_after_its_snapshot()"
     },
     {
@@ -20441,7 +20461,7 @@
       "source_location": "L412",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_rationale_412",
-      "community": 76,
+      "community": 46,
       "norm_label": "v51, on two real connections: the stale sweep reads its snapshot (the track is"
     },
     {
@@ -20451,7 +20471,7 @@
       "source_location": "L466",
       "_origin": "ast",
       "id": "backend_tests_test_beat_task_rationale_466",
-      "community": 76,
+      "community": 46,
       "norm_label": "v55 (e2), the other snapshotted state: the sweep snapshots a track stuck `queued"
     },
     {
@@ -21055,10 +21075,20 @@
       "norm_label": "test_reconcile_disk_skips_a_row_deleted_after_the_read()"
     },
     {
-      "label": "test_record_download_upserts_the_row_as_not_yet_filed()",
+      "label": "test_reconcile_disk_keeps_a_row_repointed_after_the_recheck()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
       "source_location": "L706",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_repointed_after_the_recheck",
+      "community": 7,
+      "norm_label": "test_reconcile_disk_keeps_a_row_repointed_after_the_recheck()"
+    },
+    {
+      "label": "test_record_download_upserts_the_row_as_not_yet_filed()",
+      "file_type": "code",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L757",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_record_download_upserts_the_row_as_not_yet_filed",
       "community": 7,
@@ -21068,7 +21098,7 @@
       "label": "test_record_download_refuses_a_file_that_moved_away()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L726",
+      "source_location": "L777",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_record_download_refuses_a_file_that_moved_away",
       "community": 7,
@@ -21078,7 +21108,7 @@
       "label": "test_known_library_roots_leave_out_a_root_overlapping_the_downloads_dir()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L734",
+      "source_location": "L785",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_known_library_roots_leave_out_a_root_overlapping_the_downloads_dir",
       "community": 7,
@@ -21088,7 +21118,7 @@
       "label": "test_the_file_lock_key_is_the_same_for_one_file_however_it_is_spelled()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L746",
+      "source_location": "L797",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_the_file_lock_key_is_the_same_for_one_file_however_it_is_spelled",
       "community": 7,
@@ -21098,7 +21128,7 @@
       "label": "test_is_already_downloaded_follows_a_repoint_that_lands_before_the_drop()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L752",
+      "source_location": "L803",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_is_already_downloaded_follows_a_repoint_that_lands_before_the_drop",
       "community": 7,
@@ -21108,7 +21138,7 @@
       "label": "test_record_download_gives_the_downloads_root_its_sentinel()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L778",
+      "source_location": "L829",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_record_download_gives_the_downloads_root_its_sentinel",
       "community": 7,
@@ -21118,7 +21148,7 @@
       "label": "test_a_folder_root_inside_a_mounted_root_counts_as_mounted()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L792",
+      "source_location": "L843",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_a_folder_root_inside_a_mounted_root_counts_as_mounted",
       "community": 7,
@@ -21128,7 +21158,7 @@
       "label": "test_an_outer_root_counts_the_rows_of_the_roots_inside_it()",
       "file_type": "code",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L816",
+      "source_location": "L867",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_test_an_outer_root_counts_the_rows_of_the_roots_inside_it",
       "community": 7,
@@ -21395,12 +21425,22 @@
       "norm_label": "v72.1: reconcile reads two columns up front, not orm rows. a row another process"
     },
     {
-      "label": "worker-dl's upsert (v57, L3, moved here from download_track): in_library is rese",
+      "label": "v72.1: the delete matches the path reconcile just checked, not the key alone. A",
       "file_type": "rationale",
       "source_file": "backend/tests/test_dedup.py",
       "source_location": "L707",
       "_origin": "ast",
       "id": "backend_tests_test_dedup_rationale_707",
+      "community": 7,
+      "norm_label": "v72.1: the delete matches the path reconcile just checked, not the key alone. a"
+    },
+    {
+      "label": "worker-dl's upsert (v57, L3, moved here from download_track): in_library is rese",
+      "file_type": "rationale",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L758",
+      "_origin": "ast",
+      "id": "backend_tests_test_dedup_rationale_758",
       "community": 7,
       "norm_label": "worker-dl's upsert (v57, l3, moved here from download_track): in_library is rese"
     },
@@ -21408,9 +21448,9 @@
       "label": "The sweep moved the file while worker-dl waited on its lock: no row on a dead pa",
       "file_type": "rationale",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L727",
+      "source_location": "L778",
       "_origin": "ast",
-      "id": "backend_tests_test_dedup_rationale_727",
+      "id": "backend_tests_test_dedup_rationale_778",
       "community": 7,
       "norm_label": "the sweep moved the file while worker-dl waited on its lock: no row on a dead pa"
     },
@@ -21418,9 +21458,9 @@
       "label": "v57 (review round 1): an old root equal to, inside or around the downloads dir i",
       "file_type": "rationale",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L735",
+      "source_location": "L786",
       "_origin": "ast",
-      "id": "backend_tests_test_dedup_rationale_735",
+      "id": "backend_tests_test_dedup_rationale_786",
       "community": 7,
       "norm_label": "v57 (review round 1): an old root equal to, inside or around the downloads dir i"
     },
@@ -21428,9 +21468,9 @@
       "label": "v57 (review round 2): the sweep repoints the row to a file that exists, between",
       "file_type": "rationale",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L753",
+      "source_location": "L804",
       "_origin": "ast",
-      "id": "backend_tests_test_dedup_rationale_753",
+      "id": "backend_tests_test_dedup_rationale_804",
       "community": 7,
       "norm_label": "v57 (review round 2): the sweep repoints the row to a file that exists, between"
     },
@@ -21438,9 +21478,9 @@
       "label": "Review round 4: a root whose rows were all stale at worker-meta's boot got no se",
       "file_type": "rationale",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L779",
+      "source_location": "L830",
       "_origin": "ast",
-      "id": "backend_tests_test_dedup_rationale_779",
+      "id": "backend_tests_test_dedup_rationale_830",
       "community": 7,
       "norm_label": "review round 4: a root whose rows were all stale at worker-meta's boot got no se"
     },
@@ -21448,9 +21488,9 @@
       "label": "Review round 4: every non-default library root is a folder inside the mount. One",
       "file_type": "rationale",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L793",
+      "source_location": "L844",
       "_origin": "ast",
-      "id": "backend_tests_test_dedup_rationale_793",
+      "id": "backend_tests_test_dedup_rationale_844",
       "community": 7,
       "norm_label": "review round 4: every non-default library root is a folder inside the mount. one"
     },
@@ -21458,9 +21498,9 @@
       "label": "Review round 5: every library row sits under a folder root inside the mount, and",
       "file_type": "rationale",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L817",
+      "source_location": "L868",
       "_origin": "ast",
-      "id": "backend_tests_test_dedup_rationale_817",
+      "id": "backend_tests_test_dedup_rationale_868",
       "community": 7,
       "norm_label": "review round 5: every library row sits under a folder root inside the mount, and"
     },
@@ -21841,7 +21881,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_fakeprogresshandler",
-      "community": 76,
+      "community": 22,
       "norm_label": "_fakeprogresshandler"
     },
     {
@@ -21861,7 +21901,7 @@
       "source_location": "L77",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_fakedownloader_init",
-      "community": 76,
+      "community": 22,
       "norm_label": ".__init__()"
     },
     {
@@ -21911,7 +21951,7 @@
       "source_location": "L142",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_fakedownloadssettings",
-      "community": 76,
+      "community": 22,
       "norm_label": "_fakedownloadssettings"
     },
     {
@@ -21921,7 +21961,7 @@
       "source_location": "L143",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_fakedownloadssettings_init",
-      "community": 76,
+      "community": 22,
       "norm_label": ".__init__()"
     },
     {
@@ -22521,7 +22561,7 @@
       "source_location": "L1912",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_test_a_redelivery_before_the_first_deliverys_ack_is_a_noop_on_real_connections",
-      "community": 76,
+      "community": 22,
       "norm_label": "test_a_redelivery_before_the_first_deliverys_ack_is_a_noop_on_real_connections()"
     },
     {
@@ -22911,7 +22951,7 @@
       "source_location": "L1915",
       "_origin": "ast",
       "id": "backend_tests_test_download_task_rationale_1915",
-      "community": 76,
+      "community": 22,
       "norm_label": "v51, the test above on real connections: the first delivery commits completed an"
     },
     {
@@ -24331,7 +24371,7 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "backend_tests_test_export_nonclosingsession",
-      "community": 9,
+      "community": 404,
       "norm_label": "_nonclosingsession"
     },
     {
@@ -24341,7 +24381,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "backend_tests_test_export_nonclosingsession_init",
-      "community": 9,
+      "community": 404,
       "norm_label": ".__init__()"
     },
     {
@@ -24351,7 +24391,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "backend_tests_test_export_nonclosingsession_getattr",
-      "community": 9,
+      "community": 404,
       "norm_label": ".__getattr__()"
     },
     {
@@ -24361,7 +24401,7 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "backend_tests_test_export_nonclosingsession_close",
-      "community": 9,
+      "community": 404,
       "norm_label": ".close()"
     },
     {
@@ -24371,7 +24411,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "backend_tests_test_export_ledger_reads_on_the_test_session",
-      "community": 9,
+      "community": 404,
       "norm_label": "_ledger_reads_on_the_test_session()"
     },
     {
@@ -24871,7 +24911,7 @@
       "source_location": "L805",
       "_origin": "ast",
       "id": "backend_tests_test_export_test_zipstream_is_the_version_the_zip64_fix_was_written_against",
-      "community": 9,
+      "community": 412,
       "norm_label": "test_zipstream_is_the_version_the_zip64_fix_was_written_against()"
     },
     {
@@ -24951,7 +24991,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_tests_test_export_rationale_22",
-      "community": 9,
+      "community": 404,
       "norm_label": "db_session for the stream's own short read: its close() would detach the test's"
     },
     {
@@ -24961,7 +25001,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "backend_tests_test_export_rationale_36",
-      "community": 9,
+      "community": 404,
       "norm_label": "the export's own short ledger reads (a file that moved before its stat or mid-st"
     },
     {
@@ -25101,7 +25141,7 @@
       "source_location": "L806",
       "_origin": "ast",
       "id": "backend_tests_test_export_rationale_806",
-      "community": 9,
+      "community": 412,
       "norm_label": "_zip64consistentinfo replaces a module-level name in zipstream-ng and relies on"
     },
     {
@@ -26691,7 +26731,7 @@
       "source_location": "L492",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_committed_job",
-      "community": 76,
+      "community": 19,
       "norm_label": "_committed_job()"
     },
     {
@@ -26701,7 +26741,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_py_jobstate",
-      "community": 76,
+      "community": 19,
       "norm_label": "jobstate"
     },
     {
@@ -26721,7 +26761,7 @@
       "source_location": "L508",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_cancel_job_row_lock_holds_off_a_concurrent_expanded_commit",
-      "community": 76,
+      "community": 19,
       "norm_label": "test_cancel_job_row_lock_holds_off_a_concurrent_expanded_commit()"
     },
     {
@@ -26731,7 +26771,7 @@
       "source_location": "L549",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_committed_expanded_job_with_track",
-      "community": 76,
+      "community": 19,
       "norm_label": "_committed_expanded_job_with_track()"
     },
     {
@@ -26741,7 +26781,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_py_trackstate",
-      "community": 76,
+      "community": 19,
       "norm_label": "trackstate"
     },
     {
@@ -26751,7 +26791,7 @@
       "source_location": "L558",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_cancel_job_racing_its_last_track_completing_leaves_the_job_settled",
-      "community": 76,
+      "community": 19,
       "norm_label": "test_cancel_job_racing_its_last_track_completing_leaves_the_job_settled()"
     },
     {
@@ -26781,7 +26821,7 @@
       "source_location": "L627",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_test_job_listing_snapshot_hides_a_job_committed_mid_listing",
-      "community": 76,
+      "community": 22,
       "norm_label": "test_job_listing_snapshot_hides_a_job_committed_mid_listing()"
     },
     {
@@ -26871,7 +26911,7 @@
       "source_location": "L509",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_rationale_509",
-      "community": 76,
+      "community": 19,
       "norm_label": "v51, the test above on two real connections: cancel_job holds the job's row lock"
     },
     {
@@ -26881,7 +26921,7 @@
       "source_location": "L559",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_rationale_559",
-      "community": 76,
+      "community": 19,
       "norm_label": "v56 (a1) on two real connections. the job's last track is completing: its     tr"
     },
     {
@@ -26911,7 +26951,7 @@
       "source_location": "L628",
       "_origin": "ast",
       "id": "backend_tests_test_jobs_rationale_628",
-      "community": 76,
+      "community": 22,
       "norm_label": "v51, the test above on two real connections: a job committed between the listing"
     },
     {
@@ -27721,7 +27761,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_library_race",
-      "community": 76,
+      "community": 22,
       "norm_label": "test_library_race.py"
     },
     {
@@ -27731,7 +27771,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "backend_tests_test_library_race_record_as_worker_dl",
-      "community": 76,
+      "community": 22,
       "norm_label": "_record_as_worker_dl()"
     },
     {
@@ -27741,7 +27781,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backend_tests_test_library_race_py_path",
-      "community": 76,
+      "community": 22,
       "norm_label": "path"
     },
     {
@@ -27751,7 +27791,7 @@
       "source_location": "L53",
       "_origin": "ast",
       "id": "backend_tests_test_library_race_test_worker_dl_upsert_vs_sweep_move_of_the_same_file",
-      "community": 76,
+      "community": 22,
       "norm_label": "test_worker_dl_upsert_vs_sweep_move_of_the_same_file()"
     },
     {
@@ -27761,7 +27801,7 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "backend_tests_test_library_race_test_only_one_of_two_sweep_deliveries_runs",
-      "community": 76,
+      "community": 22,
       "norm_label": "test_only_one_of_two_sweep_deliveries_runs()"
     },
     {
@@ -27771,7 +27811,7 @@
       "source_location": "L166",
       "_origin": "ast",
       "id": "backend_tests_test_library_race_test_a_start_landing_as_the_previous_sweep_finishes_still_runs",
-      "community": 76,
+      "community": 22,
       "norm_label": "test_a_start_landing_as_the_previous_sweep_finishes_still_runs()"
     },
     {
@@ -27781,7 +27821,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_library_race_rationale_1",
-      "community": 76,
+      "community": 22,
       "norm_label": "v57 (l3): the library sweep vs worker-dl's ledger upsert on the same file, on re"
     },
     {
@@ -27791,7 +27831,7 @@
       "source_location": "L121",
       "_origin": "ast",
       "id": "backend_tests_test_library_race_rationale_121",
-      "community": 76,
+      "community": 22,
       "norm_label": "review round 7 (reproduced live): a redelivered sweep message and a new start bo"
     },
     {
@@ -27801,7 +27841,7 @@
       "source_location": "L167",
       "_origin": "ast",
       "id": "backend_tests_test_library_race_rationale_167",
-      "community": 76,
+      "community": 22,
       "norm_label": "review round 8 (reproduced live by holding the lock): a delivery that arrives wh"
     },
     {
@@ -28321,7 +28361,7 @@
       "source_location": "L826",
       "_origin": "ast",
       "id": "backend_tests_test_library_task_test_sort_library_resets_to_idle_when_settings_load_raises",
-      "community": 8,
+      "community": 308,
       "norm_label": "test_sort_library_resets_to_idle_when_settings_load_raises()"
     },
     {
@@ -28661,7 +28701,7 @@
       "source_location": "L827",
       "_origin": "ast",
       "id": "backend_tests_test_library_task_rationale_827",
-      "community": 8,
+      "community": 308,
       "norm_label": "a crash outside the per-row loop entirely (e.g. loading library settings) must"
     },
     {
@@ -30641,7 +30681,7 @@
       "source_location": "L722",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_a_pick_passes_over_a_proxy_whose_delete_holds_it_on_real_connections",
-      "community": 76,
+      "community": 22,
       "norm_label": "test_a_pick_passes_over_a_proxy_whose_delete_holds_it_on_real_connections()"
     },
     {
@@ -30651,7 +30691,7 @@
       "source_location": "L757",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_test_a_delete_arriving_mid_pick_waits_and_then_defers_on_real_connections",
-      "community": 76,
+      "community": 22,
       "norm_label": "test_a_delete_arriving_mid_pick_waits_and_then_defers_on_real_connections()"
     },
     {
@@ -30791,7 +30831,7 @@
       "source_location": "L723",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_rationale_723",
-      "community": 76,
+      "community": 22,
       "norm_label": "the admin's delete locks the row while it decides; a pick at that moment (skip l"
     },
     {
@@ -30801,7 +30841,7 @@
       "source_location": "L758",
       "_origin": "ast",
       "id": "backend_tests_test_proxies_rationale_758",
-      "community": 76,
+      "community": 22,
       "norm_label": "download_track's pick holds the proxy until its commit; the admin's delete waits"
     },
     {
@@ -31231,7 +31271,7 @@
       "source_location": "L150",
       "_origin": "ast",
       "id": "backend_tests_test_removal_holds_test_a_held_jobs_queued_messages_drain_with_no_attempt",
-      "community": 47,
+      "community": 10,
       "norm_label": "test_a_held_jobs_queued_messages_drain_with_no_attempt()"
     },
     {
@@ -31351,7 +31391,7 @@
       "source_location": "L383",
       "_origin": "ast",
       "id": "backend_tests_test_removal_holds_test_race_the_track_commits_downloading_first_and_the_job_runs_on",
-      "community": 76,
+      "community": 47,
       "norm_label": "test_race_the_track_commits_downloading_first_and_the_job_runs_on()"
     },
     {
@@ -31361,7 +31401,7 @@
       "source_location": "L417",
       "_origin": "ast",
       "id": "backend_tests_test_removal_holds_test_race_the_removal_commits_first_and_the_track_never_starts",
-      "community": 76,
+      "community": 47,
       "norm_label": "test_race_the_removal_commits_first_and_the_track_never_starts()"
     },
     {
@@ -31371,7 +31411,7 @@
       "source_location": "L440",
       "_origin": "ast",
       "id": "backend_tests_test_removal_holds_test_race_a_re_add_waits_for_the_gate_and_then_enqueues_the_track",
-      "community": 76,
+      "community": 47,
       "norm_label": "test_race_a_re_add_waits_for_the_gate_and_then_enqueues_the_track()"
     },
     {
@@ -31471,7 +31511,7 @@
       "source_location": "L441",
       "_origin": "ast",
       "id": "backend_tests_test_removal_holds_rationale_441",
-      "community": 76,
+      "community": 47,
       "norm_label": "review round 1: the gate's read and its `pending` write are one locked transacti"
     },
     {
@@ -31731,7 +31771,7 @@
       "source_location": "L308",
       "_origin": "ast",
       "id": "backend_tests_test_retry_test_connection_failures_count_as_proxy_transport_only_on_a_proxied_attempt",
-      "community": 426,
+      "community": 59,
       "norm_label": "test_connection_failures_count_as_proxy_transport_only_on_a_proxied_attempt()"
     },
     {
@@ -31861,7 +31901,7 @@
       "source_location": "L309",
       "_origin": "ast",
       "id": "backend_tests_test_retry_rationale_309",
-      "community": 426,
+      "community": 59,
       "norm_label": "v40.1, found on the real stack: a proxy that accepts and drops the connection"
     },
     {
@@ -32991,7 +33031,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "backend_tests_test_stats_job",
-      "community": 401,
+      "community": 63,
       "norm_label": "_job()"
     },
     {
@@ -33001,7 +33041,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "backend_tests_test_stats_track",
-      "community": 401,
+      "community": 63,
       "norm_label": "_track()"
     },
     {
@@ -33011,7 +33051,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "backend_tests_test_stats_attempt",
-      "community": 401,
+      "community": 63,
       "norm_label": "_attempt()"
     },
     {
@@ -33031,7 +33071,7 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "backend_tests_test_stats_seeded",
-      "community": 401,
+      "community": 63,
       "norm_label": "seeded()"
     },
     {
@@ -33051,7 +33091,7 @@
       "source_location": "L165",
       "_origin": "ast",
       "id": "backend_tests_test_stats_test_a_row_stamped_past_the_window_is_in_no_count",
-      "community": 401,
+      "community": 63,
       "norm_label": "test_a_row_stamped_past_the_window_is_in_no_count()"
     },
     {
@@ -33091,7 +33131,7 @@
       "source_location": "L206",
       "_origin": "ast",
       "id": "backend_tests_test_stats_test_day_buckets_follow_the_viewers_clock",
-      "community": 401,
+      "community": 63,
       "norm_label": "test_day_buckets_follow_the_viewers_clock()"
     },
     {
@@ -33241,7 +33281,7 @@
       "source_location": "L86",
       "_origin": "ast",
       "id": "backend_tests_test_stats_rationale_86",
-      "community": 401,
+      "community": 63,
       "norm_label": "two users' rows (stats are global), attempts on every path, inside and outside t"
     },
     {
@@ -33251,7 +33291,7 @@
       "source_location": "L166",
       "_origin": "ast",
       "id": "backend_tests_test_stats_rationale_166",
-      "community": 401,
+      "community": 63,
       "norm_label": "a worker clock running ahead: the route counts and the chart agree (both skip it"
     },
     {
@@ -33271,7 +33311,7 @@
       "source_location": "L207",
       "_origin": "ast",
       "id": "backend_tests_test_stats_rationale_207",
-      "community": 401,
+      "community": 63,
       "norm_label": "owner's choice: a day bucket is the viewer's own day. 23:30 utc on the 15th is"
     },
     {
@@ -33531,7 +33571,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "backend_tests_test_stream",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_stream.py"
     },
     {
@@ -33541,7 +33581,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fake_event_stream",
-      "community": 203,
+      "community": 360,
       "norm_label": "_fake_event_stream()"
     },
     {
@@ -33551,7 +33591,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_stream_requires_session",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_stream_requires_session()"
     },
     {
@@ -33561,7 +33601,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_stream_returns_sse_headers_and_forwarded_events",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_stream_returns_sse_headers_and_forwarded_events()"
     },
     {
@@ -33571,7 +33611,7 @@
       "source_location": "L39",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakerequest",
-      "community": 404,
+      "community": 194,
       "norm_label": "_fakerequest"
     },
     {
@@ -33581,7 +33621,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakerequest_init",
-      "community": 404,
+      "community": 194,
       "norm_label": ".__init__()"
     },
     {
@@ -33591,7 +33631,7 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakerequest_is_disconnected",
-      "community": 404,
+      "community": 194,
       "norm_label": ".is_disconnected()"
     },
     {
@@ -33601,7 +33641,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub",
-      "community": 203,
+      "community": 402,
       "norm_label": "_fakepubsub"
     },
     {
@@ -33611,7 +33651,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_init",
-      "community": 203,
+      "community": 402,
       "norm_label": ".__init__()"
     },
     {
@@ -33621,7 +33661,7 @@
       "source_location": "L66",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_subscribe",
-      "community": 203,
+      "community": 402,
       "norm_label": ".subscribe()"
     },
     {
@@ -33631,7 +33671,7 @@
       "source_location": "L69",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_psubscribe",
-      "community": 203,
+      "community": 402,
       "norm_label": ".psubscribe()"
     },
     {
@@ -33641,7 +33681,7 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_unsubscribe",
-      "community": 203,
+      "community": 402,
       "norm_label": ".unsubscribe()"
     },
     {
@@ -33651,7 +33691,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_punsubscribe",
-      "community": 203,
+      "community": 402,
       "norm_label": ".punsubscribe()"
     },
     {
@@ -33661,7 +33701,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_get_message",
-      "community": 203,
+      "community": 402,
       "norm_label": ".get_message()"
     },
     {
@@ -33671,7 +33711,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakepubsub_aclose",
-      "community": 203,
+      "community": 402,
       "norm_label": ".aclose()"
     },
     {
@@ -33681,7 +33721,7 @@
       "source_location": "L91",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient",
-      "community": 203,
+      "community": 402,
       "norm_label": "_fakeredisclient"
     },
     {
@@ -33691,7 +33731,7 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_init",
-      "community": 203,
+      "community": 402,
       "norm_label": ".__init__()"
     },
     {
@@ -33701,7 +33741,7 @@
       "source_location": "L95",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_pubsub",
-      "community": 203,
+      "community": 402,
       "norm_label": ".pubsub()"
     },
     {
@@ -33711,7 +33751,7 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "backend_tests_test_stream_fakeredisclient_aclose",
-      "community": 203,
+      "community": 402,
       "norm_label": ".aclose()"
     },
     {
@@ -33721,7 +33761,7 @@
       "source_location": "L102",
       "_origin": "ast",
       "id": "backend_tests_test_stream_drive",
-      "community": 203,
+      "community": 360,
       "norm_label": "_drive()"
     },
     {
@@ -33731,7 +33771,7 @@
       "source_location": "L120",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_subscribes_to_the_users_own_channel",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_event_stream_subscribes_to_the_users_own_channel()"
     },
     {
@@ -33741,7 +33781,7 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_event_stream_admin_all_users_psubscribes_to_the_admin_pattern()"
     },
     {
@@ -33751,7 +33791,7 @@
       "source_location": "L141",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_admin_others_psubscribes_and_unsubscribes_like_all",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_event_stream_admin_others_psubscribes_and_unsubscribes_like_all()"
     },
     {
@@ -33761,7 +33801,7 @@
       "source_location": "L153",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_non_admin_all_users_flag_is_ignored",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_event_stream_non_admin_all_users_flag_is_ignored()"
     },
     {
@@ -33771,7 +33811,7 @@
       "source_location": "L164",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_others_drops_the_admins_own_channel_and_keeps_the_rest",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_event_stream_others_drops_the_admins_own_channel_and_keeps_the_rest()"
     },
     {
@@ -33781,7 +33821,7 @@
       "source_location": "L180",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_event_stream_others_heartbeats_through_a_run_of_dropped_messages",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_event_stream_others_heartbeats_through_a_run_of_dropped_messages()"
     },
     {
@@ -33791,7 +33831,7 @@
       "source_location": "L193",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_the_first_chunk_is_a_heartbeat_sent_at_once",
-      "community": 203,
+      "community": 402,
       "norm_label": "test_the_first_chunk_is_a_heartbeat_sent_at_once()"
     },
     {
@@ -33801,7 +33841,7 @@
       "source_location": "L209",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_the_heartbeat_is_an_event_page_javascript_receives",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_the_heartbeat_is_an_event_page_javascript_receives()"
     },
     {
@@ -33811,7 +33851,7 @@
       "source_location": "L220",
       "_origin": "ast",
       "id": "backend_tests_test_stream_test_dropped_messages_never_stretch_the_wait_past_the_heartbeat",
-      "community": 203,
+      "community": 360,
       "norm_label": "test_dropped_messages_never_stretch_the_wait_past_the_heartbeat()"
     },
     {
@@ -33821,7 +33861,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "backend_tests_test_stream_rationale_40",
-      "community": 404,
+      "community": 194,
       "norm_label": "disconnects once `polls` loop turns have run: 0 ends the loop after the (p)subsc"
     },
     {
@@ -33831,7 +33871,7 @@
       "source_location": "L55",
       "_origin": "ast",
       "id": "backend_tests_test_stream_rationale_55",
-      "community": 203,
+      "community": 402,
       "norm_label": "`messages` are replayed in order, shaped as redis-py delivers them: `channel` as"
     },
     {
@@ -33841,7 +33881,7 @@
       "source_location": "L154",
       "_origin": "ast",
       "id": "backend_tests_test_stream_rationale_154",
-      "community": 203,
+      "community": 360,
       "norm_label": "v17's threat model: a client-supplied scope flag is never trusted -- a non-admin"
     },
     {
@@ -33851,7 +33891,7 @@
       "source_location": "L181",
       "_origin": "ast",
       "id": "backend_tests_test_stream_rationale_181",
-      "community": 203,
+      "community": 360,
       "norm_label": "a steady run of the admin's own events, all dropped, must not keep the wire sile"
     },
     {
@@ -33861,7 +33901,7 @@
       "source_location": "L194",
       "_origin": "ast",
       "id": "backend_tests_test_stream_rationale_194",
-      "community": 203,
+      "community": 402,
       "norm_label": "v69: before any message or wait, so a proxy holding headers until the first byte"
     },
     {
@@ -33871,7 +33911,7 @@
       "source_location": "L210",
       "_origin": "ast",
       "id": "backend_tests_test_stream_rationale_210",
-      "community": 203,
+      "community": 360,
       "norm_label": "v62 (f4): an sse comment never reaches the page, so a quiet stream looked like a"
     },
     {
@@ -33881,7 +33921,7 @@
       "source_location": "L221",
       "_origin": "ast",
       "id": "backend_tests_test_stream_rationale_221",
-      "community": 203,
+      "community": 360,
       "norm_label": "v62 (f4): the page restarts a stream silent for longer than the interval, so eac"
     },
     {
@@ -34431,7 +34471,7 @@
       "source_location": "L308",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_test_two_retry_now_presses_at_once_dispatch_once_on_real_connections",
-      "community": 76,
+      "community": 22,
       "norm_label": "test_two_retry_now_presses_at_once_dispatch_once_on_real_connections()"
     },
     {
@@ -34721,7 +34761,7 @@
       "source_location": "L834",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_test_a_proxy_deleted_mid_attempt_still_lets_the_attempt_commit_on_real_connections",
-      "community": 76,
+      "community": 10,
       "norm_label": "test_a_proxy_deleted_mid_attempt_still_lets_the_attempt_commit_on_real_connections()"
     },
     {
@@ -34731,7 +34771,7 @@
       "source_location": "L876",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_test_a_proxy_delete_waits_for_an_attempt_being_recorded_on_real_connections",
-      "community": 76,
+      "community": 22,
       "norm_label": "test_a_proxy_delete_waits_for_an_attempt_being_recorded_on_real_connections()"
     },
     {
@@ -34811,7 +34851,7 @@
       "source_location": "L309",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_rationale_309",
-      "community": 76,
+      "community": 22,
       "norm_label": "v56 (a8) on two real connections: the second press waits on the first's row lock"
     },
     {
@@ -34971,7 +35011,7 @@
       "source_location": "L835",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_rationale_835",
-      "community": 76,
+      "community": 10,
       "norm_label": "v56 (a4): with on delete set null an admin can delete a manual proxy while a dow"
     },
     {
@@ -34981,7 +35021,7 @@
       "source_location": "L877",
       "_origin": "ast",
       "id": "backend_tests_test_tracks_rationale_877",
-      "community": 76,
+      "community": 22,
       "norm_label": "v56 (a4): record_attempt reads the proxy locked (for no key update), so an admin"
     },
     {
@@ -37121,7 +37161,7 @@
       "source_location": "L407",
       "_origin": "ast",
       "id": "extension_content_inject_message",
-      "community": 315,
+      "community": 5,
       "norm_label": "message()"
     },
     {
@@ -38421,7 +38461,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_03_track_detail_e2e",
-      "community": 49,
+      "community": 399,
       "norm_label": "03-track-detail.e2e.ts"
     },
     {
@@ -38431,7 +38471,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "frontend_e2e_03_track_detail_e2e_findrealpathtrack",
-      "community": 49,
+      "community": 399,
       "norm_label": "findrealpathtrack()"
     },
     {
@@ -38441,7 +38481,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "frontend_e2e_03_track_detail_e2e_checkattempthistory",
-      "community": 49,
+      "community": 399,
       "norm_label": "checkattempthistory()"
     },
     {
@@ -38471,7 +38511,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_06_admin_pages_e2e",
-      "community": 66,
+      "community": 399,
       "norm_label": "06-admin-pages.e2e.ts"
     },
     {
@@ -38481,7 +38521,7 @@
       "source_location": "L12",
       "_origin": "ast",
       "id": "frontend_e2e_06_admin_pages_e2e_admin_gets",
-      "community": 66,
+      "community": 399,
       "norm_label": "admin_gets"
     },
     {
@@ -38521,7 +38561,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_09_moved_file_e2e",
-      "community": 49,
+      "community": 107,
       "norm_label": "09-moved-file.e2e.ts"
     },
     {
@@ -38761,7 +38801,7 @@
       "source_location": "L1104",
       "_origin": "ast",
       "id": "frontend_e2e_14_keyboard_e2e_overlayentries",
-      "community": 137,
+      "community": 329,
       "norm_label": "overlayentries()"
     },
     {
@@ -38931,7 +38971,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "frontend_e2e_19_others_view_e2e_switched",
-      "community": 107,
+      "community": 329,
       "norm_label": "switched()"
     },
     {
@@ -38961,7 +39001,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_20_store_fixes_e2e",
-      "community": 107,
+      "community": 329,
       "norm_label": "20-store-fixes.e2e.ts"
     },
     {
@@ -38971,7 +39011,7 @@
       "source_location": "L18",
       "_origin": "ast",
       "id": "frontend_e2e_20_store_fixes_e2e_makefixture",
-      "community": 141,
+      "community": 329,
       "norm_label": "makefixture()"
     },
     {
@@ -38981,7 +39021,7 @@
       "source_location": "L58",
       "_origin": "ast",
       "id": "frontend_e2e_20_store_fixes_e2e_dropfixture",
-      "community": 247,
+      "community": 329,
       "norm_label": "dropfixture()"
     },
     {
@@ -38991,7 +39031,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "frontend_e2e_20_store_fixes_e2e_chipcount",
-      "community": 107,
+      "community": 329,
       "norm_label": "chipcount()"
     },
     {
@@ -39001,7 +39041,7 @@
       "source_location": "L83",
       "_origin": "ast",
       "id": "frontend_e2e_20_store_fixes_e2e_servercounts",
-      "community": 107,
+      "community": 329,
       "norm_label": "servercounts()"
     },
     {
@@ -39011,7 +39051,7 @@
       "source_location": "L274",
       "_origin": "ast",
       "id": "frontend_e2e_20_store_fixes_e2e_edittemplate",
-      "community": 107,
+      "community": 329,
       "norm_label": "edittemplate()"
     },
     {
@@ -39021,7 +39061,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_21_watch_jobs_e2e",
-      "community": 247,
+      "community": 66,
       "norm_label": "21-watch-jobs.e2e.ts"
     },
     {
@@ -39031,7 +39071,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "frontend_e2e_21_watch_jobs_e2e_fixture",
-      "community": 247,
+      "community": 66,
       "norm_label": "fixture"
     },
     {
@@ -39041,7 +39081,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "frontend_e2e_21_watch_jobs_e2e_makejob",
-      "community": 141,
+      "community": 66,
       "norm_label": "makejob()"
     },
     {
@@ -39051,7 +39091,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "frontend_e2e_21_watch_jobs_e2e_dropfixture",
-      "community": 247,
+      "community": 66,
       "norm_label": "dropfixture()"
     },
     {
@@ -39061,7 +39101,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "frontend_e2e_21_watch_jobs_e2e_jobcolumn",
-      "community": 247,
+      "community": 66,
       "norm_label": "jobcolumn()"
     },
     {
@@ -39071,7 +39111,7 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "frontend_e2e_21_watch_jobs_e2e_trackstates",
-      "community": 247,
+      "community": 66,
       "norm_label": "trackstates()"
     },
     {
@@ -39131,7 +39171,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_23_share_e2e",
-      "community": 107,
+      "community": 329,
       "norm_label": "23-share.e2e.ts"
     },
     {
@@ -39141,7 +39181,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "frontend_e2e_23_share_e2e_outcomes",
-      "community": 107,
+      "community": 329,
       "norm_label": "outcomes()"
     },
     {
@@ -39151,7 +39191,7 @@
       "source_location": "L26",
       "_origin": "ast",
       "id": "frontend_e2e_23_share_e2e_fetchinit",
-      "community": 107,
+      "community": 329,
       "norm_label": "fetchinit"
     },
     {
@@ -39161,7 +39201,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "frontend_e2e_23_share_e2e_pagefetch",
-      "community": 107,
+      "community": 329,
       "norm_label": "pagefetch()"
     },
     {
@@ -39171,7 +39211,7 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "frontend_e2e_23_share_e2e_signin",
-      "community": 107,
+      "community": 329,
       "norm_label": "signin()"
     },
     {
@@ -39181,7 +39221,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_24_notifications_e2e",
-      "community": 49,
+      "community": 107,
       "norm_label": "24-notifications.e2e.ts"
     },
     {
@@ -39191,7 +39231,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "frontend_e2e_24_notifications_e2e_desktoponly",
-      "community": 49,
+      "community": 107,
       "norm_label": "desktoponly()"
     },
     {
@@ -39201,7 +39241,7 @@
       "source_location": "L24",
       "_origin": "ast",
       "id": "frontend_e2e_24_notifications_e2e_note",
-      "community": 49,
+      "community": 107,
       "norm_label": "note"
     },
     {
@@ -39221,7 +39261,7 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "frontend_e2e_24_notifications_e2e_notes",
-      "community": 49,
+      "community": 107,
       "norm_label": "notes()"
     },
     {
@@ -39231,7 +39271,7 @@
       "source_location": "L64",
       "_origin": "ast",
       "id": "frontend_e2e_24_notifications_e2e_setnotifications",
-      "community": 49,
+      "community": 107,
       "norm_label": "setnotifications()"
     },
     {
@@ -39241,7 +39281,7 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "frontend_e2e_24_notifications_e2e_settled",
-      "community": 49,
+      "community": 107,
       "norm_label": "settled()"
     },
     {
@@ -39251,7 +39291,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_25_ui_debt_e2e",
-      "community": 107,
+      "community": 329,
       "norm_label": "25-ui-debt.e2e.ts"
     },
     {
@@ -39261,7 +39301,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "frontend_e2e_25_ui_debt_e2e_tabto",
-      "community": 107,
+      "community": 329,
       "norm_label": "tabto()"
     },
     {
@@ -39391,7 +39431,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_27_user_access_e2e",
-      "community": 107,
+      "community": 137,
       "norm_label": "27-user-access.e2e.ts"
     },
     {
@@ -39401,7 +39441,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "frontend_e2e_27_user_access_e2e_scratchaddress",
-      "community": 107,
+      "community": 137,
       "norm_label": "scratchaddress()"
     },
     {
@@ -39411,7 +39451,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "frontend_e2e_27_user_access_e2e_adminapi",
-      "community": 107,
+      "community": 137,
       "norm_label": "adminapi()"
     },
     {
@@ -39421,7 +39461,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "frontend_e2e_27_user_access_e2e_restoreuser",
-      "community": 107,
+      "community": 137,
       "norm_label": "restoreuser()"
     },
     {
@@ -39521,7 +39561,7 @@
       "source_location": "L89",
       "_origin": "ast",
       "id": "frontend_e2e_global_setup_seedjob",
-      "community": 49,
+      "community": 107,
       "norm_label": "seedjob()"
     },
     {
@@ -39561,7 +39601,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_network_e2e",
-      "community": 49,
+      "community": 107,
       "norm_label": "network.e2e.ts"
     },
     {
@@ -39671,7 +39711,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_support_i18n",
-      "community": 107,
+      "community": 329,
       "norm_label": "i18n.ts"
     },
     {
@@ -39691,7 +39731,7 @@
       "source_location": "L13",
       "_origin": "ast",
       "id": "frontend_e2e_support_i18n_projectlang",
-      "community": 137,
+      "community": 329,
       "norm_label": "projectlang()"
     },
     {
@@ -39701,7 +39741,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "frontend_e2e_support_i18n_t",
-      "community": 107,
+      "community": 329,
       "norm_label": "t()"
     },
     {
@@ -39711,7 +39751,7 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "frontend_e2e_support_i18n_escaperegexp",
-      "community": 137,
+      "community": 329,
       "norm_label": "escaperegexp()"
     },
     {
@@ -39721,7 +39761,7 @@
       "source_location": "L32",
       "_origin": "ast",
       "id": "frontend_e2e_support_i18n_prefix",
-      "community": 137,
+      "community": 329,
       "norm_label": "prefix()"
     },
     {
@@ -39731,7 +39771,7 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "frontend_e2e_support_i18n_anytitle",
-      "community": 137,
+      "community": 329,
       "norm_label": "anytitle()"
     },
     {
@@ -39851,7 +39891,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack",
-      "community": 66,
+      "community": 399,
       "norm_label": "stack.ts"
     },
     {
@@ -39861,7 +39901,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_auth_dir",
-      "community": 66,
+      "community": 399,
       "norm_label": "auth_dir"
     },
     {
@@ -39891,7 +39931,7 @@
       "source_location": "L11",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_seed_file",
-      "community": 66,
+      "community": 399,
       "norm_label": "seed_file"
     },
     {
@@ -39931,7 +39971,7 @@
       "source_location": "L25",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_useridentity",
-      "community": 107,
+      "community": 66,
       "norm_label": "useridentity()"
     },
     {
@@ -39941,7 +39981,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_worker_stage_file",
-      "community": 66,
+      "community": 399,
       "norm_label": "worker_stage_file"
     },
     {
@@ -39951,7 +39991,7 @@
       "source_location": "L33",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_workerstage",
-      "community": 66,
+      "community": 399,
       "norm_label": "workerstage"
     },
     {
@@ -39981,7 +40021,7 @@
       "source_location": "L94",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_expand_stopped_file",
-      "community": 66,
+      "community": 399,
       "norm_label": "expand_stopped_file"
     },
     {
@@ -40061,7 +40101,7 @@
       "source_location": "L192",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_settings_stage_file",
-      "community": 66,
+      "community": 399,
       "norm_label": "settings_stage_file"
     },
     {
@@ -40071,7 +40111,7 @@
       "source_location": "L194",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_settingstage",
-      "community": 66,
+      "community": 399,
       "norm_label": "settingstage"
     },
     {
@@ -40081,7 +40121,7 @@
       "source_location": "L197",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_stagesettings",
-      "community": 66,
+      "community": 399,
       "norm_label": "stagesettings()"
     },
     {
@@ -40101,7 +40141,7 @@
       "source_location": "L230",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_sweep_report_file",
-      "community": 66,
+      "community": 399,
       "norm_label": "sweep_report_file"
     },
     {
@@ -40111,7 +40151,7 @@
       "source_location": "L234",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_snapshotsweepreport",
-      "community": 247,
+      "community": 137,
       "norm_label": "snapshotsweepreport()"
     },
     {
@@ -40131,7 +40171,7 @@
       "source_location": "L262",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_recordspecsweep",
-      "community": 247,
+      "community": 137,
       "norm_label": "recordspecsweep()"
     },
     {
@@ -40151,7 +40191,7 @@
       "source_location": "L330",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_removetestproxy",
-      "community": 66,
+      "community": 399,
       "norm_label": "removetestproxy()"
     },
     {
@@ -40161,7 +40201,7 @@
       "source_location": "L345",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_ledger_tracks",
-      "community": 141,
+      "community": 329,
       "norm_label": "ledger_tracks"
     },
     {
@@ -40171,7 +40211,7 @@
       "source_location": "L355",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_spotifytrackurl",
-      "community": 49,
+      "community": 107,
       "norm_label": "spotifytrackurl()"
     },
     {
@@ -40181,7 +40221,7 @@
       "source_location": "L362",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_missingtrackurl",
-      "community": 49,
+      "community": 107,
       "norm_label": "missingtrackurl()"
     },
     {
@@ -40191,7 +40231,7 @@
       "source_location": "L369",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_seedjob",
-      "community": 49,
+      "community": 399,
       "norm_label": "seedjob"
     },
     {
@@ -40201,7 +40241,7 @@
       "source_location": "L376",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_seed",
-      "community": 66,
+      "community": 399,
       "norm_label": "seed"
     },
     {
@@ -40221,7 +40261,7 @@
       "source_location": "L385",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_run",
-      "community": 66,
+      "community": 399,
       "norm_label": "run"
     },
     {
@@ -40241,7 +40281,7 @@
       "source_location": "L399",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_stackpython",
-      "community": 247,
+      "community": 66,
       "norm_label": "stackpython()"
     },
     {
@@ -40251,7 +40291,7 @@
       "source_location": "L414",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_setpreference",
-      "community": 66,
+      "community": 399,
       "norm_label": "setpreference()"
     },
     {
@@ -40271,7 +40311,7 @@
       "source_location": "L449",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_setlanguage",
-      "community": 66,
+      "community": 399,
       "norm_label": "setlanguage()"
     },
     {
@@ -40291,7 +40331,7 @@
       "source_location": "L457",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_setclock",
-      "community": 66,
+      "community": 399,
       "norm_label": "setclock()"
     },
     {
@@ -40331,7 +40371,7 @@
       "source_location": "L496",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_movedtrack",
-      "community": 66,
+      "community": 399,
       "norm_label": "movedtrack"
     },
     {
@@ -40341,7 +40381,7 @@
       "source_location": "L508",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_movedledgertracks",
-      "community": 49,
+      "community": 66,
       "norm_label": "movedledgertracks()"
     },
     {
@@ -40351,7 +40391,7 @@
       "source_location": "L558",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_ledgerfilepath",
-      "community": 49,
+      "community": 107,
       "norm_label": "ledgerfilepath()"
     },
     {
@@ -40361,7 +40401,7 @@
       "source_location": "L575",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_ledgerdownloads",
-      "community": 49,
+      "community": 107,
       "norm_label": "ledgerdownloads()"
     },
     {
@@ -40371,7 +40411,7 @@
       "source_location": "L594",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_trackswithnetworkpath",
-      "community": 141,
+      "community": 399,
       "norm_label": "trackswithnetworkpath()"
     },
     {
@@ -40381,7 +40421,7 @@
       "source_location": "L625",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_networkpathfixture",
-      "community": 49,
+      "community": 399,
       "norm_label": "networkpathfixture()"
     },
     {
@@ -40411,7 +40451,7 @@
       "source_location": "L704",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_servertrackfile",
-      "community": 49,
+      "community": 107,
       "norm_label": "servertrackfile()"
     },
     {
@@ -40421,7 +40461,7 @@
       "source_location": "L722",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_waitforjob",
-      "community": 49,
+      "community": 107,
       "norm_label": "waitforjob()"
     },
     {
@@ -40431,7 +40471,7 @@
       "source_location": "L745",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_cancelunlesssettled",
-      "community": 49,
+      "community": 107,
       "norm_label": "cancelunlesssettled()"
     },
     {
@@ -40441,7 +40481,7 @@
       "source_location": "L763",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_issettled",
-      "community": 49,
+      "community": 107,
       "norm_label": "issettled()"
     },
     {
@@ -40451,7 +40491,7 @@
       "source_location": "L770",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_expectedtimeline",
-      "community": 49,
+      "community": 399,
       "norm_label": "expectedtimeline()"
     },
     {
@@ -40461,7 +40501,7 @@
       "source_location": "L789",
       "_origin": "ast",
       "id": "frontend_e2e_support_stack_expectedattemptvia",
-      "community": 49,
+      "community": 399,
       "norm_label": "expectedattemptvia()"
     },
     {
@@ -40531,7 +40571,7 @@
       "source_location": "L16",
       "_origin": "ast",
       "id": "frontend_e2e_support_ui_logoutviaui",
-      "community": 107,
+      "community": 329,
       "norm_label": "logoutviaui()"
     },
     {
@@ -51271,7 +51311,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "frontend_scripts_check_messages_inputs",
-      "community": 247,
+      "community": 226,
       "norm_label": "inputs()"
     },
     {
@@ -51679,7 +51719,7 @@
       "source_location": "L147",
       "_origin": "ast",
       "id": "frontend_src_lib_api_trackattempt",
-      "community": 49,
+      "community": 107,
       "norm_label": "trackattempt"
     },
     {
@@ -51869,7 +51909,7 @@
       "source_location": "L370",
       "_origin": "ast",
       "id": "frontend_src_lib_api_proxy",
-      "community": 66,
+      "community": 399,
       "norm_label": "proxy"
     },
     {
@@ -51879,7 +51919,7 @@
       "source_location": "L386",
       "_origin": "ast",
       "id": "frontend_src_lib_api_outputsettings",
-      "community": 66,
+      "community": 399,
       "norm_label": "outputsettings"
     },
     {
@@ -52049,7 +52089,7 @@
       "source_location": "L522",
       "_origin": "ast",
       "id": "frontend_src_lib_api_jobtrackspage",
-      "community": 49,
+      "community": 107,
       "norm_label": "jobtrackspage"
     },
     {
@@ -53119,7 +53159,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "frontend_src_lib_attempts_test",
-      "community": 49,
+      "community": 175,
       "norm_label": "attempts.test.ts"
     },
     {
@@ -53129,7 +53169,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "frontend_src_lib_attempts_test_uselocale",
-      "community": 49,
+      "community": 175,
       "norm_label": "uselocale()"
     },
     {
@@ -53139,7 +53179,7 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "frontend_src_lib_attempts_test_attempt",
-      "community": 49,
+      "community": 175,
       "norm_label": "attempt()"
     },
     {
@@ -54799,7 +54839,7 @@
       "source_location": "L76",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_formatnumber",
-      "community": 175,
+      "community": 397,
       "norm_label": "formatnumber()"
     },
     {
@@ -54809,7 +54849,7 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "frontend_src_lib_i18n_format_counted",
-      "community": 175,
+      "community": 397,
       "norm_label": "counted()"
     },
     {
@@ -55549,7 +55589,7 @@
       "source_location": "L104",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_mem",
-      "community": 195,
+      "community": 374,
       "norm_label": "mem()"
     },
     {
@@ -55639,7 +55679,7 @@
       "source_location": "L146",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_registervirtual",
-      "community": 126,
+      "community": 195,
       "norm_label": "registervirtual()"
     },
     {
@@ -55739,7 +55779,7 @@
       "source_location": "L209",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_isactive",
-      "community": 195,
+      "community": 374,
       "norm_label": "isactive()"
     },
     {
@@ -55839,7 +55879,7 @@
       "source_location": "L491",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_showrow",
-      "community": 126,
+      "community": 374,
       "norm_label": "showrow()"
     },
     {
@@ -55849,7 +55889,7 @@
       "source_location": "L497",
       "_origin": "ast",
       "id": "frontend_src_lib_keyboard_lists_scrollrowin",
-      "community": 195,
+      "community": 374,
       "norm_label": "scrollrowin()"
     },
     {
@@ -57369,7 +57409,7 @@
       "source_location": "L46",
       "_origin": "ast",
       "id": "frontend_src_lib_stats_formatbytes",
-      "community": 175,
+      "community": 397,
       "norm_label": "formatbytes()"
     },
     {
@@ -57389,7 +57429,7 @@
       "source_location": "L75",
       "_origin": "ast",
       "id": "frontend_src_lib_stats_formatspan",
-      "community": 175,
+      "community": 80,
       "norm_label": "formatspan()"
     },
     {
@@ -58499,7 +58539,7 @@
       "confidence": "EXTRACTED",
       "_origin": "ast",
       "id": "home_vb2007_code_spotdl_web_wt_dev_worker_boot_memory_frontend_src_app_css",
-      "community": 360,
+      "community": 419,
       "norm_label": "../app.css"
     },
     {
@@ -61604,7 +61644,7 @@
       "label": "Verified external API contracts",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1466",
+      "source_location": "L1467",
       "_origin": "ast",
       "id": "docs_gotchas_verified_external_api_contracts",
       "community": 277,
@@ -61614,7 +61654,7 @@
       "label": "Auth API \u2014 `vb2007.hu-api` (verified from `/home/vb2007/code/vb2007.hu-api` source)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1471",
+      "source_location": "L1472",
       "_origin": "ast",
       "id": "docs_gotchas_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
       "community": 277,
@@ -61624,7 +61664,7 @@
       "label": "spotdl 4.5.2 \u2014 verified API surface actually used",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1493",
+      "source_location": "L1494",
       "_origin": "ast",
       "id": "docs_gotchas_spotdl_4_5_2_verified_api_surface_actually_used",
       "community": 277,
@@ -61634,7 +61674,7 @@
       "label": "Version log",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1517",
+      "source_location": "L1518",
       "_origin": "ast",
       "id": "docs_gotchas_version_log",
       "community": 4,
@@ -61644,7 +61684,7 @@
       "label": "v01 deployment gotchas (learned deploying to the real host and local dev)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1520",
+      "source_location": "L1521",
       "_origin": "ast",
       "id": "docs_gotchas_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
       "community": 4,
@@ -61654,7 +61694,7 @@
       "label": "v02 schema gotchas (learned building the SQLAlchemy models + initial migration)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1559",
+      "source_location": "L1560",
       "_origin": "ast",
       "id": "docs_gotchas_v02_schema_gotchas_learned_building_the_sqlalchemy_models_initial_migration",
       "community": 4,
@@ -61664,7 +61704,7 @@
       "label": "v03 auth gotchas (learned building the upstream login proxy + session cookie)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1599",
+      "source_location": "L1600",
       "_origin": "ast",
       "id": "docs_gotchas_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
       "community": 4,
@@ -61674,7 +61714,7 @@
       "label": "v04 URL-expansion gotchas (learned building `get_simple_songs` wrapper + `/api/jobs`)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1664",
+      "source_location": "L1665",
       "_origin": "ast",
       "id": "docs_gotchas_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
       "community": 4,
@@ -61684,7 +61724,7 @@
       "label": "v05 downloader gotchas (learned building real downloads + dedup ledger + disk reconciliation)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1749",
+      "source_location": "L1750",
       "_origin": "ast",
       "id": "docs_gotchas_v05_downloader_gotchas_learned_building_real_downloads_dedup_ledger_disk_reconciliation",
       "community": 4,
@@ -61694,7 +61734,7 @@
       "label": "v06 retry-engine gotchas (learned building error classification + ladder + breaker + beat dispatch)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1819",
+      "source_location": "L1820",
       "_origin": "ast",
       "id": "docs_gotchas_v06_retry_engine_gotchas_learned_building_error_classification_ladder_breaker_beat_dispatch",
       "community": 4,
@@ -61704,7 +61744,7 @@
       "label": "v07 proxy-rotation gotchas (learned building `proxies.txt` sync + pick/cooldown + wiring)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1875",
+      "source_location": "L1876",
       "_origin": "ast",
       "id": "docs_gotchas_v07_proxy_rotation_gotchas_learned_building_proxies_txt_sync_pick_cooldown_wiring",
       "community": 4,
@@ -61714,7 +61754,7 @@
       "label": "v08 live-progress gotchas (learned building the Redis pub/sub event bus + SSE stream)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1968",
+      "source_location": "L1969",
       "_origin": "ast",
       "id": "docs_gotchas_v08_live_progress_gotchas_learned_building_the_redis_pub_sub_event_bus_sse_stream",
       "community": 4,
@@ -61724,7 +61764,7 @@
       "label": "v09 frontend gotchas (learned building the SvelteKit login/dashboard UI)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2043",
+      "source_location": "L2044",
       "_origin": "ast",
       "id": "docs_gotchas_v09_frontend_gotchas_learned_building_the_sveltekit_login_dashboard_ui",
       "community": 4,
@@ -61734,7 +61774,7 @@
       "label": "v10 queue-controls gotchas (learned building cancel/retry-now/pause/breaker-release)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2277",
+      "source_location": "L2278",
       "_origin": "ast",
       "id": "docs_gotchas_v10_queue_controls_gotchas_learned_building_cancel_retry_now_pause_breaker_release",
       "community": 4,
@@ -61744,7 +61784,7 @@
       "label": "v11 priority gotchas (learned building job-priority-ordered dispatch + bump/priority endpoints)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2394",
+      "source_location": "L2395",
       "_origin": "ast",
       "id": "docs_gotchas_v11_priority_gotchas_learned_building_job_priority_ordered_dispatch_bump_priority_endpoints",
       "community": 4,
@@ -61754,7 +61794,7 @@
       "label": "v12 deploy-hardening gotchas (learned building durability fixes, same-origin nginx, non-root, JSON logging, backups)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2461",
+      "source_location": "L2462",
       "_origin": "ast",
       "id": "docs_gotchas_v12_deploy_hardening_gotchas_learned_building_durability_fixes_same_origin_nginx_non_root_json_logging_backups",
       "community": 4,
@@ -61764,7 +61804,7 @@
       "label": "v13 settings-UI gotchas (learned building proxy management + output-config override UI)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2771",
+      "source_location": "L2772",
       "_origin": "ast",
       "id": "docs_gotchas_v13_settings_ui_gotchas_learned_building_proxy_management_output_config_override_ui",
       "community": 4,
@@ -61774,7 +61814,7 @@
       "label": "v15 gap-fixes gotchas (learned closing v14's audit findings \u2014 pacing hook, N+1, stale docs)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2972",
+      "source_location": "L2973",
       "_origin": "ast",
       "id": "docs_gotchas_v15_gap_fixes_gotchas_learned_closing_v14_s_audit_findings_pacing_hook_n_1_stale_docs",
       "community": 4,
@@ -61784,7 +61824,7 @@
       "label": "v16 users-schema gotchas (learned building `users`/`user_settings` and ownership columns)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3074",
+      "source_location": "L3075",
       "_origin": "ast",
       "id": "docs_gotchas_v16_users_schema_gotchas_learned_building_users_user_settings_and_ownership_columns",
       "community": 4,
@@ -61794,7 +61834,7 @@
       "label": "v17 multi-user-auth gotchas (learned wiring user-creation-on-login + owner scoping + per-user SSE)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3131",
+      "source_location": "L3132",
       "_origin": "ast",
       "id": "docs_gotchas_v17_multi_user_auth_gotchas_learned_wiring_user_creation_on_login_owner_scoping_per_user_sse",
       "community": 4,
@@ -61804,7 +61844,7 @@
       "label": "v18 job-centric-api gotchas (learned building cursor pagination, rollup status, and search)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3223",
+      "source_location": "L3224",
       "_origin": "ast",
       "id": "docs_gotchas_v18_job_centric_api_gotchas_learned_building_cursor_pagination_rollup_status_and_search",
       "community": 4,
@@ -61814,7 +61854,7 @@
       "label": "v19 archive-retention gotchas (learned building soft-archive lifecycle + per-user retention)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3320",
+      "source_location": "L3321",
       "_origin": "ast",
       "id": "docs_gotchas_v19_archive_retention_gotchas_learned_building_soft_archive_lifecycle_per_user_retention",
       "community": 4,
@@ -61824,7 +61864,7 @@
       "label": "v20 job-centric-ui gotchas (learned building the job/track hierarchy UI, search/sort, archive",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3377",
+      "source_location": "L3378",
       "_origin": "ast",
       "id": "docs_gotchas_v20_job_centric_ui_gotchas_learned_building_the_job_track_hierarchy_ui_search_sort_archive",
       "community": 4,
@@ -61834,7 +61874,7 @@
       "label": "v21 release-automation gotchas (learned building GitHub releases, GHCR image publishing, and",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3518",
+      "source_location": "L3519",
       "_origin": "ast",
       "id": "docs_gotchas_v21_release_automation_gotchas_learned_building_github_releases_ghcr_image_publishing_and",
       "community": 4,
@@ -61844,7 +61884,7 @@
       "label": "v22 multi-user-hardening gotchas (learned re-running the cross-user sweep at the seams v14\u2013v20",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3694",
+      "source_location": "L3696",
       "_origin": "ast",
       "id": "docs_gotchas_v22_multi_user_hardening_gotchas_learned_re_running_the_cross_user_sweep_at_the_seams_v14_v20",
       "community": 4,
@@ -61854,7 +61894,7 @@
       "label": "v23 download-reliability gotchas (learned root-causing the download outage, fixing the",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3865",
+      "source_location": "L3867",
       "_origin": "ast",
       "id": "docs_gotchas_v23_download_reliability_gotchas_learned_root_causing_the_download_outage_fixing_the",
       "community": 4,
@@ -61864,7 +61904,7 @@
       "label": "v23.1 download-reliability-followup gotchas (learned recording v23's production",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3906",
+      "source_location": "L3908",
       "_origin": "ast",
       "id": "docs_gotchas_v23_1_download_reliability_followup_gotchas_learned_recording_v23_s_production",
       "community": 4,
@@ -61874,7 +61914,7 @@
       "label": "v24 attempt-history gotchas (learned building `track_attempts`)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3984",
+      "source_location": "L3986",
       "_origin": "ast",
       "id": "docs_gotchas_v24_attempt_history_gotchas_learned_building_track_attempts",
       "community": 4,
@@ -61884,7 +61924,7 @@
       "label": "v25 username-ui gotchas (learned building `users.username` + moving worker controls)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4017",
+      "source_location": "L4019",
       "_origin": "ast",
       "id": "docs_gotchas_v25_username_ui_gotchas_learned_building_users_username_moving_worker_controls",
       "community": 4,
@@ -61894,7 +61934,7 @@
       "label": "v26 id3-integrity gotchas (learned building tag verify/repair)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4061",
+      "source_location": "L4063",
       "_origin": "ast",
       "id": "docs_gotchas_v26_id3_integrity_gotchas_learned_building_tag_verify_repair",
       "community": 4,
@@ -61904,7 +61944,7 @@
       "label": "v27 file-downloads gotchas (learned building `GET /api/tracks/{id}/file`)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4142",
+      "source_location": "L4144",
       "_origin": "ast",
       "id": "docs_gotchas_v27_file_downloads_gotchas_learned_building_get_api_tracks_id_file",
       "community": 4,
@@ -61914,7 +61954,7 @@
       "label": "v28 library-sort-move gotchas (learned building the admin-only sort & move sweep)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4207",
+      "source_location": "L4209",
       "_origin": "ast",
       "id": "docs_gotchas_v28_library_sort_move_gotchas_learned_building_the_admin_only_sort_move_sweep",
       "community": 4,
@@ -61924,7 +61964,7 @@
       "label": "v29 network-path-escalation gotchas (learned building the IPv4/IPv6 escalation rung)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4333",
+      "source_location": "L4335",
       "_origin": "ast",
       "id": "docs_gotchas_v29_network_path_escalation_gotchas_learned_building_the_ipv4_ipv6_escalation_rung",
       "community": 4,
@@ -61934,7 +61974,7 @@
       "label": "v30 proxy-routing-fix gotchas (learned making the proxy rung actually route real traffic)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4432",
+      "source_location": "L4434",
       "_origin": "ast",
       "id": "docs_gotchas_v30_proxy_routing_fix_gotchas_learned_making_the_proxy_rung_actually_route_real_traffic",
       "community": 4,
@@ -61944,7 +61984,7 @@
       "label": "v31 v3-hardening gotchas (learned closing out master v3: the cross-user sweep, three",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4494",
+      "source_location": "L4496",
       "_origin": "ast",
       "id": "docs_gotchas_v31_v3_hardening_gotchas_learned_closing_out_master_v3_the_cross_user_sweep_three",
       "community": 4,
@@ -61954,7 +61994,7 @@
       "label": "v31.1 followup gotchas (learned closing out v31's one deferred item, plus a second,",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4767",
+      "source_location": "L4769",
       "_origin": "ast",
       "id": "docs_gotchas_v31_1_followup_gotchas_learned_closing_out_v31_s_one_deferred_item_plus_a_second",
       "community": 4,
@@ -61964,7 +62004,7 @@
       "label": "v32 dev-database gotchas (learned moving local dev onto `spotdlwebtest` and adding the guard)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4796",
+      "source_location": "L4798",
       "_origin": "ast",
       "id": "docs_gotchas_v32_dev_database_gotchas_learned_moving_local_dev_onto_spotdlwebtest_and_adding_the_guard",
       "community": 4,
@@ -61974,7 +62014,7 @@
       "label": "v33 deploy-safety gotchas (learned hardening publish-deploy.yml's preflight, rollback and alerts)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4837",
+      "source_location": "L4839",
       "_origin": "ast",
       "id": "docs_gotchas_v33_deploy_safety_gotchas_learned_hardening_publish_deploy_yml_s_preflight_rollback_and_alerts",
       "community": 4,
@@ -61984,7 +62024,7 @@
       "label": "v33.1 v33-followup gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4911",
+      "source_location": "L4913",
       "_origin": "ast",
       "id": "docs_gotchas_v33_1_v33_followup_gotchas",
       "community": 4,
@@ -61994,7 +62034,7 @@
       "label": "v34 live-hydration gotchas (learned fixing \"Active signal\"/incoming jobs vanishing on refresh)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4921",
+      "source_location": "L4923",
       "_origin": "ast",
       "id": "docs_gotchas_v34_live_hydration_gotchas_learned_fixing_active_signal_incoming_jobs_vanishing_on_refresh",
       "community": 4,
@@ -62004,7 +62044,7 @@
       "label": "v34.1 expansion-fixes gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4980",
+      "source_location": "L4982",
       "_origin": "ast",
       "id": "docs_gotchas_v34_1_expansion_fixes_gotchas",
       "community": 4,
@@ -62014,7 +62054,7 @@
       "label": "v34.2 live-view-followup gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5046",
+      "source_location": "L5048",
       "_origin": "ast",
       "id": "docs_gotchas_v34_2_live_view_followup_gotchas",
       "community": 4,
@@ -62024,7 +62064,7 @@
       "label": "v35 correctness-sweep gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5088",
+      "source_location": "L5090",
       "_origin": "ast",
       "id": "docs_gotchas_v35_correctness_sweep_gotchas",
       "community": 4,
@@ -62034,7 +62074,7 @@
       "label": "v36 alerting gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5157",
+      "source_location": "L5159",
       "_origin": "ast",
       "id": "docs_gotchas_v36_alerting_gotchas",
       "community": 4,
@@ -62044,7 +62084,7 @@
       "label": "v37 e2e-harness gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5264",
+      "source_location": "L5266",
       "_origin": "ast",
       "id": "docs_gotchas_v37_e2e_harness_gotchas",
       "community": 4,
@@ -62054,7 +62094,7 @@
       "label": "v38 moved-file-dedup gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5362",
+      "source_location": "L5364",
       "_origin": "ast",
       "id": "docs_gotchas_v38_moved_file_dedup_gotchas",
       "community": 4,
@@ -62064,7 +62104,7 @@
       "label": "v39 ui-audit gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5428",
+      "source_location": "L5430",
       "_origin": "ast",
       "id": "docs_gotchas_v39_ui_audit_gotchas",
       "community": 4,
@@ -62074,7 +62114,7 @@
       "label": "v39.2 swallowed-error classification gotchas (learned from a production artist download)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5470",
+      "source_location": "L5472",
       "_origin": "ast",
       "id": "docs_gotchas_v39_2_swallowed_error_classification_gotchas_learned_from_a_production_artist_download",
       "community": 4,
@@ -62084,7 +62124,7 @@
       "label": "v40 ambient-field gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5512",
+      "source_location": "L5514",
       "_origin": "ast",
       "id": "docs_gotchas_v40_ambient_field_gotchas",
       "community": 4,
@@ -62094,7 +62134,7 @@
       "label": "v40.1 breaker wedge fix gotchas (learned from production still stuck after v39.2)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5556",
+      "source_location": "L5558",
       "_origin": "ast",
       "id": "docs_gotchas_v40_1_breaker_wedge_fix_gotchas_learned_from_production_still_stuck_after_v39_2",
       "community": 4,
@@ -62104,7 +62144,7 @@
       "label": "v40.2 live-desync fix gotchas (learned from production's Scooter job settling)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5590",
+      "source_location": "L5592",
       "_origin": "ast",
       "id": "docs_gotchas_v40_2_live_desync_fix_gotchas_learned_from_production_s_scooter_job_settling",
       "community": 4,
@@ -62114,7 +62154,7 @@
       "label": "v41 track-detail-redesign gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5615",
+      "source_location": "L5617",
       "_origin": "ast",
       "id": "docs_gotchas_v41_track_detail_redesign_gotchas",
       "community": 4,
@@ -62124,7 +62164,7 @@
       "label": "v42 dashboard-redesign gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5641",
+      "source_location": "L5643",
       "_origin": "ast",
       "id": "docs_gotchas_v42_dashboard_redesign_gotchas",
       "community": 4,
@@ -62134,7 +62174,7 @@
       "label": "v43 secondary-surfaces gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5682",
+      "source_location": "L5684",
       "_origin": "ast",
       "id": "docs_gotchas_v43_secondary_surfaces_gotchas",
       "community": 4,
@@ -62144,7 +62184,7 @@
       "label": "v44 admin-stats gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5718",
+      "source_location": "L5720",
       "_origin": "ast",
       "id": "docs_gotchas_v44_admin_stats_gotchas",
       "community": 4,
@@ -62154,7 +62194,7 @@
       "label": "v45 keyboard-navigation gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5787",
+      "source_location": "L5789",
       "_origin": "ast",
       "id": "docs_gotchas_v45_keyboard_navigation_gotchas",
       "community": 4,
@@ -62164,7 +62204,7 @@
       "label": "v46 i18n gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5822",
+      "source_location": "L5824",
       "_origin": "ast",
       "id": "docs_gotchas_v46_i18n_gotchas",
       "community": 4,
@@ -62174,7 +62214,7 @@
       "label": "v47 ui-polish gotchas",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5894",
+      "source_location": "L5896",
       "_origin": "ast",
       "id": "docs_gotchas_v47_ui_polish_gotchas",
       "community": 4,
@@ -62184,7 +62224,7 @@
       "label": "v48 v4-hardening gotchas (learned closing out master v4)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5931",
+      "source_location": "L5933",
       "_origin": "ast",
       "id": "docs_gotchas_v48_v4_hardening_gotchas_learned_closing_out_master_v4",
       "community": 4,
@@ -62194,7 +62234,7 @@
       "label": "v49 ci-chain gotchas (learned replacing the `workflow_run` chain with one in-run chain)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6066",
+      "source_location": "L6068",
       "_origin": "ast",
       "id": "docs_gotchas_v49_ci_chain_gotchas_learned_replacing_the_workflow_run_chain_with_one_in_run_chain",
       "community": 4,
@@ -62204,7 +62244,7 @@
       "label": "v50 parallel-stacks gotchas (learned building the agent slot stacks)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6135",
+      "source_location": "L6137",
       "_origin": "ast",
       "id": "docs_gotchas_v50_parallel_stacks_gotchas_learned_building_the_agent_slot_stacks",
       "community": 4,
@@ -62214,7 +62254,7 @@
       "label": "v51 pytest-postgres gotchas (learned moving the suite from SQLite to real Postgres)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6265",
+      "source_location": "L6267",
       "_origin": "ast",
       "id": "docs_gotchas_v51_pytest_postgres_gotchas_learned_moving_the_suite_from_sqlite_to_real_postgres",
       "community": 4,
@@ -62224,7 +62264,7 @@
       "label": "v53 extension-api gotchas (learned building the extension's backend contract)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6372",
+      "source_location": "L6374",
       "_origin": "ast",
       "id": "docs_gotchas_v53_extension_api_gotchas_learned_building_the_extension_s_backend_contract",
       "community": 4,
@@ -62234,7 +62274,7 @@
       "label": "v52 dev-loop gotchas (learned fixing the dev loop and the e2e flakes)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6516",
+      "source_location": "L6518",
       "_origin": "ast",
       "id": "docs_gotchas_v52_dev_loop_gotchas_learned_fixing_the_dev_loop_and_the_e2e_flakes",
       "community": 4,
@@ -62244,7 +62284,7 @@
       "label": "v54 scope-others gotchas (learned building the admin's mine/all/others view)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6658",
+      "source_location": "L6660",
       "_origin": "ast",
       "id": "docs_gotchas_v54_scope_others_gotchas_learned_building_the_admin_s_mine_all_others_view",
       "community": 4,
@@ -62254,7 +62294,7 @@
       "label": "v54.1 premiere-terminal gotchas (learned from a production track stuck on an unaired premiere)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6718",
+      "source_location": "L6720",
       "_origin": "ast",
       "id": "docs_gotchas_v54_1_premiere_terminal_gotchas_learned_from_a_production_track_stuck_on_an_unaired_premiere",
       "community": 4,
@@ -62264,7 +62304,7 @@
       "label": "v54.2 best-quality gotchas (learned checking whether \"320k\" downloads were really 320k)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6733",
+      "source_location": "L6735",
       "_origin": "ast",
       "id": "docs_gotchas_v54_2_best_quality_gotchas_learned_checking_whether_320k_downloads_were_really_320k",
       "community": 4,
@@ -62274,7 +62314,7 @@
       "label": "v55 engine-races gotchas (learned closing the download engine's races, E2\u2013E12)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6768",
+      "source_location": "L6770",
       "_origin": "ast",
       "id": "docs_gotchas_v55_engine_races_gotchas_learned_closing_the_download_engine_s_races_e2_e12",
       "community": 4,
@@ -62284,7 +62324,7 @@
       "label": "v56 api-gaps gotchas (learned closing A1\u2013A8 and E1)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6856",
+      "source_location": "L6858",
       "_origin": "ast",
       "id": "docs_gotchas_v56_api_gaps_gotchas_learned_closing_a1_a8_and_e1",
       "community": 4,
@@ -62294,7 +62334,7 @@
       "label": "v57 library-hardening gotchas (learned closing the sweep and dedup edge cases)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6994",
+      "source_location": "L6996",
       "_origin": "ast",
       "id": "docs_gotchas_v57_library_hardening_gotchas_learned_closing_the_sweep_and_dedup_edge_cases",
       "community": 4,
@@ -62304,7 +62344,7 @@
       "label": "v58 firefox-extension gotchas (learned building the extension and running it on real open.spotify.com)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7153",
+      "source_location": "L7155",
       "_origin": "ast",
       "id": "docs_gotchas_v58_firefox_extension_gotchas_learned_building_the_extension_and_running_it_on_real_open_spotify_com",
       "community": 4,
@@ -62314,7 +62354,7 @@
       "label": "v59 alert-delivery gotchas (learned making Matrix alerts durable)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7248",
+      "source_location": "L7250",
       "_origin": "ast",
       "id": "docs_gotchas_v59_alert_delivery_gotchas_learned_making_matrix_alerts_durable",
       "community": 4,
@@ -62324,7 +62364,7 @@
       "label": "v60 pipeline-resilience gotchas (learned closing P2\u2013P8, O3 and the docs drift)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7386",
+      "source_location": "L7388",
       "_origin": "ast",
       "id": "docs_gotchas_v60_pipeline_resilience_gotchas_learned_closing_p2_p8_o3_and_the_docs_drift",
       "community": 4,
@@ -62334,7 +62374,7 @@
       "label": "v61 extension-release gotchas (learned building the extension's signing and release pipeline)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7473",
+      "source_location": "L7475",
       "_origin": "ast",
       "id": "docs_gotchas_v61_extension_release_gotchas_learned_building_the_extension_s_signing_and_release_pipeline",
       "community": 4,
@@ -62344,7 +62384,7 @@
       "label": "v62 frontend-store-fixes gotchas (learned closing F1\u2013F11)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7537",
+      "source_location": "L7539",
       "_origin": "ast",
       "id": "docs_gotchas_v62_frontend_store_fixes_gotchas_learned_closing_f1_f11",
       "community": 4,
@@ -62354,7 +62394,7 @@
       "label": "v63 watch-jobs gotchas (learned building watched jobs, re-run expansion and retry failed)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7587",
+      "source_location": "L7589",
       "_origin": "ast",
       "id": "docs_gotchas_v63_watch_jobs_gotchas_learned_building_watched_jobs_re_run_expansion_and_retry_failed",
       "community": 4,
@@ -62364,7 +62404,7 @@
       "label": "v64 job-export gotchas (learned building the streamed zip and the M3U)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7654",
+      "source_location": "L7656",
       "_origin": "ast",
       "id": "docs_gotchas_v64_job_export_gotchas_learned_building_the_streamed_zip_and_the_m3u",
       "community": 4,
@@ -62374,7 +62414,7 @@
       "label": "v65 pwa-share-target gotchas (learned building the installable app and its share target)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7820",
+      "source_location": "L7822",
       "_origin": "ast",
       "id": "docs_gotchas_v65_pwa_share_target_gotchas_learned_building_the_installable_app_and_its_share_target",
       "community": 4,
@@ -62384,7 +62424,7 @@
       "label": "v66 personal-notifications gotchas (learned building notifications and \"my stats\")",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7863",
+      "source_location": "L7865",
       "_origin": "ast",
       "id": "docs_gotchas_v66_personal_notifications_gotchas_learned_building_notifications_and_my_stats",
       "community": 4,
@@ -62394,7 +62434,7 @@
       "label": "v67 ui-debt gotchas (learned closing U2\u2013U14 and auditing the v5 surfaces)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7914",
+      "source_location": "L7916",
       "_origin": "ast",
       "id": "docs_gotchas_v67_ui_debt_gotchas_learned_closing_u2_u14_and_auditing_the_v5_surfaces",
       "community": 4,
@@ -62404,7 +62444,7 @@
       "label": "v68 log-virtualization gotchas (learned windowing the job and track lists, U4)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7981",
+      "source_location": "L7983",
       "_origin": "ast",
       "id": "docs_gotchas_v68_log_virtualization_gotchas_learned_windowing_the_job_and_track_lists_u4",
       "community": 4,
@@ -62414,7 +62454,7 @@
       "label": "v69 user-access gotchas (learned moving the login allowlist into the app)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L8069",
+      "source_location": "L8071",
       "_origin": "ast",
       "id": "docs_gotchas_v69_user_access_gotchas_learned_moving_the_login_allowlist_into_the_app",
       "community": 4,
@@ -62424,7 +62464,7 @@
       "label": "v70 v5-hardening gotchas (learned closing master v5)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L8124",
+      "source_location": "L8126",
       "_origin": "ast",
       "id": "docs_gotchas_v70_v5_hardening_gotchas_learned_closing_master_v5",
       "community": 4,
@@ -62434,7 +62474,7 @@
       "label": "v71 upstream-login gotchas (learned moving the login proxy onto upstream v3's MFA)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L8213",
+      "source_location": "L8215",
       "_origin": "ast",
       "id": "docs_gotchas_v71_upstream_login_gotchas_learned_moving_the_login_proxy_onto_upstream_v3_s_mfa",
       "community": 4,
@@ -62444,7 +62484,7 @@
       "label": "v72 upstream-identity gotchas (learned moving `is_admin` onto the upstream's `isSuperuser`)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L8290",
+      "source_location": "L8292",
       "_origin": "ast",
       "id": "docs_gotchas_v72_upstream_identity_gotchas_learned_moving_is_admin_onto_the_upstream_s_issuperuser",
       "community": 4,
@@ -62454,7 +62494,7 @@
       "label": "v72.1 worker-boot-memory gotchas (learned from the 2026-11-26 OOM loop)",
       "file_type": "document",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L8350",
+      "source_location": "L8352",
       "_origin": "ast",
       "id": "docs_gotchas_v72_1_worker_boot_memory_gotchas_learned_from_the_2026_11_26_oom_loop",
       "community": 4,
@@ -73121,7 +73161,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".github/scripts/check_healthchecks.py",
-      "source_location": "L53",
+      "source_location": "L80",
       "weight": 1.0,
       "source": "github_scripts_check_healthchecks",
       "target": "github_scripts_check_healthchecks_main",
@@ -73131,10 +73171,20 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".github/scripts/check_healthchecks.py",
-      "source_location": "L30",
+      "source_location": "L39",
       "weight": 1.0,
       "source": "github_scripts_check_healthchecks",
       "target": "github_scripts_check_healthchecks_offending_flags",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".github/scripts/check_healthchecks.py",
+      "source_location": "L71",
+      "weight": 1.0,
+      "source": "github_scripts_check_healthchecks",
+      "target": "github_scripts_check_healthchecks_refused_environment",
       "confidence_score": 1.0
     },
     {
@@ -73142,7 +73192,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": ".github/scripts/check_healthchecks.py",
-      "source_location": "L58",
+      "source_location": "L85",
       "weight": 1.0,
       "source": "github_scripts_check_healthchecks_main",
       "target": "github_scripts_check_healthchecks_offending_flags",
@@ -73152,10 +73202,31 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": ".github/scripts/check_healthchecks.py",
-      "source_location": "L31",
+      "source_location": "L40",
       "weight": 1.0,
-      "source": "github_scripts_check_healthchecks_rationale_31",
+      "source": "github_scripts_check_healthchecks_rationale_40",
       "target": "github_scripts_check_healthchecks_offending_flags",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": ".github/scripts/check_healthchecks.py",
+      "source_location": "L87",
+      "weight": 1.0,
+      "source": "github_scripts_check_healthchecks_main",
+      "target": "github_scripts_check_healthchecks_refused_environment",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": ".github/scripts/check_healthchecks.py",
+      "source_location": "L72",
+      "weight": 1.0,
+      "source": "github_scripts_check_healthchecks_rationale_72",
+      "target": "github_scripts_check_healthchecks_refused_environment",
       "confidence_score": 1.0
     },
     {
@@ -80848,7 +80919,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L346",
+      "source_location": "L348",
       "weight": 1.0,
       "source": "backend_app_services_dedup_reconcile_disk",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -80947,7 +81018,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L811",
+      "source_location": "L862",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_a_folder_root_inside_a_mounted_root_counts_as_mounted",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -80958,7 +81029,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L835",
+      "source_location": "L886",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_an_outer_root_counts_the_rows_of_the_roots_inside_it",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -81090,6 +81161,17 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L751",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_repointed_after_the_recheck",
+      "target": "backend_app_models_downloaded_track_downloadedtrack"
+    },
+    {
+      "relation": "indirect_call",
+      "context": "argument",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "backend/tests/test_dedup.py",
       "source_location": "L620",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_the_library_sweep_repoints_mid_check",
@@ -81178,7 +81260,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L731",
+      "source_location": "L782",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_record_download_refuses_a_file_that_moved_away",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -81189,7 +81271,7 @@
       "confidence": "INFERRED",
       "confidence_score": 0.8,
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L721",
+      "source_location": "L772",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_record_download_upserts_the_row_as_not_yet_filed",
       "target": "backend_app_models_downloaded_track_downloadedtrack"
@@ -100207,7 +100289,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L302",
+      "source_location": "L304",
       "weight": 1.0,
       "source": "backend_app_services_dedup_reconcile_disk",
       "target": "backend_app_services_dedup_py_path",
@@ -100347,7 +100429,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L294",
+      "source_location": "L296",
       "weight": 1.0,
       "source": "backend_app_services_dedup_reconcile_disk",
       "target": "backend_app_services_dedup_managed_roots",
@@ -100454,7 +100536,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/app/services/dedup.py",
-      "source_location": "L310",
+      "source_location": "L312",
       "weight": 1.0,
       "source": "backend_app_services_dedup_reconcile_disk",
       "target": "backend_app_services_dedup_ensure_sentinel",
@@ -126715,7 +126797,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L792",
+      "source_location": "L843",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_a_folder_root_inside_a_mounted_root_counts_as_mounted",
@@ -126725,7 +126807,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L816",
+      "source_location": "L867",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_an_outer_root_counts_the_rows_of_the_roots_inside_it",
@@ -126765,7 +126847,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L752",
+      "source_location": "L803",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_is_already_downloaded_follows_a_repoint_that_lands_before_the_drop",
@@ -126885,7 +126967,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L734",
+      "source_location": "L785",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_known_library_roots_leave_out_a_root_overlapping_the_downloads_dir",
@@ -126919,6 +127001,16 @@
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L706",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup",
+      "target": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_repointed_after_the_recheck",
       "confidence_score": 1.0
     },
     {
@@ -127005,7 +127097,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L778",
+      "source_location": "L829",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_record_download_gives_the_downloads_root_its_sentinel",
@@ -127015,7 +127107,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L726",
+      "source_location": "L777",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_record_download_refuses_a_file_that_moved_away",
@@ -127025,7 +127117,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L706",
+      "source_location": "L757",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_record_download_upserts_the_row_as_not_yet_filed",
@@ -127035,7 +127127,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L746",
+      "source_location": "L797",
       "weight": 1.0,
       "source": "backend_tests_test_dedup",
       "target": "backend_tests_test_dedup_test_the_file_lock_key_is_the_same_for_one_file_however_it_is_spelled",
@@ -127099,7 +127191,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L801",
+      "source_location": "L852",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_a_folder_root_inside_a_mounted_root_counts_as_mounted",
       "target": "backend_tests_test_dedup_set_library",
@@ -127110,7 +127202,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L826",
+      "source_location": "L877",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_an_outer_root_counts_the_rows_of_the_roots_inside_it",
       "target": "backend_tests_test_dedup_set_library",
@@ -127154,7 +127246,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L739",
+      "source_location": "L790",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_known_library_roots_leave_out_a_root_overlapping_the_downloads_dir",
       "target": "backend_tests_test_dedup_set_library",
@@ -127179,6 +127271,17 @@
       "source_location": "L446",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_creates_a_sentinel_only_where_nothing_could_be_pruned",
+      "target": "backend_tests_test_dedup_set_library",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L716",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_repointed_after_the_recheck",
       "target": "backend_tests_test_dedup_set_library",
       "confidence_score": 1.0
     },
@@ -127252,7 +127355,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L797",
+      "source_location": "L848",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_a_folder_root_inside_a_mounted_root_counts_as_mounted",
       "target": "backend_tests_test_dedup_mount",
@@ -127263,7 +127366,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L821",
+      "source_location": "L872",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_an_outer_root_counts_the_rows_of_the_roots_inside_it",
       "target": "backend_tests_test_dedup_mount",
@@ -127307,7 +127410,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L757",
+      "source_location": "L808",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_is_already_downloaded_follows_a_repoint_that_lands_before_the_drop",
       "target": "backend_tests_test_dedup_mount",
@@ -127354,6 +127457,17 @@
       "source_location": "L459",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_covers_an_earlier_library_root",
+      "target": "backend_tests_test_dedup_mount",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L712",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_repointed_after_the_recheck",
       "target": "backend_tests_test_dedup_mount",
       "confidence_score": 1.0
     },
@@ -127439,6 +127553,17 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L730",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_repointed_after_the_recheck",
+      "target": "backend_tests_test_dedup_py_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
       "source_location": "L646",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_recheck_respects_the_unmounted_root_guard",
@@ -127461,7 +127586,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L748",
+      "source_location": "L799",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_the_file_lock_key_is_the_same_for_one_file_however_it_is_spelled",
       "target": "backend_tests_test_dedup_py_path",
@@ -127523,7 +127648,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L796",
+      "source_location": "L847",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_a_folder_root_inside_a_mounted_root_counts_as_mounted",
       "target": "backend_tests_test_dedup_nonclosingsession",
@@ -127534,7 +127659,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L820",
+      "source_location": "L871",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_an_outer_root_counts_the_rows_of_the_roots_inside_it",
       "target": "backend_tests_test_dedup_nonclosingsession",
@@ -127647,6 +127772,17 @@
       "source_location": "L345",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
+      "target": "backend_tests_test_dedup_nonclosingsession",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L711",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_repointed_after_the_recheck",
       "target": "backend_tests_test_dedup_nonclosingsession",
       "confidence_score": 1.0
     },
@@ -127774,7 +127910,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L798",
+      "source_location": "L849",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_a_folder_root_inside_a_mounted_root_counts_as_mounted",
       "target": "backend_tests_test_dedup_fakesettings",
@@ -127785,7 +127921,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L822",
+      "source_location": "L873",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_an_outer_root_counts_the_rows_of_the_roots_inside_it",
       "target": "backend_tests_test_dedup_fakesettings",
@@ -127840,7 +127976,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L738",
+      "source_location": "L789",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_known_library_roots_leave_out_a_root_overlapping_the_downloads_dir",
       "target": "backend_tests_test_dedup_fakesettings",
@@ -127876,6 +128012,17 @@
       "source_location": "L348",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_reconcile_disk_drops_rows_for_missing_files",
+      "target": "backend_tests_test_dedup_fakesettings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L713",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_repointed_after_the_recheck",
       "target": "backend_tests_test_dedup_fakesettings",
       "confidence_score": 1.0
     },
@@ -127972,7 +128119,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L783",
+      "source_location": "L834",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_record_download_gives_the_downloads_root_its_sentinel",
       "target": "backend_tests_test_dedup_fakesettings",
@@ -128015,7 +128162,7 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L758",
+      "source_location": "L809",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_test_is_already_downloaded_follows_a_repoint_that_lands_before_the_drop",
       "target": "backend_tests_test_dedup_library_with_row",
@@ -128283,6 +128430,16 @@
       "source_location": "L707",
       "weight": 1.0,
       "source": "backend_tests_test_dedup_rationale_707",
+      "target": "backend_tests_test_dedup_test_reconcile_disk_keeps_a_row_repointed_after_the_recheck",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "backend/tests/test_dedup.py",
+      "source_location": "L758",
+      "weight": 1.0,
+      "source": "backend_tests_test_dedup_rationale_758",
       "target": "backend_tests_test_dedup_test_record_download_upserts_the_row_as_not_yet_filed",
       "confidence_score": 1.0
     },
@@ -128290,9 +128447,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L727",
+      "source_location": "L778",
       "weight": 1.0,
-      "source": "backend_tests_test_dedup_rationale_727",
+      "source": "backend_tests_test_dedup_rationale_778",
       "target": "backend_tests_test_dedup_test_record_download_refuses_a_file_that_moved_away",
       "confidence_score": 1.0
     },
@@ -128300,9 +128457,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L735",
+      "source_location": "L786",
       "weight": 1.0,
-      "source": "backend_tests_test_dedup_rationale_735",
+      "source": "backend_tests_test_dedup_rationale_786",
       "target": "backend_tests_test_dedup_test_known_library_roots_leave_out_a_root_overlapping_the_downloads_dir",
       "confidence_score": 1.0
     },
@@ -128310,9 +128467,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L753",
+      "source_location": "L804",
       "weight": 1.0,
-      "source": "backend_tests_test_dedup_rationale_753",
+      "source": "backend_tests_test_dedup_rationale_804",
       "target": "backend_tests_test_dedup_test_is_already_downloaded_follows_a_repoint_that_lands_before_the_drop",
       "confidence_score": 1.0
     },
@@ -128320,9 +128477,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L779",
+      "source_location": "L830",
       "weight": 1.0,
-      "source": "backend_tests_test_dedup_rationale_779",
+      "source": "backend_tests_test_dedup_rationale_830",
       "target": "backend_tests_test_dedup_test_record_download_gives_the_downloads_root_its_sentinel",
       "confidence_score": 1.0
     },
@@ -128330,9 +128487,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L793",
+      "source_location": "L844",
       "weight": 1.0,
-      "source": "backend_tests_test_dedup_rationale_793",
+      "source": "backend_tests_test_dedup_rationale_844",
       "target": "backend_tests_test_dedup_test_a_folder_root_inside_a_mounted_root_counts_as_mounted",
       "confidence_score": 1.0
     },
@@ -128340,9 +128497,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "backend/tests/test_dedup.py",
-      "source_location": "L817",
+      "source_location": "L868",
       "weight": 1.0,
-      "source": "backend_tests_test_dedup_rationale_817",
+      "source": "backend_tests_test_dedup_rationale_868",
       "target": "backend_tests_test_dedup_test_an_outer_root_counts_the_rows_of_the_roots_inside_it",
       "confidence_score": 1.0
     },
@@ -196533,7 +196690,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1466",
+      "source_location": "L1467",
       "weight": 1.0,
       "source": "docs_gotchas_spotdl_web_accumulated_gotchas_v01_v70_every_master",
       "target": "docs_gotchas_verified_external_api_contracts",
@@ -196543,7 +196700,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1517",
+      "source_location": "L1518",
       "weight": 1.0,
       "source": "docs_gotchas_spotdl_web_accumulated_gotchas_v01_v70_every_master",
       "target": "docs_gotchas_version_log",
@@ -196553,7 +196710,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1471",
+      "source_location": "L1472",
       "weight": 1.0,
       "source": "docs_gotchas_verified_external_api_contracts",
       "target": "docs_gotchas_auth_api_vb2007_hu_api_verified_from_home_vb2007_code_vb2007_hu_api_source",
@@ -196563,7 +196720,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1493",
+      "source_location": "L1494",
       "weight": 1.0,
       "source": "docs_gotchas_verified_external_api_contracts",
       "target": "docs_gotchas_spotdl_4_5_2_verified_api_surface_actually_used",
@@ -196573,7 +196730,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1520",
+      "source_location": "L1521",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v01_deployment_gotchas_learned_deploying_to_the_real_host_and_local_dev",
@@ -196583,7 +196740,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1559",
+      "source_location": "L1560",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v02_schema_gotchas_learned_building_the_sqlalchemy_models_initial_migration",
@@ -196593,7 +196750,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1599",
+      "source_location": "L1600",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v03_auth_gotchas_learned_building_the_upstream_login_proxy_session_cookie",
@@ -196603,7 +196760,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1664",
+      "source_location": "L1665",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v04_url_expansion_gotchas_learned_building_get_simple_songs_wrapper_api_jobs",
@@ -196613,7 +196770,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1749",
+      "source_location": "L1750",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v05_downloader_gotchas_learned_building_real_downloads_dedup_ledger_disk_reconciliation",
@@ -196623,7 +196780,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1819",
+      "source_location": "L1820",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v06_retry_engine_gotchas_learned_building_error_classification_ladder_breaker_beat_dispatch",
@@ -196633,7 +196790,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1875",
+      "source_location": "L1876",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v07_proxy_rotation_gotchas_learned_building_proxies_txt_sync_pick_cooldown_wiring",
@@ -196643,7 +196800,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L1968",
+      "source_location": "L1969",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v08_live_progress_gotchas_learned_building_the_redis_pub_sub_event_bus_sse_stream",
@@ -196653,7 +196810,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2043",
+      "source_location": "L2044",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v09_frontend_gotchas_learned_building_the_sveltekit_login_dashboard_ui",
@@ -196663,7 +196820,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2277",
+      "source_location": "L2278",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v10_queue_controls_gotchas_learned_building_cancel_retry_now_pause_breaker_release",
@@ -196673,7 +196830,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2394",
+      "source_location": "L2395",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v11_priority_gotchas_learned_building_job_priority_ordered_dispatch_bump_priority_endpoints",
@@ -196683,7 +196840,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2461",
+      "source_location": "L2462",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v12_deploy_hardening_gotchas_learned_building_durability_fixes_same_origin_nginx_non_root_json_logging_backups",
@@ -196693,7 +196850,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2771",
+      "source_location": "L2772",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v13_settings_ui_gotchas_learned_building_proxy_management_output_config_override_ui",
@@ -196703,7 +196860,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L2972",
+      "source_location": "L2973",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v15_gap_fixes_gotchas_learned_closing_v14_s_audit_findings_pacing_hook_n_1_stale_docs",
@@ -196713,7 +196870,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3074",
+      "source_location": "L3075",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v16_users_schema_gotchas_learned_building_users_user_settings_and_ownership_columns",
@@ -196723,7 +196880,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3131",
+      "source_location": "L3132",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v17_multi_user_auth_gotchas_learned_wiring_user_creation_on_login_owner_scoping_per_user_sse",
@@ -196733,7 +196890,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3223",
+      "source_location": "L3224",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v18_job_centric_api_gotchas_learned_building_cursor_pagination_rollup_status_and_search",
@@ -196743,7 +196900,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3320",
+      "source_location": "L3321",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v19_archive_retention_gotchas_learned_building_soft_archive_lifecycle_per_user_retention",
@@ -196753,7 +196910,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3377",
+      "source_location": "L3378",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v20_job_centric_ui_gotchas_learned_building_the_job_track_hierarchy_ui_search_sort_archive",
@@ -196763,7 +196920,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3518",
+      "source_location": "L3519",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v21_release_automation_gotchas_learned_building_github_releases_ghcr_image_publishing_and",
@@ -196773,7 +196930,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3694",
+      "source_location": "L3696",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v22_multi_user_hardening_gotchas_learned_re_running_the_cross_user_sweep_at_the_seams_v14_v20",
@@ -196783,7 +196940,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3906",
+      "source_location": "L3908",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v23_1_download_reliability_followup_gotchas_learned_recording_v23_s_production",
@@ -196793,7 +196950,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3865",
+      "source_location": "L3867",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v23_download_reliability_gotchas_learned_root_causing_the_download_outage_fixing_the",
@@ -196803,7 +196960,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L3984",
+      "source_location": "L3986",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v24_attempt_history_gotchas_learned_building_track_attempts",
@@ -196813,7 +196970,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4017",
+      "source_location": "L4019",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v25_username_ui_gotchas_learned_building_users_username_moving_worker_controls",
@@ -196823,7 +196980,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4061",
+      "source_location": "L4063",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v26_id3_integrity_gotchas_learned_building_tag_verify_repair",
@@ -196833,7 +196990,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4142",
+      "source_location": "L4144",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v27_file_downloads_gotchas_learned_building_get_api_tracks_id_file",
@@ -196843,7 +197000,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4207",
+      "source_location": "L4209",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v28_library_sort_move_gotchas_learned_building_the_admin_only_sort_move_sweep",
@@ -196853,7 +197010,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4333",
+      "source_location": "L4335",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v29_network_path_escalation_gotchas_learned_building_the_ipv4_ipv6_escalation_rung",
@@ -196863,7 +197020,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4432",
+      "source_location": "L4434",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v30_proxy_routing_fix_gotchas_learned_making_the_proxy_rung_actually_route_real_traffic",
@@ -196873,7 +197030,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4767",
+      "source_location": "L4769",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v31_1_followup_gotchas_learned_closing_out_v31_s_one_deferred_item_plus_a_second",
@@ -196883,7 +197040,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4494",
+      "source_location": "L4496",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v31_v3_hardening_gotchas_learned_closing_out_master_v3_the_cross_user_sweep_three",
@@ -196893,7 +197050,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4796",
+      "source_location": "L4798",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v32_dev_database_gotchas_learned_moving_local_dev_onto_spotdlwebtest_and_adding_the_guard",
@@ -196903,7 +197060,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4911",
+      "source_location": "L4913",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v33_1_v33_followup_gotchas",
@@ -196913,7 +197070,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4837",
+      "source_location": "L4839",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v33_deploy_safety_gotchas_learned_hardening_publish_deploy_yml_s_preflight_rollback_and_alerts",
@@ -196923,7 +197080,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4980",
+      "source_location": "L4982",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v34_1_expansion_fixes_gotchas",
@@ -196933,7 +197090,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5046",
+      "source_location": "L5048",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v34_2_live_view_followup_gotchas",
@@ -196943,7 +197100,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L4921",
+      "source_location": "L4923",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v34_live_hydration_gotchas_learned_fixing_active_signal_incoming_jobs_vanishing_on_refresh",
@@ -196953,7 +197110,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5088",
+      "source_location": "L5090",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v35_correctness_sweep_gotchas",
@@ -196963,7 +197120,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5157",
+      "source_location": "L5159",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v36_alerting_gotchas",
@@ -196973,7 +197130,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5264",
+      "source_location": "L5266",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v37_e2e_harness_gotchas",
@@ -196983,7 +197140,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5362",
+      "source_location": "L5364",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v38_moved_file_dedup_gotchas",
@@ -196993,7 +197150,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5470",
+      "source_location": "L5472",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v39_2_swallowed_error_classification_gotchas_learned_from_a_production_artist_download",
@@ -197003,7 +197160,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5428",
+      "source_location": "L5430",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v39_ui_audit_gotchas",
@@ -197013,7 +197170,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5556",
+      "source_location": "L5558",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v40_1_breaker_wedge_fix_gotchas_learned_from_production_still_stuck_after_v39_2",
@@ -197023,7 +197180,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5590",
+      "source_location": "L5592",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v40_2_live_desync_fix_gotchas_learned_from_production_s_scooter_job_settling",
@@ -197033,7 +197190,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5512",
+      "source_location": "L5514",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v40_ambient_field_gotchas",
@@ -197043,7 +197200,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5615",
+      "source_location": "L5617",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v41_track_detail_redesign_gotchas",
@@ -197053,7 +197210,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5641",
+      "source_location": "L5643",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v42_dashboard_redesign_gotchas",
@@ -197063,7 +197220,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5682",
+      "source_location": "L5684",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v43_secondary_surfaces_gotchas",
@@ -197073,7 +197230,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5718",
+      "source_location": "L5720",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v44_admin_stats_gotchas",
@@ -197083,7 +197240,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5787",
+      "source_location": "L5789",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v45_keyboard_navigation_gotchas",
@@ -197093,7 +197250,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5822",
+      "source_location": "L5824",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v46_i18n_gotchas",
@@ -197103,7 +197260,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5894",
+      "source_location": "L5896",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v47_ui_polish_gotchas",
@@ -197113,7 +197270,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L5931",
+      "source_location": "L5933",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v48_v4_hardening_gotchas_learned_closing_out_master_v4",
@@ -197123,7 +197280,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6066",
+      "source_location": "L6068",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v49_ci_chain_gotchas_learned_replacing_the_workflow_run_chain_with_one_in_run_chain",
@@ -197133,7 +197290,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6135",
+      "source_location": "L6137",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v50_parallel_stacks_gotchas_learned_building_the_agent_slot_stacks",
@@ -197143,7 +197300,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6265",
+      "source_location": "L6267",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v51_pytest_postgres_gotchas_learned_moving_the_suite_from_sqlite_to_real_postgres",
@@ -197153,7 +197310,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6516",
+      "source_location": "L6518",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v52_dev_loop_gotchas_learned_fixing_the_dev_loop_and_the_e2e_flakes",
@@ -197163,7 +197320,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6372",
+      "source_location": "L6374",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v53_extension_api_gotchas_learned_building_the_extension_s_backend_contract",
@@ -197173,7 +197330,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6718",
+      "source_location": "L6720",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v54_1_premiere_terminal_gotchas_learned_from_a_production_track_stuck_on_an_unaired_premiere",
@@ -197183,7 +197340,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6733",
+      "source_location": "L6735",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v54_2_best_quality_gotchas_learned_checking_whether_320k_downloads_were_really_320k",
@@ -197193,7 +197350,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6658",
+      "source_location": "L6660",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v54_scope_others_gotchas_learned_building_the_admin_s_mine_all_others_view",
@@ -197203,7 +197360,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6768",
+      "source_location": "L6770",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v55_engine_races_gotchas_learned_closing_the_download_engine_s_races_e2_e12",
@@ -197213,7 +197370,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6856",
+      "source_location": "L6858",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v56_api_gaps_gotchas_learned_closing_a1_a8_and_e1",
@@ -197223,7 +197380,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L6994",
+      "source_location": "L6996",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v57_library_hardening_gotchas_learned_closing_the_sweep_and_dedup_edge_cases",
@@ -197233,7 +197390,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7153",
+      "source_location": "L7155",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v58_firefox_extension_gotchas_learned_building_the_extension_and_running_it_on_real_open_spotify_com",
@@ -197243,7 +197400,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7248",
+      "source_location": "L7250",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v59_alert_delivery_gotchas_learned_making_matrix_alerts_durable",
@@ -197253,7 +197410,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7386",
+      "source_location": "L7388",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v60_pipeline_resilience_gotchas_learned_closing_p2_p8_o3_and_the_docs_drift",
@@ -197263,7 +197420,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7473",
+      "source_location": "L7475",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v61_extension_release_gotchas_learned_building_the_extension_s_signing_and_release_pipeline",
@@ -197273,7 +197430,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7537",
+      "source_location": "L7539",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v62_frontend_store_fixes_gotchas_learned_closing_f1_f11",
@@ -197283,7 +197440,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7587",
+      "source_location": "L7589",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v63_watch_jobs_gotchas_learned_building_watched_jobs_re_run_expansion_and_retry_failed",
@@ -197293,7 +197450,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7654",
+      "source_location": "L7656",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v64_job_export_gotchas_learned_building_the_streamed_zip_and_the_m3u",
@@ -197303,7 +197460,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7820",
+      "source_location": "L7822",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v65_pwa_share_target_gotchas_learned_building_the_installable_app_and_its_share_target",
@@ -197313,7 +197470,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7863",
+      "source_location": "L7865",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v66_personal_notifications_gotchas_learned_building_notifications_and_my_stats",
@@ -197323,7 +197480,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7914",
+      "source_location": "L7916",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v67_ui_debt_gotchas_learned_closing_u2_u14_and_auditing_the_v5_surfaces",
@@ -197333,7 +197490,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L7981",
+      "source_location": "L7983",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v68_log_virtualization_gotchas_learned_windowing_the_job_and_track_lists_u4",
@@ -197343,7 +197500,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L8069",
+      "source_location": "L8071",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v69_user_access_gotchas_learned_moving_the_login_allowlist_into_the_app",
@@ -197353,7 +197510,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L8124",
+      "source_location": "L8126",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v70_v5_hardening_gotchas_learned_closing_master_v5",
@@ -197363,7 +197520,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L8213",
+      "source_location": "L8215",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v71_upstream_login_gotchas_learned_moving_the_login_proxy_onto_upstream_v3_s_mfa",
@@ -197373,7 +197530,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L8350",
+      "source_location": "L8352",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v72_1_worker_boot_memory_gotchas_learned_from_the_2026_11_26_oom_loop",
@@ -197383,7 +197540,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "docs/GOTCHAS.md",
-      "source_location": "L8290",
+      "source_location": "L8292",
       "weight": 1.0,
       "source": "docs_gotchas_version_log",
       "target": "docs_gotchas_v72_upstream_identity_gotchas_learned_moving_is_admin_onto_the_upstream_s_issuperuser",
@@ -206429,5 +206586,5 @@
       "source_file": "docker-compose.yml"
     }
   ],
-  "built_at_commit": "cceaf9ae0bb95f5776b2956650789b4432d6bad7"
+  "built_at_commit": "56895832c1c73975e57458e7ba291920dc53d3f0"
 }

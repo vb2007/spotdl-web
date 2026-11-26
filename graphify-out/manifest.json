@@ -625,8 +625,8 @@
     "semantic_hash": ""
   },
   "docs/GOTCHAS.md": {
-    "mtime": 1795696796.8198068,
-    "ast_hash": "f3d96307c9770522423b3a44db9b7eed",
+    "mtime": 1795697315.7995808,
+    "ast_hash": "bf335f3eb10ae8ea1c9414da2eda002a",
     "semantic_hash": ""
   },
   "plan/master-v2/v14-audit-report.md": {
@@ -2520,8 +2520,8 @@
     "semantic_hash": ""
   },
   ".github/scripts/check_healthchecks.py": {
-    "mtime": 1795696789.0358474,
-    "ast_hash": "06f2cd7b7942ebaf77f90d22f1eade44",
+    "mtime": 1795698170.7872224,
+    "ast_hash": "bb8d5508d29f2e6c93817fcea72ea08b",
     "semantic_hash": ""
   },
   "plan/master-v6/v72.1-worker-boot-memory.md": {
