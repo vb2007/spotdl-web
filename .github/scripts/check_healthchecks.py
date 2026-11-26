@@ -24,31 +24,27 @@ import json
 import re
 import sys
 
-# Celery's own flags that import the app (-A/--app; click also reads APP and CELERY_APP from the
-# environment) or carry a URL into argv (-b/--broker, --result-backend).
-_LONG = ("--app", "--broker", "--result-backend")
-_SHORT = re.compile(r"-[A-Za-z]*[Ab][A-Za-z]*")  # -A, -b, and clusters such as -qA
-_ENV = ("APP=", "CELERY_APP=")
+# Deny by default: a healthcheck that mentions celery anywhere must be exactly this probe, an
+# app-less ping whose broker URL comes from the probe's own environment. Parsing shell for every way
+# to import the app or put a URL in argv (`-Aapp`, `-b$URL`, a subshell, `env VAR=…`) is an arms race;
+# a new probe shape fails here and is reviewed before this template grows.
+_SAFE_CELERY = re.compile(
+    r'CELERY_BROKER_URL="\$\$?REDIS_URL" celery inspect ping -d worker-[a-z]+@\$\$?HOSTNAME -t \d+ >/dev/null 2>&1'
+)
 
 
 def offending_flags(test: list[str] | str) -> list[str]:
-    """What a healthcheck `test` must not do, in the order found. The whole test is read as one
-    text, so a command nested in `sh -c` is checked too, and words split on shell separators even
-    when glued (`true;celery`)."""
-    text = test if isinstance(test, str) else " ".join(test)
+    """Why a healthcheck `test` is refused, or [] when it is fine."""
+    if isinstance(test, str):
+        kind, command = "CMD-SHELL", test
+    else:
+        kind, command = (test[0], " ".join(test[1:])) if test else ("", "")
     found = []
     # A rendered secret in any probe (e.g. a single-$ `${REDIS_URL}` that Compose filled in).
-    if re.search(r"rediss?://", text):
+    if re.search(r"rediss?://", command, re.IGNORECASE):
         found.append("a redis URL")
-    if re.search(r"(^|[\s/;&|'\"])celery([\s;&|'\"]|$)", text):
-        for word in re.split(r"[\s;&|'\"]+", text):
-            flag = word.split("=", 1)[0] + ("=" if "=" in word else "")
-            if word in _LONG or word.startswith(tuple(f + "=" for f in _LONG)):
-                found.append(word.split("=", 1)[0])
-            elif _SHORT.fullmatch(word):
-                found.append(word)
-            elif flag in _ENV:
-                found.append(flag)
+    if "celery" in command.lower() and not (kind == "CMD-SHELL" and _SAFE_CELERY.fullmatch(command)):
+        found.append("a celery probe other than the app-less template")
     return found
 
 
@@ -60,7 +56,7 @@ def main() -> int:
         if test and (flags := offending_flags(test)):
             bad.append(f"{name}: {', '.join(flags)}")
     if bad:
-        print("celery healthchecks must be app-less, with the broker URL in the probe's environment:")
+        print("healthchecks refused (see .github/scripts/check_healthchecks.py and docs/GOTCHAS.md, v72.1):")
         for line in bad:
             print(f"  {line}")
         return 1
@@ -69,22 +65,30 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    # Self-check of the parser: the old and new probes, and shapes that must not slip through.
-    assert offending_flags(["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d w@h -t 10"]) == ["-A"]
-    assert offending_flags(["CMD-SHELL", 'CELERY_BROKER_URL="$REDIS_URL" celery inspect ping -d w@h -t 10']) == []
-    assert offending_flags(["CMD-SHELL", 'CELERY_BROKER_URL="$$REDIS_URL" celery inspect ping -d w@$$HOSTNAME']) == []
-    assert offending_flags(["CMD-SHELL", 'celery -b "$REDIS_URL" inspect ping']) == ["-b"]
-    assert offending_flags(["CMD", "celery", "--app=x", "inspect", "ping"]) == ["--app"]
-    assert offending_flags(["CMD", "sh", "-c", "celery -A app inspect ping"]) == ["-A"]
-    assert offending_flags(["CMD-SHELL", "true;celery -qA x inspect ping"]) == ["-qA"]
-    assert offending_flags(["CMD-SHELL", "APP=app.tasks.celery_app celery inspect ping"]) == ["APP="]
-    assert offending_flags(["CMD-SHELL", "celery --result-backend redis://:pw@redis/0 inspect ping"]) == [
-        "a redis URL",
-        "--result-backend",
-    ]
-    assert offending_flags(["CMD-SHELL", 'CELERY_BROKER_URL="redis://:pw@redis:6379/0" celery inspect ping']) == [
-        "a redis URL"
-    ]
+    # Self-check: the shipped probe (raw and rendered) passes; the old probe and every shape a review
+    # found slipping past an earlier parser are refused.
+    ok = 'CELERY_BROKER_URL="$$REDIS_URL" celery inspect ping -d worker-meta@$$HOSTNAME -t 10 >/dev/null 2>&1'
+    assert offending_flags(["CMD-SHELL", ok]) == []
+    assert offending_flags(["CMD-SHELL", ok.replace("$$", "$")]) == []
     assert offending_flags(["CMD-SHELL", 'redis-cli --no-auth-warning -a "pw" ping | grep -q PONG']) == []
     assert offending_flags(["CMD-SHELL", "curl -fsS http://localhost:8000/api/health"]) == []
+    celery_only = ["a celery probe other than the app-less template"]
+    for bad in (
+        "celery -A app.tasks.celery_app inspect ping -d worker-meta@$HOSTNAME -t 10",
+        "celery -Aapp.tasks.celery_app inspect ping -d worker-meta@$HOSTNAME -t 10",
+        "(celery -A app inspect ping)",
+        "$(command -v celery) -A app inspect ping",
+        "`command -v celery` -A app inspect ping",
+        'celery -b"$REDIS_URL" inspect ping',
+        'env CELERY_BROKER_URL="$REDIS_URL" celery inspect ping -d worker-meta@$HOSTNAME -t 10',
+        "APP=app.tasks.celery_app celery inspect ping",
+        "python -m celery -A app inspect ping",
+        ok + "; celery -A app inspect ping",
+    ):
+        assert offending_flags(["CMD-SHELL", bad]) == celery_only, bad
+    assert offending_flags(["CMD", "sh", "-c", ok]) == celery_only
+    assert offending_flags(["CMD-SHELL", ok.replace('"$$REDIS_URL"', '"redis://:pw@redis:6379/0"')]) == [
+        "a redis URL",
+        *celery_only,
+    ]
     sys.exit(main())

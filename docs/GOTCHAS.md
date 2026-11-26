@@ -247,8 +247,8 @@ needed" claim — rather than silently deleted.
   RAM cap. A boot that passed yesterday proves nothing once swap filled since → *v72.1*
 - A healthcheck runs inside its container's memory limit, every 5 s during `start_period` until its
   first success (Docker's `start_interval` default), so it overlaps the boot: a `celery -A app…`
-  probe cost ~233 MiB there, an app-less one ~50. Keep the broker URL in the probe's environment, never argv
-  (CI's `check_healthchecks.py`) → *v72.1*
+  probe cost ~233 MiB there, an app-less one ~50. Keep the broker URL in the probe's environment, never argv;
+  CI's `check_healthchecks.py` accepts only the app-less template → *v72.1*
 - Reproducing a prod OOM locally needs the prod limit with **no swap** (`memswap_limit` = `mem_limit`),
   `cpus`, no dev reload wrapper, **and Matrix on**: the alert watchdog is a separate ~88 MiB
   process that only starts with alerts configured → *v72.1*
@@ -8377,12 +8377,22 @@ independently-found production bug from the same conversation)
   caught it in 20 of 22 scans; the real probe in 0). CI's compose-config job runs
   `.github/scripts/check_healthchecks.py` on both rendered projects. It also fails on any `redis://`
   in a rendered test: a single-`$` `${REDIS_URL}` is filled in by Compose from the root `.env` and
-  would put the password in argv and in `docker inspect`.
+  would put the password in argv and in `docker inspect`. `env CELERY_BROKER_URL=… celery …` would
+  too: `env`'s own argv carries the expanded URL before it execs celery.
 - **A local repro misses the watchdog by default.** Slots run with Matrix unconfigured, so the
   watchdog never starts and `main` peaked at 719 MiB, under the limit. The repro used a throwaway
   overlay (never committed) with a fake, unreachable homeserver (`http://127.0.0.1:9`, room
   `!repro:invalid`) to start it without any send reaching a room.
-- **Sandboxed shells can't see container processes.** A host-side `/proc` scan from the agent's
-  shell saw none of the container's processes (its own PID namespace), so it "found" nothing even for
-  a planted `-b` URL. Scan inside the container (`docker exec … grep -l … /proc/[0-9]*/cmdline`), with
-  a positive control, and never search for the literal string the `grep` itself carries.
+- **An argv scan needs a positive control.** Scan `/proc/[0-9]*/cmdline` while probes run, plant a
+  deliberate `celery -b "$REDIS_URL" …` and require it to be caught, and never search for a literal
+  that the scanning `grep`'s own argv carries (`redis:/[/]`, not `redis://`). One early host-side scan
+  here missed the planted URL and was wrong to read as "clean"; a later one from the same machine
+  caught it, as do in-container scans (`docker exec … grep -l …`).
+- **The CI guard is deny-by-default.** Review found a shell-parsing guard missing shape after shape
+  (`-Aapp`, `-b$URL`, a subshell, backticks, `env VAR=…`), so `check_healthchecks.py` now accepts a
+  healthcheck mentioning `celery` only if it is exactly the app-less template, and refuses any rendered
+  `redis://`. A new probe shape fails CI until the template is deliberately widened.
+- **Ledger memory still grows.** `reconcile_disk` holds two columns per row: about 1 MiB per 1,000
+  rows (+28 MiB at 23k, +112 at 110k, against +72 and +335 as ORM rows). A live review booted
+  worker-meta at 110k rows under 768m with no swap and the watchdog on, peak 660 MiB; roughly 200k
+  rows is where it gets tight (the `shortcut:` comment in `dedup.py`).

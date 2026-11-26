@@ -290,6 +290,8 @@ def reconcile_disk() -> None:
         # container's memory limit, and the ledger only grows. Both passes below need every row
         # (a root's sentinel is decided on all its files before anything under it is pruned), so
         # the result is held, as plain tuples.
+        # shortcut: held tuples still grow ~1 MiB per 1,000 rows (+28 MiB at 23k, +112 at 110k, about
+        # 200k rows before worker-meta's 768M is tight); stream two passes if the ledger nears that.
         rows = db.execute(select(DownloadedTrack.spotify_track_id, DownloadedTrack.file_path)).all()
         roots = managed_roots(db)
         db.commit()
@@ -348,6 +350,9 @@ def reconcile_disk() -> None:
                         DownloadedTrack.file_path == current,
                     )
                 ).rowcount
+                # Committed at once: the delete's row lock would otherwise block that track's
+                # record_download or a sweep's repoint for the rest of the pass.
+                db.commit()
         db.commit()
         for root, count in skipped.items():
             logger.error(

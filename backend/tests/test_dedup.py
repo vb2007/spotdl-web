@@ -703,6 +703,57 @@ def test_reconcile_disk_skips_a_row_deleted_after_the_read(db_session, monkeypat
     assert "reconcile_disk: checked 2 ledger rows, removed 1 with missing files" in caplog.messages
 
 
+def test_reconcile_disk_keeps_a_row_repointed_after_the_recheck(db_session, monkeypatch, tmp_path, caplog):
+    """v72.1: the delete matches the path reconcile just checked, not the key alone. A sweep repoint
+    that lands after the re-read (between the second `exists()` and the DELETE) keeps its row."""
+    from sqlalchemy import update
+
+    monkeypatch.setattr(dedup, "SessionLocal", lambda: _NonClosingSession(db_session))
+    downloads_dir = _mount(tmp_path / "downloads")
+    monkeypatch.setattr(dedup, "get_settings", lambda: _FakeSettings(str(downloads_dir)))
+    library_dir = _mount(tmp_path / "library")
+    (library_dir / "Artist").mkdir(parents=True)
+    _set_library(db_session, library_dir)
+    db_session.add(
+        DownloadedTrack(
+            spotify_track_id="late-move-id",
+            file_path=str(downloads_dir / "song.mp3"),
+            format="mp3",
+            bitrate="320k",
+        )
+    )
+    db_session.commit()
+    dest = library_dir / "Artist" / "song.mp3"
+    dest.write_text("audio")
+    checks = 0
+
+    class _SweepLandsLate(type(dedup.Path())):
+        def exists(self):
+            nonlocal checks
+            if str(self) == str(downloads_dir / "song.mp3"):
+                checks += 1
+                if checks == 2:  # the re-check of the re-read path: the repoint commits now
+                    db_session.execute(
+                        update(DownloadedTrack)
+                        .where(DownloadedTrack.spotify_track_id == "late-move-id")
+                        .values(file_path=str(dest), in_library=True)
+                        .execution_options(synchronize_session=False)
+                    )
+                return False
+            return super().exists()
+
+    monkeypatch.setattr(dedup, "Path", _SweepLandsLate)
+
+    with caplog.at_level(logging.INFO, logger="app.services.dedup"):
+        dedup.reconcile_disk()
+
+    assert checks == 2
+    row = db_session.get(DownloadedTrack, "late-move-id")
+    assert row is not None
+    assert row.file_path == str(dest)
+    assert "reconcile_disk: checked 1 ledger rows, removed 0 with missing files" in caplog.messages
+
+
 def test_record_download_upserts_the_row_as_not_yet_filed(db_session, tmp_path):
     """worker-dl's upsert (v57, L3, moved here from download_track): in_library is reset, so a
     re-downloaded library file is swept again (v48)."""
