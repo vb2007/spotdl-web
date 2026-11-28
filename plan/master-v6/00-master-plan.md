@@ -299,3 +299,26 @@ here, including new upstream changes that need spotdl work.
 - **Any deploy before v72.1 ships hits the same loop**, rollbacks included. v73 waits for it.
 - The host's memory (the Elasticsearch heap, swap) is the owner's, not the slice's. The fix must
   hold with no swap.
+
+### 2026-11-28 (v72.1, owner-merged)
+
+The owner merged #109 with these deviations from the v72.1 plan, as listed in its PR body.
+
+- **The repro adds the alert watchdog.** The plan's boot breakdown missed it: production has Matrix
+  configured, so `worker-meta` also runs `app.services.alert_watchdog` (~88 MiB). Without it `main`
+  peaked at 719 MiB and didn't reproduce. The agent went past the plan's "stop and report" gate and
+  gave the repro a fake, unreachable homeserver (`http://127.0.0.1:9`, nothing sent): `main` then
+  looped like production (every probe exit 137, 7 OOM kills in 180 s), and the branch peaked at
+  ~571 MiB with none, three runs of three restarts. The repro ran the locally built image with the
+  code mounted, not the GHCR one.
+- **`reconcile_disk` doesn't stream with `yield_per`.** Both of its passes need every row, so it holds
+  `(spotify_track_id, file_path)` tuples instead of ORM rows: +72 → +28 MiB at 23k rows, +335 → +112
+  at 110k. It still grows with the ledger (tight near ~200k rows; a `shortcut:` comment says so).
+- **A prune deletes on `(spotify_track_id, file_path)`**, the path it just re-checked, so a row
+  repointed by a concurrent move survives (`test_reconcile_disk_keeps_a_row_repointed_after_the_recheck`
+  fails on the old code).
+- **The probe guard is a CI script, not a pytest** (`.github/scripts/check_healthchecks.py`, in the
+  `compose-config` job over the rendered dev and prod configs). It is deny-by-default: a celery
+  probe must be exactly the app-less template, any rendered `redis://` is refused, and so is any
+  celery CLI default (`APP`, `BROKER_URL`, …, every `CELERY_*`) in a probed service's environment.
+  Its docstring lists what it can't see.
