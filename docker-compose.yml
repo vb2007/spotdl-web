@@ -124,13 +124,19 @@ services:
     healthcheck:
       # `inspect ping` is answered by the worker's MainProcess control loop, not the
       # (possibly busy, --concurrency=1) prefork child, so this responds promptly even
-      # mid-download. It's still real work (a fresh interpreter importing app.tasks.*,
-      # which transitively drags in spotdl/yt-dlp) — a long interval and generous
-      # start_period keep that cost rare rather than paid every few seconds forever. The
-      # node name must match the `-n worker-dl@%h` above; $$HOSTNAME (escaped, so Compose
-      # leaves it for the container's shell to expand, not the host's) matches Celery's
-      # %h substitution since Docker sets $HOSTNAME to the same container hostname.
-      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d worker-dl@$$HOSTNAME -t 10 >/dev/null 2>&1"]
+      # mid-download. The node name must match the `-n worker-dl@%h` above; $$HOSTNAME
+      # (escaped, so Compose leaves it for the container's shell to expand, not the host's)
+      # matches Celery's %h substitution since Docker sets $HOSTNAME to the same container
+      # hostname.
+      # v72.1: app-less (no `-A`). The probe runs inside this container's memory limit, every
+      # 5 s during start_period until its first success (Docker's start_interval default), so
+      # it overlaps the boot: importing the app cost ~233 MiB per probe against ~47 broker-only, and with the
+      # alert watchdog and reconcile_disk it pushed worker-meta's boot past its 768M limit once
+      # the host's swap was full
+      # (docs/GOTCHAS.md, v72.1). Celery reads CELERY_BROKER_URL for an app-less call; the
+      # URL carries the Redis password, so it goes in the probe's environment, never in
+      # argv (`-b` would show it in `ps` on the host).
+      test: ["CMD-SHELL", "CELERY_BROKER_URL=\"$$REDIS_URL\" celery inspect ping -d worker-dl@$$HOSTNAME -t 10 >/dev/null 2>&1"]
       interval: 120s
       timeout: 30s
       retries: 3
@@ -176,7 +182,7 @@ services:
       RUN_ALERT_WATCHDOG: "true"
     healthcheck:
       # Same reasoning as worker-dl's healthcheck above.
-      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d worker-meta@$$HOSTNAME -t 10 >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "CELERY_BROKER_URL=\"$$REDIS_URL\" celery inspect ping -d worker-meta@$$HOSTNAME -t 10 >/dev/null 2>&1"]
       interval: 120s
       timeout: 30s
       retries: 3
@@ -217,7 +223,7 @@ services:
     stop_grace_period: 300s
     healthcheck:
       # Same reasoning as worker-dl's healthcheck above.
-      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d worker-expand@$$HOSTNAME -t 10 >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "CELERY_BROKER_URL=\"$$REDIS_URL\" celery inspect ping -d worker-expand@$$HOSTNAME -t 10 >/dev/null 2>&1"]
       interval: 120s
       timeout: 30s
       retries: 3

@@ -354,6 +354,31 @@ Lines from that json-file era weren't migrated and are gone. Local dev keeps jso
   one budget. This stack writes a few thousand lines a day; a dropped burst shows up in the
   journal as "Suppressed N messages from docker.service".
 
+### Memory limits (v72.1)
+
+`docker-compose.prod.yml` caps every long-running service (the one-shot `migrate` has no limit).
+Docker gives each capped container a swap allowance equal to its limit by default, but **the limits are sized to fit without swap**: this host's swap
+fills (975/975 MiB on 2026-11-26), and then each limit is a hard RAM cap. Before v72.1,
+`worker-meta`'s boot peaked at 827 MiB against 768M and only fit while swap had room. On
+2026-11-26 it OOM-looped through a deploy and its rollback (docs/GOTCHAS.md, v72.1).
+
+- **Spot an OOM loop:** a container whose `RestartCount` keeps climbing, with `oom` events:
+  ```bash
+  docker inspect -f 'restarts={{.RestartCount}} health={{.State.Health.Status}}' spotdl-web-worker-meta-1
+  docker events --since 30m --until "$(date +%s)" --filter container=spotdl-web-worker-meta-1 --filter event=oom
+  ```
+- **Read a container's real peak** (the cgroup's high-water mark since it started; cgroup v2):
+  ```bash
+  C=$(docker inspect -f '{{.Id}}' spotdl-web-worker-meta-1)
+  cat /sys/fs/cgroup/system.slice/docker-$C.scope/memory.peak   # bytes
+  ```
+  Expect about 570–620 MiB for `worker-meta` since v72.1, and about 220 MiB for `beat`.
+- **Stopgap for a loop** (a rollback target older than `6.72.1` still has the heavy probe): raise
+  the running container's limit in place. It lasts until the next recreate, a deploy included:
+  ```bash
+  docker update --memory 2g --memory-swap 2g spotdl-web-worker-meta-1
+  ```
+
 ---
 
 ## Rollback / recovery (v21, v33)
@@ -1040,7 +1065,7 @@ Vaultwarden) that can't be rebooted just to verify this app's restart survival.
 | `api`/`worker-dl`/`worker-meta` crash-loop with `PermissionError: [Errno 13] Permission denied: '/home/spotdl'` | Rebuilt the backend image without `--create-home` (v12's non-root user needs a real home directory — `import spotdl` creates a `~/.spotdl` cache dir at *import time*) | Confirm `backend/Dockerfile`'s `useradd` line has `--create-home`, not `--no-create-home`; rebuild |
 | `worker-dl`/`worker-meta` permission-denied writing to `/downloads` | `DOWNLOADS_DIR` on the host isn't owned by uid/gid 1000 (or whatever `APP_UID`/`APP_GID` the image was built with) | `sudo chown -R 1000:1000 <DOWNLOADS_DIR>` |
 | A library sort & move sweep (v28) fails every row with a permission error | `LIBRARY_DIR` isn't owned by uid/gid 1000 the same way `DOWNLOADS_DIR` needs to be | `sudo chown -R 1000:1000 <LIBRARY_DIR>` |
-| `worker-dl`/`worker-meta`/`worker-expand` show permanently `unhealthy` right after a deploy | Healthcheck's `start_period` (90s) hasn't elapsed yet — a fresh `celery inspect ping` pays a real cold-import cost | Wait it out; only worth investigating past ~2 minutes |
+| `worker-dl`/`worker-meta`/`worker-expand` show permanently `unhealthy` right after a deploy | Healthcheck's `start_period` (90s) hasn't elapsed yet — the worker itself is still booting (imports, `reconcile_disk` on `worker-meta`); the probe has been app-less since v72.1 | Wait it out; only worth investigating past ~2 minutes |
 | A healthcheck referencing `$HOSTNAME` never passes | Compose interpolates `$VAR` in the compose file itself before the container sees it — needs `$$HOSTNAME` (escaped) so the container's shell expands it instead | Check `docker-compose.yml`'s worker healthchecks use `$$HOSTNAME`, not `$HOSTNAME` |
 | `GET /login` (or any non-`/` route) returns 404 through the tunnel | Stock nginx has no route for an extensionless path to a prerendered `.html` file | Confirm `frontend/nginx.conf`'s explicit `location = /login { try_files /login.html =404; }` block is actually in the built image (`docker compose exec web cat /etc/nginx/conf.d/default.conf`) |
 | `docker compose` command not found | compose plugin missing | re-run the one-time setup's step 4 |

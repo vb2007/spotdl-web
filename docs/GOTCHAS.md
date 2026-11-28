@@ -124,6 +124,9 @@ needed" claim — rather than silently deleted.
   once resolved to an unambiguous commit SHA → *v21*
 - A service with no explicit Celery `--concurrency` defaults to `os.cpu_count()` prefork
   children — reliably OOMs a heavy-dependency worker on a resource-limited container → *v21*
+  *(2026-11-26: the boot has grown since, notably v36's ~88 MiB watchdog process and a 23k-row
+  ledger. By 2026-11-26 it peaked at 827 MiB against 768M and fit only while the host's swap had
+  room; with swap full it OOM-looped again, see v72.1.)*
 - A hardcoded absolute path in a script/doc is a claim about the real host's layout — verify it
   against the host, since a stray `mkdir -p` into a "normal-looking" path (e.g. `/srv`) is easy
   to miss and can land on the wrong disk entirely → *v21*
@@ -239,6 +242,16 @@ needed" claim — rather than silently deleted.
   for `node_modules` (reinstalled when `package-lock.json` changes), the compiled messages and
   `.svelte-kit`; `up -d` doesn't restart an unchanged container, so a lockfile change needs
   `docker compose restart web` → *v52*
+- A prod memory limit only holds while the host's swap has room: Docker gives every limited
+  container a swap allowance equal to its limit by default, and a full host swap turns the limit into a hard
+  RAM cap. A boot that passed yesterday proves nothing once swap filled since → *v72.1*
+- A healthcheck runs inside its container's memory limit, every 5 s during `start_period` until its
+  first success (Docker's `start_interval` default), so it overlaps the boot: a `celery -A app…`
+  probe cost ~233 MiB there, an app-less one ~50. Keep the broker URL in the probe's environment, never argv;
+  CI's `check_healthchecks.py` accepts only the app-less template → *v72.1*
+- Reproducing a prod OOM locally needs the prod limit with **no swap** (`memswap_limit` = `mem_limit`),
+  `cpus`, no dev reload wrapper, **and Matrix on**: the alert watchdog is a separate ~88 MiB
+  process that only starts with alerts configured → *v72.1*
 
 **Auth, cookies & sessions**
 - A removal deletes the user's sessions, but a login that read the allowlist just before it would
@@ -2621,7 +2634,10 @@ so it never has to be re-derived. Re-verify before relying on it if the dependen
 - **`celery inspect ping` is real, non-trivial work — a fresh interpreter importing
   `app.tasks.*`, which transitively drags in spotdl/yt-dlp — and must not be run every
   few seconds forever as a healthcheck.** `worker-dl`/`worker-meta`'s healthchecks use a
-  120s interval and 90s `start_period` specifically to keep this cost rare. It does
+  120s interval and 90s `start_period` specifically to keep this cost rare
+  *(2026-11-26, v72.1: no longer true on either count. Docker's 5 s `start_interval` default runs
+  the probe every 5 s during `start_period`, so it overlapped every boot, and the app import cost
+  ~233 MiB inside the worker's limit; the probes are app-less since v72.1, ~55 MiB)*. It does
   respond promptly even mid-download despite `--concurrency=1`, since control/pidbox
   messages are handled by the worker's MainProcess consumer loop, not the (possibly busy)
   prefork child. `beat` deliberately has **no** healthcheck at all — it's a single
@@ -3628,6 +3644,10 @@ automated deploy-to-host)
   A pre-existing bug outside this slice's stated scope became in-scope the moment it started
   blocking the very thing being built — worth remembering next time a "flag for later" item
   turns out to sit on the critical path.
+  *(2026-11-26: `--concurrency=2` brought the boot under 768M then. The boot grew afterwards
+  (v36's alert watchdog is a separate ~88 MiB process, and the ledger reached 23k rows), and v72.1
+  measured it at 827 MiB, fitting only while swap had room. It fixed the healthcheck probe and
+  `reconcile_disk` instead of raising the limit.)*
 - **A "reasonable-looking" hardcoded default path can be silently wrong for the real host, and
   nothing will tell you until it's already created something** — `scripts/pg_backup.sh`'s
   original default (`/srv/spotdl-web/backups`, inherited from this doc's own original,
@@ -8331,3 +8351,56 @@ independently-found production bug from the same conversation)
   `$lib/vb2007.ts`'s `VB2007_SITE`, and its three paths (`/account`, `/register`,
   `/reset-password`) are `vb2007.hu-vue`'s router routes (the SPA answers 200 for any path, so a
   `curl` proves nothing).
+
+### v72.1 worker-boot-memory gotchas (learned from the 2026-11-26 OOM loop)
+
+- **The incident.** The `6.72.0` deploy failed its health wait: `worker-meta` was OOM-killed about
+  every 20 s (183 restarts, Docker events `oom` then `die 137`), and the rollback to `6.71.0` looped
+  the same way. Beat's `dispatch_due_tracks` runs there, so no download was dispatched for 76
+  minutes, until `docker update --memory 2g --memory-swap 2g spotdl-web-worker-meta-1` (it lasts
+  until the next recreate). `6.71.0` had booted fine the day before: the difference was the host's
+  swap, full (975/975 MiB) by then.
+- **Limits are swap-backed.** With `deploy.resources.limits.memory` and no swap limit set, Docker
+  gives a container a swap allowance equal to the limit (`HostConfig.MemorySwap` = 2× `Memory`). With the host's swap full the
+  allowance is empty and the limit is a hard RAM cap. Size limits for a boot **without** swap, and
+  read the real peak from the cgroup (`memory.peak`, see `docs/DEPLOYMENT.md`).
+- **What a `worker-meta` boot costs** (23,049 ledger rows, production's count): the main process and
+  two prefork children, plus the alert watchdog (`python -m app.services.alert_watchdog`, ~88 MiB,
+  only with Matrix configured), plus `reconcile_disk` (+72 MiB as ORM rows, +28 as two columns,
+  measured in the worker container; the plan's +83 was a host-venv measurement), plus the healthcheck
+  probe. With `celery -A app.tasks.celery_app inspect ping` that probe was 233 MiB; it runs every 5 s
+  during the 90 s `start_period` until its first success, so it always overlapped the boot. Measured on slot 5 under
+  768m with no swap and one CPU: `main` OOM-looped (7 OOM events per 180 s, every probe exit 137,
+  exactly production's health log); v72.1 peaked at 570–572 MiB over three recreates.
+- **The app-less probe.** `CELERY_BROKER_URL="$$REDIS_URL" celery inspect ping -d <name>@$$HOSTNAME`
+  answers the same `pong` (exit 0) and exits 69 for a name that isn't online, at ~50 MiB (47 in a host
+  venv, 55 in the worker container). Celery reads
+  `CELERY_BROKER_URL` when no app is given. A `VAR=value` prefix in the probe's shell never reaches
+  argv; `-b "$$REDIS_URL"` would put the Redis password in `ps` (an in-container `/proc/*/cmdline` scan
+  caught it in 20 of 22 scans; the real probe in 0). CI's compose-config job runs
+  `.github/scripts/check_healthchecks.py` on both rendered projects. It also fails on any `redis://`
+  in a rendered test: a single-`$` `${REDIS_URL}` is filled in by Compose from the root `.env` and
+  would put the password in argv and in `docker inspect`. `env CELERY_BROKER_URL=… celery …` would
+  too: `env`'s own argv carries the expanded URL before it execs celery.
+- **A local repro misses the watchdog by default.** Slots run with Matrix unconfigured, so the
+  watchdog never starts and `main` peaked at 719 MiB, under the limit. The repro used a throwaway
+  overlay (never committed) with a fake, unreachable homeserver (`http://127.0.0.1:9`, room
+  `!repro:invalid`) to start it without any send reaching a room.
+- **An argv scan needs a positive control.** Scan `/proc/[0-9]*/cmdline` while probes run, plant a
+  deliberate `celery -b "$REDIS_URL" …` and require it to be caught, and never search for a literal
+  that the scanning `grep`'s own argv carries (`redis:/[/]`, not `redis://`). One early host-side scan
+  here missed the planted URL and was wrong to read as "clean"; a later one from the same machine
+  caught it, as do in-container scans (`docker exec … grep -l …`).
+- **The CI guard is deny-by-default.** Review found a shell-parsing guard missing shape after shape
+  (`-Aapp`, `-b$URL`, a subshell, backticks, `env VAR=…`), so `check_healthchecks.py` now accepts a
+  healthcheck mentioning `celery` only if it is exactly the app-less template, and refuses any rendered
+  `redis://`. A new probe shape fails CI until the template is deliberately widened. The template
+  alone isn't enough: celery's CLI reads `APP`, `BROKER_URL`, `RESULT_BACKEND`, `LOADER`,
+  `CONFIG_MODULE` and every option as `CELERY_<OPTION>` (`CELERY_CONFIG` included, which a name list
+  missed), and `CONFIG_MODULE=app.tasks.celery_app` made the exact template import the app again
+  (235 MiB). The guard refuses those five and every `CELERY_*` name on a probed service. It can't
+  see a Dockerfile `ENV` or the host's real `.env`, and it doesn't stop deliberate obfuscation.
+- **Ledger memory still grows.** `reconcile_disk` holds two columns per row: about 1 MiB per 1,000
+  rows (+28 MiB at 23k, +112 at 110k, against +72 and +335 as ORM rows). A live review booted
+  worker-meta at 110k rows under 768m with no swap and the watchdog on, peak 660 MiB; roughly 200k
+  rows is where it gets tight (the `shortcut:` comment in `dedup.py`).
